@@ -1,0 +1,66 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" DefaultTargets="Build">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{2a3167fa-4c3f-4625-871e-9e654346c8df}</ProjectGuid>
+    <ProjectHome />
+    <StartupFile>liveprinter\LivePrinterServer.py</StartupFile>
+    <SearchPath />
+    <WorkingDirectory>.</WorkingDirectory>
+    <OutputPath>.</OutputPath>
+    <ProjectTypeGuids>{888888a0-9f3d-457c-b088-3a5042f75d52}</ProjectTypeGuids>
+    <LaunchProvider>Standard Python launcher</LaunchProvider>
+    <InterpreterId>Global|PythonCore|3.6</InterpreterId>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'" />
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'" />
+  <PropertyGroup>
+    <VisualStudioVersion Condition=" '$(VisualStudioVersion)' == '' ">10.0</VisualStudioVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="liveprinter\AutoDetectBaudJob.py" />
+    <Compile Include="liveprinter\avr_isp\chipDB.py" />
+    <Compile Include="liveprinter\avr_isp\intelHex.py" />
+    <Compile Include="liveprinter\avr_isp\ispBase.py" />
+    <Compile Include="liveprinter\avr_isp\stk500v2.py" />
+    <Compile Include="liveprinter\avr_isp\__init__.py" />
+    <Compile Include="liveprinter\dummyserial\classes.py" />
+    <Compile Include="liveprinter\dummyserial\constants.py" />
+    <Compile Include="liveprinter\dummyserial\exceptions.py" />
+    <Compile Include="liveprinter\dummyserial\__init__.py" />
+    <Compile Include="liveprinter\LivePrinterServer.py" />
+    <Compile Include="liveprinter\tornado_test.py" />
+    <Compile Include="liveprinter\UM\Decorators.py" />
+    <Compile Include="liveprinter\UM\Event.py" />
+    <Compile Include="liveprinter\UM\FlameProfiler.py" />
+    <Compile Include="liveprinter\UM\Job.py" />
+    <Compile Include="liveprinter\UM\JobQueue.py" />
+    <Compile Include="liveprinter\UM\Logger.py" />
+    <Compile Include="liveprinter\UM\OutputDevice.py" />
+    <Compile Include="liveprinter\UM\Platform.py" />
+    <Compile Include="liveprinter\UM\PluginObject.py" />
+    <Compile Include="liveprinter\UM\Signal.py" />
+    <Compile Include="liveprinter\UM\__init__.py" />
+    <Compile Include="liveprinter\USBPrinterOutputDevice.py" />
+    <Compile Include="liveprinter\WebSocketHandler.py" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="liveprinter\static\liveprinter.css" />
+    <Content Include="liveprinter\static\liveprinter.js" />
+    <Content Include="liveprinter\templates\index.html" />
+    <Content Include="liveprinter\templates\message.html" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="liveprinter" />
+    <Folder Include="liveprinter\avr_isp" />
+    <Folder Include="liveprinter\dummyserial" />
+    <Folder Include="liveprinter\static" />
+    <Folder Include="liveprinter\templates" />
+    <Folder Include="liveprinter\UM" />
+  </ItemGroup>
+  <ItemGroup>
+    <InterpreterReference Include="Global|PythonCore|3.6" />
+  </ItemGroup>
+  <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
+</Project>

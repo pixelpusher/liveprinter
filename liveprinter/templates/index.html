@@ -1,0 +1,38 @@
+﻿<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>Livecoding G Code Test Form</title>
+    <link rel="stylesheet" href="{{ static_url("liveprinter.css") }}" type="text/css">
+  </head>
+  <body>
+    <div id="body">
+      <div id="inbox">
+        {% for message in messages %}
+          {% include "message.html" %}
+        {% end %}
+      </div>
+      <div id="input">
+        <form action="/a/message/new" method="post" id="gcodeform">
+          <table>
+            <tr>
+                <td>
+                    <textarea id="gcode_input" name="gcode" placeholder="" style="width:500px"></textarea>
+                    <!-- <input name="gcode" id="gcode_input" style="width:500px">-->
+                </td>
+              <td style="padding-left:5px">
+                  <!-- -->
+                <input type="submit" value="{{ _("Post") }}" accesskey="s">
+                <input type="hidden" name="next" value="{{ request.path }}">
+                {% module xsrf_form_html() %}
+              </td>
+            </tr>
+            <tr><td><p>For example, in Firefox for Mac, pressing <kbd>Control</kbd>-<kbd>Option</kbd>-<kbd>S</kbd> triggers the Send button, while Chrome on Windows uses <kbd>Alt</kbd>+<kbd>S</kbd>.</p></td></tr>  
+          </table>
+        </form>
+      </div>
+    </div>
+    <script src="http://ajax.googleapis.com/ajax/libs/jquery/3.1.0/jquery.min.js" type="text/javascript"></script>
+    <script src="{{ static_url("liveprinter.js") }}" type="text/javascript"></script>
+  </body>
+</html>
