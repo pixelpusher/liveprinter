@@ -121,7 +121,8 @@ class USBPrinter(OutputDevice):
         self._paused = False
 
         for layer in gcode_list:
-            self._gcode.extend(layer.split("\n"))
+            # Logger.log('i', 'adding gcode: {}'.format(layer))
+            self._gcode.extend(layer.splitlines())
 
         # Reset line number. If this is not done, first line is sometimes ignored
         self._gcode.insert(0, "M110")

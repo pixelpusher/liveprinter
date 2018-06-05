@@ -30,7 +30,6 @@ define('debug', default=True, help='Run in debug mode')
 
 
 
-
 def list_ports():
     choice_port = []
     ports = []
@@ -42,60 +41,6 @@ def list_ports():
                 print("%d: %s" % (n,portname))
     return ports[0]
 
-## Wrap the autocomplete functions to modify the "text" parameter.
-#  The text parameter is normally the last "parameter" given to a function, this means it is split on spaces and quotes.
-#  We want the full parameter list, as a single string.
-#  As the result from the autocomplete functions needs to match this original parameter, and not the full string we need to do some mangling on input and output.
-def autocompleteFullParameters(func):
-    @functools.wraps(func)
-    def f(self, text, line, begidx, endidx):
-        full_begin_index = line.find(" ") + 1
-        full_text = line[full_begin_index:endidx]
-        output = func(self, full_text)
-        output = [n[begidx - full_begin_index:] for n in output]
-        return output
-    return f
-
-
-class LivePrinterServer(Cmd):
-
-    def __init__(self, printer: USBPrinter):
-        Cmd.__init__(self)
-        self.serialPort = None
-        self._printer = printer
-        self._commands = []
-
-    @autocompleteFullParameters
-    def complete_select(self, text):
-        return self.__completeFromList(text, self.__SERVICES)
- 
-    def do_send(self, args):
-        self._printer.sendCommand(args)
-    
-    def do_queue(self, args):
-        self._commands.append(args)
-
-    def do_sendqueue(self, args):
-        # send a shallow copy of commands
-        self._printer.startGCodeList(self._commands)
-        self._commands.clear()
-
-    def do_getQueueSize(self, args):
-        Logger.log("w", "{}".format(self._printer.getQueueSize()))
-
-    def do_quit(self, args):
-        self._printer.close()
-        '''quit the shell'''
-        raise SystemExit
-
-    def __completeFromList(self, text, items):
-        results = []
-        for service in items:
-            if service.startswith(text):
-                results.append(service)
-        return results
-
-
 
 class MainHandler(tornado.web.RequestHandler):
     def get(self):
@@ -106,6 +51,8 @@ class MainHandler(tornado.web.RequestHandler):
 
 ##
 # Websockets stuff
+# This should be a JSON-RPC form - http://www.jsonrpc.org/specification#request_object
+# or 
 #
 def broadcast_message(message):
     '''
@@ -126,27 +73,39 @@ def process_printer_reponses(printer:USBPrinter):
             if response == False:
                 break
             else:
+                message = {
+
+                    }
                 broadcast_message("{}".format(response.toString()))
 
-        ## 
-# get json gcode from json-rpc dispatcher and 
+## 
+# get json gcode (as a list of strings) from json-rpc dispatcher and 
 # sent to the printer to be executed.
 # returns a json string to be sent to front-end websockets clients
-#
-#expects:
+# see http://www.jsonrpc.org/specification#request_object
+# expects:
     #message = {
     #    'jsonrpc': '2.0',
-    #    'id': 1,
+    #    'id': 1, 
     #    'method': 'gcode',
-    #    'params': **multiline gcode**,
+    #    'params': [list of multiline gcode],
     #    }
     #};
 #
-# returns:
+# returns for broadcast to ALL clients (see http://www.jsonrpc.org/specification#response_object):
+#
 # message = {
+#    'jsonrpc': '2.0',
 #    'id': **uuid**,
-#   'gcode': {
-#       'html': **multiline gcode to display on front end**,
+#    'result': {    ## only include this field if the response was successful
+#       'gcode': *optional* [list of multiline gcode]
+#       'html': [list of HTML-formatted G-Code received by the server for broadcast to clients],
+#       }
+#    'error': {  ## only include this field if an error occurred
+#       'code': 1,  ## TODO: error codes 
+#       'message': ERROR STRING IF THERE WAS AN ERROR', 
+#       'data': *optional* but might have {'html': *html formatted code*} field ,
+#       }
 #    }
 # }
 # 
@@ -155,25 +114,27 @@ def process_printer_reponses(printer:USBPrinter):
 def json_handle_gcode(params, printer:USBPrinter):
 
     command_list = []
+    result = {}
 
     try: 
         command_list = params.splitlines()
+        Logger.log('i', "split lines: {}".format(command_list))
     except:
         # probably a list?
+        Logger.log('i', "treating {} as list".format(params))
         for line in params:
-            command_list.append(line.splitlines())
+            command_list.append(line.rstrip())
     
     try:
         printer.startGCodeList(command_list)
+        result['gcode'] = command_list
+
     except Exception as e:
-        Logger.log("e", "could not send commands to the printer {} : {}".format(repr(e),str(command_list)))
-
-    clients_response = {
-            'id': str(uuid.uuid4()),
-            'gcode': command_list,
-        };
-
-    return clients_response;
+        # TODO: fix this to be a real error type so it gets sent to the clients properly
+       raise ValueError("could not send commands to the printer {} : {}".format(repr(e),str(command_list)))
+       Logger.log("e", "could not send commands to the printer {} : {}".format(repr(e),str(command_list)))
+    
+    return result;
 
 
 
@@ -205,8 +166,6 @@ if __name__ == '__main__':
 
     printer = USBPrinter(serialport, 250000, serial_obj)
     printer.connect()
-
-    printer_server = LivePrinterServer(printer)
     
     # set up mappings for JSONRPC
     dispatcher.add_dict({"gcode": lambda msg: json_handle_gcode(msg, printer)})
@@ -237,11 +196,7 @@ if __name__ == '__main__':
     # TODO: ioloop for watchdog
     #main_loop.start()
 
-    printer_server.prompt = 'liveprint> '
-    
-    printer_server.cmdloop('starting...')
-    
-
+  
     # Create event loop and periodic callbacks
     # PeriodicCallback(lambda: process_printer_reponses(printer), 50).start()
     
