@@ -2,7 +2,9 @@
 name: liveprinter
 url: "https://pixelpusher.github.io/liveprinter/"
 exclude: [.gitignore, LICENCE, CNAME]
-theme: minimal
+theme: jekyll-theme-minimal
 
 # build settings
+title: "LivePrinter: Live Computational Making"
+description: "LivePrinter: Live Computational Making"
 permalink: pretty
