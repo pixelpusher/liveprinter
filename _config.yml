@@ -2,7 +2,7 @@
 name: liveprinter
 url: "https://pixelpusher.github.io/liveprinter/"
 exclude: [.gitignore, LICENCE, CNAME]
-theme: Minimal
+theme: minimal
 
 # build settings
 permalink: pretty
