@@ -1,1 +1,8 @@
-theme: jekyll-theme-minimal
+# Jekyll config
+name: liveprinter
+url: "https://pixelpusher.github.io/liveprinter/"
+exclude: [.gitignore, LICENCE, CNAME]
+theme: Minimal
+
+# build settings
+permalink: pretty
