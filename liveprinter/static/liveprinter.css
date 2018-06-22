@@ -14,9 +14,21 @@
  * under the License.
  */
 
+@media only screen and (min-width: 40em) {
+    html {
+        font-size: 1em
+    }
+}
+
+@media only screen and (min-width: 50em) {
+    html {
+        font-size: 1.15em
+    }
+}
+
 body {
   background: white;
-  margin: 10px;
+  margin: 0.71em;
 }
 
 body,
@@ -36,23 +48,30 @@ td {
   padding: 0;
 }
 
-#body {
-  position: absolute;
-  bottom: 10px;
-  left: 10px;
-}
-
-#input {
-  margin-top: 0.5em;
-}
-
-#inbox .message {
-  padding-top: 0.25em;
+#input, #inbox {
+    margin-top: 0.5em;
 }
 
 #nav {
   float: right;
   z-index: 99;
+}
+
+#inbox {
+    background: #0166FF;
+    color: #01FFB4;
+}
+
+#buttons > * {
+    text-align: left;
+}
+
+.gcode {
+    padding-top: 0.25em;
+    border: 2px solid black;
+    border-radius: 0.2em;
+    box-shadow: 0 1px 1px rgba(0,0,0,.2),0 2px 0 0 rgba(255,255,255,.7) none;
+    padding: 0.71em;
 }
 
 kbd {
@@ -69,3 +88,162 @@ kbd {
     padding: 2px 4px;
     white-space: nowrap;
 }
+
+.intro {
+    background: #FF4377;
+    background-image: initial;
+    background-position-x: initial;
+    background-position-y: initial;
+    background-size: initial;
+    background-repeat-x: initial;
+    background-repeat-y: initial;
+    background-attachment: initial;
+    background-origin: initial;
+    background-clip: initial;
+    background-color: rgb(255, 67, 119);
+    color: #FFFF57;
+}
+
+.lines {
+    height: 99%;
+    width: 100%;
+    top: -48%;
+    position: fixed;
+    transform: skewY(45deg);
+    z-index: -10;
+    -webkit-backface-visibility: hidden;
+    background-image: repeating-linear-gradient(transparent, transparent 18px, #0166FF 18.1px, #0166FF 25px);
+}
+
+.box {
+    position: relative;
+    padding: 1em;
+    min-width: 8em;
+    border: 8px solid black;
+}
+
+.box > *:first-child {
+    margin-top: 0
+}
+
+.panel-r {
+    position: absolute;
+    top: 12px;
+    left: calc(100% + 8px);
+    z-index: 1;
+    overflow: hidden;
+    margin-top: 0;
+    width: 40px;
+    height: calc(100% + 17px);
+    border: 8px solid #000;
+    border-top-width: 12px;
+    border-left: 0;
+    border-bottom-right-radius: 2px;
+    content: "";
+    transform: skewY(45deg)
+}
+
+    .panel-r::after {
+        position: absolute;
+        top: -16px;
+        right: 0;
+        bottom: -16px;
+        left: 0;
+        content: "";
+        transform: skewY(-45deg)
+    }
+
+.panel-l {
+    position: absolute;
+    top: 12px;
+    right: calc(100% + 8px);
+    z-index: 1;
+    overflow: hidden;
+    margin-top: 0;
+    width: 40px;
+    height: calc(100% + 17px);
+    border: 8px solid #000;
+    border-top-width: 12px;
+    border-right: 0;
+    border-bottom-width: 6px;
+    border-bottom-left-radius: 2px;
+    content: "";
+    transform: skewY(-45deg)
+}
+
+    .panel-l::after {
+        position: absolute;
+        top: -16px;
+        right: 0;
+        bottom: -16px;
+        left: 0;
+        content: "";
+        transform: skewY(45deg)
+    }
+
+.panel-b-r {
+    border-right-width: 7px;
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 12px;
+    z-index: 1;
+    overflow: hidden;
+    margin-top: 0;
+    width: calc(100% + 17px);
+    height: 40px;
+    border: 8px solid black;
+    border-top-width: 0;
+    border-right-width: 6px;
+    border-left-width: 11px;
+    border-bottom-right-radius: 2px;
+    content: "";
+    transform: skewX(45deg)
+}
+
+    .panel-b-r::after {
+        position: absolute;
+        top: 0;
+        right: -20px;
+        bottom: 0;
+        left: -16px;
+        content: "";
+        transform: skewX(-45deg)
+    }
+
+.panel-b-l {
+    border-left-width: 7px;
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 12px;
+    z-index: 1;
+    overflow: hidden;
+    margin-top: 0;
+    width: calc(100% + 17px);
+    height: 40px;
+    border: 8px solid black;
+    border-top: 0;
+    border-top-width: 0;
+    border-right-width: 12px;
+    border-bottom-left-radius: 2px;
+    content: "";
+    transform: skewX(-45deg)
+}
+
+    .panel-b-l::after {
+        position: absolute;
+        top: 0;
+        right: -16px;
+        bottom: 0;
+        left: -20px;
+        width: calc(100% + 50px);
+        content: "";
+        transform: skewX(45deg)
+    }
+
+
+    .intro .panel-b-l::after {
+        background-color: white;
+        background-image: radial-gradient(#0166FF 26%, transparent 40%);
+        background-position: 1px 1px;
+        background-size: 10px 10px;
+    }
