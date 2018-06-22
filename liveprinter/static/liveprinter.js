@@ -1,10 +1,12 @@
-// Copyright 2009 FriendFeed
+// LIVEPRINTER - a livecoding system for live CNC manufacturing 
+//-------------------------------------------------------------
+// Copyright 2018 Evan Raskob
 //
-// Licensed under the Apache License, Version 2.0 (the "License"); you may
+// Licensed under the GNU Affero 3.0 License (the "License"); you may
 // not use this file except in compliance with the License. You may obtain
 // a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//     https://www.gnu.org/licenses/gpl-3.0.en.html
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
@@ -18,11 +20,6 @@
     $(document).ready(function () {
         if (!window.console) window.console = {};
         if (!window.console.log) window.console.log = function () { };
-
-        $("#gcodeform").on("submit", function () {
-            newMessage($(this));
-            return false;
-        });
 
 
         //////////////////////////////////////////////////////////////////////////////////////////
@@ -38,14 +35,8 @@
         CodeMirror.defaults.undoDepth = 100;
 
         var ed_trigger = function (ed) {
-            // if selection is empty, select entire line or containing block?
-
-            //if (parser === undefined) make_parser();
-            var line = ed.getSelection();
-
-            console.log("trigger", line);
-            // ed.getValue()
-            sendGCode(line);
+            parseCode();
+            //console.log("trigger", line);
         };
 
         // start CodeMirror
@@ -240,6 +231,8 @@
                 var start = 0;
                 var end = 0;
             }
+            console.log("start:" + start + " end:" + end);
+
             CodeEditor.setSelection({ line: start, ch: 0 }, { line: end, ch: 0 });
             
             try {
@@ -272,6 +265,11 @@
         document.getElementById("stepButton").onclick = stepCode;
         document.getElementById("runButton").onclick = runCode;
 
+
+        $("#gcodeform").on("submit", function () {
+            newMessage($(this));
+            return false;
+        });
 
         $("#gcode").select();
         updater.start();

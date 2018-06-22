@@ -20,6 +20,18 @@ LivePrinter is designed to be:
   - *Be collaborative, social, performative:* Allow for others to take part in the making process, whether that's contributing directly to the livecoding or spectating as audience. 
  
 
+## Installing and Running
+
+The server runs on Python 3 (3.6 tested) so you will need that installed.  then, use pip3 (the Python package manager) to install:
+
+* pyserial (tested with 3.4)
+* tornado (tested with 5.0.2)
+* json-rpc (tested with 1.11.0)
+
+Run the server using your Python environment of choice - it's in the liveprinter folder, called LivePrinterServer.py.  By default, the server runs on port 8888 so open a web browser to http://localhost:8888 (or [change it](https://github.com/pixelpusher/liveprinter/blob/master/liveprinter/LivePrinterServer.py#L28)).  It also uses a "fake" serial port for offline testing, so you can make that live by setting "use_dummy_serial" to false [on this line](https://github.com/pixelpusher/liveprinter/blob/master/liveprinter/LivePrinterServer.py#L147) and then it will attempt to use the first serial port (autodetection of G Code-enable printers attached to a port is forthcoming)
+
+
+
 ## How It Works
 
 LivePrinter is part web client and server for livecoding and part 3D printer host application on the back end.  On the front end, a user will livecode in a web browser (or other web client).  Their code is compiled into machine-appropriate G-Code and sent via JSON-RPC over websockets to the back end, where it is sent to the printer via a serial connection.  Responses from the printer are sent back to the web client.  
@@ -35,9 +47,9 @@ The front-end uses some Tornado templating and the usual JQuery/JavaScript.  Soo
 * [Fabrica](https://github.com/arthurwolf/fabrica), a front-end for [Smoothieware](https://github.com/Smoothieware/Smoothieware) looks interesting.  Smoothieware integration might be nice, someday.
 
 ## TO DO
-Currently, *everything!*
 
-* Add a proper livecoding editor
+See the Issues section for a proper to do list
+
 * Choose/implement a livecoding language
 * Support for MIDI to G-Code so you can make music with this
 * Support for loading "code scores"
