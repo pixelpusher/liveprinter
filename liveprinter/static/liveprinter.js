@@ -35,8 +35,8 @@
         CodeMirror.defaults.undoDepth = 100;
 
         var ed_trigger = function (ed) {
-            parseCode();
-            //console.log("trigger", line);
+            runCode();
+            console.log("trigger");
         };
 
         // start CodeMirror
@@ -208,6 +208,7 @@
         }
         function parseCode() {
             var code = CodeEditor.getSelection();
+
             if (!code) {
                 // info level
                 console.log("no selections");
@@ -249,10 +250,30 @@
 
         function runCode() {
             disable('disabled');
+            var code = CodeEditor.getSelection();
+
+            // parse first
+
+            var validCode = true;
+
+            if (!code) {
+                // info level
+                console.log("no selections");
+                code = CodeEditor.getValue();
+            }
             try {
-                myInterpreter.run();
+                myInterpreter = new Interpreter(code, initFuncs);
             } catch (e) {
                 doError(e);
+                validCode = false;
+            }
+            // run code
+            if (validCode) {
+                try {
+                    myInterpreter.run();
+                } catch (e) {
+                    doError(e);
+                }
             }
         }
 
@@ -261,7 +282,6 @@
             document.getElementById('runButton').disabled = disabled;
         }
 
-        document.getElementById("parseButton").onclick = parseCode;
         document.getElementById("stepButton").onclick = stepCode;
         document.getElementById("runButton").onclick = runCode;
 
