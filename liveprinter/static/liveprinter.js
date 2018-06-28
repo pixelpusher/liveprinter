@@ -162,6 +162,17 @@
             return { list: list, from: CodeMirror.Pos(cur.line, start), to: CodeMirror.Pos(cur.line, end) };
         });
 
+
+        /**
+         * Movement API
+         * 
+         * */
+
+
+        //// FIXME
+
+
+
         /**
          * JS-Interpreter stuff (modified from https://github.com/NeilFraser/JS-Interpreter)
          * 
@@ -182,7 +193,283 @@
             interpreter.setProperty(scope, 'sendGCode',
                 interpreter.createNativeFunction(wrapper));
 
+            /// TODO: API LINKING
+            // These are just copied in
+            //var strFunctions = [
+            //    [escape, 'escape'], [unescape, 'unescape'],
+            //    [decodeURI, 'decodeURI'], [decodeURIComponent, 'decodeURIComponent'],
+            //    [encodeURI, 'encodeURI'], [encodeURIComponent, 'encodeURIComponent']
+            //];
+            //for (var i = 0; i < strFunctions.length; i++) {
+            //    var wrapper = (function (nativeFunc) {
+            //        return function (str) {
+            //            try {
+            //                return nativeFunc(str);
+            //            } catch (e) {
+            //                // decodeURI('%xy') will throw an error.  Catch and rethrow.
+            //                thisInterpreter.throwException(thisInterpreter.URI_ERROR, e.message);
+            //            }
+            //        };
+            //    })(strFunctions[i][0]);
+            //    this.setProperty(scope, strFunctions[i][1],
+            //        this.createNativeFunction(wrapper, false),
+            //        Interpreter.NONENUMERABLE_DESCRIPTOR);
+            //}
+
+
+
         }
+
+      
+
+        // dictionary of basic properties about the physical printer like speeds, dimensions, extrusion settings
+        class Printer {
+
+             ///////
+        // Printer API /////////////////
+        ///////
+
+            constructor() {
+                this.x = 0; // x position in mm
+                this.y = 0; // y position in mm
+                this.z = 0; // z position in mm
+                this.e = 0; //filament position in mm
+                this.lastSpeed = -1.0;
+                
+                this.travelSpeed = { 'x': 5, 'y': 5, 'z': 0 }; // in mm/s
+
+                // TODO: use Quarternions for axis/angle: https://github.com/infusion/Quaternion.js
+
+                // or this.travelSpeed = { "direction": 30, "angle": [0,30,0] }; // in mm/s
+
+                // TODO: not sure about this being valid - maybe check for max speed?
+                this._printSpeed = Printer.defaultPrintSpeed;
+                this._model = Printer.UM2plus; // default
+                this.layerHeight = 0.2; // thickness of a 3d printed extrudion, mm by default
+
+
+                /*
+        this.extrusion_per_mm_movement = width * height;
+        this.extrusion_per_mm__z_movement = Math.PI * (width / 2) * (width / 2);
+        if (!this.extrusion_in_mm3) {
+            var radius = this.filament_diameter / 2.0;
+            this.extrusion_per_mm_movement /= Math.PI * radius * radius;
+            this.extrusion_per_mm__z_movement /= Math.PI * radius * radius;
+        }
+        */
+
+
+
+        /*
+        var distance__xy = Math.sqrt((x - this.x) * (x - this.x) + (y - this.y) * (y - this.y));
+        var distance__z = z - this.z;
+        this.e += distance__xy * this.extrusion_per_mm_movement;
+        */
+
+            }
+
+            //
+            // set printer model - should be one definined in this class!
+            //
+            set model(m) {
+                // TODO: check valid model
+                this._model = m;
+                // if invalid, throw exception
+            }
+            get model() { return this._model; }
+
+            set printSpeed(s) {
+                this._printSpeed = Math.min(s, this._maxPrintSpeed[this._model]);
+            }
+
+            get printSpeed() { return this._printSpeed; }
+
+            /**
+             * Move the printer head, withing bounds
+             * @param {Object} params Parameters dictionary containing either x,y,z keys or direction/angle (radians) keys.
+             *      Optional bounce (Boolean) key if movement should bounce off sides.
+             */
+            move (params) {
+                let __x = params.x || this.x;
+                let __y = params.y || this.y;
+                let __z = params.z || this.z;
+                let _speed = params.speed || this.printSpeed;
+
+                // TODO: handle bounce (much more complicated!)
+
+                // clip to printer size for safety
+                let _bedSize = Printer.bedSize[this._model];
+                __x = Math.min(__x, _bedSize["x"]);
+                __y = Math.min(__y, _bedSize["y"]);
+                __z = Math.min(__z, _bedSize["z"]);
+
+                let dx = this.x - __x;
+                let dy = this.y - __y;
+                let dz = this.y - __z;
+                let dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+
+                // TODO: calculate time to move...
+
+                // RETURN GCODE for move as array of strings
+            }
+
+            extrude(params) {
+                let __x = params.x || this.x;
+                let __y = params.y || this.y;
+                let __z = params.z || this.z;
+                let _speed = params.speed || this.printSpeed;
+                let _layerHeight = params.thickness || this.layerHeight;
+
+                // TODO: handle bounce (much more complicated!)
+
+                // clip to printer size for safety
+                console.log(Printer.bedSize);
+                console.log(this.model);
+                let _bedSize = Printer.bedSize[this.model];
+                __x = Math.min(__x, _bedSize["x"]);
+                __y = Math.min(__y, _bedSize["y"]);
+                __z = Math.min(__z, _bedSize["z"]);
+
+                let dx = this.x - __x;
+                let dy = this.y - __y;
+                let dz = this.z - __z;
+                let dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+
+                let moveTime = dist / _speed; // in sec
+
+                console.log("time: " + moveTime + " / dist:" + dist);
+                let nozzleSpeed = {};
+                nozzleSpeed.x = dx / moveTime;
+                nozzleSpeed.y = dy / moveTime;
+                nozzleSpeed.z = dz / moveTime;
+
+                // sanity check:
+                let speedCheck = Math.sqrt(nozzleSpeed.x * nozzleSpeed.x + nozzleSpeed.y * nozzleSpeed.y + nozzleSpeed.z * nozzleSpeed.z);
+                console.log("speed check: " + speedCheck + "/" + _speed);
+
+                // TODO: check for maximum speed!
+
+                //  nozzle_speed{mm/s} = (radius_filament^2) * PI * filament_speed{mm/s} / layer_height^2
+
+                //  filament_speed{mm/s} = layer_height^2 * nozzle_speed{mm/s}/(radius_filament^2)*PI
+
+                let filamentRadius = Printer.filamentDiameter[this.model] / 2;
+                    
+                // for extrusion into free space
+                // apparently, some printers take the filament into account (so this is in mm3)
+                // this was helpful: https://github.com/Ultimaker/GCodeGenJS/blob/master/js/gcode.js
+                let filamentLength = dist * Math.PI * (_layerHeight / 2) * (_layerHeight / 2)
+                if (!Printer.extrusionInmm3[this.model]) {
+                    filamentLength /= (filamentRadius * filamentRadius * Math.PI);
+                }
+
+                let filamentSpeed = filamentLength / moveTime;
+
+                console.log("filament speed: " + filamentSpeed);
+                console.log("filament distance : " + filamentLength + "/" + dist);
+                
+                this.e += filamentLength;
+                
+                // TODO: update state variables like layerheight, etc? But, query printer for physical vars
+                // TODO: return lines of GCODE for extruding move
+            }
+
+        };
+
+
+        // TODO: this is dumb.  SHould be in another data model class called "printer model"
+
+        // supported printers
+        Printer.UM2 = "UM2";
+        Printer.UM2plus = "UM2plus";
+        Printer.UM3 = "UM3";
+        Printer.REPRAP = "REP";
+
+        Printer.PRINTERS = [Printer.UM2, Printer.UM3, Printer.REPRAP];
+
+        // dictionary of first GCODE sent to printer at start
+        Printer.GCODE_HEADERS = {
+            UM2: [
+                ";FLAVOR:UltiGCode",
+                ";TIME:1",
+                ";MATERIAL:1",
+            ],
+            UM2plus: [
+                ";FLAVOR:UltiGCode",
+                ";TIME:1",
+                ";MATERIAL:1",
+            ],
+            UM3: [
+                ";START_OF_HEADER",
+                ";HEADER_VERSION:0.1",
+                ";FLAVOR:Griffin",
+                ";GENERATOR.NAME:GCodeGenJS",
+                ";GENERATOR.VERSION:?",
+                ";GENERATOR.BUILD_DATE:2016-11-26",
+                ";TARGET_MACHINE.NAME:Ultimaker Jedi",
+                ";EXTRUDER_TRAIN.0.INITIAL_TEMPERATURE:200",
+                ";EXTRUDER_TRAIN.0.MATERIAL.VOLUME_USED:1",
+                ";EXTRUDER_TRAIN.0.NOZZLE.DIAMETER:0.4",
+                ";BUILD_PLATE.INITIAL_TEMPERATURE:0",
+                ";PRINT.TIME:1",
+                ";PRINT.SIZE.MIN.X:0",
+                ";PRINT.SIZE.MIN.Y:0",
+                ";PRINT.SIZE.MIN.Z:0",
+                ";PRINT.SIZE.MAX.X:215",
+                ";PRINT.SIZE.MAX.Y:215",
+                ";PRINT.SIZE.MAX.Z:200",
+                ";END_OF_HEADER",
+                "G92 E0",
+            ],
+            REPRAP: [
+                ";RepRap target",
+                "G28",
+                "G92 E0",
+            ]
+        };
+
+        Printer.filamentDiameter = { UM2: 2.85, UM2plus: 2.85, UM3: 2.85, REPRAP: 2.85 };
+        Printer.extrusionInmm3 = { UM2: true, UM2plus: true, UM3: false, REPRAP: false };
+
+            // TODO: FIX THESE!
+            // https://ultimaker.com/en/products/ultimaker-2-plus/specifications
+
+            // TODO: check these: there are max speeds for each motor (x,y,z,e)
+
+    Printer.maxTravelSpeed = {
+        UM2plus: { 'x': 300, 'y': 300, 'z': 80, 'e': 45 },
+        UM2: { 'x': 300, 'y': 300, 'z': 80, 'e': 45 },
+        UM3: { 'x': 300, 'y': 300, 'z': 80, 'e': 45 },
+        REPRAP: { 'x': 300, 'y': 300, 'z': 80, 'e': 45 },
+    };
+
+    Printer.maxPrintSpeed = {
+        UM2: { 'x': 150, 'y': 150, 'z': 80 },
+        UM2plus: { 'x': 150, 'y': 150, 'z': 80 },
+        UM3: { 'x': 150, 'y': 150, 'z': 80 },
+        REPRAP: { 'x': 150, 'y': 150, 'z': 80 },
+    };
+
+    Printer.bedSize = {
+        UM2: { 'x': 223, 'y': 223, 'z': 205 },
+        UM2plus: { 'x': 223, 'y': 223, 'z': 305 },
+        UM3: { 'x': 223, 'y': 223, 'z': 205 },
+        REPRAP: { 'x': 150, 'y': 150, 'z': 80 },
+    };
+
+            Printer.defaultPrintSpeed = 50; // mm/s
+
+
+        var printer = new Printer();
+
+        // TEST
+        printer.extrude({
+            'x': 20,
+            'y': 30,
+            'z': 10,
+        });
+
+        //////////////////////////////////////////////////////////
 
         function clearError() {
             document.getElementById("errors").innerHTML = "<p>...</p>";
@@ -203,7 +490,8 @@
             console.log(e.columnNumber);           // 4
             console.log(e.stack);                  // "@Scratchpad/1:2:3\n"
             if (e.lineNumber) {
-                CodeEditor.setSelection({ line: e.lineNumber, ch: e.columnNumber }, { line: e.lineNumber, ch: e.columnNumber + 1 });
+                // remember that syntax errors start at line 1 which is line 0 in CodeMirror!
+                CodeEditor.setSelection({ line: (e.lineNumber-1), ch: e.columnNumber }, { line: (e.lineNumber-1), ch: (e.columnNumber + 1) });
             }
         }
         function parseCode() {
