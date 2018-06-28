@@ -225,8 +225,11 @@
 
   function raise(pos, message) {
     var loc = getLineInfo(input, pos);
-    message += " (" + loc.line + ":" + loc.column + ")";
-    var err = new SyntaxError(message);
+      // CHANGED BY EVAN for compatibility with https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SyntaxError
+      //message += " (" + loc.line + ":" + loc.column + ")";
+      var err = new SyntaxError(message);
+      err.lineNumber = loc.line;
+      err.columnNumber = loc.column;
     err.pos = pos; err.loc = loc; err.raisedAt = tokPos;
     throw err;
   }

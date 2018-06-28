@@ -2504,7 +2504,12 @@ Interpreter.prototype.unwind = function(type, value, label) {
     var name = this.getProperty(value, 'name').toString();
     var message = this.getProperty(value, 'message').valueOf();
     var type = errorTable[name] || Error;
-    realError = type(message);
+      realError = type(message);
+      //added by Evan
+      if (name.match(/SyntaxError|ReferenceError/)) {
+          realError.lineNumber = this.getProperty(value, 'lineNumber').toString();
+          realError.columnNumber = this.getProperty(value, 'columnNumber').toString();
+      }
   } else {
     realError = String(value);
   }
