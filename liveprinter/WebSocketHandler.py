@@ -86,11 +86,14 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         Logger.log("d",'Sending response to {0}: {1}'.format(
             self.request.remote_ip, str(handled_response.json)))
 
+        result = ""  # message to broadcast to clients
+
         # test for error
         if handled_response.error:
             # TODO: remove debugging code
             # Logger.log('e', 'JSON RPC Error sent: {}'.format(handled_response.json))
             Logger.log('e', 'JSON RPC Error sent: {}'.format(handled_response.error))
+            result = handled_response.error
 
         else:
             # successful response
