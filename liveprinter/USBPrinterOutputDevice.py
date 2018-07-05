@@ -21,31 +21,54 @@ from enum import IntEnum  # For the connection state tracking.
 from datetime import datetime
 
 ##  Message from the printer, with timestamp
-## Type is yet to be codified... info, temp commands, etc.
-class PrinterResponse(object):
-    def __init__(self, type, *args):
+## Type is yet to be codified... now it is: info, temperature
+## Command is the last GCode command sent to elicit this response form the printer
+## for temperature requests, type = "temperature" and fields are hotend, hotend_target, bed, bed_target
+## 
+class PrinterResponse():
+    def __init__(self, **fields):
         self._time = time()
-        self._type = type
-        self._messages = [] 
-        for msg in args: 
-            self._messages.append(msg)
+        self._type = fields['type']
+        self._command = fields['command']
+        self._properties = {}
+
+        for key,val in fields.items(): 
+            if key != "type" and key != "command":
+                self._properties[key] = val;
         
-    def getTime():
+    def getTime(self):
         return self._time
 
-    def getType():
+    def getType(self):
         return self._type
 
-    def getMessages():
-        return self._messages
-
-    def toString():
-        return str({
-                type: self._type,
-                time: self._time,
-                messages: [ self._messages ]
-                })
+    def toDict(self):
+        return {
+                'type': self._type,
+                'time': self._time,
+                'command': self._command, 
+                'properties': self._properties
+                }
     
+    def __repr__(self):
+        return self.toDict()
+
+    def __str__(self):
+        return str(self.toDict())
+
+    
+# TEST
+pr = PrinterResponse(**{
+    'type': "temperature",
+    'command': "M105",
+    'bed': 200,
+    'bed_target': 201,
+    'hotend': 180,
+    'hotend_target': 181
+    })
+
+Logger.log("d", "{}".format(pr))
+
 ##  The current processing state of the backend.
 class ConnectionState(IntEnum):
     closed = 0
@@ -69,11 +92,13 @@ class USBPrinter(OutputDevice):
         self._timeout = 3
 
         self._connection_state = ConnectionState.closed
+        self._last_command_time = -3000; # none received yet
 
         # List of gcode lines to be printed
         # should this be a threaded queue?
         self._gcode = [] # type: List[str]
-        self._gcode_position = 0
+        self._last_gcode_line = ""  # last line sent to the printer
+        self._lines_printed = 0 # total number of lines printed
 
         self._use_auto_detect = True
 
@@ -117,24 +142,23 @@ class USBPrinter(OutputDevice):
     ##  Start a print based on a g-code.
     #   \param gcode_list List with gcode (strings).
     def _printGCode(self, gcode_list: List[str]):
-        self._gcode.clear()
-        self._paused = False
 
-        for layer in gcode_list:
-            # Logger.log('i', 'adding gcode: {}'.format(layer))
-            self._gcode.extend(layer.splitlines())
+        self._gcode.extend(gcode_list);
 
         # Reset line number. If this is not done, first line is sometimes ignored
         self._gcode.insert(0, "M110")
-        self._gcode_position = 0
-        self._print_start_time = time()
-
-        self._print_estimated_time = time()
-
+        self._lines_printed = 0
+        
         for i in range(0, 4):  # Push first 4 entries before accepting other inputs
             self._sendNextGcodeLine()
+                
+        if not self._is_printing:
+            self._print_start_time = time()
+            # FIXME: make this meaningful
+            self._print_estimated_time = time()
 
         self._is_printing = True
+        self._paused = False
         self.writeFinished.emit(self)
 
     def _autoDetectFinished(self, job: AutoDetectBaudJob):
@@ -154,7 +178,6 @@ class USBPrinter(OutputDevice):
     def getQueueSize(self):
         return  self._command_queue.unfinished_tasks;
 
-
     def connect(self):
         if self._baud_rate is None:
             if self._use_auto_detect:
@@ -165,16 +188,15 @@ class USBPrinter(OutputDevice):
         if self._serial is None:
             try:
                 self._serial = Serial(str(self._serial_port), self._baud_rate, timeout=self._timeout, writeTimeout=self._timeout)
+                self._connection_state = ConnectionState.connected
             except SerialException:
                 Logger.log("w", "An exception occured while trying to create serial connection")
+                self._connection_state = ConnectionState.error
                 return
         ###### TODO: get real number of extruders
         # num_extruders = container_stack.getProperty("machine_extruder_count", "value")
         num_extruders = 1
-        # Ensure that a printer is created.
-        #self._printers = [PrinterOutputModel(output_controller=GenericOutputController(self), number_of_extruders=num_extruders)]
-        #self._printers[0].updateName(container_stack.getName())
-        self.setConnectionState(ConnectionState.connected)
+        # start main communications thread
         self._update_thread.start()
 
     def close(self):
@@ -201,6 +223,7 @@ class USBPrinter(OutputDevice):
         if not command.endswith(b"\n"):
             command += b"\n"
         try:
+            self._last_command_time = time();
             self._command_received.clear()
             self._serial.write(command)
         except SerialTimeoutException:
@@ -224,7 +247,7 @@ class USBPrinter(OutputDevice):
 
     ## threaded update function
     def _update(self):
-        while self._connection_state == ConnectionState.connected and self._serial is not None:
+        while self._connection_state == ConnectionState.connected:
             # did we handle the response from the printer?
             handled = False
 
@@ -233,6 +256,7 @@ class USBPrinter(OutputDevice):
             except:
                 continue
 
+            # FIXME: stop using temp requests all the time and write proper call/response that checks against last command
             if self._last_temperature_request is None or time() > self._last_temperature_request + self._timeout:
                 # Timeout, or no request has been sent at all.
                 self._command_received.set() # We haven't really received the ok, but we need to send a new command
@@ -325,18 +349,23 @@ class USBPrinter(OutputDevice):
                     Logger.log('e', "Printer signals fatal error. Cancelling print. {}".format(line))
                     handled = True
                     self.cancelPrint()
+
+                # TODO: handle this better - just resend last command! No need for the magic bits
                 elif b"resend" in line.lower() or b"rs" in line:
                     # A resend can be requested either by Resend, resend or rs.
                     handled = True
                     try:
-                        self._gcode_position = int(line.replace(b"N:", b" ").replace(b"N", b" ").replace(b":", b" ").split()[-1])
+                        self._lines_printed = int(line.replace(b"N:", b" ").replace(b"N", b" ").replace(b":", b" ").split()[-1])
                     except:
                         if b"rs" in line:
                             # In some cases of the RS command it needs to be handled differently.
-                            self._gcode_position = int(line.split()[1])
+                            self._lines_printed = int(line.split()[1])
             if not handled:
                 if line:
                     Logger.log('w', "Printer response not handled: {}".format(line))
+            else:
+                # update lines printed
+                self._lines_printed += 1
 
     def setConnectionState(self, state: ConnectionState):
         self._connection_state = state
@@ -351,7 +380,7 @@ class USBPrinter(OutputDevice):
         self._paused = False
 
     def cancelPrint(self):
-        self._gcode_position = 0
+        self._lines_printed = 0
         self._gcode.clear()
         self._printers[0].updateActivePrintJob(None)
         self._is_printing = False
@@ -368,42 +397,25 @@ class USBPrinter(OutputDevice):
         self._sendCommand("M84")
 
     def _sendNextGcodeLine(self):
-        if self._gcode_position >= len(self._gcode):
-            # self._printers[0].updateActivePrintJob(None)
+        if len(self._gcode < 1):
             self._is_printing = False
             return
-        line = self._gcode[self._gcode_position]
+        line = self._gcode.pop(); # last line
 
-        if ";" in line:
-            line = line[:line.find(";")]
-
-        line = line.strip()
+        # FIXME: handles comments, but these should have been removed in the front end
+        #if ";" in line:
+        #    line = line[:line.find(";")]
+        # again, should have been done already
+        #line = line.strip()
 
         # Don't send empty lines. But we do have to send something, so send M105 instead.
         # Don't send the M0 or M1 to the machine, as M0 and M1 are handled as an LCD menu pause.
-        if line == "" or line == "M0" or line == "M1":
-            line = "M105"
+        #if line == "" or line == "M0" or line == "M1":
+        #    line = "M105"
 
-        checksum = functools.reduce(lambda x, y: x ^ y, map(ord, "N%d%s" % (self._gcode_position, line)))
+        checksum = functools.reduce(lambda x, y: x ^ y, map(ord, "N%d%s" % (self._lines_printed, line)))
+        self.sendCommand("N%d%s*%d" % (self._lines_printed, line, checksum))
 
-        #self._sendCommand("N%d%s*%d" % (self._gcode_position, line, checksum))
-        self.sendCommand("N%d%s*%d" % (self._gcode_position, line, checksum))
-
-        progress = (self._gcode_position / len(self._gcode))
-
+        progress = len(self._gcode)
         elapsed_time = int(time() - self._print_start_time)
-        
-        #print_job = self._printers[0].activePrintJob
-        #if print_job is None:
-        #    print_job = PrintJobOutputModel(output_controller = GenericOutputController(self), name= Application.getInstance().getPrintInformation().jobName)
-        #    print_job.updateState("printing")
-        #    self._printers[0].updateActivePrintJob(print_job)
-
-        #print_job.updateTimeElapsed(elapsed_time)
-
         estimated_time = self._print_estimated_time
-        if progress > .1:
-            estimated_time = self._print_estimated_time * (1 - progress) + elapsed_time
-        #print_job.updateTimeTotal(estimated_time)
-
-        self._gcode_position += 1
