@@ -46,17 +46,27 @@
     <Compile Include="liveprinter\WebSocketHandler.py" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="liveprinter\static\lib\codemirror\codemirror.css" />
+    <Content Include="liveprinter\static\lib\codemirror\codemirror.js" />
+    <Content Include="liveprinter\static\lib\js_interpreter\acorn.js" />
+    <Content Include="liveprinter\static\lib\js_interpreter\interpreter.js" />
     <Content Include="liveprinter\static\liveprinter.css" />
     <Content Include="liveprinter\static\liveprinter.js" />
     <Content Include="liveprinter\templates\index.html" />
     <Content Include="liveprinter\templates\message.html" />
+    <Content Include="liveprinter\testing\gcodegrammar.js" />
+    <Content Include="liveprinter\testing\test_gcode.txt" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="liveprinter" />
     <Folder Include="liveprinter\avr_isp" />
     <Folder Include="liveprinter\dummyserial" />
     <Folder Include="liveprinter\static" />
+    <Folder Include="liveprinter\static\lib\" />
+    <Folder Include="liveprinter\static\lib\codemirror\" />
+    <Folder Include="liveprinter\static\lib\js_interpreter\" />
     <Folder Include="liveprinter\templates" />
+    <Folder Include="liveprinter\testing\" />
     <Folder Include="liveprinter\UM" />
   </ItemGroup>
   <ItemGroup>
