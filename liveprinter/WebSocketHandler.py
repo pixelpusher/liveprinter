@@ -56,7 +56,7 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
     def on_close(self):
         Logger.log("d", 'Connection closed to {0}'.format(self.request.remote_ip))
         WebSocketHandler.clients.remove(self)
-
+    
     def on_message(self, message):
         ## Passes an incoming JSON-RPC message to the dispatcher for processing.
         
