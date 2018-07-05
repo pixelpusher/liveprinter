@@ -14,6 +14,7 @@ import serial
 from serial import Serial, SerialException, PARITY_ODD, PARITY_NONE
 import serial.tools.list_ports
 import re
+from tornado import gen
 import tornado.httpserver
 from tornado.ioloop import IOLoop, PeriodicCallback
 import tornado.websocket
@@ -54,33 +55,29 @@ class MainHandler(tornado.web.RequestHandler):
 # This should be a JSON-RPC form - http://www.jsonrpc.org/specification#request_object
 # or 
 #
+
 def broadcast_message(message):
     '''
     Broadcast message to websocket clients.
     Adds 'jsonrpc' field required to satisfy the JSON-RPC 2.0 spec.
     '''
-    message['jsonrpc'] = '2.0'
+    if message['jsonrpc'] is None:
+        message['jsonrpc'] = '2.0'
     for client in WebSocketHandler.clients:
         Logger.log("i","broadcasting to client: {}".format(message))
-        client.write_message(message)
+        client.write_message(str(message))
 
 ## handle printer response queue: PrinterResponse obj with time, type, messages[]
 ## decide whether to notify clients
+# @gen.coroutine
 def process_printer_reponses(printer:USBPrinter):
-    if printer.getConnectionState() == ConnectionState.connected:
-        while True:
-            response = printer.getLastResponse(True)
-            if response == False:
-                break
-            else:
-                # TODO: decide which responses warrant forwarding to clients
-                message = {
-                    'jsonrpc': '2.0',
-                    'id': 2, 
-                    'method': 'info',
-                    'params': [ response.toString() ],
-                }
-                broadcast_message("{}".format(message))
+    #while True:
+    response = printer.getLastResponse()  # PrinterReponse object
+    if response:
+        Logger.log("i", "RESPONSE: {}".format(response))
+        broadcast_message(response.toJSONRPC())
+        printer.lastReponseHandled()
+        #yield gen.sleep(0.100) # 100 ms
 
 ## 
 # get json gcode (as a list of strings) from json-rpc dispatcher and 
@@ -153,7 +150,7 @@ def json_handle_gcode(printer:USBPrinter, *argv):
 #
 
 if __name__ == '__main__':
-    use_dummy_serial = True
+    use_dummy_serial = False
     serialport = None
     serial_obj = None
     baudrate = 250000
@@ -174,8 +171,8 @@ if __name__ == '__main__':
                           }
         )
     else:
-        # serialport = list_ports()
-        serialport = '/dev/cu.usbmodem1411'
+        serialport = list_ports()
+        # serialport = '/dev/cu.usbmodem1411'
 
     printer = USBPrinter(serialport, 250000, serial_obj)
     printer.connect()
@@ -200,18 +197,22 @@ if __name__ == '__main__':
     )
     Logger.log("d",settings)
     app = Application(handlers=handlers, debug=options.debug, **settings)
-   
+
+    # Create event loop and periodic callbacks
     httpServer = tornado.httpserver.HTTPServer(app)
     httpServer.listen(options.http_port)
+    #httpServer.bind(options.http_port)
+    #httpServer.start(0)
 
-    tornado.ioloop.IOLoop.current().start()
+    main_loop = tornado.ioloop.IOLoop.instance()
+    printer_event_processor = tornado.ioloop.PeriodicCallback(
+        lambda: process_printer_reponses(printer), 1500)
+    printer_event_processor.start()
+    main_loop.start()
 
-   
+    # IOLoop.current().spawn_callback(process_printer_reponses, printer)
 
-    # TODO: ioloop for watchdog
-    #main_loop.start()
+    #tornado.ioloop.IOLoop.current().start()
 
   
-    # Create event loop and periodic callbacks
-    # PeriodicCallback(lambda: process_printer_reponses(printer), 50).start()
     

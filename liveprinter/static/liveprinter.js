@@ -34,48 +34,44 @@
             * func: function
             * repeat: true/false whether to reschedule
             */
-            scheduleEvent: function(args)
-            {
+            scheduleEvent: function (args) {
                 Scheduler.ScheduledEvents.push({
-                    'time': (Scheduler.audioContext.currentTime+args.timeOffset), 
+                    'time': Scheduler.audioContext.currentTime + args.timeOffset,
                     'timeOffset': args.timeOffset,
                     'func': args.func,
-                    'repeat': args.repeat,
-                    });
+                    'repeat': args.repeat
+                });
             },
 
-            startScheduler: function() {
+            startScheduler: function () {
                 console.log("scheduler starting at time: " + Scheduler.audioContext.currentTime);
 
-                function scheduler(nextTime){
+                function scheduler(nextTime) {
                     let time = Scheduler.audioContext.currentTime;
-                    let i=0;
+                    let i = 0;
                     // run events -- this could be done better with map/filter
-                    if (Scheduler.ScheduledEvents) 
-                    while (i < Scheduler.ScheduledEvents.length && Scheduler.ScheduledEvents.length > 0)
-                    {
-                        //console.log("processing events at time " + time);
-                        event = Scheduler.ScheduledEvents[0];
-                        //console.log(event);
-                        if (event.time >= time)
-                        {
-                            //console.log("running event at time:" + time);
-                            event.func(time);
-                            Scheduler.ScheduledEvents.shift();
-                            if (event.repeat)
-                            {
-                                Scheduler.scheduleEvent(event);
+                    if (Scheduler.ScheduledEvents)
+                        while (i < Scheduler.ScheduledEvents.length && Scheduler.ScheduledEvents.length > 0) {
+                            //console.log("processing events at time " + time);
+                            event = Scheduler.ScheduledEvents[0];
+                            //console.log(event);
+                            if (event.time >= time) {
+                                //console.log("running event at time:" + time);
+                                event.func(time);
+                                Scheduler.ScheduledEvents.shift();
+                                if (event.repeat) {
+                                    Scheduler.scheduleEvent(event);
+                                }
                             }
+                            i++;
                         }
-                        i++;
-                    }
-                    
+
                     // run it again
-                    Scheduler.timerID = setTimeout(scheduler, Scheduler.schedulerInterval, time+Scheduler.schedulerInterval);
+                    Scheduler.timerID = setTimeout(scheduler, Scheduler.schedulerInterval, time + Scheduler.schedulerInterval);
                 }
                 Scheduler.timerID = setTimeout(scheduler, Scheduler.schedulerInterval, Scheduler.schedulerInterval);
             }
-        }
+        };
 
         Scheduler.startScheduler();
 
@@ -146,9 +142,9 @@
 
         function sendGCode(text) {
             let gcode = text;
-            if (typeof gcode == 'string') gcode = [ stripComments(gcode) ];
+            if (typeof gcode === 'string') gcode = [ stripComments(gcode) ];
 
-            if (typeof gcode == 'object' && Array.isArray(gcode))
+            if (typeof gcode === 'object' && Array.isArray(gcode))
             {
                 let message = {
                     'jsonrpc': '2.0',
@@ -226,16 +222,16 @@
             var start = cur.ch, end = start;
             while (end < curLine.length && word.test(curLine.charAt(end)))++end;
             while (start && word.test(curLine.charAt(start - 1)))--start;
-            var curWord = start != end && curLine.slice(start, end);
+            var curWord = start !== end && curLine.slice(start, end);
 
             var list = [], seen = {};
             function scan(dir) {
                 var line = cur.line, end = Math.min(Math.max(line + dir * range, editor.firstLine()), editor.lastLine()) + dir;
-                for (; line != end; line += dir) {
+                for (; line !== end; line += dir) {
                     var text = editor.getLine(line), m;
                     word.lastIndex = 0;
                     while (m = word.exec(text)) {
-                        if ((!curWord || m[0].indexOf(curWord) == 0) && !seen.hasOwnProperty(m[0])) {
+                        if ((!curWord || m[0].indexOf(curWord) === 0) && !seen.hasOwnProperty(m[0])) {
                             seen[m[0]] = true;
                             list.push(m[0]);
                         }

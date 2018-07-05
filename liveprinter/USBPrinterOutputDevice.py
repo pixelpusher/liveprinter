@@ -38,7 +38,7 @@ class PrinterResponse():
 
         for key,val in fields.items(): 
             if key != "type" and key != "command":
-                self._properties[key] = val;
+                self._properties[key] = val
         
     def getTime(self):
         return self._time
@@ -53,6 +53,21 @@ class PrinterResponse():
                 'command': self._command, 
                 'properties': self._properties
                 }
+
+    def toJSONRPC(self):
+        json = {
+                'jsonrpc': '2.0',
+                'id': 3, 
+                'method': self._type,
+                'params': {
+                    'time': self._time,
+                    'command': self._command
+                    }
+                }
+        for key,val in self._properties.items(): 
+            json['params'][key] = val
+        
+        return json
     
     def __repr__(self):
         return self.toDict()
@@ -98,8 +113,8 @@ class USBPrinter(OutputDevice):
         self._last_command_time = -3000; # none received yet
         self._lock = Lock() # to sync threads around connectionstate
 
-        self._last_command = ""  # last line sent to the printer
-        self._lines_printed = 0 # total number of lines printed
+        self._last_command = None  # last line sent to the printer
+        self._lines_printed = 1 # total number of lines printed
 
         self._use_auto_detect = True
 
@@ -119,11 +134,11 @@ class USBPrinter(OutputDevice):
         self._paused = False
 
         # Queue for commands that need to be sent.
-        self._command_queue = Queue()
+        self._command_queue = Queue(100)
         # Event to indicate that an "ok" was received from the printer after sending a command.
 
         # Queue for messages from the printer.
-        self._responses_queue = Queue()
+        self._responses_queue = Queue(1000)
 
         # if we were passed a serial object, assume it it legitimate until an error occurs
         if self._serial is not None:
@@ -195,14 +210,17 @@ class USBPrinter(OutputDevice):
             self.sendCommand(command)
 
     ## get last printer response, and mark as received if second arg is true
-    def getLastResponse(self, consume:bool = False):
-        if not self._responses_queue.empty():
+    def getLastResponse(self):
+        response = False
+        try:
             response = self._responses_queue.get()
-            if consume:
-                self._responses_queue.task_done()
-            return response
-        else:
-            return False
+            Logger.log("i", "got task {}".format(time()))
+        except:
+            response = False
+        return response
+
+    def lastReponseHandled(self):
+        self._responses_queue.task_done()
 
 
     ## threaded update function.
@@ -220,116 +238,142 @@ class USBPrinter(OutputDevice):
                 handled = False
                 resend = False  # do we need to resend the last line? Requested from printer.
 
+                # properties of the printer response to report back to the server
+                response_props = {'command': self._last_command}
+
                 # did we handle the response from the printer?
-            
-                try:
-                    line = self._serial.readline()
-                except:
-                    continue
+                while True:
+                    try:
+                        line = self._serial.readline()
+                    except:
+                        line = ""
 
-                # only process if there's something to process
-                if line:
-                    # properties of the printer response to report back to the server
-                    response_props = {'command': self._last_command}
+                    # only process if there's something to process
+                    if not line:
+                        break
+                    else:
+                        if line.startswith(b"echo:"):
+                            handled = True
+                            # Not handled because this is just if it's turned on
+                            response_props['type'] = 'info'
+                            printer_info = re.findall(b"echo\:(.+)?", line)
+                            for info in printer_info:
+                                response_props['info'] = info
 
-                    if line.startswith(b"echo:"):
-                        handled = True
-                        response_props['type'] = 'info'
-                        printer_info = re.findall(b"echo\:(.+)?", line)
-                        for info in printer_info:
-                            response_props['info'] = info                    
-
-                    if b"ok T:" in line or line.startswith(b"T:") or b"ok B:" in line or line.startswith(b"B:"):  # Temperature message. 'T:' for extruder and 'B:' for bed
-                        response_props["type"] = "temperature"
-                        #Logger.log("d", "temp response: {}".format(line))
-                        extruder_temperature_matches = re.findall(b"T(\d*): ?([\d\.]+) ?\/?([\d\.]+)?", line)
-                        # Update all temperature values
-                        # line looks like:  b'ok T:24.7 /0.0 B:23.4 /0.0 @:0 B@:0\n'
-                        # OR b'T:176.1 E:0 W:?\n'
-                        if len(extruder_temperature_matches) > 0:
-                            match = extruder_temperature_matches[0]
-                            ### NOTE: hot end (tool number) is the first match (0)                   
-                            response_props["hotend"]=match[1]
+                        if line.startswith(b"start"):
+                            handled = True
+                            # Not handled because this is just if it's turned on
+                            response_props['type'] = 'info'
+                            response_props['info'] = line
+                        
+                        if b"ok T:" in line or line.startswith(b"T:") or b"ok B:" in line or line.startswith(b"B:"):  # Temperature message. 'T:' for extruder and 'B:' for bed
+                            response_props["type"] = "temperature"
+                            #Logger.log("d", "temp response: {}".format(line))
+                            extruder_temperature_matches = re.findall(b"T(\d*): ?([\d\.]+) ?\/?([\d\.]+)?", line)
+                            # Update all temperature values
+                            # line looks like:  b'ok T:24.7 /0.0 B:23.4 /0.0 @:0 B@:0\n'
+                            # OR b'T:176.1 E:0 W:?\n'
+                            if len(extruder_temperature_matches) > 0:
+                                match = extruder_temperature_matches[0]
+                                ### NOTE: hot end (tool number) is the first match (0)                   
+                                response_props["hotend"]=match[1]
                     
-                            if match[2]:                         
-                                response_props["hotend_target"] = match[2]
-                            handled = True
+                                if match[2]:                         
+                                    response_props["hotend_target"] = match[2]
+                                handled = True
                 
-                        bed_temperature_matches = re.findall(b"B: ?([\d\.]+) ?\/?([\d\.]+)?", line)
+                            bed_temperature_matches = re.findall(b"B: ?([\d\.]+) ?\/?([\d\.]+)?", line)
 
-                        if len(bed_temperature_matches) > 0:
-                            match = bed_temperature_matches[0]
-                            response_props["bed"] = match[0]
-                            response_props["bed_target"] = match[1]
+                            if len(bed_temperature_matches) > 0:
+                                match = bed_temperature_matches[0]
+                                response_props["bed"] = match[0]
+                                response_props["bed_target"] = match[1]
+                                handled = True
+
+                            # LEGACY CODE, FOR FUTURE REFERENCE...
+                            #for match, extruder in zip(extruder_temperature_matches, self._printers[0].extruders):
+                            #    if match[1]:
+                            #        hotendTemperature(float(match[1]))
+                            #    if match[2]:
+                            #        extruder.updateTargetHotendTemperature(float(match[2]))
+
+                            #bed_temperature_matches = re.findall(b"B: ?([\d\.]+) ?\/?([\d\.]+)?", line)
+                            #if bed_temperature_matches:
+                            #    match = bed_temperature_matches[0]
+                            #    if match[0]:
+                            #        self._printers[0].updateBedTemperature(float(match[0]))
+                            #    if match[1]:
+                            #        self._printers[0].updateTargetBedTemperature(float(match[1]))
+
+                        if b"FIRMWARE_NAME:" in line:
+                            # TODO: possibly pre-parse this instead of sending whole line
+                            response_props["type"] = "firmware"
+                            response_props["firmware"] = line
                             handled = True
 
-                        # LEGACY CODE, FOR FUTURE REFERENCE...
-                        #for match, extruder in zip(extruder_temperature_matches, self._printers[0].extruders):
-                        #    if match[1]:
-                        #        hotendTemperature(float(match[1]))
-                        #    if match[2]:
-                        #        extruder.updateTargetHotendTemperature(float(match[2]))
-
-                        #bed_temperature_matches = re.findall(b"B: ?([\d\.]+) ?\/?([\d\.]+)?", line)
-                        #if bed_temperature_matches:
-                        #    match = bed_temperature_matches[0]
-                        #    if match[0]:
-                        #        self._printers[0].updateBedTemperature(float(match[0]))
-                        #    if match[1]:
-                        #        self._printers[0].updateTargetBedTemperature(float(match[1]))
-
-                    if b"FIRMWARE_NAME:" in line:
-                        # TODO: possibly pre-parse this instead of sending whole line
-                        response_props["type"] = "firmware"
-                        response_props["firmware"] = line
-                        handled = True
-            
-                    if line.startswith(b'X:'):
                         # position response for position update
-                        # TODO: handle this, parse it properly
                         # b'X:0.00Y:0.00Z:0.00E:0.00 Count X: 0.00Y:0.00Z:0.00\n'
-                        self._responses_queue.put(PrinterResponse("position",line))
-
-                    if line.startswith(b'!!'):
-                        response_props["type"] = "error"
-                        response_props["message"] = "Printer signals fatal error!"
-                        Logger.log('e', "Printer signals fatal error. Pausing print. {}".format(line))
-                        handled = True
-                        self.pausePrint() # pause for error
-                    
-                    # TODO: handle this better - just resend last command! No need for the magic bits
-                    if b"resend" in line.lower() or b"rs" in line:
-                        # A resend can be requested either by Resend, resend or rs.
-                        Logger.log('e', "Printer signals resend. {}".format(line))
-                        response_props["type"] = "resend"
-                        handled = True
-                    
-                        #try:
-                        #    self._lines_printed = int(line.replace(b"N:", b" ").replace(b"N", b" ").replace(b":", b" ").split()[-1])
-                        #except:
-                        #    if b"rs" in line:
-                        #        # In some cases of the RS command it needs to be handled differently.
-                        #        self._lines_printed = int(line.split()[1])
-
-                    if not handled:
-                        # handle any basic ok's
-                        if b"ok" in line:
-                            response_props["type"] = "ok"
+                        if line.startswith(b'X:'):
+                            stringline = line.decode('utf-8')
+                            matches = re.findall('([x|y|z|e]):([0-9\.\-]+)+', stringline.lower())
+                            # Match 1
+                            # 1. X
+                            # 2. 0.00
+                            # parse it properly
+                        
                             handled = True
+                        
+                            response_props["type"] = "position"
+                            # first 4 matches are position, other 2 are steps
+                            
+                            # axis, value
+                            for i in range(4):
+                                response_props[str(matches[i][0])] = str(matches[i][1])
+                        
+                        if line.startswith(b'!!'):
+                            response_props["type"] = "error"
+                            response_props["message"] = "Printer signals fatal error!"
+                            Logger.log('e', "Printer signals fatal error. Pausing print. {}".format(line))
+                            handled = True
+                            self.pausePrint() # pause for error
+                    
+                        # TODO: handle this better - just resend last command! No need for the magic bits
+                        if b'resend' in line.lower() or line.startswith(b'rs'):
+                            resend = True
+                            # A resend can be requested either by Resend, resend or rs.
+                            Logger.log('e', "Printer signals resend. {}".format(line))
+                            response_props["type"] = "resend"
+                            handled = True
+                    
+                            #try:
+                            #    self._lines_printed = int(line.replace(b"N:", b" ").replace(b"N", b" ").replace(b":", b" ").split()[-1])
+                            #except:
+                            #    if b"rs" in line:
+                            #        # In some cases of the RS command it needs to be handled differently.
+                            #        self._lines_printed = int(line.split()[1])
 
-                    # now, really not handled
-                    if not handled:
-                        # Logger.log('w', "Printer response not handled: {}".format(line))
-                        response_props["type"] = "error"
-                        response_props["message"] = "Printer response not handled"
-                        self.pausePrint() # pause for error
+                        if not handled:
+                            # handle any basic ok's
+                            if line.lower().startswith(b'ok'):
+                                response_props["type"] = "ok"
+                                handled = True
 
-                    else: # the command has been successfully handled! send responses and send next line to process 
-                
-                        if not resend:  # not if we need to resend last line due to printer request
-                            # update lines printed
-                            self._lines_printed += 1
-                            self._command_queue.task_done(); # mark task as finished in queue
+                        # now, really not handled
+                        if not handled:
+                            Logger.log('w', "Printer response not handled: {}".format(line))
+                            response_props["type"] = "info"
+                            response_props["info"] = line
+                            self._last_command = None
+
+                            # self.pausePrint() # pause for error
+
+                        else: # the command has been successfully handled! send responses and send next line to process 
+                            if not resend and self._last_command is not None:  # not if we need to resend last line due to printer request
+                                # update lines printed
+                                self._lines_printed += 1
+                                self._command_queue.task_done(); # mark task as finished in queue
+                                self._last_command = None
+
                         response = PrinterResponse(**response_props)
                         Logger.log("d","response: {}".format(response))
                         self._responses_queue.put(response)
@@ -352,28 +396,29 @@ class USBPrinter(OutputDevice):
                         except SerialTimeoutException:
                             Logger.log("w", "Timeout when sending command to printer via USB.")
 
-                    elif not self._command_queue.empty():
+                    else:                        
                         Logger.log("i", "handling next command")
                         command = self._command_queue.get()
                         # note last command sent
                         self._last_command = command
-                        # checksum = is this necessary?
-                        checksum = functools.reduce(lambda x, y: x ^ y, map(ord, "N%d%s" % (self._lines_printed, command)))
-                        command = str("N%d%s*%d" % (self._lines_printed, command, checksum))
+                        if command is not None:
+                            # checksum = is this necessary?
+                            checksum = functools.reduce(lambda x, y: x ^ y, map(ord, "N%d%s" % (self._lines_printed, command)))
+                            command = str("N%d%s*%d" % (self._lines_printed, command, checksum))
                         
-                        if type(command == str):
-                            command = command.encode()
-                        if not command.endswith(b"\n"):
-                            command += b"\n"
+                            if type(command == str):
+                                command = command.encode()
+                            if not command.endswith(b"\n"):
+                                command += b"\n"
                         
-                        try:
-                            self._serial.write(command)
-                        except SerialTimeoutException:
-                            resonse = PrinterResponse(**{"type":"error", 
-                                                            "message":"Timeout when sending command to printer via USB.",
-                                                            'command': self._last_command})
-                            self._responses_queue.put(response)
-                            Logger.log("w", "Timeout when sending command to printer via USB.")
+                            try:
+                                self._serial.write(command)
+                            except SerialTimeoutException:
+                                resonse = PrinterResponse(**{"type":"error", 
+                                                                "message":"Timeout when sending command to printer via USB.",
+                                                                'command': self._last_command})
+                                self._responses_queue.put(response)
+                                Logger.log("w", "Timeout when sending command to printer via USB.")
 
     ## these are thread-safe because the update thread uses them
     def setConnectionState(self, state: ConnectionState):
