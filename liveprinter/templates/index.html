@@ -23,6 +23,10 @@
     gtokens.push("X"+x); gtokens.push("Y"+y);
     sendGCode(gtokens.join(" "));
 }
+
+extrude({ 'x': 20, 
+    'y': 30,
+    'z': 10});
                         </textarea></p>
                         <p>
                             <div class="container" id="buttons">
@@ -49,7 +53,16 @@
             <div class="col-4 col-md-4">
                 <div id="inbox" class="box">
                     {% for message in messages %}
-                    {% include "message.html" %}
+                        {% if message["id"] == 1 %}
+                            {% include "message.html" %}
+                        {% end %}    
+                    {% end %}
+                </div>
+                <div id="info" class="box">
+                    {% for message in messages %}
+                        {% if message["id"] == 2 %}
+                            {% include "info.html" %}
+                        {% end %}
                     {% end %}
                     <div class="panel-r lines"></div>
                     <div class="panel-b-r"></div>

@@ -7,12 +7,13 @@ import logging
 import logging.handlers
 import sys
 import time
+import re
 
 from serial.serialutil import SerialException, portNotOpenError
 
 import dummyserial.constants
 
-__author__ = 'Greg Albrecht <gba@orionlabs.io>'
+__author__ = 'Greg Albrecht <gba@orionlabs.io> then Evan Raskob <http://pixelist.info>'
 __license__ = 'Apache License, Version 2.0'
 __copyright__ = 'Copyright 2016 Orion Labs, Inc.'
 
@@ -117,8 +118,15 @@ class Serial(object):
 
         # Look up which data that should be waiting for subsequent read
         # commands.
-        self._waiting_data = self.ds_responses.get(
-            input_str, dummyserial.constants.NO_DATA_PRESENT)
+
+        # modified by Evan to use dict as a regex
+        self._waiting_data = dummyserial.constants.NO_DATA_PRESENT
+
+        for key, val in self.ds_responses.items():
+            pattern = re.compile(key)
+            if pattern.match(input_str):
+                self._waiting_data = val
+                break
 
     def read(self, size=1):
         """

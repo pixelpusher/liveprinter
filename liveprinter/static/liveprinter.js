@@ -21,6 +21,69 @@
         if (!window.console) window.console = {};
         if (!window.console.log) window.console.log = function () { };
 
+        
+        var Scheduler = {
+            ScheduledEvents: [],
+            audioContext: new AudioContext(),
+            schedulerInterval: 1000,
+            timerID: null,
+
+            /*
+            * arguments properties:
+            * timeOffset: ms offset to schedule this for
+            * func: function
+            * repeat: true/false whether to reschedule
+            */
+            scheduleEvent: function(args)
+            {
+                Scheduler.ScheduledEvents.push({
+                    'time': (Scheduler.audioContext.currentTime+args.timeOffset), 
+                    'timeOffset': args.timeOffset,
+                    'func': args.func,
+                    'repeat': args.repeat,
+                    });
+            },
+
+            startScheduler: function() {
+                console.log("scheduler starting at time: " + Scheduler.audioContext.currentTime);
+
+                function scheduler(nextTime){
+                    let time = Scheduler.audioContext.currentTime;
+                    let i=0;
+                    // run events -- this could be done better with map/filter
+                    if (Scheduler.ScheduledEvents) 
+                    while (i < Scheduler.ScheduledEvents.length && Scheduler.ScheduledEvents.length > 0)
+                    {
+                        //console.log("processing events at time " + time);
+                        event = Scheduler.ScheduledEvents[0];
+                        //console.log(event);
+                        if (event.time >= time)
+                        {
+                            //console.log("running event at time:" + time);
+                            event.func(time);
+                            Scheduler.ScheduledEvents.shift();
+                            if (event.repeat)
+                            {
+                                Scheduler.scheduleEvent(event);
+                            }
+                        }
+                        i++;
+                    }
+                    
+                    // run it again
+                    Scheduler.timerID = setTimeout(scheduler, Scheduler.schedulerInterval, time+Scheduler.schedulerInterval);
+                }
+                Scheduler.timerID = setTimeout(scheduler, Scheduler.schedulerInterval, Scheduler.schedulerInterval);
+            }
+        }
+
+        Scheduler.startScheduler();
+
+        // Scheduler.scheduleEvent({
+        //     timeOffset: 2000, 
+        //     func: function() { console.log("EVENT"); } ,
+        //     repeat: true,
+        // });
 
         //////////////////////////////////////////////////////////////////////////////////////////
         // Codemirror:
@@ -82,20 +145,25 @@
         //lines = [];
 
         function sendGCode(text) {
-            var gcode = stripComments(text);
+            let gcode = text;
+            if (typeof gcode == 'string') gcode = [ stripComments(gcode) ];
 
-            var message = {
-                'jsonrpc': '2.0',
-                'id': 1,
-                'method': 'gcode',
-                'params': [gcode],
-            };
+            if (typeof gcode == 'object' && Array.isArray(gcode))
+            {
+                let message = {
+                    'jsonrpc': '2.0',
+                    'id': 1,
+                    'method': 'gcode',
+                    'params': gcode,
+                };
 
-            var message_json = JSON.stringify(message);
-            // debugging
-            console.log(message_json);
+                let message_json = JSON.stringify(message);
+                // debugging
+                console.log(message_json);
 
-            updater.socket.send(message_json);
+                socketHandler.socket.send(message_json);
+            }
+            else throw new Error("invalid gcode in sendGCode[" + typeof text+"]:" + text);
         }
 
  
@@ -107,15 +175,32 @@
             sendGCode(line);
         }
 
-        var updater = {
+        var socketHandler = {
             socket: null,
 
             start: function () {
                 var url = "ws://" + location.host + "/json";
-                updater.socket = new WebSocket(url);
+                this.socket = new WebSocket(url);
                 console.log('opening socket');
-                updater.socket.onmessage = function (event) {
-                    updater.showMessage(JSON.parse(event.data));
+                socketHandler.socket.onmessage = function (event) {
+                    socketHandler.showMessage(JSON.parse(event.data));
+                }
+
+                // runs when printer connection is established via websockets
+                socketHandler.socket.onopen = function()
+                {
+                    
+                    // TEST
+                    // printer.extrude({
+                    //     'x': 20,
+                    //     'y': 30,
+                    //     'z': 10,
+                    // });
+
+                    sendGCode("G92");
+                    sendGCode("G28");
+
+                    document.getElementById("info").innerHTML = "PRINTER CONNECTED";
                 }
             },
 
@@ -186,12 +271,32 @@
             interpreter.setProperty(scope, 'alert',
                 interpreter.createNativeFunction(wrapper));
 
-             wrapper = function (text) {
+            wrapper = function (text) {
                 sendGCode(text);
                 console.log("sent gcode: " + text)
             };
-            interpreter.setProperty(scope, 'sendGCode',
+            interpreter.setProperty(scope, 'gcode',
                 interpreter.createNativeFunction(wrapper));
+
+            wrapper = function (props) {
+                // can't send objects back and forth, need to copy property primitives
+                let _props = {};
+                for (var key in props)
+                {
+                    _props[key] = props[key]; 
+                }
+                printer.extrude(_props);
+                console.log("extrude:");
+                console.log(props);
+            };
+            interpreter.setProperty(scope, 'extrude',
+                interpreter.createNativeFunction(wrapper));
+    
+                //printer.extrude({
+                    //     'x': 20,
+                    //     'y': 30,
+                    //     'z': 10,
+                    // });
 
             /// TODO: API LINKING
             // These are just copied in
@@ -234,6 +339,12 @@
                 this.y = 0; // y position in mm
                 this.z = 0; // z position in mm
                 this.e = 0; //filament position in mm
+
+                this.targetX = 0; // x position in mm
+                this.targetY = 0; // y position in mm
+                this.targetZ = 0; // z position in mm
+                this.targetE = 0; //filament position in mm
+                
                 this.lastSpeed = -1.0;
                 
                 this.travelSpeed = { 'x': 5, 'y': 5, 'z': 0 }; // in mm/s
@@ -290,9 +401,9 @@
              *      Optional bounce (Boolean) key if movement should bounce off sides.
              */
             move (params) {
-                let __x = params.x || this.x;
-                let __y = params.y || this.y;
-                let __z = params.z || this.z;
+                let __x = params.x || this.targetX;
+                let __y = params.y || this.targetY;
+                let __z = params.z || this.targetZ;
                 let _speed = params.speed || this.printSpeed;
 
                 // TODO: handle bounce (much more complicated!)
@@ -314,17 +425,19 @@
             }
 
             extrude(params) {
-                let __x = params.x || this.x;
-                let __y = params.y || this.y;
-                let __z = params.z || this.z;
+                let __x = params.x || this.targetX;
+                let __y = params.y || this.targetY;
+                let __z = params.z || this.targetZ;
+                
                 let _speed = params.speed || this.printSpeed;
                 let _layerHeight = params.thickness || this.layerHeight;
 
-                // TODO: handle bounce (much more complicated!)
+                // TODO: handle *bounce* (much more complicated!)
 
                 // clip to printer size for safety
-                console.log(Printer.bedSize);
-                console.log(this.model);
+                //console.log(Printer.bedSize);
+                //console.log(this.model);
+
                 let _bedSize = Printer.bedSize[this.model];
                 __x = Math.min(__x, _bedSize["x"]);
                 __y = Math.min(__y, _bedSize["y"]);
@@ -344,8 +457,8 @@
                 nozzleSpeed.z = dz / moveTime;
 
                 // sanity check:
-                let speedCheck = Math.sqrt(nozzleSpeed.x * nozzleSpeed.x + nozzleSpeed.y * nozzleSpeed.y + nozzleSpeed.z * nozzleSpeed.z);
-                console.log("speed check: " + speedCheck + "/" + _speed);
+                //let speedCheck = Math.sqrt(nozzleSpeed.x * nozzleSpeed.x + nozzleSpeed.y * nozzleSpeed.y + nozzleSpeed.z * nozzleSpeed.z);
+                //console.log("speed check: " + speedCheck + "/" + _speed);
 
                 // TODO: check for maximum speed!
 
@@ -353,27 +466,67 @@
 
                 //  filament_speed{mm/s} = layer_height^2 * nozzle_speed{mm/s}/(radius_filament^2)*PI
 
-                let filamentRadius = Printer.filamentDiameter[this.model] / 2;
-                    
-                // for extrusion into free space
-                // apparently, some printers take the filament into account (so this is in mm3)
-                // this was helpful: https://github.com/Ultimaker/GCodeGenJS/blob/master/js/gcode.js
-                let filamentLength = dist * Math.PI * (_layerHeight / 2) * (_layerHeight / 2)
-                if (!Printer.extrusionInmm3[this.model]) {
-                    filamentLength /= (filamentRadius * filamentRadius * Math.PI);
+                if (params.e)
+                {
+                    // if filament length was specified, use that.
+                    // Otherwise calculate based on layer height
+                    this.targetE = params.e; // TODO: not sure if this is good idea yet)
                 }
+                // otherwise, calculate filament length needed based on layerheight, etc.
+                else 
+                {
+                    let filamentRadius = Printer.filamentDiameter[this.model] / 2;
+                        
+                    // for extrusion into free space
+                    // apparently, some printers take the filament into account (so this is in mm3)
+                    // this was helpful: https://github.com/Ultimaker/GCodeGenJS/blob/master/js/gcode.js
+                    let filamentLength = dist * Math.PI * (_layerHeight / 2) * (_layerHeight / 2)
+                    if (!Printer.extrusionInmm3[this.model]) {
+                        filamentLength /= (filamentRadius * filamentRadius * Math.PI);
+                    }
 
-                let filamentSpeed = filamentLength / moveTime;
+                    let filamentSpeed = filamentLength / moveTime;
 
-                console.log("filament speed: " + filamentSpeed);
-                console.log("filament distance : " + filamentLength + "/" + dist);
+                    //console.log("filament speed: " + filamentSpeed);
+                    //console.log("filament distance : " + filamentLength + "/" + dist);
+                    
+                    this.targetE = this.e + filamentLength;
+                }
+                // update target position for printer head, to send as gcode
+                this.targetX = __x;
+                this.targetY = __y;
+                this.targetZ = __z;
+
+                // TODO: 
+                // schedule callback function to update state variables like layerheight, 
+                // etc? But, query printer for physical vars
                 
-                this.e += filamentLength;
-                
-                // TODO: update state variables like layerheight, etc? But, query printer for physical vars
-                // TODO: return lines of GCODE for extruding move
+                // gcode to send to printer
+                // https://github.com/Ultimaker/Ultimaker2Marlin
+                let gcode = [];
+
+                gcode.push("G90"); // abs coordinates
+                // G1 - Coordinated Movement X Y Z E
+                let moveCode = ["G1"];
+                moveCode.push("X"+this.targetX.toFixed(4));
+                moveCode.push("Y"+this.targetY.toFixed(4));
+                moveCode.push("Z"+this.targetZ.toFixed(4));
+                moveCode.push("E"+this.targetE.toFixed(4));
+                gcode.push(moveCode.join(" "));
+
+                gcode.push("M114"); // get position after move (X:0 Y:0 Z:0 E:0)
+
+                try {
+                    console.log("sending gcode: " + gcode)
+                    sendGCode(gcode);
+                }
+                catch (e)
+                {
+                    // TODO: this goes in HTML
+                    console.log("Error in extrude: " + e.message + "\n" + e.stack)
+                }
             }
-
+        // end Printer class
         };
 
 
@@ -436,38 +589,28 @@
 
             // TODO: check these: there are max speeds for each motor (x,y,z,e)
 
-    Printer.maxTravelSpeed = {
-        UM2plus: { 'x': 300, 'y': 300, 'z': 80, 'e': 45 },
-        UM2: { 'x': 300, 'y': 300, 'z': 80, 'e': 45 },
-        UM3: { 'x': 300, 'y': 300, 'z': 80, 'e': 45 },
-        REPRAP: { 'x': 300, 'y': 300, 'z': 80, 'e': 45 },
-    };
+        Printer.maxTravelSpeed = {
+            UM2plus: { 'x': 300, 'y': 300, 'z': 80, 'e': 45 },
+            UM2: { 'x': 300, 'y': 300, 'z': 80, 'e': 45 },
+            UM3: { 'x': 300, 'y': 300, 'z': 80, 'e': 45 },
+            REPRAP: { 'x': 300, 'y': 300, 'z': 80, 'e': 45 },
+        };
 
-    Printer.maxPrintSpeed = {
-        UM2: { 'x': 150, 'y': 150, 'z': 80 },
-        UM2plus: { 'x': 150, 'y': 150, 'z': 80 },
-        UM3: { 'x': 150, 'y': 150, 'z': 80 },
-        REPRAP: { 'x': 150, 'y': 150, 'z': 80 },
-    };
+        Printer.maxPrintSpeed = {
+            UM2: { 'x': 150, 'y': 150, 'z': 80 },
+            UM2plus: { 'x': 150, 'y': 150, 'z': 80 },
+            UM3: { 'x': 150, 'y': 150, 'z': 80 },
+            REPRAP: { 'x': 150, 'y': 150, 'z': 80 },
+        };
 
-    Printer.bedSize = {
-        UM2: { 'x': 223, 'y': 223, 'z': 205 },
-        UM2plus: { 'x': 223, 'y': 223, 'z': 305 },
-        UM3: { 'x': 223, 'y': 223, 'z': 205 },
-        REPRAP: { 'x': 150, 'y': 150, 'z': 80 },
-    };
+        Printer.bedSize = {
+            UM2: { 'x': 223, 'y': 223, 'z': 205 },
+            UM2plus: { 'x': 223, 'y': 223, 'z': 305 },
+            UM3: { 'x': 223, 'y': 223, 'z': 205 },
+            REPRAP: { 'x': 150, 'y': 150, 'z': 80 },
+        };
 
-            Printer.defaultPrintSpeed = 50; // mm/s
-
-
-        var printer = new Printer();
-
-        // TEST
-        printer.extrude({
-            'x': 20,
-            'y': 30,
-            'z': 10,
-        });
+        Printer.defaultPrintSpeed = 50; // mm/s
 
         //////////////////////////////////////////////////////////
 
@@ -479,6 +622,7 @@
             // report to user
             // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SyntaxError
             document.getElementById("errors").innerHTML = "<p>" + e.name + ":" + e.message + "(line:" + e.lineNumber + " / col: " + e.columnNumber + "</p>";
+            /*
             console.log("SyntaxError? " + (e instanceof SyntaxError)); // true
             console.log(e); // true
             console.log("SyntaxError? " + (e instanceof SyntaxError)); // true
@@ -489,10 +633,15 @@
             console.log(e.lineNumber);             // 1
             console.log(e.columnNumber);           // 4
             console.log(e.stack);                  // "@Scratchpad/1:2:3\n"
+            */
+
+            // this sucked because of coding... jst highlight instead!
+            /*
             if (e.lineNumber) {
                 // remember that syntax errors start at line 1 which is line 0 in CodeMirror!
                 CodeEditor.setSelection({ line: (e.lineNumber-1), ch: e.columnNumber }, { line: (e.lineNumber-1), ch: (e.columnNumber + 1) });
             }
+            */
         }
         function parseCode() {
             var code = CodeEditor.getSelection();
@@ -579,7 +728,10 @@
             return false;
         });
 
-        $("#gcode").select();
-        updater.start();
+        // set up things...
+        var printer = new Printer();
+
+        $("#gcode").select();  // focus on code input
+        socketHandler.start(); // start websockets
     });
 })();

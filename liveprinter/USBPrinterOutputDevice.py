@@ -237,7 +237,7 @@ class USBPrinter(OutputDevice):
     ## get last printer response, and mark as received if second arg is true
     def getLastResponse(self, consume:bool = False):
         if not self._responses_queue.empty():
-            response = self._responses_queue.get();
+            response = self._responses_queue.get()
             if consume:
                 self._responses_queue.task_done()
             return response
@@ -342,6 +342,13 @@ class USBPrinter(OutputDevice):
                         pass  # Nothing to do!
                     else:
                         self._sendNextGcodeLine()
+            
+            if line.startswith(b'X:'):
+                # position response for position update
+                # TODO: handle this, parse it properly
+                # b'X:0.00Y:0.00Z:0.00E:0.00 Count X: 0.00Y:0.00Z:0.00\n'
+                self._responses_queue.put(PrinterResponse("position",line))
+
 
             if self._is_printing:
                 if line.startswith(b'!!'):
@@ -382,7 +389,6 @@ class USBPrinter(OutputDevice):
     def cancelPrint(self):
         self._lines_printed = 0
         self._gcode.clear()
-        self._printers[0].updateActivePrintJob(None)
         self._is_printing = False
         self._is_paused = False
 
@@ -393,7 +399,7 @@ class USBPrinter(OutputDevice):
 
         # Home XY to prevent nozzle resting on aborted print
         # Don't home bed because it may crash the printhead into the print on printers that home on the bottom
-        self.printers[0].homeHead()
+        # FIXME ??
         self._sendCommand("M84")
 
     def _sendNextGcodeLine(self):
