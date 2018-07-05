@@ -135,7 +135,7 @@ def json_handle_gcode(printer:USBPrinter, *argv):
     # command_list.append(line.rstrip())
     
     try:
-        printer.startGCodeList(command_list)
+        printer.sendGCodeList(command_list)
         result['gcode'] = command_list
 
     except Exception as e:
@@ -153,7 +153,7 @@ def json_handle_gcode(printer:USBPrinter, *argv):
 #
 
 if __name__ == '__main__':
-    use_dummy_serial = False
+    use_dummy_serial = True
     serialport = None
     serial_obj = None
     baudrate = 250000
@@ -165,11 +165,11 @@ if __name__ == '__main__':
             port=serialport,
             baudrate=baudrate,
             ds_responses={
-                '^M105.*': b'ok T:24.7 /0.0 B:23.4 /0.0 @:0 B@:0\n',
-                '^M115.*': b'FIRMWARE_NAME:DUMMY',
-                '^M114.*': b'X:0 Y:0 Z:0',  # position request
-                '^G.*': b'ok',
-                '^N.*': b'ok',
+                '.*M105.*': b'ok T:24.7 /0.0 B:23.4 /0.0 @:0 B@:0\n',
+                '.*M115.*': b'FIRMWARE_NAME:DUMMY',
+                '.*M114.*': b'X:0 Y:0 Z:0',  # position request
+                '.*G.*': b'ok',
+                #'^N.*': b'ok',
                 '^XXX': b'!!'
                           }
         )
@@ -200,11 +200,13 @@ if __name__ == '__main__':
     )
     Logger.log("d",settings)
     app = Application(handlers=handlers, debug=options.debug, **settings)
-    #app = Application(handlers=handlers, debug=options.debug)
-    #app = Application(handlers)
+   
     httpServer = tornado.httpserver.HTTPServer(app)
     httpServer.listen(options.http_port)
+
     tornado.ioloop.IOLoop.current().start()
+
+   
 
     # TODO: ioloop for watchdog
     #main_loop.start()
