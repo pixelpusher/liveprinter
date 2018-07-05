@@ -13,6 +13,7 @@ import multiprocessing
 import serial
 from serial import Serial, SerialException, PARITY_ODD, PARITY_NONE
 import serial.tools.list_ports
+import re
 import tornado.httpserver
 from tornado.ioloop import IOLoop, PeriodicCallback
 import tornado.websocket
@@ -20,14 +21,13 @@ from tornado.web import Application, RequestHandler, StaticFileHandler
 from jsonrpc import JSONRPCResponseManager, Dispatcher, dispatcher
 
 from tornado.options import define, options
-from USBPrinterOutputDevice import *
+from USBPrinterOutputDevice import USBPrinter, ConnectionState
 from WebSocketHandler import WebSocketHandler
 from UM.Logger import Logger
 
 # tornado options
 define("http-port", default=8888, help="port to listen on", type=int)
 define('debug', default=True, help='Run in debug mode')
-
 
 
 def list_ports():
@@ -73,10 +73,14 @@ def process_printer_reponses(printer:USBPrinter):
             if response == False:
                 break
             else:
+                # TODO: decide which responses warrant forwarding to clients
                 message = {
-
-                    }
-                broadcast_message("{}".format(response.toString()))
+                    'jsonrpc': '2.0',
+                    'id': 2, 
+                    'method': 'info',
+                    'params': [ response.toString() ],
+                }
+                broadcast_message("{}".format(message))
 
 ## 
 # get json gcode (as a list of strings) from json-rpc dispatcher and 
@@ -111,19 +115,24 @@ def process_printer_reponses(printer:USBPrinter):
 # 
 #
 
-def json_handle_gcode(params, printer:USBPrinter):
+def json_handle_gcode(printer:USBPrinter, *argv):
 
     command_list = []
+    newline = re.compile(r'\n')
+
+    for arg in argv:
+        # check for newlines, if none this is a single command
+        if newline.search(arg):
+            command_list.append(arg.splitlines)
+        else:    
+            command_list.append(arg)
+
+        # Logger.log("d", "json arg {} {}".format(type(arg), arg))
+
     result = {}
 
-    try: 
-        command_list = params.splitlines()
-        Logger.log('i', "split lines: {}".format(command_list))
-    except:
-        # probably a list?
-        Logger.log('i', "treating {} as list".format(params))
-        for line in params:
-            command_list.append(line.rstrip())
+    # needed??
+    # command_list.append(line.rstrip())
     
     try:
         printer.startGCodeList(command_list)
@@ -131,10 +140,10 @@ def json_handle_gcode(params, printer:USBPrinter):
 
     except Exception as e:
         # TODO: fix this to be a real error type so it gets sent to the clients properly
-       raise ValueError("could not send commands to the printer {} : {}".format(repr(e),str(command_list)))
        Logger.log("e", "could not send commands to the printer {} : {}".format(repr(e),str(command_list)))
+       raise ValueError("could not send commands to the printer {} : {}".format(repr(e),str(command_list)))
     
-    return result;
+    return result
 
 
 
@@ -144,7 +153,7 @@ def json_handle_gcode(params, printer:USBPrinter):
 #
 
 if __name__ == '__main__':
-    use_dummy_serial = True
+    use_dummy_serial = False
     serialport = None
     serial_obj = None
     baudrate = 250000
@@ -156,19 +165,23 @@ if __name__ == '__main__':
             port=serialport,
             baudrate=baudrate,
             ds_responses={
-                'M105\n': b'ok T:24.7 /0.0 B:23.4 /0.0 @:0 B@:0\n',
-                'M115\n': b'FIRMWARE_NAME:DUMMY',
-                'XXX\n': b'!!'
+                '^M105.*': b'ok T:24.7 /0.0 B:23.4 /0.0 @:0 B@:0\n',
+                '^M115.*': b'FIRMWARE_NAME:DUMMY',
+                '^M114.*': b'X:0 Y:0 Z:0',  # position request
+                '^G.*': b'ok',
+                '^N.*': b'ok',
+                '^XXX': b'!!'
                           }
         )
     else:
-        serialport = list_ports()
+        # serialport = list_ports()
+        serialport = '/dev/cu.usbmodem1411'
 
     printer = USBPrinter(serialport, 250000, serial_obj)
     printer.connect()
     
     # set up mappings for JSONRPC
-    dispatcher.add_dict({"gcode": lambda msg: json_handle_gcode(msg, printer)})
+    dispatcher.add_dict({"gcode": lambda *msg: json_handle_gcode(printer, *msg)})
     # for testing:
     # self.dispatcher = Dispatcher({"gcode": lambda c: printer.startGCodeList(c.splitlines()) })
 
