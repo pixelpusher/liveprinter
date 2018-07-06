@@ -24,9 +24,19 @@
     sendGCode(gtokens.join(" "));
 }
 
-extrude({ 'x': 20, 
-    'y': 30,
-    'z': 10});
+// move to a spot
+moveto(10,10,0.2);
+
+//turn on hot end to 190C
+gcode("M104 S190");
+
+//check temp (see console)
+gcode("M105");
+
+// extrude some plastic!
+extrude(10,100,0.2);
+
+
                         </textarea></p>
                         <p>
                             <div class="container" id="buttons">
@@ -52,18 +62,10 @@ extrude({ 'x': 20,
             </div>
             <div class="col-4 col-md-4">
                 <div id="inbox" class="box">
-                    {% for message in messages %}
-                        {% if message["id"] == 1 %}
-                            {% include "message.html" %}
-                        {% end %}    
-                    {% end %}
+                    
                 </div>
                 <div id="info" class="box">
-                    {% for message in messages %}
-                        {% if message["id"] == 2 %}
-                            {% include "info.html" %}
-                        {% end %}
-                    {% end %}
+                    
                     <div class="panel-r lines"></div>
                     <div class="panel-b-r"></div>
                 </div>
