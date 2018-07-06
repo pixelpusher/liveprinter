@@ -60,8 +60,8 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
     def on_message(self, message):
         ## Passes an incoming JSON-RPC message to the dispatcher for processing.
         
-        Logger.log("d", 'Message received from {0}: {1}'.format(
-            self.request.remote_ip, message[:140]))
+        # Logger.log("d", 'Message received from {0}: {1}'.format(
+        #    self.request.remote_ip, message[:140]))
 
         parsed = tornado.escape.json_decode(message)
 
@@ -78,15 +78,17 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         #except Exception as e:
         #    Logger.log("e", "could not make json 2.0 request for {} : {}".format(parsed,repr(e)))
 
-        Logger.log("d", 'Message parsed to {0}'.format(parsed))
+        # Logger.log("d", 'Message parsed to {0}'.format(parsed))
+        handled_response = None
 
-        # note: the dispatcher functions are mapped in the main server
-        handled_response = JSONRPCResponseManager.handle(message, dispatcher)
+        try:
+            # note: the dispatcher functions are mapped in the main server
+            handled_response = JSONRPCResponseManager.handle(message, dispatcher)
+        except Exception as e:
+            Logger.log("d", "Unexpected error: {}".format(repr(e)))
+            raise
         
-        Logger.log("d",'Sending response to {0}: {1}'.format(
-            self.request.remote_ip, str(handled_response.json)))
-
-        result = ""  # message to broadcast to clients
+        result = None  # message to broadcast to clients
 
         # test for error
         if handled_response.error:
@@ -98,11 +100,13 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         else:
             # successful response
             result = handled_response.result
-            Logger.log('i', 'JSON RPC response sent: {}'.format(result))
+                
 
-            result['html'] = tornado.escape.to_basestring(
-                self.render_string("message.html", message=handled_response.data)
-            )
+            #result['html'] = tornado.escape.to_basestring(
+            #    self.render_string("message.html", message=handled_response.data)
+            #)
 
-        # update all clients
-        WebSocketHandler.send_updates(result)
+        # update all clients but result might be None
+        if result:
+            WebSocketHandler.send_updates(result)
+            Logger.log('d', 'JSON RPC response to {} sent: {}'.format(self.request.remote_ip,result))

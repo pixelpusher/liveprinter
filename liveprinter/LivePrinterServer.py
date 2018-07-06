@@ -20,6 +20,7 @@ from tornado.ioloop import IOLoop, PeriodicCallback
 import tornado.websocket
 from tornado.web import Application, RequestHandler, StaticFileHandler
 from jsonrpc import JSONRPCResponseManager, Dispatcher, dispatcher
+import json
 
 from tornado.options import define, options
 from USBPrinterOutputDevice import USBPrinter, ConnectionState
@@ -62,10 +63,12 @@ def broadcast_message(message):
     Adds 'jsonrpc' field required to satisfy the JSON-RPC 2.0 spec.
     '''
     if message['jsonrpc'] is None:
-        message['jsonrpc'] = '2.0'
+        message['jsonrpc'] = "2.0"
     for client in WebSocketHandler.clients:
+        message = json.dumps(message)
+        # double quotes are JSON standard
+        client.write_message(message)
         Logger.log("i","broadcasting to client: {}".format(message))
-        client.write_message(str(message))
 
 ## handle printer response queue: PrinterResponse obj with time, type, messages[]
 ## decide whether to notify clients
@@ -74,10 +77,10 @@ def process_printer_reponses(printer:USBPrinter):
     #while True:
     response = printer.getLastResponse()  # PrinterReponse object
     if response:
-        Logger.log("i", "RESPONSE: {}".format(response))
-        broadcast_message(response.toJSONRPC())
+        Logger.log("i", "RESPONSE: {}".format(response))   
         printer.lastReponseHandled()
-        #yield gen.sleep(0.100) # 100 ms
+        broadcast_message(response.toJSONRPC())
+        Logger.log("i", "TEST")
 
 ## 
 # get json gcode (as a list of strings) from json-rpc dispatcher and 
@@ -143,6 +146,22 @@ def json_handle_gcode(printer:USBPrinter, *argv):
     return result
 
 
+def json_handle_responses(printer:USBPrinter, *argv):
+    try:
+        response = printer.getLastResponse()  # PrinterReponse object
+    except Exception as e:
+        # TODO: fix this to be a real error type so it gets sent to the clients properly
+       Logger.log("e", "could get responses from printer {} : {}".format(repr(e),str(command_list)))
+       response = None
+
+    if response is not None:
+        Logger.log("i", "RESPONSE: {}".format(response))
+        printer.lastReponseHandled()
+        return response.toJSONRPC()
+        
+    
+    return None
+
 
 
 #
@@ -179,6 +198,9 @@ if __name__ == '__main__':
     
     # set up mappings for JSONRPC
     dispatcher.add_dict({"gcode": lambda *msg: json_handle_gcode(printer, *msg)})
+
+    dispatcher.add_dict({"response": lambda *msg: json_handle_responses(printer, *msg)})
+
     # for testing:
     # self.dispatcher = Dispatcher({"gcode": lambda c: printer.startGCodeList(c.splitlines()) })
 
@@ -205,9 +227,9 @@ if __name__ == '__main__':
     #httpServer.start(0)
 
     main_loop = tornado.ioloop.IOLoop.instance()
-    printer_event_processor = tornado.ioloop.PeriodicCallback(
-        lambda: process_printer_reponses(printer), 1500)
-    printer_event_processor.start()
+    # printer_event_processor = tornado.ioloop.PeriodicCallback(
+    #    lambda: process_printer_reponses(printer), 1500)
+    # printer_event_processor.start()
     main_loop.start()
 
     # IOLoop.current().spawn_callback(process_printer_reponses, printer)

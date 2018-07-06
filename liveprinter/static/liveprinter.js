@@ -21,12 +21,16 @@
         if (!window.console) window.console = {};
         if (!window.console.log) window.console.log = function () { };
 
-        
+
         var Scheduler = {
             ScheduledEvents: [],
             audioContext: new AudioContext(),
             schedulerInterval: 1000,
             timerID: null,
+
+            clearEvents: function () {
+                Scheduler.ScheduledEvents = []
+            },
 
             /*
             * arguments properties:
@@ -120,7 +124,7 @@
                 parseCode();
             }
         });
-    
+
 
         // borrowed from https://github.com/cncjs/gcode-parser/blob/master/src/index.js (MIT License)
         // See http://linuxcnc.org/docs/html/gcode/overview.html#gcode:comments
@@ -142,10 +146,9 @@
 
         function sendGCode(text) {
             let gcode = text;
-            if (typeof gcode === 'string') gcode = [ stripComments(gcode) ];
+            if (typeof gcode === 'string') gcode = [stripComments(gcode)];
 
-            if (typeof gcode === 'object' && Array.isArray(gcode))
-            {
+            if (typeof gcode === 'object' && Array.isArray(gcode)) {
                 let message = {
                     'jsonrpc': '2.0',
                     'id': 1,
@@ -155,37 +158,41 @@
 
                 let message_json = JSON.stringify(message);
                 // debugging
-                console.log(message_json);
+                //console.log(message_json);
 
                 socketHandler.socket.send(message_json);
             }
-            else throw new Error("invalid gcode in sendGCode[" + typeof text+"]:" + text);
+            else throw new Error("invalid gcode in sendGCode[" + typeof text + "]:" + text);
         }
 
- 
+
         function newMessage(form) {
             var line = CodeEditor.getLine(CodeEditor.getCursor().line)
-    
+
             console.log("trigger", line);
-        
+
             sendGCode(line);
         }
 
         var socketHandler = {
             socket: null,
+            listeners: [], // listeners for json rpc calls
 
             start: function () {
                 var url = "ws://" + location.host + "/json";
-                this.socket = new WebSocket(url);
+                socketHandler.socket = new WebSocket(url);
                 console.log('opening socket');
                 socketHandler.socket.onmessage = function (event) {
-                    socketHandler.showMessage(JSON.parse(event.data));
+                    //console.log(event.data);
+                    let jsonRPC = JSON.parse(event.data);
+                    //console.log(jsonRPC);
+                    socketHandler.handleJSONRPC(jsonRPC);
+                    socketHandler.showMessage(event.data);
                 }
 
                 // runs when printer connection is established via websockets
-                socketHandler.socket.onopen = function()
-                {
-                    
+                socketHandler.socket.onopen = function () {
+
                     // TEST
                     // printer.extrude({
                     //     'x': 20,
@@ -207,8 +214,43 @@
                 node.hide();
                 $("#inbox").append(node);
                 node.slideDown();
+            },
+
+            handleError: function (errorJSON) {
+                // TODO:
+                console.log("JSON RPC ERROR: " + errorJSON);
+            },
+
+            handleJSONRPC: function (jsonRPC) {
+                // call all listeners
+                //console.log("socket:");
+                //console.log(this);
+                socketHandler.listeners.map(listener => { if (listener[jsonRPC.method]) { listener[jsonRPC.method](jsonRPC.params) } });
+            },
+
+            //
+            // add a listener to the queue of jsonrpc event listeners
+            // must have a function for jsonrpc event method name which takes appropriate params json object
+            registerListener: function (listener) {
+                socketHandler.listeners.push(listener)
+            },
+
+            removeListener: function (listener) {
+                socketHandler.listeners = socketHandler.listeners.filter(l => (l !== listener));
             }
         };
+
+        // TEST
+
+        //var testListener = {
+        //    "info": function (params) {
+        //        console.log("INFO:");
+        //        console.log(params);
+        //    }
+        //};
+
+        //socketHandler.registerListener(testListener);
+
 
 
         // CodeMirror stuff
@@ -274,52 +316,56 @@
             interpreter.setProperty(scope, 'gcode',
                 interpreter.createNativeFunction(wrapper));
 
-            wrapper = function (props) {
+            wrapper = function (x,y,z) {
                 // can't send objects back and forth, need to copy property primitives
-                let _props = {};
-                for (var key in props)
-                {
-                    _props[key] = props[key]; 
-                }
-                printer.extrude(_props);
+                let props = { "x": x, "y": y, "z": z };
+                printer.extrude(props);
+                
                 console.log("extrude:");
                 console.log(props);
             };
             interpreter.setProperty(scope, 'extrude',
                 interpreter.createNativeFunction(wrapper));
-    
-                //printer.extrude({
-                    //     'x': 20,
-                    //     'y': 30,
-                    //     'z': 10,
-                    // });
 
-            /// TODO: API LINKING
-            // These are just copied in
-            //var strFunctions = [
-            //    [escape, 'escape'], [unescape, 'unescape'],
-            //    [decodeURI, 'decodeURI'], [decodeURIComponent, 'decodeURIComponent'],
-            //    [encodeURI, 'encodeURI'], [encodeURIComponent, 'encodeURIComponent']
-            //];
-            //for (var i = 0; i < strFunctions.length; i++) {
-            //    var wrapper = (function (nativeFunc) {
-            //        return function (str) {
-            //            try {
-            //                return nativeFunc(str);
-            //            } catch (e) {
-            //                // decodeURI('%xy') will throw an error.  Catch and rethrow.
-            //                thisInterpreter.throwException(thisInterpreter.URI_ERROR, e.message);
-            //            }
-            //        };
-            //    })(strFunctions[i][0]);
-            //    this.setProperty(scope, strFunctions[i][1],
-            //        this.createNativeFunction(wrapper, false),
-            //        Interpreter.NONENUMERABLE_DESCRIPTOR);
-            //}
+            //printer.extrude({
+            //     'x': 20,
+            //     'y': 30,
+            //     'z': 10,
+            // });
+            wrapper = function (x,y,z) {
+                // can't send objects back and forth, need to copy property primitives
+                let props = { "x": x, "y": y, "z": z };
+                printer.moveto(props);
+                console.log("moveto:");
+                console.log(props);
+            };
 
-
-
+            interpreter.setProperty(scope, 'moveto',
+                interpreter.createNativeFunction(wrapper));
         }
+        
+        /// TODO: API LINKING
+        // These are just copied in
+        //var strFunctions = [
+        //    [escape, 'escape'], [unescape, 'unescape'],
+        //    [decodeURI, 'decodeURI'], [decodeURIComponent, 'decodeURIComponent'],
+        //    [encodeURI, 'encodeURI'], [encodeURIComponent, 'encodeURIComponent']
+        //];
+        //for (var i = 0; i < strFunctions.length; i++) {
+        //    var wrapper = (function (nativeFunc) {
+        //        return function (str) {
+        //            try {
+        //                return nativeFunc(str);
+        //            } catch (e) {
+        //                // decodeURI('%xy') will throw an error.  Catch and rethrow.
+        //                thisInterpreter.throwException(thisInterpreter.URI_ERROR, e.message);
+        //            }
+        //        };
+        //    })(strFunctions[i][0]);
+        //    this.setProperty(scope, strFunctions[i][1],
+        //        this.createNativeFunction(wrapper, false),
+        //        Interpreter.NONENUMERABLE_DESCRIPTOR);
+        //}
 
       
 
@@ -421,12 +467,12 @@
             }
 
             extrude(params) {
-                let __x = params.x || this.targetX;
-                let __y = params.y || this.targetY;
-                let __z = params.z || this.targetZ;
+                let __x = parseFloat(params.x || this.targetX);
+                let __y = parseFloat(params.y || this.targetY);
+                let __z = parseFloat(params.z || this.targetZ);
                 
-                let _speed = params.speed || this.printSpeed;
-                let _layerHeight = params.thickness || this.layerHeight;
+                let _speed = parseFloat(params.speed || this.printSpeed);
+                let _layerHeight = parseFloat(params.thickness || this.layerHeight);
 
                 // TODO: handle *bounce* (much more complicated!)
 
@@ -466,7 +512,7 @@
                 {
                     // if filament length was specified, use that.
                     // Otherwise calculate based on layer height
-                    this.targetE = params.e; // TODO: not sure if this is good idea yet)
+                    this.targetE = parseFloat(params.e); // TODO: not sure if this is good idea yet)
                 }
                 // otherwise, calculate filament length needed based on layerheight, etc.
                 else 
@@ -485,13 +531,17 @@
 
                     //console.log("filament speed: " + filamentSpeed);
                     //console.log("filament distance : " + filamentLength + "/" + dist);
-                    
+                    console.log("e type=" + typeof this.e);
+                   
                     this.targetE = this.e + filamentLength;
+                    //console.log("E:" + this.targetE);
                 }
                 // update target position for printer head, to send as gcode
                 this.targetX = __x;
                 this.targetY = __y;
                 this.targetZ = __z;
+
+                console.log("EEEE:" + this.targetE);
 
                 // TODO: 
                 // schedule callback function to update state variables like layerheight, 
@@ -521,7 +571,95 @@
                     // TODO: this goes in HTML
                     console.log("Error in extrude: " + e.message + "\n" + e.stack)
                 }
-            }
+            } // end extrude
+
+            moveto(params) {
+                let __x = params.x || this.targetX;
+                let __y = params.y || this.targetY;
+                let __z = params.z || this.targetZ;
+
+                let _speed = params.speed || this.printSpeed;
+                
+                // TODO: handle *bounce* (much more complicated!)
+
+                // clip to printer size for safety
+                //console.log(Printer.bedSize);
+                //console.log(this.model);
+
+                let _bedSize = Printer.bedSize[this.model];
+                __x = Math.min(__x, _bedSize["x"]);
+                __y = Math.min(__y, _bedSize["y"]);
+                __z = Math.min(__z, _bedSize["z"]);
+
+                let dx = this.x - __x;
+                let dy = this.y - __y;
+                let dz = this.z - __z;
+                let dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+
+                let moveTime = dist / _speed; // in sec
+
+                console.log("time: " + moveTime + " / dist:" + dist);
+                let nozzleSpeed = {};
+                nozzleSpeed.x = dx / moveTime;
+                nozzleSpeed.y = dy / moveTime;
+                nozzleSpeed.z = dz / moveTime;
+
+                // sanity check:
+                //let speedCheck = Math.sqrt(nozzleSpeed.x * nozzleSpeed.x + nozzleSpeed.y * nozzleSpeed.y + nozzleSpeed.z * nozzleSpeed.z);
+                //console.log("speed check: " + speedCheck + "/" + _speed);
+
+                // TODO: check for maximum speed!
+
+                //  nozzle_speed{mm/s} = (radius_filament^2) * PI * filament_speed{mm/s} / layer_height^2
+
+                //  filament_speed{mm/s} = layer_height^2 * nozzle_speed{mm/s}/(radius_filament^2)*PI
+
+                if (params.e) {
+                    // if filament length was specified, use that.
+                    // Otherwise calculate based on layer height
+                    this.targetE = parseFloat(params.e); 
+
+                    let filamentSpeed = (this.targetE - this.e) / moveTime;
+
+                    console.log("filament speed: " + filamentSpeed);
+
+                }
+                // otherwise, calculate filament length needed based on layerheight, etc.
+                // update target position for printer head, to send as gcode
+                this.targetX = __x;
+                this.targetY = __y;
+                this.targetZ = __z;
+
+                // TODO: 
+                // schedule callback function to update state variables like layerheight, 
+                // etc? But, query printer for physical vars
+
+                // gcode to send to printer
+                // https://github.com/Ultimaker/Ultimaker2Marlin
+                let gcode = [];
+
+                gcode.push("G90"); // abs coordinates
+                // G1 - Coordinated Movement X Y Z E
+                let moveCode = ["G1"];
+                moveCode.push("X" + this.targetX.toFixed(4));
+                moveCode.push("Y" + this.targetY.toFixed(4));
+                moveCode.push("Z" + this.targetZ.toFixed(4));
+                moveCode.push("E" + this.targetE.toFixed(4));
+                gcode.push(moveCode.join(" "));
+
+                gcode.push("M114"); // get position after move (X:0 Y:0 Z:0 E:0)
+
+                try {
+                    console.log("sending gcode: " + gcode)
+                    sendGCode(gcode);
+                }
+                catch (e) {
+                    // TODO: this goes in HTML
+                    console.log("Error in move: " + e.message + "\n" + e.stack)
+                }
+            } // end moveto
+
+
         // end Printer class
         };
 
@@ -578,7 +716,7 @@
         };
 
         Printer.filamentDiameter = { UM2: 2.85, UM2plus: 2.85, UM3: 2.85, REPRAP: 2.85 };
-        Printer.extrusionInmm3 = { UM2: true, UM2plus: true, UM3: false, REPRAP: false };
+        Printer.extrusionInmm3 = { UM2: true, UM2plus: false, UM3: false, REPRAP: false };
 
             // TODO: FIX THESE!
             // https://ultimaker.com/en/products/ultimaker-2-plus/specifications
@@ -682,17 +820,19 @@
         }
 
         function runCode() {
-            disable('disabled');
-            var code = CodeEditor.getSelection();
+            // disable('disabled');
+            let code = CodeEditor.getSelection();
 
             // parse first
 
-            var validCode = true;
+            let validCode = true;
 
             if (!code) {
                 // info level
                 console.log("no selections");
-                code = CodeEditor.getValue();
+                let cursor = CodeEditor.getCursor();
+                code = CodeEditor.getLine(cursor.line);
+                CodeEditor.setSelection({ line: cursor.line, ch: 0 }, { line: cursor.line, ch: code.length });
             }
             try {
                 myInterpreter = new Interpreter(code, initFuncs);
@@ -701,13 +841,14 @@
                 validCode = false;
             }
             // run code
-            if (validCode) {
+            //if (validCode) {
                 try {
                     myInterpreter.run();
+                    //eval(code);
                 } catch (e) {
                     doError(e);
                 }
-            }
+            //}
         }
 
         function disable(disabled) {
@@ -727,7 +868,39 @@
         // set up things...
         var printer = new Printer();
 
+        // handler for JSON-RPC calls from server
+        printer.jsonrpcListener = {
+            "position": function (params) {
+                console.log("position:");
+                console.log(params);
+                printer.x = parseFloat(params.x);
+                printer.y = parseFloat(params.y);
+                printer.z = parseFloat(params.z);
+                printer.e = parseFloat(params.e);
+            }
+        };
+
+        socketHandler.registerListener(printer.jsonrpcListener);
+
         $("#gcode").select();  // focus on code input
         socketHandler.start(); // start websockets
+
+        var responseJSON = JSON.stringify({
+            "jsonrpc": "2.0",
+            "id": 4,
+            "method": "response",
+            "params": []
+        });
+
+        var waitingForResponse = false; // only ask for responses if we expect them?
+
+        Scheduler.scheduleEvent({
+            timeOffset: 40,
+            func: function () {
+                //console.log(message_json);
+                socketHandler.socket.send(responseJSON);
+            },
+             repeat: true,
+         });
     });
 })();
