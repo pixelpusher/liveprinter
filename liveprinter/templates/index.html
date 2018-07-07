@@ -17,15 +17,21 @@
                 <div class="box intro">
                     <form action="/a/message/new" method="post" id="gcodeform">
                         <p><textarea id="gcode_input" name="gcode" placeholder="" style="width:500px">
-                        function doMove(x,y)
+// run gcode directly in a function
+// this will only work once - to persist functions use the "lp" object
+function doMove(x,y)
 {
 	var gtokens = ["G92"];
     gtokens.push("X"+x); gtokens.push("Y"+y);
-    sendGCode(gtokens.join(" "));
+    gcode(gtokens.join(" "));
 }
 
-// move to a spot
-moveto(10,10,0.2);
+// ex: a global function
+lp.movex = x => gcode("G92 X" + x);
+
+// use the API to move to a spot
+// lp is the liveprinter object (x,y,z,e, layerHeight and move/print functions)
+lp.moveto(10,10,0.2);
 
 //turn on hot end to 190C
 gcode("M104 S190");
@@ -34,9 +40,7 @@ gcode("M104 S190");
 gcode("M105");
 
 // extrude some plastic!
-extrude(10,100,0.2);
-
-
+lp.extrude(10,100,0.2);
                         </textarea></p>
                         <p>
                             <div class="container" id="buttons">

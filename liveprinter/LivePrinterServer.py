@@ -169,7 +169,7 @@ def json_handle_responses(printer:USBPrinter, *argv):
 #
 
 if __name__ == '__main__':
-    use_dummy_serial = False
+    use_dummy_serial = True
     serialport = None
     serial_obj = None
     baudrate = 250000
