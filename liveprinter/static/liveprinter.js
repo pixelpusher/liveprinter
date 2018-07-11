@@ -33,7 +33,7 @@
             var Scheduler = {
                 ScheduledEvents: [],
                 audioContext: new AudioContext(),
-                schedulerInterval: 1000,
+                schedulerInterval: 40,
                 timerID: null,
 
                 clearEvents: function () {
@@ -399,6 +399,9 @@
 
                     this.travelSpeed = { 'x': 5, 'y': 5, 'z': 0 }; // in mm/s
 
+                    this.currentRetraction = 0; // length currently retracted
+                    this.retractLength = 2; // in mm - amount to retract after extrusion
+
                     // TODO: use Quarternions for axis/angle: https://github.com/infusion/Quaternion.js
 
                     // or this.travelSpeed = { "direction": 30, "angle": [0,30,0] }; // in mm/s
@@ -446,38 +449,19 @@
                 get printSpeed() { return this._printSpeed; }
 
                 /**
-                 * Move the printer head, withing bounds
+                 * extrude from the printer head, withing bounds
                  * @param {Object} params Parameters dictionary containing either x,y,z keys or direction/angle (radians) keys.
                  *      Optional bounce (Boolean) key if movement should bounce off sides.
                  */
-                move(params) {
-                    let __x = params.x || this.targetX;
-                    let __y = params.y || this.targetY;
-                    let __z = params.z || this.targetZ;
-                    let _speed = params.speed || this.printSpeed;
+                extrudeto(params) {
+                    
+                    let __x = (params.x !== undefined) ? params.x : this.x;
+                    let __y = (params.y !== undefined) ? params.y : this.y;
+                    let __z = (params.z !== undefined) ? params.z : this.z;
 
-                    // TODO: handle bounce (much more complicated!)
-
-                    // clip to printer size for safety
-                    let _bedSize = Printer.bedSize[this._model];
-                    __x = Math.min(__x, _bedSize["x"]);
-                    __y = Math.min(__y, _bedSize["y"]);
-                    __z = Math.min(__z, _bedSize["z"]);
-
-                    let dx = this.x - __x;
-                    let dy = this.y - __y;
-                    let dz = this.y - __z;
-                    let dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
-
-                    // TODO: calculate time to move...
-
-                    // RETURN GCODE for move as array of strings
-                }
-
-                extrude(params) {
-                    let __x = parseFloat(params.x || this.targetX);
-                    let __y = parseFloat(params.y || this.targetY);
-                    let __z = parseFloat(params.z || this.targetZ);
+                    __x = parseFloat(__x);
+                    __y = parseFloat(__y);
+                    __z = parseFloat(__z);
 
                     let _speed = parseFloat(params.speed || this.printSpeed);
                     let _layerHeight = parseFloat(params.thickness || this.layerHeight);
@@ -515,37 +499,46 @@
                     //  nozzle_speed{mm/s} = (radius_filament^2) * PI * filament_speed{mm/s} / layer_height^2
 
                     //  filament_speed{mm/s} = layer_height^2 * nozzle_speed{mm/s}/(radius_filament^2)*PI
+                    this.targetE = this.e;
 
-                    if (params.e) {
-                        // if filament length was specified, use that.
-                        // Otherwise calculate based on layer height
-                        this.targetE = parseFloat(params.e); // TODO: not sure if this is good idea yet)
+                    if (params.e !== undefined) 
+                    {
+                        if( params.e != this.e)
+                        {
+                            // if filament length was specified, use that.
+                            // Otherwise calculate based on layer height
+                            this.targetE = parseFloat(params.e); // TODO: not sure if this is good idea yet)
+                        }
                     }
                     // otherwise, calculate filament length needed based on layerheight, etc.
-                    else {
+                    else 
+                    {
                         let filamentRadius = Printer.filamentDiameter[this.model] / 2;
 
                         // for extrusion into free space
                         // apparently, some printers take the filament into account (so this is in mm3)
                         // this was helpful: https://github.com/Ultimaker/GCodeGenJS/blob/master/js/gcode.js
-                        let filamentLength = dist * Math.PI * (_layerHeight / 2) * (_layerHeight / 2)
+                        let filamentLength = dist*_layerHeight*_layerHeight;//(Math.PI*filamentRadius*filamentRadius);
+
                         if (!Printer.extrusionInmm3[this.model]) {
                             filamentLength /= (filamentRadius * filamentRadius * Math.PI);
                         }
 
                         let filamentSpeed = filamentLength / moveTime;
 
-                        //console.log("filament speed: " + filamentSpeed);
-                        //console.log("filament distance : " + filamentLength + "/" + dist);
-                        console.log("e type=" + typeof this.e);
+                        console.log("filament speed: " + filamentSpeed);
+                        console.log("filament distance : " + filamentLength + "/" + dist);
+                        //console.log("e type=" + typeof this.e);
 
-                        this.targetE = this.e + filamentLength;
+                        this.targetE = this.e + filamentLength;                        
                         //console.log("E:" + this.targetE);
                     }
+
                     // update target position for printer head, to send as gcode
-                    this.targetX = __x;
-                    this.targetY = __y;
-                    this.targetZ = __z;
+                    this.targetX = __x.toFixed(4);
+                    this.targetY = __y.toFixed(4);
+                    this.targetZ = __z.toFixed(4);
+                    this.targetE = this.targetE.toFixed(4);
 
                     console.log("EEEE:" + this.targetE);
 
@@ -558,14 +551,31 @@
                     let gcode = [];
 
                     gcode.push("G90"); // abs coordinates
+
+                    //unretract first if needed
+                    if (params.e != this.e && this.currentRetraction)
+                    {
+                        // account for previous retraction
+                        this.targetE += this.currentRetraction;
+                        gcode.push("G1 " + "E" + this.targetE);
+                    }
+
                     // G1 - Coordinated Movement X Y Z E
                     let moveCode = ["G1"];
-                    moveCode.push("X" + this.targetX.toFixed(4));
-                    moveCode.push("Y" + this.targetY.toFixed(4));
-                    moveCode.push("Z" + this.targetZ.toFixed(4));
-                    moveCode.push("E" + this.targetE.toFixed(4));
+                    moveCode.push("X" + this.targetX);
+                    moveCode.push("Y" + this.targetY);
+                    moveCode.push("Z" + this.targetZ);
+                    moveCode.push("E" + this.targetE);
                     gcode.push(moveCode.join(" "));
+                    
+                    // RETRACT
+                    if (params.e != this.e)
+                    {
+                        this.currentRetraction = this.retractLength;
+                        this.targetE -= this.currentRetraction;
 
+                        gcode.push("G1 " + "E" + this.targetE);
+                    }
                     gcode.push("M114"); // get position after move (X:0 Y:0 Z:0 E:0)
 
                     try {
@@ -576,94 +586,45 @@
                         // TODO: this goes in HTML
                         console.log("Error in extrude: " + e.message + "\n" + e.stack)
                     }
-                } // end extrude
+                } // end extrudeto
 
+                //
+                // relative extrusion
+                //
+                extrude(params) {
+                    let __x = (params.x !== undefined) ? params.x : 0;
+                    let __y = (params.y !== undefined) ? params.y : 0;
+                    let __z = (params.z !== undefined) ? params.z : 0;
+
+                    // make relative
+                    __x = this.x + parseFloat(__x);
+                    __y = this.y + parseFloat(__y);
+                    __z = this.z + parseFloat(__z);
+
+                    params.x = __x;
+                    params.y = __y;
+                    params.z = __z;
+
+                    if (params.e !== undefined) params.e = (parseFloat(params.e)+this.e);
+
+                    this.extrudeto(params);
+                } // end extrudeto
+
+                // PRINTER API
+                // relative movement
+                //
+                move(params) {
+                    params.e = 0; // no filament extrusion
+                    this.extrude(params);
+                } // end move
+
+                // PRINTER API
+                // abs movement
+                //
                 moveto(params) {
-                    let __x = params.x || this.targetX;
-                    let __y = params.y || this.targetY;
-                    let __z = params.z || this.targetZ;
-
-                    let _speed = params.speed || this.printSpeed;
-
-                    // TODO: handle *bounce* (much more complicated!)
-
-                    // clip to printer size for safety
-                    //console.log(Printer.bedSize);
-                    //console.log(this.model);
-
-                    let _bedSize = Printer.bedSize[this.model];
-                    __x = Math.min(__x, _bedSize["x"]);
-                    __y = Math.min(__y, _bedSize["y"]);
-                    __z = Math.min(__z, _bedSize["z"]);
-
-                    let dx = this.x - __x;
-                    let dy = this.y - __y;
-                    let dz = this.z - __z;
-                    let dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
-
-                    let moveTime = dist / _speed; // in sec
-
-                    console.log("time: " + moveTime + " / dist:" + dist);
-                    let nozzleSpeed = {};
-                    nozzleSpeed.x = dx / moveTime;
-                    nozzleSpeed.y = dy / moveTime;
-                    nozzleSpeed.z = dz / moveTime;
-
-                    // sanity check:
-                    //let speedCheck = Math.sqrt(nozzleSpeed.x * nozzleSpeed.x + nozzleSpeed.y * nozzleSpeed.y + nozzleSpeed.z * nozzleSpeed.z);
-                    //console.log("speed check: " + speedCheck + "/" + _speed);
-
-                    // TODO: check for maximum speed!
-
-                    //  nozzle_speed{mm/s} = (radius_filament^2) * PI * filament_speed{mm/s} / layer_height^2
-
-                    //  filament_speed{mm/s} = layer_height^2 * nozzle_speed{mm/s}/(radius_filament^2)*PI
-
-                    if (params.e) {
-                        // if filament length was specified, use that.
-                        // Otherwise calculate based on layer height
-                        this.targetE = parseFloat(params.e);
-
-                        let filamentSpeed = (this.targetE - this.e) / moveTime;
-
-                        console.log("filament speed: " + filamentSpeed);
-
-                    }
-                    // otherwise, calculate filament length needed based on layerheight, etc.
-                    // update target position for printer head, to send as gcode
-                    this.targetX = __x;
-                    this.targetY = __y;
-                    this.targetZ = __z;
-
-                    // TODO: 
-                    // schedule callback function to update state variables like layerheight, 
-                    // etc? But, query printer for physical vars
-
-                    // gcode to send to printer
-                    // https://github.com/Ultimaker/Ultimaker2Marlin
-                    let gcode = [];
-
-                    gcode.push("G90"); // abs coordinates
-                    // G1 - Coordinated Movement X Y Z E
-                    let moveCode = ["G1"];
-                    moveCode.push("X" + this.targetX.toFixed(4));
-                    moveCode.push("Y" + this.targetY.toFixed(4));
-                    moveCode.push("Z" + this.targetZ.toFixed(4));
-                    moveCode.push("E" + this.targetE.toFixed(4));
-                    gcode.push(moveCode.join(" "));
-
-                    gcode.push("M114"); // get position after move (X:0 Y:0 Z:0 E:0)
-
-                    try {
-                        console.log("sending gcode: " + gcode)
-                        sendGCode(gcode);
-                    }
-                    catch (e) {
-                        // TODO: this goes in HTML
-                        console.log("Error in move: " + e.message + "\n" + e.stack)
-                    }
-                } // end moveto
-
+                    params.e = this.e; // keep filament at current position
+                    this.extrudeto(params);
+                 } // end moveto
 
                 // end Printer class
             };
@@ -721,7 +682,7 @@
             };
 
             Printer.filamentDiameter = { UM2: 2.85, UM2plus: 2.85, UM3: 2.85, REPRAP: 2.85 };
-            Printer.extrusionInmm3 = { UM2: true, UM2plus: false, UM3: false, REPRAP: false };
+            Printer.extrusionInmm3 = { UM2: false, UM2plus: true, UM3: true, REPRAP: false };
 
             // TODO: FIX THESE!
             // https://ultimaker.com/en/products/ultimaker-2-plus/specifications
@@ -902,13 +863,40 @@
             var waitingForResponse = false; // only ask for responses if we expect them?
 
             Scheduler.scheduleEvent({
-                timeOffset: 40,
+                timeOffset: 80,
                 func: function () {
                     //console.log(message_json);
-                    socketHandler.socket.send(responseJSON);
+                    if (socketHandler.socket.readyState === socketHandler.socket.OPEN) {
+                        socketHandler.socket.send(responseJSON);
+                    }
                 },
                 repeat: true,
             });
+
+
+
+            // temperature event handler
+            var tempHandler = {
+                'temperature': function (tempEvent) {
+                console.log("temp event:");
+                console.log(tempEvent);
+                    let tmp = parseFloat(tempEvent.hotend).toFixed(2);
+                    let target = parseFloat(tempEvent.hotend_target).toFixed(2);
+                    // look for 10% diff, it's not very accurate...
+                    if ((Math.abs(tmp-target)/target) < 0.10) {
+                    let gcodeString = "";
+                        for (var i=1; i<5; i++)
+                    {
+                            gcodeString +='M300 P200 S' + i*220+'\n';
+                    }
+                    sendGCode(gcodeString);
+                    }
+                }    	
+            };
+            socketHandler.registerListener(tempHandler);
+            
+            // TODO: temp probe that gets scheduled every 300ms and then removes self when
+            // tempHandler called
 
             // update printing API to share with running script
             scope.printer = printer;

@@ -31,7 +31,7 @@ lp.movex = x => gcode("G92 X" + x);
 
 // use the API to move to a spot
 // lp is the liveprinter object (x,y,z,e, layerHeight and move/print functions)
-lp.moveto(10,10,0.2);
+lp.moveto({x:100,y:120,z:10});
 
 //turn on hot end to 190C
 gcode("M104 S190");
@@ -40,7 +40,11 @@ gcode("M104 S190");
 gcode("M105");
 
 // extrude some plastic!
-lp.extrude(10,100,0.2);
+//can even move the filament direct, and negative is backwards
+lp.extrude({x:100,y:100,z:10,e:-60});
+
+lp.extrude({x:100,y:120,z:10});
+
                         </textarea></p>
                         <p>
                             <div class="container" id="buttons">
