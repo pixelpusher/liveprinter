@@ -123,7 +123,8 @@ def json_handle_gcode(printer:USBPrinter, *argv):
     for arg in argv:
         # check for newlines, if none this is a single command
         if newline.search(arg):
-            command_list.append(arg.splitlines)
+            #FIXME - don't add a list!
+            command_list.extend(arg.splitlines())
         else:    
             command_list.append(arg)
 
@@ -169,7 +170,7 @@ def json_handle_responses(printer:USBPrinter, *argv):
 #
 
 if __name__ == '__main__':
-    use_dummy_serial = True
+    use_dummy_serial = False
     serialport = None
     serial_obj = None
     baudrate = 250000
@@ -190,8 +191,8 @@ if __name__ == '__main__':
                           }
         )
     else:
-        serialport = list_ports()
-        # serialport = '/dev/cu.usbmodem1411'
+        # serialport = list_ports()
+        serialport = '/dev/cu.usbmodem1411'
 
     printer = USBPrinter(serialport, 250000, serial_obj)
     printer.connect()

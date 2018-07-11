@@ -279,7 +279,7 @@ class USBPrinter(OutputDevice):
                         if line.startswith(b"start"):
                             handled = True
                             # Not handled because this is just if it's turned on
-                            response_props['type'] = 'info'
+                            response_props['type'] = 'start'
                             response_props['info'] = line.decode('utf-8')
                         
                         if b"ok T:" in line or line.startswith(b"T:") or b"ok B:" in line or line.startswith(b"B:"):  # Temperature message. 'T:' for extruder and 'B:' for bed
@@ -401,6 +401,7 @@ class USBPrinter(OutputDevice):
                 else:
                     # process next commands
                     if resend:
+                        Logger.log("w", "RESEND")
                         checksum = functools.reduce(lambda x, y: x ^ y, map(ord, "N%d%s" % (self._lines_printed, self._last_command)))
                         command = str("N%d%s*%d" % (self._lines_printed, command, checksum))
                         if type(command == str):
@@ -420,6 +421,7 @@ class USBPrinter(OutputDevice):
                         self._last_command = command
                         if command is not None:
                             # checksum = is this necessary?
+                            # FIXME: removed for now because of errors in handling
                             checksum = functools.reduce(lambda x, y: x ^ y, map(ord, "N%d%s" % (self._lines_printed, command)))
                             command = str("N%d%s*%d" % (self._lines_printed, command, checksum))
                         
