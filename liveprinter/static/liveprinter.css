@@ -76,6 +76,7 @@ td {
     overflow-y: scroll;
     padding: 0.4em;
     height: 100%;
+    max-height: 40em;
 }
 
 #code-errors {

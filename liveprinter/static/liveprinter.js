@@ -29,6 +29,7 @@
             }
             var scope = window.scope;
 
+            var outgoingQueue = []; // messages for the server
 
             var Scheduler = {
                 ScheduledEvents: [],
@@ -147,8 +148,9 @@
             //}
             //lines = [];
 
-            function sendGCode(text) {
-                let gcode = text;
+
+            function codeToJSON(gcode)
+            {
                 if (typeof gcode === 'string') gcode = [stripComments(gcode)];
 
                 if (typeof gcode === 'object' && Array.isArray(gcode)) {
@@ -163,9 +165,28 @@
                     // debugging
                     //console.log(message_json);
 
-                    socketHandler.socket.send(message_json);
+                    return message_json;
+
+                    //socketHandler.socket.send(message_json);
                 }
                 else throw new Error("invalid gcode in sendGCode[" + typeof text + "]:" + text);
+
+                return null;
+            }
+
+            function sendGCode(gcode) {
+                let message = codeToJSON(gcode);
+                socketHandler.socket.send(message);
+            }
+
+            // queue to be run after OK -- for movements, etc.
+            // only if necessary... send if nothing is already in the queue
+            function queueGCode(gcode) {
+                let message = codeToJSON(gcode);
+                if (outgoingQueue.length > 0)
+                    outgoingQueue.push(message);
+                else
+                    socketHandler.socket.send(message);
             }
 
 
@@ -197,6 +218,10 @@
                 listeners: [], // listeners for json rpc calls
 
                 start: function () {
+                    $("#info > ul").empty();
+                    $("#errors > ul").empty();
+                    $("#commands > ul").empty();
+
                     var url = "ws://" + location.host + "/json";
                     socketHandler.socket = new WebSocket(url);
                     console.log('opening socket');
@@ -221,7 +246,10 @@
                         sendGCode("G92");
                         sendGCode("G28");
 
-                        document.getElementById("info").innerHTML = "PRINTER CONNECTED";
+                        var node = $("<li>PRINTER CONNECTED</li>");
+                        node.hide();
+                        $("#info").append(node);
+                        node.slideDown();
                     }
                 },
 
@@ -242,7 +270,7 @@
                 handleJSONRPC: function (jsonRPC) {
                     // call all listeners
                     //console.log("socket:");
-                    //console.log(this);
+                    //console.log(jsonRPC);
                     socketHandler.listeners.map(listener => { if (listener[jsonRPC.method]) { listener[jsonRPC.method](jsonRPC.params) } });
                 },
 
@@ -333,6 +361,7 @@
 
                     this.currentRetraction = 0; // length currently retracted
                     this.retractLength = 2; // in mm - amount to retract after extrusion
+                    this.retractSpeed = 30; //mm/s
 
                     // TODO: use Quarternions for axis/angle: https://github.com/infusion/Quaternion.js
 
@@ -355,7 +384,8 @@
                 get model() { return this._model; }
 
                 set printSpeed(s) {
-                    this._printSpeed = Math.min(s, this._maxPrintSpeed[this._model]);
+                    let maxs = Printer.maxPrintSpeed[this._model];
+                    this._printSpeed = Math.min(s, parseInt(maxs.x)); // pick in x direction...
                 }
 
                 get printSpeed() { return this._printSpeed; }
@@ -366,7 +396,6 @@
                  *      Optional bounce (Boolean) key if movement should bounce off sides.
                  */
                 extrudeto(params) {
-
                     let __x = (params.x !== undefined) ? params.x : this.x;
                     let __y = (params.y !== undefined) ? params.y : this.y;
                     let __z = (params.z !== undefined) ? params.z : this.z;
@@ -375,8 +404,14 @@
                     __y = parseFloat(__y);
                     __z = parseFloat(__z);
 
-                    let _speed = parseFloat(params.speed || this.printSpeed);
-                    let _layerHeight = parseFloat(params.thickness || this.layerHeight);
+                    let _speed = parseFloat((params.speed !== undefined) ? params.speed : this.printSpeed);
+                    let _layerHeight = parseFloat((params.thickness !== undefined) ? params.thickness : this.layerHeight);
+
+                    //
+                    let onlyMove = (this.e == params.e);
+                    let extrusionSpecified = !onlyMove && (params.e !== undefined);
+
+                    console.log(onlyMove);
 
                     // TODO: handle *bounce* (much more complicated!)
 
@@ -413,46 +448,46 @@
                     //  filament_speed{mm/s} = layer_height^2 * nozzle_speed{mm/s}/(radius_filament^2)*PI
                     this.targetE = this.e;
 
-                    if (params.e !== undefined)
+                    if (!onlyMove) // only if we need to move
                     {
-                        if( params.e != this.e)
+                        if (extrusionSpecified)
                         {
                             // if filament length was specified, use that.
                             // Otherwise calculate based on layer height
                             this.targetE = parseFloat(params.e); // TODO: not sure if this is good idea yet)
+
                         }
-                    }
-                    // otherwise, calculate filament length needed based on layerheight, etc.
-                    else
-                    {
-                        let filamentRadius = Printer.filamentDiameter[this.model] / 2;
+                        // otherwise, calculate filament length needed based on layerheight, etc.
+                        else 
+                        {
+                            let filamentRadius = Printer.filamentDiameter[this.model] / 2;
 
-                        // for extrusion into free space
-                        // apparently, some printers take the filament into account (so this is in mm3)
-                        // this was helpful: https://github.com/Ultimaker/GCodeGenJS/blob/master/js/gcode.js
-                        let filamentLength = dist*_layerHeight*_layerHeight;//(Math.PI*filamentRadius*filamentRadius);
+                            // for extrusion into free space
+                            // apparently, some printers take the filament into account (so this is in mm3)
+                            // this was helpful: https://github.com/Ultimaker/GCodeGenJS/blob/master/js/gcode.js
+                            let filamentLength = dist*_layerHeight*_layerHeight;//(Math.PI*filamentRadius*filamentRadius);
 
-                        if (!Printer.extrusionInmm3[this.model]) {
-                            filamentLength /= (filamentRadius * filamentRadius * Math.PI);
+                            if (!Printer.extrusionInmm3[this.model]) {
+                                filamentLength /= (filamentRadius * filamentRadius * Math.PI);
+                            }
+
+                            let filamentSpeed = filamentLength / moveTime;
+
+                            console.log("filament speed: " + filamentSpeed);
+                            console.log("filament distance : " + filamentLength + "/" + dist);
+                            //console.log("e type=" + typeof this.e);
+
+                            this.targetE = this.e + filamentLength;                        
+                            //console.log("E:" + this.targetE);
                         }
-
-                        let filamentSpeed = filamentLength / moveTime;
-
-                        console.log("filament speed: " + filamentSpeed);
-                        console.log("filament distance : " + filamentLength + "/" + dist);
-                        //console.log("e type=" + typeof this.e);
-
-                        this.targetE = this.e + filamentLength;
-                        //console.log("E:" + this.targetE);
                     }
 
                     // update target position for printer head, to send as gcode
                     this.targetX = __x.toFixed(4);
                     this.targetY = __y.toFixed(4);
                     this.targetZ = __z.toFixed(4);
-                    this.targetE = this.targetE.toFixed(4);
+                    
 
-                    console.log("EEEE:" + this.targetE);
 
                     // TODO:
                     // schedule callback function to update state variables like layerheight,
@@ -460,16 +495,16 @@
 
                     // gcode to send to printer
                     // https://github.com/Ultimaker/Ultimaker2Marlin
-                    let gcode = [];
 
-                    gcode.push("G90"); // abs coordinates
+                    queueGCode("G90"); // abs coordinates
 
                     //unretract first if needed
-                    if (params.e != this.e && this.currentRetraction)
-                    {
-                        // account for previous retraction
+                    if (!onlyMove && this.currentRetraction)
+                    {   
                         this.targetE += this.currentRetraction;
-                        gcode.push("G1 " + "E" + this.targetE);
+                        // account for previous retraction
+                        queueGCode("G1 " + "E" + (this.currentRetraction+this.e).toFixed(4)+ " F" + this.retractSpeed*60);
+                        this.currentRetraction = 0;
                     }
 
                     // G1 - Coordinated Movement X Y Z E
@@ -477,27 +512,25 @@
                     moveCode.push("X" + this.targetX);
                     moveCode.push("Y" + this.targetY);
                     moveCode.push("Z" + this.targetZ);
-                    moveCode.push("E" + this.targetE);
-                    gcode.push(moveCode.join(" "));
-
+                    moveCode.push("E" + this.targetE.toFixed(4));
+                    moveCode.push("F" + this.printSpeed*60); // mm/min as opposed to seconds
+                    queueGCode(moveCode.join(" "));
+                    
                     // RETRACT
-                    if (params.e != this.e)
+                    if (!onlyMove && this.retractLength)
                     {
                         this.currentRetraction = this.retractLength;
-                        this.targetE -= this.currentRetraction;
+                        this.targetE = parseFloat(this.targetE) - this.currentRetraction;
 
-                        gcode.push("G1 " + "E" + this.targetE);
+                        queueGCode("G1 " + "E" + this.targetE.toFixed(4) + " F" + this.retractSpeed*60);
                     }
-                    gcode.push("M114"); // get position after move (X:0 Y:0 Z:0 E:0)
-
-                    try {
-                        console.log("sending gcode: " + gcode)
-                        sendGCode(gcode);
-                    }
-                    catch (e) {
-                        // TODO: this goes in HTML
-                        console.log("Error in extrude: " + e.message + "\n" + e.stack)
-                    }
+                    // FIXME: sort out position updates in a sensible way...
+                    //queueGCode("M114"); // get position after move (X:0 Y:0 Z:0 E:0)
+                    
+                    this.e = parseFloat(this.targetE);
+                    this.x = parseFloat(this.targetX);
+                    this.y = parseFloat(this.targetY);
+                    this.z = parseFloat(this.targetZ);
                 } // end extrudeto
 
                 //
@@ -518,7 +551,8 @@
                     params.z = __z;
 
                     if (params.e !== undefined) params.e = (parseFloat(params.e)+this.e);
-
+                    //console.log(params);
+                    
                     this.extrudeto(params);
                 } // end extrudeto
 
@@ -610,7 +644,7 @@
 
             Printer.maxPrintSpeed = {
                 UM2: { 'x': 150, 'y': 150, 'z': 80 },
-                UM2plus: { 'x': 150, 'y': 150, 'z': 80 },
+                'UM2plus': { 'x': 150, 'y': 150, 'z': 80 },
                 UM3: { 'x': 150, 'y': 150, 'z': 80 },
                 REPRAP: { 'x': 150, 'y': 150, 'z': 80 },
             };
@@ -725,6 +759,61 @@
                 }
             };
             socketHandler.registerListener(tempHandler);
+
+
+            // temperature event handler
+            var errorHandler = {
+                'error': function (event) {
+                    //console.log("error event:");
+                    //console.log(event);
+                    $("#errors > ul").append("<li>" + (new Date(event.time)).toDateString() + ": " + event.message + "</li>").css("background-color", "red");
+                }    	
+            };
+            socketHandler.registerListener(errorHandler);
+            
+            // temperature event handler
+            var infoHandler = {
+                'info': function (event) {
+                    //console.log("error event:");
+                    //console.log(event);
+                    $("#info > ul").append("<li>" + (new Date()).toDateString() + ": " + event.message + "</li>").css("background-color", "red");                    
+                },
+                'resend': function (event) {
+                    //console.log("error event:");
+                    //console.log(event);
+                    $("#info > ul").append("<li>" + (new Date()).toDateString() + ": " + event.message + "</li>").css("background-color", "red");                    
+                }	
+            };
+            
+            
+            socketHandler.registerListener(infoHandler);
+
+            // temperature event handler
+            var commandHandler = {
+                'gcode': function (event) {
+                    //console.log("error event:");
+                    //console.log(event);
+                    $("#commands > ul").append("<li>" + (new Date(event.time)).toDateString() + ": " + event.message + "</li>").css("background-color", "red");
+                }    	
+            };
+
+            socketHandler.registerListener(commandHandler);
+            
+            // temperature event handler
+            var okHandler = {
+                'ok': function (event) {
+                    //console.log("error event:");
+                    //console.log(event);
+                    if (outgoingQueue.length > 0)
+                    {
+                        let msg = outgoingQueue.pop();
+                        socketHandler.socket.send(msg);
+                    }
+                }
+            };
+
+            socketHandler.registerListener(okHandler);
+            
 
             // TODO: temp probe that gets scheduled every 300ms and then removes self when
             // tempHandler called
