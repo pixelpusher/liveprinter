@@ -230,8 +230,8 @@ class USBPrinter(OutputDevice):
         return response
 
     def lastReponseHandled(self):
-        Logger.log("i", "TASK DONE")
-        Logger.log("i", "tasks left: {}".format(self._responses_queue.unfinished_tasks))
+        #Logger.log("i", "TASK DONE")
+        #Logger.log("i", "tasks left: {}".format(self._responses_queue.unfinished_tasks))
         
         try:
             self._responses_queue.task_done()
@@ -274,13 +274,13 @@ class USBPrinter(OutputDevice):
                             response_props['type'] = 'info'
                             printer_info = re.findall("echo\:(.+)?", line.decode('utf-8'))
                             for info in printer_info:
-                                response_props['info'] = info
+                                response_props['message'] = info
 
                         if line.startswith(b"start"):
                             handled = True
                             # Not handled because this is just if it's turned on
                             response_props['type'] = 'start'
-                            response_props['info'] = line.decode('utf-8')
+                            response_props['message'] = line.decode('utf-8')
                         
                         if b"ok T:" in line or line.startswith(b"T:") or b"ok B:" in line or line.startswith(b"B:"):  # Temperature message. 'T:' for extruder and 'B:' for bed
                             response_props["type"] = "temperature"
@@ -325,7 +325,7 @@ class USBPrinter(OutputDevice):
                         if b"FIRMWARE_NAME:" in line:
                             # TODO: possibly pre-parse this instead of sending whole line
                             response_props["type"] = "firmware"
-                            response_props["firmware"] = line.decode('utf-8')
+                            response_props["message"] = line.decode('utf-8')
                             handled = True
 
                         # position response for position update
@@ -360,6 +360,7 @@ class USBPrinter(OutputDevice):
                             # A resend can be requested either by Resend, resend or rs.
                             Logger.log('e', "Printer signals resend. {}".format(line))
                             response_props["type"] = "resend"
+                            response_props["message"] = "Printer signals resend. {}".format(line.decode('utf-8'))
                             handled = True
                     
                             #try:
@@ -373,13 +374,14 @@ class USBPrinter(OutputDevice):
                             # handle any basic ok's
                             if line.lower().startswith(b'ok'):
                                 response_props["type"] = "ok"
+                                response_props["message"] = "ok"
                                 handled = True
 
                         # now, really not handled
                         if not handled:
                             Logger.log('w', "Printer response not handled: {}".format(line))
                             response_props["type"] = "info"
-                            response_props["info"] = line.decode('utf-8')
+                            response_props["message"] = line.decode('utf-8')
                             self._last_command = None
 
                             # self.pausePrint() # pause for error
@@ -403,7 +405,7 @@ class USBPrinter(OutputDevice):
                     if resend:
                         Logger.log("w", "RESEND")
                         checksum = functools.reduce(lambda x, y: x ^ y, map(ord, "N%d%s" % (self._lines_printed, self._last_command)))
-                        command = str("N%d%s*%d" % (self._lines_printed, command, checksum))
+                        command = str("N%d%s*%d" % (self._lines_printed, self._last_command, checksum))
                         if type(command == str):
                             command = command.encode()
                         if not command.endswith(b"\n"):
@@ -415,30 +417,34 @@ class USBPrinter(OutputDevice):
                             Logger.log("w", "Timeout when sending command to printer via USB.")
 
                     else:                        
-                        Logger.log("i", "handling next command")
-                        command = self._command_queue.get()
-                        # note last command sent
-                        self._last_command = command
-                        if command is not None:
-                            # checksum = is this necessary?
-                            # FIXME: removed for now because of errors in handling
-                            checksum = functools.reduce(lambda x, y: x ^ y, map(ord, "N%d%s" % (self._lines_printed, command)))
-                            command = str("N%d%s*%d" % (self._lines_printed, command, checksum))
-                        
-                            if type(command == str):
-                                command = command.encode()
-                            if not command.endswith(b"\n"):
-                                command += b"\n"
-                        
-                            try:
-                                self._serial.write(command)
-                            except SerialTimeoutException:
-                                resonse = PrinterResponse(**{"type":"error", 
-                                                                "message":"Timeout when sending command to printer via USB.",
-                                                                'command': self._last_command})
-                                self._responses_queue.put(response)
-                                Logger.log("w", "Timeout when sending command to printer via USB.")
-            sleep( 0.01 ) # yield to others
+                        # Logger.log("i", "handling next command")
+                        if self._command_queue.unfinished_tasks > 0:
+                            command = self._command_queue.get()
+                            # note last command sent
+                            self._last_command = command
+                            if command is not None:
+                                # checksum = is this necessary?
+                                # FIXME: removed for now because of errors in handling
+                                checksum = functools.reduce(lambda x, y: x ^ y, map(ord, "N%d%s" % (self._lines_printed, command)))
+                                command = str("N%d%s*%d" % (self._lines_printed, command, checksum))
+                            
+                                if type(command == str):
+                                    command = command.encode()
+                                if not command.endswith(b"\n"):
+                                    command += b"\n"
+                            
+                                try:
+                                    self._serial.write(command)
+                                except SerialTimeoutException:
+                                    response = PrinterResponse(**{"type":"error", 
+                                                                    "message":"Timeout when sending command to printer via USB.",
+                                                                    'command': self._last_command})
+                                    self._responses_queue.put(response)
+                                    Logger.log("w", "Timeout when sending command to printer via USB.")
+                        #else:
+                        #    Logger.log("i", "no unfinished tasks")
+
+            sleep( 0.005 ) # yield to others
 
     ## these are thread-safe because the update thread uses them
     def setConnectionState(self, state: ConnectionState):
