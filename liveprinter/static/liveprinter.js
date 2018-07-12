@@ -1,4 +1,4 @@
-// LIVEPRINTER - a livecoding system for live CNC manufacturing 
+// LIVEPRINTER - a livecoding system for live CNC manufacturing
 //-------------------------------------------------------------
 // Copyright 2018 Evan Raskob
 //
@@ -38,7 +38,7 @@
                 timerID: null,
 
                 clearEvents: function () {
-                    Scheduler.ScheduledEvents = []
+                    Scheduler.ScheduledEvents = [];
                 },
 
                 /*
@@ -66,7 +66,7 @@
                         if (Scheduler.ScheduledEvents)
                             while (i < Scheduler.ScheduledEvents.length && Scheduler.ScheduledEvents.length > 0) {
                                 //console.log("processing events at time " + time);
-                                event = Scheduler.ScheduledEvents[0];
+                                let event = Scheduler.ScheduledEvents[0];
                                 //console.log(event);
                                 if (event.time >= time) {
                                     //console.log("running event at time:" + time);
@@ -89,7 +89,7 @@
             Scheduler.startScheduler();
 
             // Scheduler.scheduleEvent({
-            //     timeOffset: 2000, 
+            //     timeOffset: 2000,
             //     func: function() { console.log("EVENT"); } ,
             //     repeat: true,
             // });
@@ -203,7 +203,7 @@
                     code = CodeEditor.getLine(cursor.line);
                     CodeEditor.setSelection({ line: cursor.line, ch: 0 }, { line: cursor.line, ch: code.length });
                 }
-                
+
                 // run code
                 //if (validCode) {
                 try {
@@ -334,7 +334,7 @@
 
             /**
              * Movement API
-             * 
+             *
              * */
 
             // dictionary of basic properties about the physical printer like speeds, dimensions, extrusion settings
@@ -489,8 +489,8 @@
                     
 
 
-                    // TODO: 
-                    // schedule callback function to update state variables like layerheight, 
+                    // TODO:
+                    // schedule callback function to update state variables like layerheight,
                     // etc? But, query printer for physical vars
 
                     // gcode to send to printer
@@ -756,7 +756,7 @@
                     }
                     sendGCode(gcodeString);
                     }
-                }    	
+                }
             };
             socketHandler.registerListener(tempHandler);
 
@@ -830,16 +830,16 @@
                 code = jQuery.trim(code);
                 console.log(code);
                 if (code) {
-                    
+
                     // give quick access to liveprinter API
                     code = "let lp = window.scope.printer;" + code;
                     code = "let sched = window.scope.scheduler;" + code;
                     code = "let socket = window.scope.socket;" + code;
                     code = "let gcode = window.scope.sendGCode;" + code;
-                    
-                    // wrap code in anonymous function to avoid redeclaring scope variables and 
+
+                    // wrap code in anonymous function to avoid redeclaring scope variables and
                     // scope bleed.  For global functions that persist, use lp scope
-                    
+
                     // error handling
                     code = 'try {' + code;
                     code = code + '} catch (e) { e.lineNumber=line;doError(e); }';
@@ -855,7 +855,7 @@
                     script.text = code;
                     /*
                      * NONE OF THIS WORKS IN CHROME... should be aesy, but no.
-                     * 
+                     *
                     let node = null;
                     script.onreadystatechange = script.onload = function () {
                         console.log("loaded");
@@ -867,8 +867,8 @@
                         node = null;
                     };
                     script.onerror = function (e) { console.log("script error:" + e) };
-                    
-                    node = document.head.appendChild(script); 
+
+                    node = document.head.appendChild(script);
                     */
                     // run and remove
                     document.head.appendChild(script).parentNode.removeChild(script);
