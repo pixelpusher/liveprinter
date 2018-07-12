@@ -10,6 +10,7 @@ import uuid
 import json
 import functools
 import multiprocessing
+from time import time
 import serial
 from serial import Serial, SerialException, PARITY_ODD, PARITY_NONE
 import serial.tools.list_ports
@@ -130,21 +131,26 @@ def json_handle_gcode(printer:USBPrinter, *argv):
 
         # Logger.log("d", "json arg {} {}".format(type(arg), arg))
 
-    result = {}
-
-    # needed??
-    # command_list.append(line.rstrip())
-    
+    json = None
+   
     try:
         printer.sendGCodeList(command_list)
-        result['gcode'] = command_list
 
+        json = {
+                'jsonrpc': '2.0',
+                'id': 4, 
+                'method': "gcode",
+                'params': {
+                    'time': time(),
+                    'message': command_list
+                    }
+                }
     except Exception as e:
         # TODO: fix this to be a real error type so it gets sent to the clients properly
        Logger.log("e", "could not send commands to the printer {} : {}".format(repr(e),str(command_list)))
        raise ValueError("could not send commands to the printer {} : {}".format(repr(e),str(command_list)))
     
-    return result
+    return json
 
 
 def json_handle_responses(printer:USBPrinter, *argv):
@@ -152,7 +158,7 @@ def json_handle_responses(printer:USBPrinter, *argv):
         response = printer.getLastResponse()  # PrinterReponse object
     except Exception as e:
         # TODO: fix this to be a real error type so it gets sent to the clients properly
-       Logger.log("e", "could get responses from printer {} : {}".format(repr(e),str(command_list)))
+       Logger.log("e", "could get responses from printer {}".format(repr(e)))
        response = None
 
     if response is not None:
