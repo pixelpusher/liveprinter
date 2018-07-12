@@ -34,23 +34,26 @@ Run the server using your Python environment of choice - it's in the liveprinter
 
 It makes sense (in general, not just for this project) to do Python development using isolated [virtual environments](https://virtualenv.pypa.io/en/stable/), to prevent contamination or clashes between modules and utilities by keeping all configuration sandboxed. This requires a global installation of `virtualenv`. After that we can do (on macOS and Linux at least):
 
-        $ virtualenv --python=python3 ~/Desktop/venv3
+        virtualenv --python=python3 ~/Desktop/venv3
                 # create a Python 3 virtual environment
-        $ . ~/Desktop/venv3/bin/activate
+        . ~/Desktop/venv3/bin/activate
                 # activate the environment
-        $ pip install --upgrade pip
+        pip install --upgrade pip
                 # get the latest pip in the virtual environment (probably not essential)
-        $ pip install tornado pyserial json-rpc
+        pip install tornado pyserial json-rpc
                 # get the libraries we need
-        $ python LivePrinterServer.py
+        python LivePrinterServer.py
                 # launch the server in the Python 3 sandbox
+                
+For Windows:
+
+        virtualenv --python=AppData\Local\Programs\Python\Python37\python.exe Desktop\venv3
+        Desktop\venv3x\Scripts\activate
 
 Then when all is done:
 
-        $ deactivate
+        deactivate
                 # wind down the environment
-                
-
 
 ## How It Works
 
