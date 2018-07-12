@@ -30,6 +30,26 @@ The server runs on Python 3 (3.6 tested) so you will need that installed.  then,
 
 Run the server using your Python environment of choice - it's in the liveprinter folder, called LivePrinterServer.py.  By default, the server runs on port 8888 so open a web browser to http://localhost:8888 (or [change it](https://github.com/pixelpusher/liveprinter/blob/master/liveprinter/LivePrinterServer.py#L28)).  It also uses a "fake" serial port for offline testing, so you can make that live by setting "use_dummy_serial" to false [on this line](https://github.com/pixelpusher/liveprinter/blob/master/liveprinter/LivePrinterServer.py#L147) and then it will attempt to use the first serial port (autodetection of G Code-enable printers attached to a port is forthcoming)
 
+### An aside on Python Virtual Environments
+
+It makes sense (in general, not just for this project) to do Python development using isolated [virtual environments](https://virtualenv.pypa.io/en/stable/), to prevent contamination or clashes between modules and utilities by keeping all configuration sandboxed. This requires a global installation of `virtualenv`. After that we can do (on macOS and Linux at least):
+
+        $ virtualenv --python=python3 ~/Desktop/venv3
+                # create a Python 3 virtual environment
+        $ . ~/Desktop/venv3/bin/activate
+                # activate the environment
+        $ pip install --upgrade pip
+                # get the latest pip in the virtual environment (probably not essential)
+        $ pip install tornado pyserial json-rpc
+                # get the libraries we need
+        $ python LivePrinterServer.py
+                # launch the server in the Python 3 sandbox
+
+Then when all is done:
+
+        $ deactivate
+                # wind down the environment
+                
 
 
 ## How It Works
