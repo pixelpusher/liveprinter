@@ -125,7 +125,7 @@
                 gutters: ["CodeMirror-lint-markers"],
                 extraKeys: {
                     "Ctrl-Enter": ed_trigger,
-                    "Cmd-Enter": ed_trigger,
+                    "Cmd-Enter": ed_trigger
                 }
             });
 
@@ -231,7 +231,7 @@
                         //console.log(jsonRPC);
                         socketHandler.handleJSONRPC(jsonRPC);
                         socketHandler.showMessage(event.data);
-                    }
+                    };
 
                     // runs when printer connection is established via websockets
                     socketHandler.socket.onopen = function () {
@@ -250,7 +250,7 @@
                         node.hide();
                         $("#info").append(node);
                         node.slideDown();
-                    }
+                    };
                 },
 
                 showMessage: function (message) {
@@ -271,14 +271,14 @@
                     // call all listeners
                     //console.log("socket:");
                     //console.log(jsonRPC);
-                    socketHandler.listeners.map(listener => { if (listener[jsonRPC.method]) { listener[jsonRPC.method](jsonRPC.params) } });
+                    socketHandler.listeners.map(listener => { if (listener[jsonRPC.method]) { listener[jsonRPC.method](jsonRPC.params); } });
                 },
 
                 //
                 // add a listener to the queue of jsonrpc event listeners
                 // must have a function for jsonrpc event method name which takes appropriate params json object
                 registerListener: function (listener) {
-                    socketHandler.listeners.push(listener)
+                    socketHandler.listeners.push(listener);
                 },
 
                 removeListener: function (listener) {
@@ -458,7 +458,7 @@
 
                         }
                         // otherwise, calculate filament length needed based on layerheight, etc.
-                        else 
+                        else
                         {
                             let filamentRadius = Printer.filamentDiameter[this.model] / 2;
 
@@ -477,7 +477,7 @@
                             console.log("filament distance : " + filamentLength + "/" + dist);
                             //console.log("e type=" + typeof this.e);
 
-                            this.targetE = this.e + filamentLength;                        
+                            this.targetE = this.e + filamentLength;
                             //console.log("E:" + this.targetE);
                         }
                     }
@@ -486,7 +486,7 @@
                     this.targetX = __x.toFixed(4);
                     this.targetY = __y.toFixed(4);
                     this.targetZ = __z.toFixed(4);
-                    
+
 
 
                     // TODO:
@@ -500,7 +500,7 @@
 
                     //unretract first if needed
                     if (!onlyMove && this.currentRetraction)
-                    {   
+                    {
                         this.targetE += this.currentRetraction;
                         // account for previous retraction
                         queueGCode("G1 " + "E" + (this.currentRetraction+this.e).toFixed(4)+ " F" + this.retractSpeed*60);
@@ -515,7 +515,7 @@
                     moveCode.push("E" + this.targetE.toFixed(4));
                     moveCode.push("F" + this.printSpeed*60); // mm/min as opposed to seconds
                     queueGCode(moveCode.join(" "));
-                    
+
                     // RETRACT
                     if (!onlyMove && this.retractLength)
                     {
@@ -526,7 +526,7 @@
                     }
                     // FIXME: sort out position updates in a sensible way...
                     //queueGCode("M114"); // get position after move (X:0 Y:0 Z:0 E:0)
-                    
+
                     this.e = parseFloat(this.targetE);
                     this.x = parseFloat(this.targetX);
                     this.y = parseFloat(this.targetY);
@@ -552,7 +552,7 @@
 
                     if (params.e !== undefined) params.e = (parseFloat(params.e)+this.e);
                     //console.log(params);
-                    
+
                     this.extrudeto(params);
                 } // end extrudeto
 
@@ -639,21 +639,21 @@
                 UM2plus: { 'x': 300, 'y': 300, 'z': 80, 'e': 45 },
                 UM2: { 'x': 300, 'y': 300, 'z': 80, 'e': 45 },
                 UM3: { 'x': 300, 'y': 300, 'z': 80, 'e': 45 },
-                REPRAP: { 'x': 300, 'y': 300, 'z': 80, 'e': 45 },
+                REPRAP: { 'x': 300, 'y': 300, 'z': 80, 'e': 45 }
             };
 
             Printer.maxPrintSpeed = {
                 UM2: { 'x': 150, 'y': 150, 'z': 80 },
                 'UM2plus': { 'x': 150, 'y': 150, 'z': 80 },
                 UM3: { 'x': 150, 'y': 150, 'z': 80 },
-                REPRAP: { 'x': 150, 'y': 150, 'z': 80 },
+                REPRAP: { 'x': 150, 'y': 150, 'z': 80 }
             };
 
             Printer.bedSize = {
                 UM2: { 'x': 223, 'y': 223, 'z': 205 },
                 UM2plus: { 'x': 223, 'y': 223, 'z': 305 },
                 UM3: { 'x': 223, 'y': 223, 'z': 205 },
-                REPRAP: { 'x': 150, 'y': 150, 'z': 80 },
+                REPRAP: { 'x': 150, 'y': 150, 'z': 80 }
             };
 
             Printer.defaultPrintSpeed = 50; // mm/s
@@ -735,7 +735,7 @@
                         socketHandler.socket.send(responseJSON);
                     }
                 },
-                repeat: true,
+                repeat: true
             });
 
 
@@ -767,25 +767,25 @@
                     //console.log("error event:");
                     //console.log(event);
                     $("#errors > ul").append("<li>" + (new Date(event.time)).toDateString() + ": " + event.message + "</li>").css("background-color", "red");
-                }    	
+                }
             };
             socketHandler.registerListener(errorHandler);
-            
+
             // temperature event handler
             var infoHandler = {
                 'info': function (event) {
                     //console.log("error event:");
                     //console.log(event);
-                    $("#info > ul").append("<li>" + (new Date()).toDateString() + ": " + event.message + "</li>").css("background-color", "red");                    
+                    $("#info > ul").append("<li>" + (new Date()).toDateString() + ": " + event.message + "</li>").css("background-color", "red");
                 },
                 'resend': function (event) {
                     //console.log("error event:");
                     //console.log(event);
-                    $("#info > ul").append("<li>" + (new Date()).toDateString() + ": " + event.message + "</li>").css("background-color", "red");                    
-                }	
+                    $("#info > ul").append("<li>" + (new Date()).toDateString() + ": " + event.message + "</li>").css("background-color", "red");
+                }
             };
-            
-            
+
+
             socketHandler.registerListener(infoHandler);
 
             // temperature event handler
@@ -794,11 +794,11 @@
                     //console.log("error event:");
                     //console.log(event);
                     $("#commands > ul").append("<li>" + (new Date(event.time)).toDateString() + ": " + event.message + "</li>").css("background-color", "red");
-                }    	
+                }
             };
 
             socketHandler.registerListener(commandHandler);
-            
+
             // temperature event handler
             var okHandler = {
                 'ok': function (event) {
@@ -813,7 +813,7 @@
             };
 
             socketHandler.registerListener(okHandler);
-            
+
 
             // TODO: temp probe that gets scheduled every 300ms and then removes self when
             // tempHandler called
@@ -848,7 +848,7 @@
 
                     // function wrapping
                     code = '(function(){"use strict";' + code;
-                    code = code + "})();"
+                    code = code + "})();";
 
                     console.log("adding code:" + code);
                     let script = document.createElement("script");
