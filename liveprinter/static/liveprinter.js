@@ -171,6 +171,7 @@
 
             function runCode() {
                 let code = CodeEditor.getSelection();
+                let cursor = CodeEditor.getCursor();
 
                 // parse first??
                 let validCode = true;
@@ -178,7 +179,6 @@
                 if (!code) {
                     // info level
                     //console.log("no selections");
-                    let cursor = CodeEditor.getCursor();
                     code = CodeEditor.getLine(cursor.line);
                     CodeEditor.setSelection({ line: cursor.line, ch: 0 }, { line: cursor.line, ch: code.length });
                 }
@@ -186,7 +186,7 @@
                 // run code
                 //if (validCode) {
                 try {
-                    globalEval(code);
+                    globalEval(code, cursor.line+1);
                 } catch (e) {
                     doError(e);
                 }
@@ -309,84 +309,6 @@
              * 
              * */
 
-
-            //// FIXME
-
-
-
-            /**
-             * JS-Interpreter stuff (modified from https://github.com/NeilFraser/JS-Interpreter)
-             * 
-             * */
-            var myInterpreter;
-
-            function initFuncs(interpreter, scope) {
-                var wrapper = function (text) {
-                    return alert(arguments.length ? text : '');
-                };
-                interpreter.setProperty(scope, 'alert',
-                    interpreter.createNativeFunction(wrapper));
-
-                wrapper = function (text) {
-                    sendGCode(text);
-                    console.log("sent gcode: " + text)
-                };
-                interpreter.setProperty(scope, 'gcode',
-                    interpreter.createNativeFunction(wrapper));
-
-                wrapper = function (x, y, z) {
-                    // can't send objects back and forth, need to copy property primitives
-                    let props = { "x": x, "y": y, "z": z };
-                    printer.extrude(props);
-
-                    console.log("extrude:");
-                    console.log(props);
-                };
-                interpreter.setProperty(scope, 'extrude',
-                    interpreter.createNativeFunction(wrapper));
-
-                //printer.extrude({
-                //     'x': 20,
-                //     'y': 30,
-                //     'z': 10,
-                // });
-                wrapper = function (x, y, z) {
-                    // can't send objects back and forth, need to copy property primitives
-                    let props = { "x": x, "y": y, "z": z };
-                    printer.moveto(props);
-                    console.log("moveto:");
-                    console.log(props);
-                };
-
-                interpreter.setProperty(scope, 'moveto',
-                    interpreter.createNativeFunction(wrapper));
-            }
-
-            /// TODO: API LINKING
-            // These are just copied in
-            //var strFunctions = [
-            //    [escape, 'escape'], [unescape, 'unescape'],
-            //    [decodeURI, 'decodeURI'], [decodeURIComponent, 'decodeURIComponent'],
-            //    [encodeURI, 'encodeURI'], [encodeURIComponent, 'encodeURIComponent']
-            //];
-            //for (var i = 0; i < strFunctions.length; i++) {
-            //    var wrapper = (function (nativeFunc) {
-            //        return function (str) {
-            //            try {
-            //                return nativeFunc(str);
-            //            } catch (e) {
-            //                // decodeURI('%xy') will throw an error.  Catch and rethrow.
-            //                thisInterpreter.throwException(thisInterpreter.URI_ERROR, e.message);
-            //            }
-            //        };
-            //    })(strFunctions[i][0]);
-            //    this.setProperty(scope, strFunctions[i][1],
-            //        this.createNativeFunction(wrapper, false),
-            //        Interpreter.NONENUMERABLE_DESCRIPTOR);
-            //}
-
-
-
             // dictionary of basic properties about the physical printer like speeds, dimensions, extrusion settings
             class Printer {
 
@@ -420,26 +342,6 @@
                     this._printSpeed = Printer.defaultPrintSpeed;
                     this._model = Printer.UM2plus; // default
                     this.layerHeight = 0.2; // thickness of a 3d printed extrudion, mm by default
-
-
-                    /*
-            this.extrusion_per_mm_movement = width * height;
-            this.extrusion_per_mm__z_movement = Math.PI * (width / 2) * (width / 2);
-            if (!this.extrusion_in_mm3) {
-                var radius = this.filament_diameter / 2.0;
-                this.extrusion_per_mm_movement /= Math.PI * radius * radius;
-                this.extrusion_per_mm__z_movement /= Math.PI * radius * radius;
-            }
-            */
-
-
-
-                    /*
-                    var distance__xy = Math.sqrt((x - this.x) * (x - this.x) + (y - this.y) * (y - this.y));
-                    var distance__z = z - this.z;
-                    this.e += distance__xy * this.extrusion_per_mm_movement;
-                    */
-
                 }
 
                 //
@@ -728,10 +630,13 @@
                 document.getElementById("code-errors").innerHTML = "<p>...</p>";
             }
 
-            function doError(e) {
+            //
+            // needs to be global so scripts can call this when run
+            //
+            window.doError = function(e) {
                 // report to user
                 // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SyntaxError
-                document.getElementById("code-errors").innerHTML = "<p>" + e.name + ":" + e.message + "(line:" + e.lineNumber + " / col: " + e.columnNumber + "</p>";
+                document.getElementById("code-errors").innerHTML = "<p>" + e.name + ": " + e.message + "(line:" + e.lineNumber + ")</p>";
                 /*
                 console.log("SyntaxError? " + (e instanceof SyntaxError)); // true
                 console.log(e); // true
@@ -752,7 +657,7 @@
                     CodeEditor.setSelection({ line: (e.lineNumber-1), ch: e.columnNumber }, { line: (e.lineNumber-1), ch: (e.columnNumber + 1) });
                 }
                 */
-            }
+            };
 
             $("#codeform").on("submit", function () {
                 runCode();
@@ -831,7 +736,8 @@
             scope.sendGCode = sendGCode;
 
 
-            function globalEval(code) {
+            function globalEval(code, line) {
+                clearError();
                 code = jQuery.trim(code);
                 console.log(code);
                 if (code) {
@@ -841,8 +747,17 @@
                     code = "let sched = window.scope.scheduler;" + code;
                     code = "let socket = window.scope.socket;" + code;
                     code = "let gcode = window.scope.sendGCode;" + code;
+                    
                     // wrap code in anonymous function to avoid redeclaring scope variables and 
                     // scope bleed.  For global functions that persist, use lp scope
+                    
+                    // error handling
+                    code = 'try {' + code;
+                    code = code + '} catch (e) { e.lineNumber=line;doError(e); }';
+
+                    code = "let line =" + line + ";" + code;
+
+                    // function wrapping
                     code = '(function(){"use strict";' + code;
                     code = code + "})();"
 
