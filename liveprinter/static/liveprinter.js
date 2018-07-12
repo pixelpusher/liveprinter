@@ -111,25 +111,20 @@
             };
 
             // start CodeMirror
-            var CodeEditor = CodeMirror.fromTextArea(document.getElementById("gcode_input"), {
+            var CodeEditor = CodeMirror.fromTextArea(document.getElementById("code-editor"), {
                 lineNumbers: true,
                 styleActiveLine: true,
                 lineWrapping: true,
-                mode: "htmlmixed",
+                mode: "javascript",
+                lint: {
+                    globalstrict: true,
+                    strict: false,
+                    esversion: 6
+                  },
+                gutters: ["CodeMirror-lint-markers"],
                 extraKeys: {
                     "Ctrl-Enter": ed_trigger,
                     "Cmd-Enter": ed_trigger,
-                }
-            });
-            CodeEditor.on('change', function (editor, changeObj) {
-                // info
-                //for (var p in changeObj)
-                //    console.log("change[" + p + "]=" + changeObj[p]);
-
-                // check syntax
-                if (changeObj["text"] || changeObj["removed"]) {
-                    clearError();
-                    parseCode();
                 }
             });
 
@@ -174,12 +169,27 @@
             }
 
 
-            function newMessage(form) {
-                var line = CodeEditor.getLine(CodeEditor.getCursor().line)
+            function runCode() {
+                let code = CodeEditor.getSelection();
 
-                console.log("trigger", line);
+                // parse first??
+                let validCode = true;
 
-                sendGCode(line);
+                if (!code) {
+                    // info level
+                    //console.log("no selections");
+                    let cursor = CodeEditor.getCursor();
+                    code = CodeEditor.getLine(cursor.line);
+                    CodeEditor.setSelection({ line: cursor.line, ch: 0 }, { line: cursor.line, ch: code.length });
+                }
+                
+                // run code
+                //if (validCode) {
+                try {
+                    globalEval(code);
+                } catch (e) {
+                    doError(e);
+                }
             }
 
             var socketHandler = {
@@ -715,13 +725,13 @@
             //////////////////////////////////////////////////////////
 
             function clearError() {
-                document.getElementById("errors").innerHTML = "<p>...</p>";
+                document.getElementById("code-errors").innerHTML = "<p>...</p>";
             }
 
             function doError(e) {
                 // report to user
                 // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SyntaxError
-                document.getElementById("errors").innerHTML = "<p>" + e.name + ":" + e.message + "(line:" + e.lineNumber + " / col: " + e.columnNumber + "</p>";
+                document.getElementById("code-errors").innerHTML = "<p>" + e.name + ":" + e.message + "(line:" + e.lineNumber + " / col: " + e.columnNumber + "</p>";
                 /*
                 console.log("SyntaxError? " + (e instanceof SyntaxError)); // true
                 console.log(e); // true
@@ -743,93 +753,9 @@
                 }
                 */
             }
-            function parseCode() {
-                var code = CodeEditor.getSelection();
 
-                if (!code) {
-                    // info level
-                    console.log("no selections");
-                    code = CodeEditor.getValue();
-                }
-                try {
-                    myInterpreter = new Interpreter(code, initFuncs);
-                } catch (e) {
-                    doError(e);
-                }
-                disable('');
-            }
-
-            function stepCode() {
-                if (myInterpreter.stateStack.length) {
-                    var node =
-                        myInterpreter.stateStack[myInterpreter.stateStack.length - 1].node;
-                    var start = node.start;
-                    var end = node.end;
-                } else {
-                    var start = 0;
-                    var end = 0;
-                }
-                console.log("start:" + start + " end:" + end);
-
-                CodeEditor.setSelection({ line: start, ch: 0 }, { line: end, ch: 0 });
-
-                try {
-                    var ok = myInterpreter.step();
-
-                } catch (e) {
-                    doError(e);
-                } finally {
-                    if (!ok) {
-                        disable('disabled');
-                    }
-                }
-            }
-
-            function runCode() {
-                // disable('disabled');
-                let code = CodeEditor.getSelection();
-
-                // parse first
-
-                let validCode = true;
-
-                if (!code) {
-                    // info level
-                    //console.log("no selections");
-                    let cursor = CodeEditor.getCursor();
-                    code = CodeEditor.getLine(cursor.line);
-                    CodeEditor.setSelection({ line: cursor.line, ch: 0 }, { line: cursor.line, ch: code.length });
-                }
-                try {
-                    myInterpreter = new Interpreter(code, initFuncs);
-
-                } catch (e) {
-                    doError(e);
-                    validCode = false;
-                }
-                // run code
-                //if (validCode) {
-                try {
-                    //myInterpreter.run();
-                    // FIXME: total hack
-                    globalEval(code);
-                } catch (e) {
-                    doError(e);
-                }
-                //}
-            }
-
-            function disable(disabled) {
-                document.getElementById('stepButton').disabled = disabled;
-                document.getElementById('runButton').disabled = disabled;
-            }
-
-            document.getElementById("stepButton").onclick = stepCode;
-            document.getElementById("runButton").onclick = runCode;
-
-
-            $("#gcodeform").on("submit", function () {
-                newMessage($(this));
+            $("#codeform").on("submit", function () {
+                runCode();
                 return false;
             });
 

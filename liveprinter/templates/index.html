@@ -10,13 +10,13 @@
     <link rel="stylesheet" href="{{ static_url("lib/codemirror/codemirror.css") }}" type="text/css">
 </head>
 <body>
+    <div class="lines"></div>
     <div class="container" id="body">
-        <div class="row"><div class="lines"></div></div>
         <div class="row">
-            <div class="col-8 col-md-8" id="input">
+            <div class="col-9 col-md-8" id="input">
                 <div class="box intro">
-                    <form action="/a/message/new" method="post" id="gcodeform">
-                        <p><textarea id="gcode_input" name="gcode" placeholder="" style="width:500px">
+                    <form action="/a/message/new" method="post" id="codeform">
+                        <p><textarea id="code-editor">
 // run gcode directly in a function
 // this will only work once - to persist functions use the "lp" object
 function doMove(x,y)
@@ -41,26 +41,27 @@ gcode("M105");
 
 // extrude some plastic!
 //can even move the filament direct, and negative is backwards
-lp.extrude({x:100,y:100,z:10,e:-60});
+lp.extrudeto({x:100,y:100,z:10,e:-60});
 
-lp.extrude({x:100,y:120,z:10});
+//relative
+lp.extrude({x:10,y:12});
 
                         </textarea></p>
                         <p>
                             <div class="container" id="buttons">
-                            <div class="row">
-                                <div class="col-4">CODE MODE</div>
-                                <div class="col-2"><input type="button" id="stepButton" value="{{ _("step") }}"></div>
-                                <div class="col-2"><input type="button" id="runButton" value="{{ _("run") }}" accesskey="s"></div>
-                                <div class="col-6" id="errors" style="background-color:lawngreen"></div>
-                            </div>
+                                <div class="row">
+                                    <div class="col-4">CODE MODE</div>
+                                    <!-- <div class="col-2"><input type="button" id="stepButton" value="{{ _("step") }}"></div>-->
+                                    <div class="col-2"><input type="button" id="runButton" value="{{ _("run") }}" accesskey="s"></div>
+                                    <div class="col-6" id="code-errors" style="background-color:lawngreen"></div>
+                                </div>
                             </div>
                         </p>
 
                         <!-- <p><input type="submit" value="{{ _("send") }}" accesskey="s"></p> -->
                         <p><input type="hidden" name="next" value="{{ request.path }}"></p>
                         {% module xsrf_form_html() %}
-                        <p>Highlight lines of code and hit <kbd>Control</kbd>-<kbd>Enter</kbd> to send them</p>
+                        <p>Highlight lines of code and hit <kbd>cmd</kbd> or <kbd>ctrl</kbd>-<kbd>enter</kbd> to send them</p>
                     </form>
                     <div class="panel-l"></div>
                     <div class="panel-b-l"></div>
@@ -68,15 +69,31 @@ lp.extrude({x:100,y:120,z:10});
 
                 <!-- end input-->
             </div>
-            <div class="col-4 col-md-4">
+            <div class="col-3 col-md-4">
                 <div id="inbox" class="box">
-                    
+                    <ul class="nav nav-pills" id="pconsole" role="tablist">
+                        <li class="nav-item">
+                            <a class="nav-link active" id="info-tab" data-toggle="pill" href="#info" role="tab" aria-controls="info" aria-selected="true">info</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" id="errors-tab" data-toggle="pill" href="#errors" role="tab" aria-controls="errors" aria-selected="false">errors</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" id="commands-tab" data-toggle="pill" href="#commands" role="tab" aria-controls="commands" aria-selected="false">commands</a>
+                        </li>
+                    </ul>
+                    <!-- Tab panes -->
+                    <div id="tab-messages-pane" class="tab-content">
+                        <div class="tab-pane fade show active" id="info" role="tabpanel" aria-labelledby="pills-info-tab">
+                                <p class="content">content</p>      
+                        </div>
+                        <div class="tab-pane fade" id="errors" role="tabpanel" aria-labelledby="pills-errors-tab">
+                                <p class="content">more content</p>
+                        </div>
+                        <div class="tab-pane fade" id="commands" role="tabpanel" aria-labelledby="pills-commands-tab">...</div>
                 </div>
-                <div id="info" class="box">
-                    
-                    <div class="panel-r lines"></div>
-                    <div class="panel-b-r"></div>
-                </div>
+                <div class="panel-r lines"></div>
+                <div class="panel-b-r"></div></div>
             </div>
             <!-- end 1st row -->
         </div>
@@ -92,9 +109,17 @@ lp.extrude({x:100,y:120,z:10});
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
     <script src="{{ static_url("lib/codemirror/codemirror.js") }}"></script>
     <script src="{{ static_url("lib/addon/selection/active-line.js") }}"></script>
-    <!-- modified JS-Interpreter from https://github.com/NeilFraser/JS-Interpreter -->
-    <script src="{{ static_url("lib/js_interpreter/interpreter.js") }}"></script>
-    <script src="{{ static_url("lib/js_interpreter/acorn.js") }}"></script>
+    <link rel="stylesheet" href="{{ static_url("lib/codemirror/codemirror.css") }}">
+    <link rel="stylesheet" href="{{ static_url("lib/addon/lint/lint.css") }}">
+    <script src="{{ static_url("lib/codemirror/mode/javascript/javascript.js") }}"></script>
+    <script src="{{ static_url("lib/codemirror/mode/css/css.js") }}"></script>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/jshint/2.9.5/jshint.min.js"></script>
+    <script src="//rawgithub.com/zaach/jsonlint/79b553fb65c192add9066da64043458981b3972b/lib/jsonlint.js"></script>
+    <script src="https://unpkg.com/csslint@1.0.5/dist/csslint.js"></script>
+    <script src="{{ static_url("lib/addon/lint/lint.js") }}"></script>
+    <script src="{{ static_url("lib/addon/lint/javascript-lint.js") }}"></script>
+    <script src="{{ static_url("lib/addon/lint/json-lint.js") }}"></script>
+    <script src="{{ static_url("lib/addon/lint/css-lint.js") }}"></script>
     <!-- liveprinter javascript -->
     <script src="{{ static_url("liveprinter.js") }}" type="text/javascript"></script>
 
