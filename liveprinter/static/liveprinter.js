@@ -1,4 +1,4 @@
-// LIVEPRINTER - a livecoding system for live CNC manufacturing 
+// LIVEPRINTER - a livecoding system for live CNC manufacturing
 //-------------------------------------------------------------
 // Copyright 2018 Evan Raskob
 //
@@ -29,7 +29,7 @@
             }
             var scope = window.scope;
 
-            
+
             var Scheduler = {
                 ScheduledEvents: [],
                 audioContext: new AudioContext(),
@@ -37,7 +37,7 @@
                 timerID: null,
 
                 clearEvents: function () {
-                    Scheduler.ScheduledEvents = []
+                    Scheduler.ScheduledEvents = [];
                 },
 
                 /*
@@ -65,7 +65,7 @@
                         if (Scheduler.ScheduledEvents)
                             while (i < Scheduler.ScheduledEvents.length && Scheduler.ScheduledEvents.length > 0) {
                                 //console.log("processing events at time " + time);
-                                event = Scheduler.ScheduledEvents[0];
+                                let event = Scheduler.ScheduledEvents[0];
                                 //console.log(event);
                                 if (event.time >= time) {
                                     //console.log("running event at time:" + time);
@@ -88,7 +88,7 @@
             Scheduler.startScheduler();
 
             // Scheduler.scheduleEvent({
-            //     timeOffset: 2000, 
+            //     timeOffset: 2000,
             //     func: function() { console.log("EVENT"); } ,
             //     repeat: true,
             // });
@@ -182,7 +182,7 @@
                     code = CodeEditor.getLine(cursor.line);
                     CodeEditor.setSelection({ line: cursor.line, ch: 0 }, { line: cursor.line, ch: code.length });
                 }
-                
+
                 // run code
                 //if (validCode) {
                 try {
@@ -306,7 +306,7 @@
 
             /**
              * Movement API
-             * 
+             *
              * */
 
             // dictionary of basic properties about the physical printer like speeds, dimensions, extrusion settings
@@ -366,7 +366,7 @@
                  *      Optional bounce (Boolean) key if movement should bounce off sides.
                  */
                 extrudeto(params) {
-                    
+
                     let __x = (params.x !== undefined) ? params.x : this.x;
                     let __y = (params.y !== undefined) ? params.y : this.y;
                     let __z = (params.z !== undefined) ? params.z : this.z;
@@ -413,7 +413,7 @@
                     //  filament_speed{mm/s} = layer_height^2 * nozzle_speed{mm/s}/(radius_filament^2)*PI
                     this.targetE = this.e;
 
-                    if (params.e !== undefined) 
+                    if (params.e !== undefined)
                     {
                         if( params.e != this.e)
                         {
@@ -423,7 +423,7 @@
                         }
                     }
                     // otherwise, calculate filament length needed based on layerheight, etc.
-                    else 
+                    else
                     {
                         let filamentRadius = Printer.filamentDiameter[this.model] / 2;
 
@@ -442,7 +442,7 @@
                         console.log("filament distance : " + filamentLength + "/" + dist);
                         //console.log("e type=" + typeof this.e);
 
-                        this.targetE = this.e + filamentLength;                        
+                        this.targetE = this.e + filamentLength;
                         //console.log("E:" + this.targetE);
                     }
 
@@ -454,8 +454,8 @@
 
                     console.log("EEEE:" + this.targetE);
 
-                    // TODO: 
-                    // schedule callback function to update state variables like layerheight, 
+                    // TODO:
+                    // schedule callback function to update state variables like layerheight,
                     // etc? But, query printer for physical vars
 
                     // gcode to send to printer
@@ -479,7 +479,7 @@
                     moveCode.push("Z" + this.targetZ);
                     moveCode.push("E" + this.targetE);
                     gcode.push(moveCode.join(" "));
-                    
+
                     // RETRACT
                     if (params.e != this.e)
                     {
@@ -722,10 +722,10 @@
                     }
                     sendGCode(gcodeString);
                     }
-                }    	
+                }
             };
             socketHandler.registerListener(tempHandler);
-            
+
             // TODO: temp probe that gets scheduled every 300ms and then removes self when
             // tempHandler called
 
@@ -741,16 +741,16 @@
                 code = jQuery.trim(code);
                 console.log(code);
                 if (code) {
-                    
+
                     // give quick access to liveprinter API
                     code = "let lp = window.scope.printer;" + code;
                     code = "let sched = window.scope.scheduler;" + code;
                     code = "let socket = window.scope.socket;" + code;
                     code = "let gcode = window.scope.sendGCode;" + code;
-                    
-                    // wrap code in anonymous function to avoid redeclaring scope variables and 
+
+                    // wrap code in anonymous function to avoid redeclaring scope variables and
                     // scope bleed.  For global functions that persist, use lp scope
-                    
+
                     // error handling
                     code = 'try {' + code;
                     code = code + '} catch (e) { e.lineNumber=line;doError(e); }';
@@ -766,7 +766,7 @@
                     script.text = code;
                     /*
                      * NONE OF THIS WORKS IN CHROME... should be aesy, but no.
-                     * 
+                     *
                     let node = null;
                     script.onreadystatechange = script.onload = function () {
                         console.log("loaded");
@@ -778,8 +778,8 @@
                         node = null;
                     };
                     script.onerror = function (e) { console.log("script error:" + e) };
-                    
-                    node = document.head.appendChild(script); 
+
+                    node = document.head.appendChild(script);
                     */
                     // run and remove
                     document.head.appendChild(script).parentNode.removeChild(script);
