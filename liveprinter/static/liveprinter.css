@@ -61,18 +61,48 @@ td {
 #inbox {
     background: #0166FF;
     color: #01FFB4;
+    height: calc(100% - 8px);
 }
 
 #buttons > * {
     text-align: left;
 }
 
-.gcode {
-    padding-top: 0.25em;
-    border: 2px solid black;
-    border-radius: 0.2em;
-    box-shadow: 0 1px 1px rgba(0,0,0,.2),0 2px 0 0 rgba(255,255,255,.7) none;
-    padding: 0.71em;
+#tab-messages-pane {
+    height: calc(100% - 46px); /* 30px for heigh of below + 8px border + 8px padding*/
+}
+
+#info, #errors, commands {
+    overflow-y: scroll;
+    padding: 0.4em;
+    height: 100%;
+}
+
+#code-errors {
+    background-color: lawngreen ;
+    color: darkmagenta;
+}
+
+#info {
+    background-color: lightcyan;
+    color: darkmagenta; 
+}
+
+#errors {
+    background-color: lawngreen;
+    color: darkmagenta;
+}
+
+#commands {
+    background-color: lightgrey;
+    color: darkmagenta;
+}
+
+
+#code-editor {
+    width:100%;
+    overflow-y: scroll;
+    min-height: 36em;
 }
 
 kbd {
@@ -91,34 +121,24 @@ kbd {
 }
 
 .intro {
-    background: #FF4377;
-    background-image: initial;
-    background-position-x: initial;
-    background-position-y: initial;
-    background-size: initial;
-    background-repeat-x: initial;
-    background-repeat-y: initial;
-    background-attachment: initial;
-    background-origin: initial;
-    background-clip: initial;
     background-color: rgb(255, 67, 119);
-    color: #FFFF57;
+    color: #FFFF57;    
 }
 
 .lines {
-    height: 99%;
+    height: 200%;
     width: 100%;
-    top: -48%;
+    top: -50%;
     position: fixed;
-    transform: skewY(45deg);
+    transform: skewY(-30deg);
     z-index: -10;
     -webkit-backface-visibility: hidden;
-    background-image: repeating-linear-gradient(transparent, transparent 18px, #0166FF 18.1px, #0166FF 25px);
+    background-image: repeating-linear-gradient(transparent, transparent 2em,#eeeeee 2.1px, #ffefef 3em);
 }
 
 .box {
-    position: relative;
-    padding: 1em;
+    /* position: relative; */
+    padding: 0.4em;
     min-width: 8em;
     border: 8px solid black;
 }
@@ -129,26 +149,26 @@ kbd {
 
 .panel-r {
     position: absolute;
-    top: 12px;
-    left: calc(100% + 8px);
+    top: 24px;
+    left: calc(100% - 15px);
     z-index: 1;
     overflow: hidden;
     margin-top: 0;
-    width: 40px;
-    height: calc(100% + 17px);
-    border: 8px solid #000;
-    border-top-width: 12px;
+    width: 30px;
+    height: calc(100% - 4px);
+    border: 6px solid #000;
+    border-top-width: 6px;
     border-left: 0;
-    border-bottom-right-radius: 2px;
+    border-bottom-right-radius: 6px;
     content: "";
-    transform: skewY(45deg)
+    transform: skewY(45deg);
 }
 
     .panel-r::after {
         position: absolute;
-        top: -16px;
+        top: -8px;
         right: 0;
-        bottom: -16px;
+        bottom: -8px;
         left: 0;
         content: "";
         transform: skewY(-45deg)
@@ -156,17 +176,17 @@ kbd {
 
 .panel-l {
     position: absolute;
-    top: 12px;
-    right: calc(100% + 8px);
+    top: 15px;
+    right: calc(100% - 15px);
     z-index: 1;
     overflow: hidden;
     margin-top: 0;
-    width: 40px;
-    height: calc(100% + 17px);
+    width: 30px;
+    height: calc(100% + 1px);
     border: 8px solid #000;
-    border-top-width: 12px;
+    border-top-width: 8px;
     border-right: 0;
-    border-bottom-width: 6px;
+    border-bottom-width: 8px;
     border-bottom-left-radius: 2px;
     content: "";
     transform: skewY(-45deg)
@@ -174,28 +194,28 @@ kbd {
 
     .panel-l::after {
         position: absolute;
-        top: -16px;
+        top: -8px;
         right: 0;
-        bottom: -16px;
+        bottom: -8px;
         left: 0;
         content: "";
         transform: skewY(45deg)
     }
 
 .panel-b-r {
-    border-right-width: 7px;
+    border-right-width: 8px;
     position: absolute;
-    top: calc(100% + 8px);
-    left: 12px;
+    top: calc(100% + 1px);
+    left: 30px;
     z-index: 1;
     overflow: hidden;
     margin-top: 0;
-    width: calc(100% + 17px);
-    height: 40px;
-    border: 8px solid black;
+    width: calc(100% - 30px);
+    height: 30px;
+    border: 6px solid black;
     border-top-width: 0;
-    border-right-width: 6px;
-    border-left-width: 11px;
+    border-right-width: 8px;
+    border-left-width: 8px;
     border-bottom-right-radius: 2px;
     content: "";
     transform: skewX(45deg)
@@ -206,36 +226,36 @@ kbd {
         top: 0;
         right: -20px;
         bottom: 0;
-        left: -16px;
+        left: -8px;
         content: "";
         transform: skewX(-45deg)
     }
 
 .panel-b-l {
-    border-left-width: 7px;
+    border-left-width: 8px;
     position: absolute;
-    top: calc(100% + 8px);
-    right: 12px;
+    top: calc(100%);
+    right: 30px;
     z-index: 1;
     overflow: hidden;
     margin-top: 0;
-    width: calc(100% + 17px);
-    height: 40px;
-    border: 8px solid black;
+    width: calc(100% + -30px);
+    height: 30px;
+    border: 6px solid black;
     border-top: 0;
     border-top-width: 0;
-    border-right-width: 12px;
+    border-right-width: 8px;
     border-bottom-left-radius: 2px;
     content: "";
-    transform: skewX(-45deg)
+    transform: skewX(-45deg);
 }
 
     .panel-b-l::after {
         position: absolute;
         top: 0;
-        right: -16px;
+        right: -8px;
         bottom: 0;
-        left: -20px;
+        left: -10px;
         width: calc(100% + 50px);
         content: "";
         transform: skewX(45deg)
@@ -244,7 +264,7 @@ kbd {
 
     .intro .panel-b-l::after {
         background-color: white;
-        background-image: radial-gradient(#0166FF 26%, transparent 40%);
+        background-image: radial-gradient(lightcyan 26%, transparent 40%);
         background-position: 1px 1px;
-        background-size: 10px 10px;
+        background-size: 8px 8px;
     }
