@@ -11,6 +11,7 @@ from time import time, sleep
 from queue import Queue, Empty
 from enum import IntEnum
 from typing import Union, Optional, List
+from PrinterModel import PrinterModel
 from UM.Logger import Logger
 from UM.OutputDevice import OutputDevice
 
@@ -96,6 +97,19 @@ class ConnectionState(IntEnum):
     busy = 3
     error = 4
 
+
+# for later use (driver-specific regexp):
+#motion: 'G0', // G0, G1, G2, G3, G38.2, G38.3, G38.4, G38.5, G80
+#wcs: 'G54', // G54, G55, G56, G57, G58, G59
+#plane: 'G17', // G17: xy-plane, G18: xz-plane, G19: yz-plane
+#units: 'G21', // G20: Inches, G21: Millimeters
+#distance: 'G90', // G90: Absolute, G91: Relative
+#feedrate: 'G94', // G93: Inverse time mode, G94: Units per minute
+#program: 'M0', // M0, M1, M2, M30
+#spindle: 'M5', // M3: Spindle (cw), M4: Spindle (ccw), M5: Spindle off
+#coolant: 'M9' // M7: Mist coolant, M8: Flood coolant, M9: Coolant off, [M7,M8]: Both on
+
+
 class USBPrinter(OutputDevice):
     def __init__(self, serial_port: str, baud_rate: Optional[int] = None, serial_obj: Optional[Serial] = None):
         super().__init__(serial_port)
@@ -144,9 +158,11 @@ class USBPrinter(OutputDevice):
         if self._serial is not None:
             self.setConnectionState(ConnectionState.connected)
 
-        ###### TODO: get real number of extruders
-        # num_extruders = container_stack.getProperty("machine_extruder_count", "value")
-        self._extruders = 1
+        # printer specific data
+        self._model = PrinterModel()
+        # TODO: use Quarternions for axis/angle: https://github.com/infusion/Quaternion.js
+        # or self.travelSpeed = { "direction": 30, "angle": [0,30,0] }; // in mm/s3
+
 
         # start main communications thread
         self._update_thread.start()
@@ -417,12 +433,18 @@ class USBPrinter(OutputDevice):
                             Logger.log("w", "Timeout when sending command to printer via USB.")
 
                     else:                        
-                        # Logger.log("i", "handling next command")
+                        # Logger.log("i", "handling next command {} {}".format(self._lines_printed,self._command_queue.unfinished_tasks))
                         if self._command_queue.unfinished_tasks > 0:
-                            command = self._command_queue.get()
-                            # note last command sent
-                            self._last_command = command
+                            command = self._command_queue.get(block=True)
+                            
                             if command is not None:
+                                if self._last_command is command:
+                                    # WHY ARE THESE THE SAME? SHOULD NOT HAPPEN.
+                                    Logger.log("i", "COMMANDS ARE THE SAME, SKIPPING: {} {}".format(command, self._last_command))
+                                    break
+
+                                # note last command sent
+                                self._last_command = command
                                 # checksum = is this necessary?
                                 # FIXME: removed for now because of errors in handling
                                 checksum = functools.reduce(lambda x, y: x ^ y, map(ord, "N%d%s" % (self._lines_printed, command)))

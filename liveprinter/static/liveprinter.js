@@ -243,8 +243,8 @@
                         //     'z': 10,
                         // });
 
-                        sendGCode("G92");
-                        sendGCode("G28");
+                        //sendGCode("G92");
+                        //sendGCode("G28");
 
                         var node = $("<li>PRINTER CONNECTED</li>");
                         node.hide();
@@ -337,7 +337,9 @@
              *
              * */
 
-            // dictionary of basic properties about the physical printer like speeds, dimensions, extrusion settings
+            // basic properties and functions for the physical printer like speeds, dimensions, extrusion settings
+            // will be merged into the back end shortly and removed from this file
+            //
             class Printer {
 
                 ///////
@@ -371,6 +373,7 @@
                     this._printSpeed = Printer.defaultPrintSpeed;
                     this._model = Printer.UM2plus; // default
                     this.layerHeight = 0.2; // thickness of a 3d printed extrudion, mm by default
+                    this.mode = -1; // 0 is absolute, 1 is relative (temporarily).  -1 forces reset
                 }
 
                 //
@@ -406,6 +409,8 @@
 
                     let _speed = parseFloat((params.speed !== undefined) ? params.speed : this.printSpeed);
                     let _layerHeight = parseFloat((params.thickness !== undefined) ? params.thickness : this.layerHeight);
+
+                    this.printSpeed = _speed;
 
                     //
                     let onlyMove = (this.e == params.e);
@@ -496,14 +501,18 @@
                     // gcode to send to printer
                     // https://github.com/Ultimaker/Ultimaker2Marlin
 
-                    queueGCode("G90"); // abs coordinates
+                    if (this.mode != 0) {
+                        // mode change
+                        this.mode = 0;
+                        sendGCode("G90"); // abs coordinates
+                    }
 
                     //unretract first if needed
                     if (!onlyMove && this.currentRetraction)
                     {
                         this.targetE += this.currentRetraction;
                         // account for previous retraction
-                        queueGCode("G1 " + "E" + (this.currentRetraction+this.e).toFixed(4)+ " F" + this.retractSpeed*60);
+                        sendGCode("G1 " + "E" + (this.currentRetraction+this.e).toFixed(4)+ " F" + this.retractSpeed*60);
                         this.currentRetraction = 0;
                     }
 
@@ -514,7 +523,7 @@
                     moveCode.push("Z" + this.targetZ);
                     moveCode.push("E" + this.targetE.toFixed(4));
                     moveCode.push("F" + this.printSpeed*60); // mm/min as opposed to seconds
-                    queueGCode(moveCode.join(" "));
+                    sendGCode(moveCode.join(" "));
 
                     // RETRACT
                     if (!onlyMove && this.retractLength)
@@ -522,7 +531,7 @@
                         this.currentRetraction = this.retractLength;
                         this.targetE = parseFloat(this.targetE) - this.currentRetraction;
 
-                        queueGCode("G1 " + "E" + this.targetE.toFixed(4) + " F" + this.retractSpeed*60);
+                        sendGCode("G1 " + "E" + this.targetE.toFixed(4) + " F" + this.retractSpeed*60);
                     }
                     // FIXME: sort out position updates in a sensible way...
                     //queueGCode("M114"); // get position after move (X:0 Y:0 Z:0 E:0)
@@ -781,7 +790,7 @@
                 'resend': function (event) {
                     //console.log("error event:");
                     //console.log(event);
-                    $("#info > ul").append("<li>" + (new Date()).toDateString() + ": " + event.message + "</li>").css("background-color", "red");
+                    $("#info > ul").append("<li>" + (new Date()).toDateString() + ": " + event.message + "</li>").css("background-color", "orange");
                 }
             };
 
@@ -793,7 +802,7 @@
                 'gcode': function (event) {
                     //console.log("error event:");
                     //console.log(event);
-                    $("#commands > ul").append("<li>" + (new Date(event.time)).toDateString() + ": " + event.message + "</li>").css("background-color", "red");
+                    $("#commands > ul").append("<li>" + (new Date(event.time)).toDateString() + ": " + event.message + "</li>").css("background-color", "green");
                 }
             };
 

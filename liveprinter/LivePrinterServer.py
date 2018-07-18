@@ -124,7 +124,6 @@ def json_handle_gcode(printer:USBPrinter, *argv):
     for arg in argv:
         # check for newlines, if none this is a single command
         if newline.search(arg):
-            #FIXME - don't add a list!
             command_list.extend(arg.splitlines())
         else:    
             command_list.append(arg)
@@ -197,19 +196,26 @@ if __name__ == '__main__':
                           }
         )
     else:
-        # serialport = list_ports()
-        serialport = '/dev/cu.usbmodem1411'
+        serialport = list_ports()
+        # serialport = '/dev/cu.usbmodem1411'
 
     printer = USBPrinter(serialport, 250000, serial_obj)
     printer.connect()
     
     # set up mappings for JSONRPC
+
+    # send raw gcode:
     dispatcher.add_dict({"gcode": lambda *msg: json_handle_gcode(printer, *msg)})
 
-    dispatcher.add_dict({"response": lambda *msg: json_handle_responses(printer, *msg)})
+    # printer API:
 
-    # for testing:
-    # self.dispatcher = Dispatcher({"gcode": lambda c: printer.startGCodeList(c.splitlines()) })
+    # dispatcher.add_dict({"extrude": lambda *msg: json_handle_extrude(printer, *msg)})
+    # dispatcher.add_dict({"extrudeto": lambda *msg: json_handle_extrudeto(printer, *msg)})
+    # dispatcher.add_dict({"move": lambda *msg: json_handle_move(printer, *msg)})
+    # dispatcher.add_dict({"moveto": lambda *msg: json_handle_moveto(printer, *msg)})
+
+    # get last printer response:
+    dispatcher.add_dict({"response": lambda *msg: json_handle_responses(printer, *msg)})
 
 
     # Initialize web server.

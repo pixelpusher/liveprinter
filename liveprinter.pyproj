@@ -30,6 +30,7 @@
     <Compile Include="liveprinter\dummyserial\exceptions.py" />
     <Compile Include="liveprinter\dummyserial\__init__.py" />
     <Compile Include="liveprinter\LivePrinterServer.py" />
+    <Compile Include="liveprinter\PrinterModel.py" />
     <Compile Include="liveprinter\tornado_test.py" />
     <Compile Include="liveprinter\UM\Decorators.py" />
     <Compile Include="liveprinter\UM\Event.py" />
@@ -48,8 +49,6 @@
   <ItemGroup>
     <Content Include="liveprinter\static\lib\codemirror\codemirror.css" />
     <Content Include="liveprinter\static\lib\codemirror\codemirror.js" />
-    <Content Include="liveprinter\static\lib\js_interpreter\acorn.js" />
-    <Content Include="liveprinter\static\lib\js_interpreter\interpreter.js" />
     <Content Include="liveprinter\static\liveprinter.css" />
     <Content Include="liveprinter\static\liveprinter.js" />
     <Content Include="liveprinter\templates\index.html" />
@@ -64,7 +63,6 @@
     <Folder Include="liveprinter\static" />
     <Folder Include="liveprinter\static\lib\" />
     <Folder Include="liveprinter\static\lib\codemirror\" />
-    <Folder Include="liveprinter\static\lib\js_interpreter\" />
     <Folder Include="liveprinter\templates" />
     <Folder Include="liveprinter\testing\" />
     <Folder Include="liveprinter\UM" />
