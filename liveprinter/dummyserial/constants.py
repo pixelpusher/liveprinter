@@ -10,7 +10,7 @@ __license__ = 'Apache License, Version 2.0'
 __copyright__ = 'Copyright 2016 Orion Labs, Inc.'
 
 
-LOG_LEVEL = logging.DEBUG
+LOG_LEVEL = logging.WARN
 LOG_FORMAT = logging.Formatter(
     '%(asctime)s dummyserial %(levelname)s %(name)s.%(funcName)s:%(lineno)d'
     ' - %(message)s')
@@ -19,11 +19,11 @@ LOG_FORMAT = logging.Formatter(
 DEFAULT_TIMEOUT = 2
 
 # The default Baud Rate.
-DEFAULT_BAUDRATE = 9600
+DEFAULT_BAUDRATE = 250000
 
 # Response when no matching message (key) is found in the look-up dictionary.
 # * Should not be an empty string, as that is interpreted as
 #   "no data available on port".
-DEFAULT_RESPONSE = b'ok'
+DEFAULT_RESPONSE = b'ok\n'
 
 NO_DATA_PRESENT = ''
