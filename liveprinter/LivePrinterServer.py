@@ -12,9 +12,11 @@ import functools
 import multiprocessing
 from time import time
 import serial
+import logging
 from serial import Serial, SerialException, PARITY_ODD, PARITY_NONE
 import serial.tools.list_ports
 import re
+import random
 from tornado import gen
 import tornado.httpserver
 from tornado.ioloop import IOLoop, PeriodicCallback
@@ -31,7 +33,6 @@ from UM.Logger import Logger
 # tornado options
 define("http-port", default=8888, help="port to listen on", type=int)
 define('debug', default=True, help='Run in debug mode')
-
 
 def list_ports():
     choice_port = []
@@ -175,7 +176,20 @@ def json_handle_responses(printer:USBPrinter, *argv):
 #
 
 if __name__ == '__main__':
-    use_dummy_serial = False
+
+    #_logger = logging.getLogger(__name__)
+    #if not _logger.handlers:
+    #    _logger.setLevel(logging.ERROR)
+    #    #console_handler = logging.StreamHandler()
+    #    #console_handler.setLevel(logging.ERROR)
+    #    #console_handler.setFormatter(dummyserial.constants.LOG_FORMAT)
+    #    #_logger.addHandler(console_handler)
+    #    _logger.propagate = False
+
+    #Logger.addLogger(_logger)
+
+
+    use_dummy_serial = True
     serialport = None
     serial_obj = None
     baudrate = 250000
@@ -187,12 +201,12 @@ if __name__ == '__main__':
             port=serialport,
             baudrate=baudrate,
             ds_responses={
-                '.*M105.*': b'ok T:24.7 /0.0 B:23.4 /0.0 @:0 B@:0\n',
-                '.*M115.*': b'FIRMWARE_NAME:DUMMY',
-                '.*M114.*': b'X:0 Y:0 Z:0',  # position request
-                '.*G.*': b'ok',
-                #'^N.*': b'ok',
-                '^XXX': b'!!'
+                '.*M105.*': lambda : b'ok T:%a /190.0 B:%a /24.0 @:0 B@:0\n' % (random.uniform(170,195),random.uniform(20,35)),
+                '.*M115.*': b'FIRMWARE_NAME:DUMMY\n',
+                '.*M114.*': b'X:0 Y:0 Z:0\n',  # position request
+                '.*G.*': b'ok\n',
+                #'^N.*': b'ok\n',
+                '^XXX': b'!!\n'
                           }
         )
     else:
