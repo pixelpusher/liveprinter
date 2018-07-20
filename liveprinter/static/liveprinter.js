@@ -34,7 +34,7 @@
             var Scheduler = {
                 ScheduledEvents: [],
                 audioContext: new AudioContext(),
-                schedulerInterval: 40,
+                schedulerInterval: 1000,
                 timerID: null,
 
                 clearEvents: function () {
@@ -48,41 +48,39 @@
                 * repeat: true/false whether to reschedule
                 */
                 scheduleEvent: function (args) {
-                    Scheduler.ScheduledEvents.push({
-                        'time': Scheduler.audioContext.currentTime + args.timeOffset,
-                        'timeOffset': args.timeOffset,
-                        'func': args.func,
-                        'repeat': args.repeat
-                    });
+                    args.time = Scheduler.audioContext.currentTime;
+
+                    Scheduler.ScheduledEvents.push(args);
                 },
 
                 startScheduler: function () {
                     console.log("scheduler starting at time: " + Scheduler.audioContext.currentTime);
 
                     function scheduler(nextTime) {
-                        let time = Scheduler.audioContext.currentTime;
-                        let i = 0;
-                        // run events -- this could be done better with map/filter
-                        if (Scheduler.ScheduledEvents)
-                            while (i < Scheduler.ScheduledEvents.length && Scheduler.ScheduledEvents.length > 0) {
-                                //console.log("processing events at time " + time);
-                                let event = Scheduler.ScheduledEvents[0];
-                                //console.log(event);
-                                if (event.time >= time) {
+                        let time = Scheduler.audioContext.currentTime*1000; // in ms
+
+                        // run events 
+                        Scheduler.ScheduledEvents.filter(
+                            function (event) {
+                                let keep = true;
+
+                                if (event.time < time) {
                                     //console.log("running event at time:" + time);
                                     event.func(time);
-                                    Scheduler.ScheduledEvents.shift();
+
                                     if (event.repeat) {
-                                        Scheduler.scheduleEvent(event);
+                                        event.time = time + event.timeOffset;
+                                        keep = true;
+                                    }
+                                    else {
+                                        keep = false;
                                     }
                                 }
-                                i++;
-                            }
-
-                        // run it again
-                        Scheduler.timerID = setTimeout(scheduler, Scheduler.schedulerInterval, time + Scheduler.schedulerInterval);
+                                return keep;
+                            });
                     }
-                    Scheduler.timerID = setTimeout(scheduler, Scheduler.schedulerInterval, Scheduler.schedulerInterval);
+
+                    Scheduler.timerID = window.setInterval(scheduler, Scheduler.schedulerInterval);
                 }
             };
 
@@ -250,6 +248,20 @@
                         node.hide();
                         $("#info").append(node);
                         node.slideDown();
+
+                        // schedule temperature updates every little while
+                        Scheduler.scheduleEvent({
+                            name: "tempUpdates",
+                            timeOffset: 5000,
+                            func: function (time) {
+                                if (socketHandler.socket.readyState === socketHandler.socket.OPEN) {
+                                    sendGCode("M105");
+                                    //console.log("TEMP: " + new Date());
+                                }
+                            },
+                            repeat: true
+                        });
+
                     };
                 },
 
@@ -702,8 +714,22 @@
                 */
             };
 
+
+            //
+            // blink an element using css animation class
+            //
+            var blinkElem = function ($elem) {
+                $elem.removeClass("blinkit"); // remove to make sure it's not there
+                $elem.on("animationend", function () {
+                    $(this).removeClass("blinkit");
+                });
+                $elem.addClass("blinkit");
+            };
+
+
             $("#codeform").on("submit", function () {
                 runCode();
+                blinkElem($("#codeform"));
                 return false;
             });
 
@@ -737,8 +763,9 @@
             var waitingForResponse = false; // only ask for responses if we expect them?
 
             Scheduler.scheduleEvent({
+                name: "queryResponses",
                 timeOffset: 80,
-                func: function () {
+                func: function (event) {
                     //console.log(message_json);
                     if (socketHandler.socket.readyState === socketHandler.socket.OPEN) {
                         socketHandler.socket.send(responseJSON);
@@ -747,24 +774,32 @@
                 repeat: true
             });
 
-
-
             // temperature event handler
             var tempHandler = {
                 'temperature': function (tempEvent) {
-                console.log("temp event:");
-                console.log(tempEvent);
+                //console.log("temp event:");
+                //console.log(tempEvent);
                     let tmp = parseFloat(tempEvent.hotend).toFixed(2);
                     let target = parseFloat(tempEvent.hotend_target).toFixed(2);
+
+                    $("#temperature").empty();
+                    $("#temperature").append("<li class='alert alert-light fade show' role='alert'>"
+                        + '<strong>'
+                        + tmp + " / " + target 
+                        + '</strong>'
+                        + "</li>");
+
                     // look for 10% diff, it's not very accurate...
-                    if ((Math.abs(tmp-target)/target) < 0.10) {
-                    let gcodeString = "";
+                    /*
+                    if ((Math.abs(tmp - target) / target) < 0.10) {
+                        let gcodeString = "";
                         for (var i=1; i<5; i++)
-                    {
-                            gcodeString +='M300 P200 S' + i*220+'\n';
+                        {
+                                gcodeString +='M300 P200 S' + i*220+'\n';
+                        }
+                        sendGCode(gcodeString);
                     }
-                    sendGCode(gcodeString);
-                    }
+                    */
                 }
             };
             socketHandler.registerListener(tempHandler);
@@ -775,7 +810,17 @@
                 'error': function (event) {
                     //console.log("error event:");
                     //console.log(event);
-                    $("#errors > ul").append("<li>" + (new Date(event.time)).toDateString() + ": " + event.message + "</li>").css("background-color", "red");
+
+                    $("#errors > ul").append("<li class='alert alert-warning alert-dismissible fade show' role='alert'>"
+                        //+ (new Date(event.time)).toDateString() // FIXME!
+                        + '<strong>'
+                        + ": " + event.message
+                        + '</strong>'
+                        + '<button type="button" class="close" data-dismiss="alert" aria-label="Close">'
+                        + '< span aria-hidden="true">&times;</span></button >'
+                        + "</li>");
+                    blinkElem($("#errors-tab"));
+                    blinkElem($("#inbox"));
                 }
             };
             socketHandler.registerListener(errorHandler);
@@ -785,12 +830,23 @@
                 'info': function (event) {
                     //console.log("error event:");
                     //console.log(event);
-                    $("#info > ul").append("<li>" + (new Date()).toDateString() + ": " + event.message + "</li>").css("background-color", "red");
+                    $("#info > ul").append("<li class='alert alert-primary alert-dismissible fade show' role='alert'>"
+                        //+ (new Date(event.time)).toDateString() // FIXME!
+                        + '<strong>'
+                        + ": " + event.message
+                        + '</strong>'
+                        + '<button type="button" class="close" data-dismiss="alert" aria-label="Close">'
+                        + '< span aria-hidden="true">&times;</span></button >'
+                        + "</li>");
+                    blinkElem($("#info-tab"));
+                    blinkElem($("#inbox"));
                 },
                 'resend': function (event) {
                     //console.log("error event:");
                     //console.log(event);
                     $("#info > ul").append("<li>" + (new Date()).toDateString() + ": " + event.message + "</li>").css("background-color", "orange");
+                    blinkElem($("#info-tab"));
+                    blinkElem($("#inbox"));
                 }
             };
 
@@ -802,22 +858,25 @@
                 'gcode': function (event) {
                     //console.log("error event:");
                     //console.log(event);
-                    $("#commands > ul").append("<li>" + (new Date(event.time)).toDateString() + ": " + event.message + "</li>").css("background-color", "green");
+                    $("#commands > ul").append("<li>" + (new Date(event.time)).toDateString() + ": " + event.message + "</li>").css("background-color", "green").fadeIn(50);
+                    blinkElem($("#commands-tab"));
+                    blinkElem($("#inbox"));
                 }
             };
 
             socketHandler.registerListener(commandHandler);
 
-            // temperature event handler
+            // ok event handler
             var okHandler = {
                 'ok': function (event) {
-                    //console.log("error event:");
+                    //console.log("ok event:");
                     //console.log(event);
                     if (outgoingQueue.length > 0)
                     {
                         let msg = outgoingQueue.pop();
                         socketHandler.socket.send(msg);
                     }
+                    blinkElem($("#commands-tab"));
                 }
             };
 
