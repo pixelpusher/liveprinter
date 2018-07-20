@@ -27,6 +27,25 @@
     }
 }
 
+@keyframes blinkonce {
+    0% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.3;
+    }
+
+    100% {
+        opacity: 1;
+    }
+}
+
+.blinkit {
+    animation-duration: 0.35s;
+    animation-name: blinkonce;
+}
+
 body {
   background: white;
   margin: 0.71em;
