@@ -13,10 +13,20 @@
     <div class="lines"></div>
     <div class="container" id="body">
         <div class="row">
+            <div class="col-12">
+                <div class="box">
+                    <h1>LivePrinter v.01</h1>
+                    <div class="col-12"><em><a href="http://github.com/pixelpusher/liveprinter">http://github.com/pixelpusher/liveprinter</em></a></div>
+                </div>
+                <div class="panel-l"></div>
+                <div class="panel-b-l"></div>
+            </div>
+        </div>
+        <div class="row">
             <div class="col-9 col-md-8" id="input">
-                <div class="box intro">
-                    <form action="/a/message/new" method="post" id="codeform">
-                        <p><textarea id="code-editor">
+                <div class="box editorpane">
+                    <div class="codeeditor">
+                        <textarea id="code-editor">
 // run gcode directly in a function
 // this will only work once - to persist functions use the "lp" object
 function doMove(x,y)
@@ -46,86 +56,82 @@ lp.extrudeto({x:100,y:100,z:10,e:-60});
 //relative
 lp.extrude({x:10,y:12});
 
-                        </textarea></p>
-                        <p>
-                            <div class="container" id="buttons">
-                                <div class="row">
-                                    <div class="col-4">CODE MODE</div>
-                                    <!-- <div class="col-2"><input type="button" id="stepButton" value="{{ _("step") }}"></div>-->
-                                    <div class="col-2"><input type="button" id="runButton" value="{{ _("run") }}" accesskey="s"></div>
-                                    <div class="col-6" id="code-errors" style="background-color:lawngreen"></div>
+                     </textarea>
+                        </div>
+                        <div class="container">
+                            <div class="row" id="buttons">
+                                <div class="col-2"><strong>Errors:</strong></div>
+                                <div class="col-10" id="code-errors"></div>
+                            </div>
+                            <div class="row">
+                                <div class="col-12">
+                                    <p>Highlight lines of code and hit <kbd>cmd</kbd> or <kbd>ctrl</kbd>-<kbd>enter</kbd> to send them</p>
                                 </div>
                             </div>
-                        </p>
-
-                        <!-- <p><input type="submit" value="{{ _("send") }}" accesskey="s"></p> -->
-                        <p><input type="hidden" name="next" value="{{ request.path }}"></p>
-                        {% module xsrf_form_html() %}
-                        <p>Highlight lines of code and hit <kbd>cmd</kbd> or <kbd>ctrl</kbd>-<kbd>enter</kbd> to send them</p>
-                    </form>
+                        </div>
+                    </div>
                     <div class="panel-l"></div>
                     <div class="panel-b-l"></div>
                 </div>
 
                 <!-- end input-->
-            </div>
-            <div class="col-3 col-md-4">
-                <div id="inbox" class="box">
-                    <ul class="nav nav-pills" id="pconsole" role="tablist">
-                        <li class="nav-item">
-                            <a class="nav-link active" id="info-tab" data-toggle="pill" href="#info" role="tab" aria-controls="info" aria-selected="true">info</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" id="errors-tab" data-toggle="pill" href="#errors" role="tab" aria-controls="errors" aria-selected="false">errors</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" id="commands-tab" data-toggle="pill" href="#commands" role="tab" aria-controls="commands" aria-selected="false">commands</a>
-                        </li>
-                    </ul>
-                    <!-- Tab panes -->
-                    <div id="tab-messages-pane" class="tab-content">
-                        <div class="tab-pane fade show active" id="info" role="tabpanel" aria-labelledby="pills-info-tab">
-                            <ul></ul>
+                <div class="col-3 col-md-4">
+                    <div id="inbox" class="box">
+                        <ul class="nav nav-pills" id="pconsole" role="tablist">
+                            <li class="nav-item">
+                                <a class="nav-link active" id="info-tab" data-toggle="pill" href="#info" role="tab" aria-controls="info" aria-selected="true">info</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" id="errors-tab" data-toggle="pill" href="#errors" role="tab" aria-controls="errors" aria-selected="false">errors</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" id="commands-tab" data-toggle="pill" href="#commands" role="tab" aria-controls="commands" aria-selected="false">commands</a>
+                            </li>
+                        </ul>
+                        <!-- Tab panes -->
+                        <div id="tab-messages-pane" class="tab-content">
+                            <div class="tab-pane fade show active" id="info" role="tabpanel" aria-labelledby="pills-info-tab">
+                                <ul></ul>
+                            </div>
+                            <div class="tab-pane fade" id="errors" role="tabpanel" aria-labelledby="pills-errors-tab">
+                                <ul></ul>
+                            </div>
+                            <div class="tab-pane fade" id="commands" role="tabpanel" aria-labelledby="pills-commands-tab">
+                                <ul></ul>
+                            </div>
                         </div>
-                        <div class="tab-pane fade" id="errors" role="tabpanel" aria-labelledby="pills-errors-tab">
-                            <ul></ul>
-                        </div>
-                        <div class="tab-pane fade" id="commands" role="tabpanel" aria-labelledby="pills-commands-tab">
-                            <ul></ul>
-                        </div>
+                        <div id="temperature"></div>
+                        <div class="panel-r lines"></div>
+                        <div class="panel-b-r"></div>
                     </div>
-                    <div id="temperature"></div>
-                    <div class="panel-r lines"></div>
-                    <div class="panel-b-r"></div>
                 </div>
+                <!-- end 1st row -->
             </div>
-            <!-- end 1st row -->
+            <!-- end main container-->
         </div>
-        <!-- end main container-->
-    </div>
 
-    <!-- Bootstrap 4 -->
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
-    <script src="https://code.jquery.com/jquery-3.3.1.min.js"
-            integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8="
-            crossorigin="anonymous"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
-    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
-    <script src="{{ static_url("lib/codemirror/codemirror.js") }}"></script>
-    <script src="{{ static_url("lib/addon/selection/active-line.js") }}"></script>
-    <link rel="stylesheet" href="{{ static_url("lib/codemirror/codemirror.css") }}">
-    <link rel="stylesheet" href="{{ static_url("lib/addon/lint/lint.css") }}">
-    <script src="{{ static_url("lib/codemirror/mode/javascript/javascript.js") }}"></script>
-    <script src="{{ static_url("lib/codemirror/mode/css/css.js") }}"></script>
-    <script src="//cdnjs.cloudflare.com/ajax/libs/jshint/2.9.5/jshint.min.js"></script>
-    <script src="//rawgithub.com/zaach/jsonlint/79b553fb65c192add9066da64043458981b3972b/lib/jsonlint.js"></script>
-    <script src="https://unpkg.com/csslint@1.0.5/dist/csslint.js"></script>
-    <script src="{{ static_url("lib/addon/lint/lint.js") }}"></script>
-    <script src="{{ static_url("lib/addon/lint/javascript-lint.js") }}"></script>
-    <script src="{{ static_url("lib/addon/lint/json-lint.js") }}"></script>
-    <script src="{{ static_url("lib/addon/lint/css-lint.js") }}"></script>
-    <!-- liveprinter javascript -->
-    <script src="{{ static_url("liveprinter.js") }}" type="text/javascript"></script>
+        <!-- Bootstrap 4 -->
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+        <script src="https://code.jquery.com/jquery-3.3.1.min.js"
+                integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8="
+                crossorigin="anonymous"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
+        <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
+        <script src="{{ static_url("lib/codemirror/codemirror.js") }}"></script>
+        <script src="{{ static_url("lib/addon/selection/active-line.js") }}"></script>
+        <link rel="stylesheet" href="{{ static_url("lib/codemirror/codemirror.css") }}">
+        <link rel="stylesheet" href="{{ static_url("lib/addon/lint/lint.css") }}">
+        <script src="{{ static_url("lib/codemirror/mode/javascript/javascript.js") }}"></script>
+        <script src="{{ static_url("lib/codemirror/mode/css/css.js") }}"></script>
+        <script src="//cdnjs.cloudflare.com/ajax/libs/jshint/2.9.5/jshint.min.js"></script>
+        <script src="//rawgithub.com/zaach/jsonlint/79b553fb65c192add9066da64043458981b3972b/lib/jsonlint.js"></script>
+        <script src="https://unpkg.com/csslint@1.0.5/dist/csslint.js"></script>
+        <script src="{{ static_url("lib/addon/lint/lint.js") }}"></script>
+        <script src="{{ static_url("lib/addon/lint/javascript-lint.js") }}"></script>
+        <script src="{{ static_url("lib/addon/lint/json-lint.js") }}"></script>
+        <script src="{{ static_url("lib/addon/lint/css-lint.js") }}"></script>
+        <!-- liveprinter javascript -->
+        <script src="{{ static_url("liveprinter.js") }}" type="text/javascript"></script>
 
 </body>
 </html>

@@ -783,11 +783,11 @@
                     let target = parseFloat(tempEvent.hotend_target).toFixed(2);
 
                     $("#temperature").empty();
-                    $("#temperature").append("<li class='alert alert-light fade show' role='alert'>"
-                        + '<strong>'
+                    $("#temperature").append("<p class='alert alert-danger fade show' role='alert'>"
+                        + '<strong>hotend temp/target:<br />'
                         + tmp + " / " + target 
                         + '</strong>'
-                        + "</li>");
+                        + "</p>");
 
                     // look for 10% diff, it's not very accurate...
                     /*
@@ -844,7 +844,7 @@
                 'resend': function (event) {
                     //console.log("error event:");
                     //console.log(event);
-                    $("#info > ul").append("<li>" + (new Date()).toDateString() + ": " + event.message + "</li>").css("background-color", "orange");
+                    $("#info > ul").append("<li>" + (new Date()).toDateString() + ": " + event.message + "</li>");
                     blinkElem($("#info-tab"));
                     blinkElem($("#inbox"));
                 }
@@ -858,7 +858,7 @@
                 'gcode': function (event) {
                     //console.log("error event:");
                     //console.log(event);
-                    $("#commands > ul").append("<li>" + (new Date(event.time)).toDateString() + ": " + event.message + "</li>").css("background-color", "green").fadeIn(50);
+                    $("#commands > ul").append("<li>" + (new Date(event.time)).toDateString() + ": " + event.message + "</li>").fadeIn(50);
                     blinkElem($("#commands-tab"));
                     blinkElem($("#inbox"));
                 }
