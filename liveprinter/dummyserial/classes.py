@@ -15,7 +15,7 @@ import dummyserial.constants
 
 __author__ = 'Greg Albrecht <gba@orionlabs.io> then Evan Raskob <http://pixelist.info>'
 __license__ = 'Apache License, Version 2.0'
-__copyright__ = 'Copyright 2016 Orion Labs, Inc.'
+__copyright__ = 'Copyright 2016 Orion Labs, Inc. and 2018 Evan Raskob'
 
 
 class Serial(object):
@@ -125,7 +125,16 @@ class Serial(object):
         for key, val in self.ds_responses.items():
             pattern = re.compile(key)
             if pattern.match(input_str):
-                self._waiting_data = val
+                # self._logger.debug("response type {} is: {}".format(val, type(val)))
+                # test if this is a function or a variable to return
+                if callable(val):
+                    try:
+                        self._waiting_data = val()
+                    except Exception as e:
+                        Logger.log("d", "exception:{}".format(e))
+                        return
+                else:
+                    self._waiting_data = val
                 break
 
     def read(self, size=1):
@@ -209,19 +218,14 @@ class Serial(object):
         if len(self._waiting_data) < 1:
             return_str = dummyserial.constants.NO_DATA_PRESENT
         else:
-            return_str = str(self._waiting_data)
+            return_str = self._waiting_data # keep in original format, might be bytes!
             self._waiting_data = dummyserial.constants.NO_DATA_PRESENT
 
         if return_str:
             self._logger.debug(
-                'Read (%s): "%s"',
-                len(return_str), return_str
+                'Read ({}): "{}"'.format(len(return_str), return_str)
             )
-
-        if sys.version_info[0] > 2:  # Convert types to make it python3 compat.
-            return bytes(return_str, encoding='latin1')
-        else:
-            return return_str
+        return return_str
 
 
     def out_waiting(self):  # pylint: disable=C0103
