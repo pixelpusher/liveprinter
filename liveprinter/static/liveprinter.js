@@ -104,9 +104,12 @@
             //CodeMirror.defaults.autofocus = true;
             CodeMirror.defaults.undoDepth = 100;
 
-            var ed_trigger = function (ed) {
+            var compileCode = function (ed) {
                 runCode();
-                console.log("trigger");
+
+                //blinkElem($(".CodeMirror-line > span"));
+                
+                blinkElem($(".CodeMirror"));
             };
 
             // start CodeMirror
@@ -122,8 +125,8 @@
                   },
                 gutters: ["CodeMirror-lint-markers"],
                 extraKeys: {
-                    "Ctrl-Enter": ed_trigger,
-                    "Cmd-Enter": ed_trigger
+                    "Ctrl-Enter": compileCode,
+                    "Cmd-Enter": compileCode
                 }
             });
 
@@ -727,12 +730,6 @@
             };
 
 
-            $("#codeform").on("submit", function () {
-                runCode();
-                blinkElem($("#codeform"));
-                return false;
-            });
-
             // set up things...
             var printer = new Printer();
 
@@ -881,6 +878,8 @@
             };
 
             socketHandler.registerListener(okHandler);
+
+            $("#sendCode").on("click", compileCode);
 
 
             // TODO: temp probe that gets scheduled every 300ms and then removes self when
