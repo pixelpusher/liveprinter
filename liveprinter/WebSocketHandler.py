@@ -60,7 +60,7 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
     def on_message(self, message):
         ## Passes an incoming JSON-RPC message to the dispatcher for processing.
         
-        # Logger.log("d", 'Message received from {0}: {1}'.format(
+        #Logger.log("d", 'Message received from {0}: {1}'.format(
         #    self.request.remote_ip, message[:140]))
 
         parsed = tornado.escape.json_decode(message)

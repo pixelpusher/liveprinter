@@ -204,6 +204,7 @@ class USBPrinter(OutputDevice):
                     Logger.log("w", "An exception occured while trying to create serial connection")
                     ##FIXME - send printer response
                     self.setConnectionState(ConnectionState.error)
+                    raise SerialException("could not open serial port {}: {}".format(self._serial_port, repr(e)))
                     return
 
     def close(self):

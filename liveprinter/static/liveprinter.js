@@ -28,13 +28,14 @@
                 window.scope = Object.create(null);
             }
             var scope = window.scope;
+            scope.serialPorts = []; // available ports
 
             var outgoingQueue = []; // messages for the server
 
             var Scheduler = {
                 ScheduledEvents: [],
                 audioContext: new AudioContext(),
-                schedulerInterval: 1000,
+                schedulerInterval: 40,
                 timerID: null,
 
                 clearEvents: function () {
@@ -214,6 +215,22 @@
                 }
             }
 
+
+            var onPrinterConnect = function () {
+                // schedule temperature updates every little while
+                Scheduler.scheduleEvent({
+                    name: "tempUpdates",
+                    timeOffset: 5000,
+                    func: function (time) {
+                        if (socketHandler.socket.readyState === socketHandler.socket.OPEN) {
+                            sendGCode("M105");
+                            //console.log("TEMP: " + new Date());
+                        }
+                    },
+                    repeat: true
+                });
+            };
+
             var socketHandler = {
                 socket: null,
                 listeners: [], // listeners for json rpc calls
@@ -252,18 +269,18 @@
                         $("#info").append(node);
                         node.slideDown();
 
-                        // schedule temperature updates every little while
-                        Scheduler.scheduleEvent({
-                            name: "tempUpdates",
-                            timeOffset: 5000,
-                            func: function (time) {
-                                if (socketHandler.socket.readyState === socketHandler.socket.OPEN) {
-                                    sendGCode("M105");
-                                    //console.log("TEMP: " + new Date());
-                                }
-                            },
-                            repeat: true
-                        });
+
+                        let message = {
+                            'jsonrpc': '2.0',
+                            'id': 6,
+                            'method': 'get-serial-ports',
+                            'params': [],
+                        };
+
+                        let message_json = JSON.stringify(message);
+                        socketHandler.socket.send(message_json);
+
+                        // FIXME: unhide start button
 
                     };
                 },
@@ -814,7 +831,7 @@
                         + ": " + event.message
                         + '</strong>'
                         + '<button type="button" class="close" data-dismiss="alert" aria-label="Close">'
-                        + '< span aria-hidden="true">&times;</span></button >'
+                        + '<span aria-hidden="true">&times;</span></button>'
                         + "</li>");
                     blinkElem($("#errors-tab"));
                     blinkElem($("#inbox"));
@@ -833,7 +850,7 @@
                         + ": " + event.message
                         + '</strong>'
                         + '<button type="button" class="close" data-dismiss="alert" aria-label="Close">'
-                        + '< span aria-hidden="true">&times;</span></button >'
+                        + '<span aria-hidden="true">&times;</span></button>'
                         + "</li>");
                     blinkElem($("#info-tab"));
                     blinkElem($("#inbox"));
@@ -879,7 +896,40 @@
 
             socketHandler.registerListener(okHandler);
 
+
+            // portsListHandler event handler
+            var portsListHandler = {
+                'serial-ports-list': function (event) {
+                    console.log("list of serial ports:");
+                    console.log(event);
+                    if (event.message.length == 0) {
+                        $("#info > ul").append("<li>no serial ports found</li > ").fadeIn(50);
+                    }
+                    else {
+                        $("#info > ul").append("<li>serial ports: " + event.message + "</li > ").fadeIn(50);
+                        window.scope.serialPorts = event.message;
+
+                        let message = {
+                            'jsonrpc': '2.0',
+                            'id': 6,
+                            'method': 'set-serial-port',
+                            'params': [window.scope.serialPorts[0]],
+                        };
+
+                        // FIXME :: connect to first port
+                        // should check if connected first.... and update GUI, etc.
+                        socketHandler.socket.send(JSON.stringify(message));
+                    }
+                    
+                    blinkElem($("#info-tab"));
+                }
+            };
+
+            socketHandler.registerListener(portsListHandler);
+
             $("#sendCode").on("click", compileCode);
+
+            $("#start-temp").on("click", onPrinterConnect);
 
 
             // TODO: temp probe that gets scheduled every 300ms and then removes self when
