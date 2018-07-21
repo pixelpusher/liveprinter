@@ -141,8 +141,9 @@ td {
 }
 
 /* contains all the nav and panes for code editor and printer settings (like serial connect)*/
-#code-editor-area {
+#code-editor-area, #code-editor-area > div {
     color: #FFFF57;
+    height: 24em;
 }
 
 /* contains the nav for code editor and printer settings (like serial connect)*/
@@ -153,7 +154,7 @@ td {
 /* textarea that CodeMirror replaces on load */
 #code-editor {
     width: 100%;
-    height: 30em;
+    height: 22em;
 }
 
 kbd {
@@ -252,7 +253,6 @@ kbd {
 }
 
 .panel-b-r {
-    border-right-width: 8px;
     position: absolute;
     top: calc(100% + 1px);
     left: 30px;

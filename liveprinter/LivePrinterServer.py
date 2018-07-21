@@ -12,6 +12,7 @@ import functools
 import multiprocessing
 from time import time
 import serial
+import dummyserial
 import logging
 from serial import Serial, SerialException, PARITY_ODD, PARITY_NONE
 import serial.tools.list_ports
@@ -43,7 +44,7 @@ def list_ports():
                 ports.append(portname)
                 print("__Found serial ports:\n")
                 print("%d: %s" % (n,portname))
-    return ports[0]
+    return ports
 
 
 class MainHandler(tornado.web.RequestHandler):
@@ -170,6 +171,127 @@ def json_handle_responses(printer:USBPrinter, *argv):
     return None
 
 
+#
+# set the serial port of the printer and connect.
+# return the port name if successful, otherwise "error" as the port
+#
+def json_handle_set_serial_port(printer:USBPrinter, port:str):
+    json = None
+    Logger.log("i", "setting serial port: {}".format(port))
+
+
+    if port.lower() is "dummy":
+         use_dummy_serial_port(printer)
+         json = {
+            'jsonrpc': '2.0',
+            'id': 5, 
+            'method': 'serial-port-set',
+            'params': {
+                'time': time(),
+                'message': port
+                }
+            }
+    else:
+        printer._serial_port = port
+
+        try:
+            printer.connect()
+            json = {
+                'jsonrpc': '2.0',
+                'id': 5, 
+                'method': 'serial-port-set',
+                'params': {
+                    'time': time(),
+                    'message': port
+                    }
+                }
+        except SerialException:
+           Logger.log("e", "could not connect to serial port")
+           json = {
+                    'jsonrpc': '2.0',
+                    'id': 5, 
+                    'method': 'serial-port-set',
+                    'params': {
+                        'time': time(),
+                        'message': "error"
+                        }
+                  }
+
+    return json
+
+#
+# handle request for printer state:
+#closed = 0
+#connecting = 1
+#connected = 2
+#busy = 3
+#error = 4)
+#
+def json_handle_printerstate(printer:USBPrinter, *argv):
+    
+    json = None
+
+    try:
+        connectionState = printer.getConnectionState()
+
+        json = {
+                'jsonrpc': '2.0',
+                'id': 5, 
+                'method': 'printerstate',
+                'params': {
+                    'time': time(),
+                    'message': connectionState.name
+                    }
+                }
+    except Exception as e:
+        # TODO: fix this to be a real error type so it gets sent to the clients properly
+       Logger.log("e", "could not get printer state: {}".format(repr(e)))
+       raise ValueError("could not get printer state: {}".format(repr(e)))
+    
+    return json
+
+
+#
+# Handle request for serial ports from front end
+#
+def json_handle_portslist(*msg):
+
+    try:
+        ports = list_ports()
+
+        json = {
+                'jsonrpc': '2.0',
+                'id': 6, 
+                'method': "serial-ports-list",
+                'params': {
+                    'time': time(),
+                    'message': ports
+                    }
+                }
+    except Exception as e:
+        # TODO: fix this to be a real error type so it gets sent to the clients properly
+       Logger.log("e", "could not get serial ports list: {}".format(repr(e)))
+       raise ValueError("could not get  serial ports list: {}".format(repr(e)))
+    
+    return json
+
+
+def use_dummy_serial_port(printer:USBPrinter):
+    printer._serial_port ="/dev/null"
+    printer._serial = dummyserial.Serial(
+        port= printer._serial_port,
+        baudrate= printer._baud_rate,
+        ds_responses={
+            '.*M105.*': lambda : b'ok T:%a /190.0 B:%a /24.0 @:0 B@:0\n' % (random.uniform(170,195),random.uniform(20,35)),
+            '.*M115.*': b'FIRMWARE_NAME:DUMMY\n',
+            '.*M114.*': b'X:0 Y:0 Z:0\n',  # position request
+            '.*G.*': b'ok\n',
+            #'^N.*': b'ok\n',
+            '^XXX': b'!!\n'
+                        }
+    )
+    printer.setConnectionState(ConnectionState.connected)
+
 
 #
 # start this thing up!
@@ -188,38 +310,26 @@ if __name__ == '__main__':
 
     #Logger.addLogger(_logger)
 
+    # set up unconnected printer
+    printer = USBPrinter(None, 250000)
 
-    use_dummy_serial = True
-    serialport = None
-    serial_obj = None
-    baudrate = 250000
+    #use_dummy_serial = True
+    #
+    #if use_dummy_serial:
+    #    use_dummy_serial_port(printer)
+    #else:
+        # printer._serial_port =  list_ports()[0]
+        # printer._serial_port = '/dev/cu.usbmodem1411'
+        # printer.connect()
 
-    if use_dummy_serial:
-        import dummyserial
-        serialport ="/dev/null"
-        serial_obj = dummyserial.Serial(
-            port=serialport,
-            baudrate=baudrate,
-            ds_responses={
-                '.*M105.*': lambda : b'ok T:%a /190.0 B:%a /24.0 @:0 B@:0\n' % (random.uniform(170,195),random.uniform(20,35)),
-                '.*M115.*': b'FIRMWARE_NAME:DUMMY\n',
-                '.*M114.*': b'X:0 Y:0 Z:0\n',  # position request
-                '.*G.*': b'ok\n',
-                #'^N.*': b'ok\n',
-                '^XXX': b'!!\n'
-                          }
-        )
-    else:
-        serialport = list_ports()
-        # serialport = '/dev/cu.usbmodem1411'
 
-    printer = USBPrinter(serialport, 250000, serial_obj)
-    printer.connect()
-    
     # set up mappings for JSONRPC
 
     # send raw gcode:
     dispatcher.add_dict({"gcode": lambda *msg: json_handle_gcode(printer, *msg)})
+    dispatcher.add_dict({"get-printer-state": lambda *msg: json_handle_printerstate(printer, *msg)})
+    dispatcher.add_dict({"get-serial-ports": lambda *msg: json_handle_portslist(*msg)})
+    dispatcher.add_dict({"set-serial-port": lambda port: json_handle_set_serial_port(printer, port)})
 
     # printer API:
 
@@ -254,14 +364,4 @@ if __name__ == '__main__':
     #httpServer.start(0)
 
     main_loop = tornado.ioloop.IOLoop.instance()
-    # printer_event_processor = tornado.ioloop.PeriodicCallback(
-    #    lambda: process_printer_reponses(printer), 1500)
-    # printer_event_processor.start()
     main_loop.start()
-
-    # IOLoop.current().spawn_callback(process_printer_reponses, printer)
-
-    #tornado.ioloop.IOLoop.current().start()
-
-  
-    
