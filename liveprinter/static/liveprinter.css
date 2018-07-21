@@ -47,6 +47,10 @@
 }
 
 
+.fullheight {
+    height: 100%;
+}
+
 body {
   background: white;
   margin: 0.71em;
@@ -69,14 +73,13 @@ td {
   padding: 0;
 }
 
-#input, #inbox {
+#printer-editor-col, #inbox {
     margin-top: 0.5em;
 }
 
-
 #nav {
-  float: right;
-  z-index: 99;
+    float: right;
+    z-index: 99;
 }
 
 #inbox {
@@ -108,9 +111,18 @@ td {
     margin-bottom: 0.2em;
 }
 
-#info {
+#info, #info-tab.active {
     background-color: lightcyan;
-    color: darkmagenta; 
+    border-bottom-color: transparent;
+}
+
+#info {
+    color: darkmagenta;
+}
+
+#errors, #errors-tab.active {
+    background-color: lightcoral;
+    border-bottom-color:transparent;
 }
 
 #errors {
@@ -118,16 +130,30 @@ td {
     color: darkmagenta;
 }
 
+
 #commands {
-    background-color: lightgrey;
     color: darkmagenta;
 }
 
+#commands, #commands-tab.active {
+    background-color: lightgrey;
+    border-bottom-color: transparent;
+}
 
+/* contains all the nav and panes for code editor and printer settings (like serial connect)*/
+#code-editor-area {
+    color: #FFFF57;
+}
+
+/* contains the nav for code editor and printer settings (like serial connect)*/
+#editor-settings-nav {
+}
+
+
+/* textarea that CodeMirror replaces on load */
 #code-editor {
-
     width: 100%;
-    height:35em;
+    height: 30em;
 }
 
 kbd {
@@ -145,13 +171,8 @@ kbd {
     white-space: nowrap;
 }
 
-.editorpane {
+.bg-colorful1 {
     background-color: rgb(255, 67, 119);
-}
-
-.codeeditor {
-    color: #FFFF57;    
-    height: 30em;
 }
 
 .lines {
@@ -166,7 +187,6 @@ kbd {
 }
 
 .box {
-    /* position: relative; */
     padding: 0.4em;
     min-width: 8em;
     border: 8px solid black;
@@ -193,15 +213,15 @@ kbd {
     transform: skewY(45deg);
 }
 
-    .panel-r::after {
-        position: absolute;
-        top: -8px;
-        right: 0;
-        bottom: -8px;
-        left: 0;
-        content: "";
-        transform: skewY(-45deg)
-    }
+.panel-r::after {
+    position: absolute;
+    top: -8px;
+    right: 0;
+    bottom: -8px;
+    left: 0;
+    content: "";
+    transform: skewY(-45deg)
+}
 
 .panel-l {
     position: absolute;
@@ -221,15 +241,15 @@ kbd {
     transform: skewY(-45deg)
 }
 
-    .panel-l::after {
-        position: absolute;
-        top: -8px;
-        right: 0;
-        bottom: -8px;
-        left: 0;
-        content: "";
-        transform: skewY(45deg)
-    }
+.panel-l::after {
+    position: absolute;
+    top: -8px;
+    right: 0;
+    bottom: -8px;
+    left: 0;
+    content: "";
+    transform: skewY(45deg)
+}
 
 .panel-b-r {
     border-right-width: 8px;
@@ -250,15 +270,15 @@ kbd {
     transform: skewX(45deg)
 }
 
-    .panel-b-r::after {
-        position: absolute;
-        top: 0;
-        right: -20px;
-        bottom: 0;
-        left: -8px;
-        content: "";
-        transform: skewX(-45deg)
-    }
+.panel-b-r::after {
+    position: absolute;
+    top: 0;
+    right: -20px;
+    bottom: 0;
+    left: -8px;
+    content: "";
+    transform: skewX(-45deg)
+}
 
 .panel-b-l {
     border-left-width: 8px;
@@ -279,21 +299,35 @@ kbd {
     transform: skewX(-45deg);
 }
 
-    .panel-b-l::after {
-        position: absolute;
-        top: 0;
-        right: -8px;
-        bottom: 0;
-        left: -10px;
-        width: calc(100% + 50px);
-        content: "";
-        transform: skewX(45deg)
-    }
+.panel-b-l::after {
+    position: absolute;
+    top: 0;
+    right: -8px;
+    bottom: 0;
+    left: -10px;
+    width: calc(100% + 50px);
+    content: "";
+    transform: skewX(45deg)
+}
 
 
-    .intro .panel-b-l::after {
-        background-color: white;
-        background-image: radial-gradient(lightcyan 26%, transparent 40%);
-        background-position: 1px 1px;
-        background-size: 8px 8px;
-    }
+.fancybox .panel-b-l::after {
+    background-color: white;
+    background-image: radial-gradient(lightcyan 26%, transparent 40%);
+    background-position: 1px 1px;
+    background-size: 8px 8px;
+}
+
+
+/* bootstrap overrides */
+.nav {
+    font-size: 0.825rem;
+}
+
+.nav a, .nav a:active, .nav a:visited {
+    color: lightcyan;
+}
+
+.nav a:hover {
+    color: lightyellow;
+}
