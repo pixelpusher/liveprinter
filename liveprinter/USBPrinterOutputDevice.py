@@ -128,7 +128,6 @@ class USBPrinter(OutputDevice):
         self._lock = Lock() # to sync threads around connectionstate
 
         self._last_command = None  # last line sent to the printer
-        self._lines_printed = 1 # total number of lines printed
 
         self._use_auto_detect = True
 
@@ -143,6 +142,10 @@ class USBPrinter(OutputDevice):
         self._print_start_time = None  # type: Optional[int]
         self._print_estimated_time = None  # type: Optional[int]
         self._commands_on_printer = 0 # commands currently queued on printer
+
+        self._commands_list_start_index = 0 # index of first command in sequence send to the printer (might change if we need to remove commands from queue due to size)
+        self._commands_list = [] # list of all commands sent to the printer where index is added to the above 
+        self._commands_current_line = 1 # the current line being printed - might be updated when handling a resend
 
         self._accepts_commands = True
 
@@ -256,41 +259,59 @@ class USBPrinter(OutputDevice):
         except ValueError as ve:
             Logger.log("i", "unfinished tasks called too many times: {}".format(ve))
 
+    ##
+    # Keep a rough count of responses vs. commands sent
+    # probably not working... need to test.  Resends might screw this up.
+    ##
     def _commandHandled(self):
-        # update lines printed
-        self._command_queue.task_done(); # mark task as finished in queue
-        self._commands_on_printer = self._commands_on_printer - 1
-
-        # self._last_command = None #FIXME: why did I do this...
-        return True
-
-    def _serialSendCommand(self, cmd:Union[str,bytes], resend=False):
+        self._commands_on_printer = max(0,self._commands_on_printer - 1)
+  
+    ##
+    # Given a printer command, calcuate checksum based on given line number
+    ##
+    def _prepareCommmand(self, cmd:Union[str,bytes], index:int):
+        checksum = functools.reduce(lambda x, y: x ^ y, map(ord, "N%d%s" % (self.getLinesPrinted(), cmd)))
+        return str("N%d%s*%d" % (index, cmd, checksum))
+ 
+    ##
+    # REALLY send a command via the serial port
+    ##
+    def _serialSendCommand(self, cmd:Union[str,bytes], index:int):
             # note last command sent
             self._last_command = cmd
-            # checksum = is this necessary?
-            # FIXME: removed for now because of errors in handling
-            checksum = functools.reduce(lambda x, y: x ^ y, map(ord, "N%d%s" % (self._lines_printed, cmd)))
-            send_command = str("N%d%s*%d" % (self._lines_printed, cmd, checksum))
                             
+            send_command = self._prepareCommmand(cmd,index)
+
             if type(send_command == str):
                 send_command = send_command.encode()
             if not send_command.endswith(b"\n"):
                 send_command += b"\n"
-                            
+
             try:
-                if not resend:
-                    self._commands_on_printer = self._commands_on_printer + 1
-                    self._lines_printed += 1
+                self._commands_list.append(cmd)
+                self._commands_on_printer = self._commands_on_printer + 1
                 self._serial.write(send_command)
+                self._commands_current_line = index + 1
             except SerialTimeoutException:
                 response = PrinterResponse(**{"type":"error", 
                                                 "message":"Timeout when sending command to printer via USB.",
                                                 'command': self._last_command})
                 self._responses_queue.put(response)
-                if not resend:
-                    self._commands_on_printer -= 1
-                    self._lines_printed -= 1
+                self._commands_on_printer -= 1
+                self._commands_current_line = index - 1
                 Logger.log("w", "Timeout when sending command to printer via USB.")
+
+    ##
+    # get total lines sent and waiting to be sent in the queue (useful for resends)
+    ##
+    def countAllCommands(self):
+        return len(self._commands_list)+self._commands_list_start_index + 1 # starts at 1, not 0
+
+    ##
+    # Get a command that was sent before by its index (starts at 1, not 0)
+    def getCommand(self, index):
+        return self._commands_list[index-self._commands_list_start_index]
+
 
 
     ## threaded update function.
@@ -300,6 +321,7 @@ class USBPrinter(OutputDevice):
     ## At the end, if not paused, send the next command in the queue
     # 
     def _update(self):
+        
         while True:
             # this is a locking function
             connected = self.getConnectionState()
@@ -311,26 +333,37 @@ class USBPrinter(OutputDevice):
                 response_props = {'command': self._last_command}
 
                 ###
-                ### process any new commands to send - TODO: consider limits on commands
+                ### process any new commands to send, starting with resends
                 ###
                 if self.getPaused():
-                    break  # Nothing to do!
+                    pass  # Nothing to do!
 
-                elif self._command_queue.unfinished_tasks > 0 and self._commands_on_printer < 4:
-                    Logger.log("i", "handling next command {} {}".format(self._lines_printed,self._command_queue.unfinished_tasks))
-                    command = self._command_queue.get(block=True)
-                            
-                    if command is not None:
-                        if self._last_command is command:
-                            # WHY ARE THESE THE SAME? SHOULD NOT HAPPEN.
-                            Logger.log("i", "COMMANDS ARE THE SAME, SKIPPING: {} {}".format(command, self._last_command))
-                        else:
-                            # actually send command via serial
-                            self._serialSendCommand(command)
-                       
-                    #else:
-                    #    Logger.log("i", "no unfinished tasks")
+                else:
 
+                    if self._command_queue.unfinished_tasks > 0 and self._commands_on_printer < 4:
+                        Logger.log("i", "handling next command {} {}".format(self._commands_current_line,self._command_queue.unfinished_tasks))
+                        # get a command from the threaded queue
+                        command = self._command_queue.get(block=True)
+                    
+                        # add it to outgoing, numbered commands queue
+                        if command is not None:
+                            self._commands_list.append(command)
+                            try:
+                                self._command_queue.task_done(); # mark task as finished in queue
+                            except ValueError as ve:
+                                Logger.log("i", "_commandHandled called too many times: {}".format(ve))
+
+                            return True
+
+
+                        #else:
+                        #    Logger.log("i", "no unfinished tasks")
+
+                    # if we're not at the top of the queue of commands, send the next one
+                    if self._commands_current_line < self.countAllCommands():
+                        self._serialSendCommand(self.getCommand(self._commands_current_line), self._commands_current_line)
+
+                    
                 ###
                 ### Process printer responses
                 ###
@@ -347,29 +380,26 @@ class USBPrinter(OutputDevice):
                         response_props["type"] = "error"
                         response_props["message"] = "Printer signals fatal error!"
                         Logger.log('e', "Printer signals fatal error. Pausing print. {}".format(line))
-                        handled = self._commandHandled()
                         self.pausePrint() # pause for error
                         # done, don't process anything else
                         
 
                     # TODO: handle this better - just resend last command! No need for the magic bits
                     elif b'resend' in line.lower() or line.startswith(b'rs'):
-                        resend = True
                         # A resend can be requested either by Resend, resend or rs.
                         Logger.log('e', "Printer signals resend. {}".format(line))
                         response_props["type"] = "resend"
                         response_props["message"] = "Printer signals resend. {}".format(line.decode('utf-8'))
-                    
-                        #try:
-                        #    self._lines_printed = int(line.replace(b"N:", b" ").replace(b"N", b" ").replace(b":", b" ").split()[-1])
-                        #except:
-                        #    if b"rs" in line:
-                        #        # In some cases of the RS command it needs to be handled differently.
-                        #        self._lines_printed = int(line.split()[1])
+                        
+                        # command was never received - mark as not on printer
+                        self._commands_on_printer = max(0,self._commands_on_printer - 1)
 
-                        Logger.log("w", "RESEND")
-                        self._serialSendCommand(self._last_command, True)
-
+                        try:
+                            self._commands_current_line = int(line.replace(b"N:", b" ").replace(b"N", b" ").replace(b":", b" ").split()[-1])
+                        except:
+                            if b"rs" in line:
+                                # In some cases of the RS command it needs to be handled differently.
+                                self._commands_current_line = int(line.split()[1])
 
                     elif line.startswith(b"echo:"):
                         # Not handled because this is just if it's turned on
