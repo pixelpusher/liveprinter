@@ -37,7 +37,24 @@
                     <div id="tab-messages-pane" class="tab-content">
                         <div id="printer" class="tab-pane fade show" role="tabpanel" aria-labelledby="pills-info-tab">
                             <p>printer settings to go here</p>
-                            <p><button id="start-temp" class="btn-sm btn-primary">Start Polling Temperature</button></p>
+                            <p><button id="temp-display-btn" class="btn-sm btn-primary" data-toggle="button">Poll Temperature</button></p>
+                            <p>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        
+                                        <div class="dropdown">
+                                            <button class="btn btn-secondary dropdown-toggle" type="button" id="serial-port-dropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                                Connect to printer port:
+                                            </button>
+                                            <div id="serial-ports-list" class="dropdown-menu" aria-labelledby="serial-port-dropdown">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        
+                                    </div>
+                                </div>
+                            </p>
                         </div>
                         <div id="code-editor-area" class="tab-pane fade show active" role="tabpanel" aria-labelledby="pills-editor-tab">
                            <div> 

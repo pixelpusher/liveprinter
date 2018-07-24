@@ -180,7 +180,7 @@ def json_handle_set_serial_port(printer:USBPrinter, port:str):
     Logger.log("i", "setting serial port: {}".format(port))
 
 
-    if port.lower() is "dummy":
+    if port.lower().startswith("dummy"):
          use_dummy_serial_port(printer)
          json = {
             'jsonrpc': '2.0',
