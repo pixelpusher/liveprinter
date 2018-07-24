@@ -128,6 +128,7 @@ class USBPrinter(OutputDevice):
         self._lock = Lock() # to sync threads around connectionstate
 
         self._last_command = None  # last line sent to the printer
+        self._last_line = 0
 
         self._use_auto_detect = True
 
@@ -270,35 +271,39 @@ class USBPrinter(OutputDevice):
     # Given a printer command, calcuate checksum based on given line number
     ##
     def _prepareCommmand(self, cmd:Union[str,bytes], index:int):
-        checksum = functools.reduce(lambda x, y: x ^ y, map(ord, "N%d%s" % (self._commands_current_line, cmd)))
+        checksum = functools.reduce(lambda x, y: x ^ y, map(ord, "N%d%s" % (index, cmd)))
         return str("N%d%s*%d" % (index, cmd, checksum))
  
     ##
-    # REALLY send a command via the serial port
+    # REALLY send a command via the serial port. 
     ##
     def _serialSendCommand(self, cmd:Union[str,bytes], index:int):
-            # note last command sent
-            self._last_command = cmd
-                            
-            send_command = self._prepareCommmand(cmd,index)
+        # note last command sent
+        self._last_command = cmd
+        
+        #line_diff = self._last_line - index
+        #Logger.log("w", "DIFFFFFFFFFFFFFFFFF Line diff:{}".format(line_diff))
 
-            if type(send_command == str):
-                send_command = send_command.encode()
-            if not send_command.endswith(b"\n"):
-                send_command += b"\n"
+        send_command = self._prepareCommmand(cmd,index)
 
-            try:
-                self._commands_on_printer = self._commands_on_printer + 1
-                self._serial.write(send_command)
-                self._commands_current_line = index + 1
-            except SerialTimeoutException:
-                response = PrinterResponse(**{"type":"error", 
-                                                "message":"Timeout when sending command to printer via USB.",
-                                                'command': self._last_command})
-                self._responses_queue.put(response)
-                self._commands_on_printer -= 1
-                self._commands_current_line = index - 1
-                Logger.log("w", "Timeout when sending command to printer via USB.")
+        if type(send_command == str):
+            send_command = send_command.encode()
+        if not send_command.endswith(b"\n"):
+            send_command += b"\n"
+
+        self._commands_on_printer += 1
+        self._commands_current_line = index + 1
+        self._last_line = index + 1
+        try:
+            self._serial.write(send_command)    
+        except SerialTimeoutException:
+            response = PrinterResponse(**{"type":"error", 
+                                            "message":"Timeout when sending command to printer via USB.",
+                                            'command': self._last_command})
+            self._responses_queue.put(response)
+            self._commands_on_printer -= 1
+            self._commands_current_line -=  1
+            Logger.log("w", "Timeout when sending command to printer via USB.")
 
     ##
     # get total lines sent and waiting to be sent in the queue (useful for resends)
@@ -329,7 +334,7 @@ class USBPrinter(OutputDevice):
                 handled = False
 
                 # properties of the printer response to report back to the server
-                response_props = {'command': self._last_command}
+                response_props = {'command': self._last_command, 'line': self._commands_current_line }
 
                 ###
                 ### process any new commands to send, starting with resends
@@ -339,8 +344,10 @@ class USBPrinter(OutputDevice):
 
                 else:
 
-                    if self._command_queue.unfinished_tasks > 0 and self._commands_on_printer < 4:
-                        Logger.log("i", "handling next command {} {}".format(self._commands_current_line,self._command_queue.unfinished_tasks))
+                    if (self._command_queue.unfinished_tasks > 0):
+                        # next_cmd_line = self._commands_current_line
+                        # unfinished = self._command_queue.unfinished_tasks
+                        # Logger.log("i", "handling next command line.{} unfininshed.{}".format(next_cmd_line,unfinished))
                         # get a command from the threaded queue
                         command = self._command_queue.get(block=True)
                     
@@ -356,10 +363,11 @@ class USBPrinter(OutputDevice):
                         #    Logger.log("i", "no unfinished tasks")
 
                     # if we're not at the top of the queue of commands, send the next one
-                    if self._commands_current_line < self.countAllCommands():
-                        Logger.log("i","all commands: {}".format(self.countAllCommands()))
-                        self._serialSendCommand(self.getCommand(self._commands_current_line), self._commands_current_line)
-
+                    if (self._commands_current_line < self.countAllCommands()) and (self._commands_on_printer < 4):
+                        # Logger.log("i","all commands: {}".format(self.countAllCommands()))
+                        cmd = self.getCommand(self._commands_current_line)
+                        self._serialSendCommand(cmd, self._commands_current_line)
+                        sleep(0.01) # necessary to allow other threads to interact, otherwise events/lines are lost! (locking didn't fix that)
                     
                 ###
                 ### Process printer responses
@@ -492,7 +500,7 @@ class USBPrinter(OutputDevice):
                     elif line.lower().startswith(b'error'):
                         response_props["type"] = "error"
                         response_props["message"] = line.decode('utf-8')
-                        Logger.log('e', "Error from printer: {}".format(response_props["message"]))
+                        # Logger.log('e', "Error from printer: {}".format(response_props["message"]))
                         
                         
                     ##### Done parsing, now send waiting commands
@@ -510,7 +518,7 @@ class USBPrinter(OutputDevice):
                     # Logger.log("d","response: {}".format(response))
                     self._responses_queue.put(response, block=True)
 
-            sleep( 0.005 ) # yield to others
+            sleep( 0.01 ) # yield to others
 
     
     ## these are thread-safe because the update thread uses them
