@@ -143,7 +143,7 @@ class USBPrinter(OutputDevice):
         self._print_estimated_time = None  # type: Optional[int]
         self._commands_on_printer = 0 # commands currently queued on printer
 
-        self._commands_list_start_index = 0 # index of first command in sequence send to the printer (might change if we need to remove commands from queue due to size)
+        self._commands_list_start_index = 1 # index of first command in sequence send to the printer (might change if we need to remove commands from queue due to size)
         self._commands_list = [] # list of all commands sent to the printer where index is added to the above 
         self._commands_current_line = 1 # the current line being printed - might be updated when handling a resend
 
@@ -270,7 +270,7 @@ class USBPrinter(OutputDevice):
     # Given a printer command, calcuate checksum based on given line number
     ##
     def _prepareCommmand(self, cmd:Union[str,bytes], index:int):
-        checksum = functools.reduce(lambda x, y: x ^ y, map(ord, "N%d%s" % (self.getLinesPrinted(), cmd)))
+        checksum = functools.reduce(lambda x, y: x ^ y, map(ord, "N%d%s" % (self._commands_current_line, cmd)))
         return str("N%d%s*%d" % (index, cmd, checksum))
  
     ##
@@ -288,7 +288,6 @@ class USBPrinter(OutputDevice):
                 send_command += b"\n"
 
             try:
-                self._commands_list.append(cmd)
                 self._commands_on_printer = self._commands_on_printer + 1
                 self._serial.write(send_command)
                 self._commands_current_line = index + 1
@@ -305,7 +304,7 @@ class USBPrinter(OutputDevice):
     # get total lines sent and waiting to be sent in the queue (useful for resends)
     ##
     def countAllCommands(self):
-        return len(self._commands_list)+self._commands_list_start_index + 1 # starts at 1, not 0
+        return len(self._commands_list)+self._commands_list_start_index # starts at 1, not 0
 
     ##
     # Get a command that was sent before by its index (starts at 1, not 0)
@@ -353,14 +352,12 @@ class USBPrinter(OutputDevice):
                             except ValueError as ve:
                                 Logger.log("i", "_commandHandled called too many times: {}".format(ve))
 
-                            return True
-
-
                         #else:
                         #    Logger.log("i", "no unfinished tasks")
 
                     # if we're not at the top of the queue of commands, send the next one
                     if self._commands_current_line < self.countAllCommands():
+                        Logger.log("i","all commands: {}".format(self.countAllCommands()))
                         self._serialSendCommand(self.getCommand(self._commands_current_line), self._commands_current_line)
 
                     
