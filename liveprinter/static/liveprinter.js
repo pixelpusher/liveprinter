@@ -54,11 +54,21 @@
                     Scheduler.ScheduledEvents.push(args);
                 },
 
+                removeEvent: function (func) {
+                    // run events 
+                    Scheduler.ScheduledEvents = Scheduler.ScheduledEvents.filter(func);
+                },
+
+                removeEventByName: function (name) {
+                    // run events 
+                    Scheduler.ScheduledEvents = Scheduler.ScheduledEvents.filter(e => e.name != name);
+                },
+
                 startScheduler: function () {
                     console.log("scheduler starting at time: " + Scheduler.audioContext.currentTime);
 
                     function scheduler(nextTime) {
-                        let time = Scheduler.audioContext.currentTime*1000; // in ms
+                        let time = Scheduler.audioContext.currentTime * 1000; // in ms
 
                         // run events 
                         Scheduler.ScheduledEvents.filter(
@@ -109,7 +119,7 @@
                 runCode();
 
                 //blinkElem($(".CodeMirror-line > span"));
-                
+
                 blinkElem($(".CodeMirror"));
             };
 
@@ -123,7 +133,7 @@
                     globalstrict: true,
                     strict: false,
                     esversion: 6
-                  },
+                },
                 gutters: ["CodeMirror-lint-markers"],
                 extraKeys: {
                     "Ctrl-Enter": compileCode,
@@ -151,8 +161,7 @@
             //lines = [];
 
 
-            function codeToJSON(gcode)
-            {
+            function codeToJSON(gcode) {
                 if (typeof gcode === 'string') gcode = [stripComments(gcode)];
 
                 if (typeof gcode === 'object' && Array.isArray(gcode)) {
@@ -209,26 +218,32 @@
                 // run code
                 //if (validCode) {
                 try {
-                    globalEval(code, cursor.line+1);
+                    globalEval(code, cursor.line + 1);
                 } catch (e) {
                     doError(e);
                 }
             }
 
 
-            var onPrinterConnect = function () {
-                // schedule temperature updates every little while
-                Scheduler.scheduleEvent({
-                    name: "tempUpdates",
-                    timeOffset: 5000,
-                    func: function (time) {
-                        if (socketHandler.socket.readyState === socketHandler.socket.OPEN) {
-                            sendGCode("M105");
-                            //console.log("TEMP: " + new Date());
-                        }
-                    },
-                    repeat: true
-                });
+            var updateTemperature = function (state) {
+
+                if (state) {
+                    // schedule temperature updates every little while
+                    Scheduler.scheduleEvent({
+                        name: "tempUpdates",
+                        timeOffset: 5000,
+                        func: function (time) {
+                            if (socketHandler.socket.readyState === socketHandler.socket.OPEN) {
+                                sendGCode("M105");
+                                //console.log("TEMP: " + new Date());
+                            }
+                        },
+                        repeat: true
+                    });
+                } else {
+                    // stop updates
+                    Scheduler.removeEventByName("tempUpdates");
+                }
             };
 
             var socketHandler = {
@@ -266,7 +281,7 @@
 
                         var node = $("<li>PRINTER CONNECTED</li>");
                         node.hide();
-                        $("#info").append(node);
+                        $("#info").prepend(node);
                         node.slideDown();
 
 
@@ -290,7 +305,7 @@
                     if (existing.length > 0) return;
                     var node = $(message.html);
                     node.hide();
-                    $("#inbox").append(node);
+                    $("#inbox").prepend(node);
                     node.slideDown();
                 },
 
@@ -487,22 +502,20 @@
 
                     if (!onlyMove) // only if we need to move
                     {
-                        if (extrusionSpecified)
-                        {
+                        if (extrusionSpecified) {
                             // if filament length was specified, use that.
                             // Otherwise calculate based on layer height
                             this.targetE = parseFloat(params.e); // TODO: not sure if this is good idea yet)
 
                         }
                         // otherwise, calculate filament length needed based on layerheight, etc.
-                        else
-                        {
+                        else {
                             let filamentRadius = Printer.filamentDiameter[this.model] / 2;
 
                             // for extrusion into free space
                             // apparently, some printers take the filament into account (so this is in mm3)
                             // this was helpful: https://github.com/Ultimaker/GCodeGenJS/blob/master/js/gcode.js
-                            let filamentLength = dist*_layerHeight*_layerHeight;//(Math.PI*filamentRadius*filamentRadius);
+                            let filamentLength = dist * _layerHeight * _layerHeight;//(Math.PI*filamentRadius*filamentRadius);
 
                             if (!Printer.extrusionInmm3[this.model]) {
                                 filamentLength /= (filamentRadius * filamentRadius * Math.PI);
@@ -540,11 +553,10 @@
                     }
 
                     //unretract first if needed
-                    if (!onlyMove && this.currentRetraction)
-                    {
+                    if (!onlyMove && this.currentRetraction) {
                         this.targetE += this.currentRetraction;
                         // account for previous retraction
-                        sendGCode("G1 " + "E" + (this.currentRetraction+this.e).toFixed(4)+ " F" + this.retractSpeed*60);
+                        sendGCode("G1 " + "E" + (this.currentRetraction + this.e).toFixed(4) + " F" + this.retractSpeed * 60);
                         this.currentRetraction = 0;
                     }
 
@@ -554,16 +566,15 @@
                     moveCode.push("Y" + this.targetY);
                     moveCode.push("Z" + this.targetZ);
                     moveCode.push("E" + this.targetE.toFixed(4));
-                    moveCode.push("F" + this.printSpeed*60); // mm/min as opposed to seconds
+                    moveCode.push("F" + this.printSpeed * 60); // mm/min as opposed to seconds
                     sendGCode(moveCode.join(" "));
 
                     // RETRACT
-                    if (!onlyMove && this.retractLength)
-                    {
+                    if (!onlyMove && this.retractLength) {
                         this.currentRetraction = this.retractLength;
                         this.targetE = parseFloat(this.targetE) - this.currentRetraction;
 
-                        sendGCode("G1 " + "E" + this.targetE.toFixed(4) + " F" + this.retractSpeed*60);
+                        sendGCode("G1 " + "E" + this.targetE.toFixed(4) + " F" + this.retractSpeed * 60);
                     }
                     // FIXME: sort out position updates in a sensible way...
                     //queueGCode("M114"); // get position after move (X:0 Y:0 Z:0 E:0)
@@ -591,7 +602,7 @@
                     params.y = __y;
                     params.z = __z;
 
-                    if (params.e !== undefined) params.e = (parseFloat(params.e)+this.e);
+                    if (params.e !== undefined) params.e = (parseFloat(params.e) + this.e);
                     //console.log(params);
 
                     this.extrudeto(params);
@@ -611,7 +622,7 @@
                 moveto(params) {
                     params.e = this.e; // keep filament at current position
                     this.extrudeto(params);
-                 } // end moveto
+                } // end moveto
 
                 // end Printer class
             };
@@ -708,7 +719,7 @@
             //
             // needs to be global so scripts can call this when run
             //
-            window.doError = function(e) {
+            window.doError = function (e) {
                 // report to user
                 // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SyntaxError
                 document.getElementById("code-errors").innerHTML = "<p>" + e.name + ": " + e.message + "(line:" + e.lineNumber + ")</p>";
@@ -791,15 +802,15 @@
             // temperature event handler
             var tempHandler = {
                 'temperature': function (tempEvent) {
-                //console.log("temp event:");
-                //console.log(tempEvent);
+                    //console.log("temp event:");
+                    //console.log(tempEvent);
                     let tmp = parseFloat(tempEvent.hotend).toFixed(2);
                     let target = parseFloat(tempEvent.hotend_target).toFixed(2);
 
                     $("#temperature").empty();
                     $("#temperature").append("<p class='alert alert-danger fade show' role='alert'>"
                         + '<strong>hotend temp/target:<br />'
-                        + tmp + " / " + target 
+                        + tmp + " / " + target
                         + '</strong>'
                         + "</p>");
 
@@ -844,7 +855,7 @@
                 'info': function (event) {
                     //console.log("error event:");
                     //console.log(event);
-                    $("#info > ul").append("<li class='alert alert-primary alert-dismissible fade show' role='alert'>"
+                    $("#info > ul").prepend("<li class='alert alert-primary alert-dismissible fade show' role='alert'>"
                         //+ (new Date(event.time)).toDateString() // FIXME!
                         + '<strong>'
                         + ": " + event.message
@@ -858,7 +869,7 @@
                 'resend': function (event) {
                     //console.log("error event:");
                     //console.log(event);
-                    $("#info > ul").append("<li>" + (new Date()).toDateString() + ": " + event.message + "</li>");
+                    $("#info > ul").prepend("<li>" + (new Date()).toDateString() + ": " + event.message + "</li>");
                     blinkElem($("#info-tab"));
                     blinkElem($("#inbox"));
                 }
@@ -872,7 +883,7 @@
                 'gcode': function (event) {
                     //console.log("error event:");
                     //console.log(event);
-                    $("#commands > ul").append("<li>" + (new Date(event.time)).toDateString() + ": " + event.message + "</li>").fadeIn(50);
+                    $("#commands > ul").prepend("<li>" + (new Date(event.time)).toDateString() + ": " + event.message + "</li>").fadeIn(50);
                     blinkElem($("#commands-tab"));
                     blinkElem($("#inbox"));
                 }
@@ -885,8 +896,7 @@
                 'ok': function (event) {
                     //console.log("ok event:");
                     //console.log(event);
-                    if (outgoingQueue.length > 0)
-                    {
+                    if (outgoingQueue.length > 0) {
                         let msg = outgoingQueue.pop();
                         socketHandler.socket.send(msg);
                     }
@@ -900,27 +910,43 @@
             // portsListHandler event handler
             var portsListHandler = {
                 'serial-ports-list': function (event) {
-                    console.log("list of serial ports:");
-                    console.log(event);
+                    window.scope.serialPorts = []; // reset serial ports list
+                    let portsDropdown = $("#serial-ports-list");
+                    //console.log("list of serial ports:");
+                    //console.log(event);
+                    portsDropdown.empty();
                     if (event.message.length == 0) {
                         $("#info > ul").append("<li>no serial ports found</li > ").fadeIn(50);
+                        window.scope.serialPorts.push("dummy");
                     }
                     else {
-                        $("#info > ul").append("<li>serial ports: " + event.message + "</li > ").fadeIn(50);
-                        window.scope.serialPorts = event.message;
-
-                        let message = {
-                            'jsonrpc': '2.0',
-                            'id': 6,
-                            'method': 'set-serial-port',
-                            'params': [window.scope.serialPorts[0]],
-                        };
-
-                        // FIXME :: connect to first port
-                        // should check if connected first.... and update GUI, etc.
-                        socketHandler.socket.send(JSON.stringify(message));
+                        $("#info > ul").prepend("<li>serial ports: " + event.message + "</li > ").fadeIn(50);
+                        for ( let p of event.message) {
+                            window.scope.serialPorts.push(p);
+                        }
                     }
+
+                    window.scope.serialPorts.forEach(function (port) {
+                        //console.log("PORT:" + port);
+                        let newButton = $('<button class="dropdown-item" type="button" data-port-name="' + port + '">' + port + '</button>');
+                        //newButton.data("portName", port);
+                        newButton.click(function (e) {
+                            e.preventDefault();
+                            let me = $(this);
+                            let message = {
+                                'jsonrpc': '2.0',
+                                'id': 6,
+                                'method': 'set-serial-port',
+                                'params': [me.data("portName")],
+                            };
+                            socketHandler.socket.send(JSON.stringify(message));
+                            $("#serial-ports-list > drop-down-menu > button").removeClass("active");
+                            me.addClass("active");
+                        });
+                        portsDropdown.append(newButton);
+                    });
                     
+                    blinkElem($("#serial-ports-list"));
                     blinkElem($("#info-tab"));
                 }
             };
@@ -929,8 +955,18 @@
 
             $("#sendCode").on("click", compileCode);
 
-            $("#start-temp").on("click", onPrinterConnect);
-
+            $("#temp-display-btn").on("click", function () {
+                let me = $(this);
+                let doUpdates = !me.hasClass('active'); // because it becomes active *after* a push
+                updateTemperature(doUpdates);
+                if (doUpdates) {
+                    me.text("stop polling temperature");
+                }
+                else {
+                    me.text("start polling Temperature")
+                }
+                me.button('toggle');
+            });
 
             // TODO: temp probe that gets scheduled every 300ms and then removes self when
             // tempHandler called
