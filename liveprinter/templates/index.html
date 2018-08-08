@@ -41,7 +41,7 @@
                             <p>
                                 <div class="row">
                                     <div class="col-md-6">
-                                        
+
                                         <div class="dropdown">
                                             <button class="btn btn-secondary dropdown-toggle" type="button" id="serial-port-dropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                                                 Connect to printer port:
@@ -51,14 +51,14 @@
                                         </div>
                                     </div>
                                     <div class="col-md-6">
-                                        
+
                                     </div>
                                 </div>
                             </p>
                         </div>
                         <div id="code-editor-area" class="tab-pane fade show active" role="tabpanel" aria-labelledby="pills-editor-tab">
-                           <div> 
-                            <textarea id="code-editor">
+                            <div>
+                                <textarea id="code-editor">
 // run gcode directly in a function
 // this will only work once - to persist functions use the "lp" object
 function doMove(x,y)
@@ -89,26 +89,25 @@ lp.extrudeto({x:100,y:100,z:10,e:-60});
 lp.extrude({x:10,y:12});
 
                      </textarea>
-                        </div>
-                        <div class="container">
-                            <div class="row" id="buttons">
-                                <div class="col-2"><strong>Errors:</strong></div>
-                                <div class="col-10" id="code-errors"></div>
                             </div>
-                            <div class="row">
-                                <div class="col-12">
-                                    <p>Highlight lines of code and hit <kbd>cmd</kbd> or <kbd>ctrl</kbd>-<kbd>enter</kbd> to <button id="sendCode" class="btn btn-success btn-sm">send</button> them</p>
+                            <div class="container">
+                                <div class="row" id="buttons">
+                                    <div class="col-2"><strong>Errors:</strong></div>
+                                    <div class="col-10" id="code-errors"></div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-12">
+                                        <p>Highlight lines of code and hit <kbd>cmd</kbd> or <kbd>ctrl</kbd>-<kbd>enter</kbd> to <button id="sendCode" class="btn btn-success btn-sm">send</button> them</p>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
-                    
+
                     </div> <!-- close tab menus -->
                     <div class="panel-l"></div>
                     <div class="panel-b-l"></div>
                 </div>
             </div> <!-- close col -->
-
             <!-- end input-->
             <div class="col-3 col-md-4">
                 <div id="inbox" class="box">
@@ -154,17 +153,12 @@ lp.extrude({x:10,y:12});
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
     <script src="{{ static_url("lib/codemirror/codemirror.js") }}"></script>
     <script src="{{ static_url("lib/addon/selection/active-line.js") }}"></script>
+    <script src="{{ static_url("lib/brython/brython.js") }}"></script>
+    <script src="{{ static_url("lib/brython/brython_stdlib.js") }}"></script>
+
     <link rel="stylesheet" href="{{ static_url("lib/codemirror/codemirror.css") }}">
     <link rel="stylesheet" href="{{ static_url("lib/addon/lint/lint.css") }}">
-    <script src="{{ static_url("lib/codemirror/mode/javascript/javascript.js") }}"></script>
-    <script src="{{ static_url("lib/codemirror/mode/css/css.js") }}"></script>
-    <script src="//cdnjs.cloudflare.com/ajax/libs/jshint/2.9.5/jshint.min.js"></script>
-    <script src="//rawgithub.com/zaach/jsonlint/79b553fb65c192add9066da64043458981b3972b/lib/jsonlint.js"></script>
-    <script src="https://unpkg.com/csslint@1.0.5/dist/csslint.js"></script>
-    <script src="{{ static_url("lib/addon/lint/lint.js") }}"></script>
-    <script src="{{ static_url("lib/addon/lint/javascript-lint.js") }}"></script>
-    <script src="{{ static_url("lib/addon/lint/json-lint.js") }}"></script>
-    <script src="{{ static_url("lib/addon/lint/css-lint.js") }}"></script>
+    <script src="{{ static_url("lib/codemirror/mode/python/python.js") }}"></script>
     <!-- liveprinter javascript -->
     <script src="{{ static_url("liveprinter.js") }}" type="text/javascript"></script>
 </body>
