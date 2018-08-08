@@ -47,6 +47,8 @@
     <Compile Include="liveprinter\WebSocketHandler.py" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="liveprinter\static\lib\brython\brython.js" />
+    <Content Include="liveprinter\static\lib\brython\brython_stdlib.js" />
     <Content Include="liveprinter\static\lib\codemirror\codemirror.css" />
     <Content Include="liveprinter\static\lib\codemirror\codemirror.js" />
     <Content Include="liveprinter\static\liveprinter.css" />
@@ -63,6 +65,7 @@
     <Folder Include="liveprinter\static" />
     <Folder Include="liveprinter\static\lib\" />
     <Folder Include="liveprinter\static\lib\codemirror\" />
+    <Folder Include="liveprinter\static\lib\brython\" />
     <Folder Include="liveprinter\templates" />
     <Folder Include="liveprinter\testing\" />
     <Folder Include="liveprinter\UM" />

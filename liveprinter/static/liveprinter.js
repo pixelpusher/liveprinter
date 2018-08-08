@@ -127,12 +127,7 @@
             lineNumbers: true,
             styleActiveLine: true,
             lineWrapping: true,
-            mode: "javascript",
-            lint: {
-                globalstrict: true,
-                strict: false,
-                esversion: 6
-            },
+            mode: "text/x-python",
             gutters: ["CodeMirror-lint-markers"],
             extraKeys: {
                 "Ctrl-Enter": compileCode,
@@ -722,6 +717,7 @@
             // report to user
             // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SyntaxError
             document.getElementById("code-errors").innerHTML = "<p>" + e.name + ": " + e.message + "(line:" + e.lineNumber + ")</p>";
+            console.log(e);
             /*
             console.log("SyntaxError? " + (e instanceof SyntaxError)); // true
             console.log(e); // true
@@ -1051,48 +1047,44 @@
             if (code) {
 
                 // give quick access to liveprinter API
-                code = "let lp = window.scope.printer;" + code;
-                code = "let sched = window.scope.scheduler;" + code;
-                code = "let socket = window.scope.socket;" + code;
-                code = "let gcode = window.scope.sendGCode;" + code;
-                code = "let s = window.scope;" + code; // global scope functions
+                //code = "lp = window.scope.printer\n" + code;
+                //code = "sched = window.scope.scheduler\n" + code;
+                //code = "socket = window.scope.socket\n" + code;
+                //code = "gcode = window.scope.sendGCode\n" + code;
 
                 // wrap code in anonymous function to avoid redeclaring scope variables and
                 // scope bleed.  For global functions that persist, use lp scope
 
                 // error handling
-                code = 'try {' + code;
-                code = code + '} catch (e) { e.lineNumber=line;doError(e); }';
+                //code = 'try {' + code;
+                //code = code + '} catch (e) { e.lineNumber=line;doError(e); }';
 
-                code = "let line =" + line + ";" + code;
+                //code = "let line =" + line + ";" + code;
 
                 // function wrapping
-                code = '(function(){"use strict";' + code;
-                code = code + "})();";
+                //code = '(function(){"use strict";' + code;
+                //code = code + "})();";
 
                 console.log("adding code:" + code);
-                let script = document.createElement("script");
-                script.text = code;
-                /*
-                    * NONE OF THIS WORKS IN CHROME... should be aesy, but no.
-                    *
-                let node = null;
-                script.onreadystatechange = script.onload = function () {
-                    console.log("loaded");
-                    node.printer = printer;
-                    node.scheduler = Scheduler;
-                    node.socket = socketHandler;
+                //let src = { source: code };
 
-                    node.parentNode.removeChild(script);
-                    node = null;
-                };
-                script.onerror = function (e) { console.log("script error:" + e) };
+                //$B.py2js = function (src, module, locals_id, parent_scope, line_info) {
+                // src = Python source (string)
+                // module = module name (string)
+                // locals_id = the id of the block that will be created
+                // parent_scope = the scope where the code is created
+                // line_info = [line_num, parent_block_id] if debug mode is set
+                //
+                // Returns a tree structure representing the Python source code
 
-                node = document.head.appendChild(script);
-                */
-                // run and remove
-                document.head.appendChild(script).parentNode.removeChild(script);
+
+                let js_code =__BRYTHON__.py2js(code+"", "newcode", "newcode",scope).to_js();
+                console.log(js_code);
+                eval(js_code);
             }
         }
+
+        brython(10);
+
     });
 })();
