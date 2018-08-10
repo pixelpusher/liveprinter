@@ -258,6 +258,7 @@ def json_handle_portslist(*msg):
 
     try:
         ports = list_ports()
+        ports.append("dummy") # always add dummy for testing
 
         json = {
                 'jsonrpc': '2.0',
