@@ -4,10 +4,7 @@
     <meta charset="utf-8">
     <!-- Required meta tags -->
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-
-    <title>Livecoding G Code Test Form</title>
-    <link rel="stylesheet" href="{{ static_url("liveprinter.css") }}" type="text/css">
-    <link rel="stylesheet" href="{{ static_url("lib/codemirror/codemirror.css") }}" type="text/css">
+    <title>LivePrinter livecoding for CNC</title>
 </head>
 <body>
     <div class="lines"></div>
@@ -22,84 +19,61 @@
                 <div class="panel-b-l"></div>
             </div>
         </div>
+
         <div class="row">
             <div class="col-9 col-md-8" id="printer-editor-col">
                 <div class="box bg-colorful1 fullheight">
-                    <ul class="nav nav-tabs flex-column flex-sm-row" id="editor-settings-nav" role="tablist">
+                    <ul id="editor-settings-nav" class="nav nav-tabs flex-column flex-sm-row" role="tablist">
                         <li class="nav-item">
-                            <a class="flex-sm-fill text-sm-center nav-link" id="printer-tab" data-toggle="pill" href="#printer" role="tab" aria-controls="printer" aria-selected="false">printer settings</a>
+                            <a id="printer-tab" class="flex-sm-fill text-sm-center nav-link lightnav" data-toggle="pill" href="#printer" role="tab" aria-controls="printer" aria-selected="false">printer settings</a>
                         </li>
-                        <li class="nav-item">
-                            <a class="flex-sm-fill text-sm-center nav-link active" id="editor-tab" data-toggle="pill" href="#code-editor-area" role="tab" aria-controls="code-editor-area" aria-selected="true">code editor</a>
-                        </li>
-                        <li>
-                            <select id="examples-list">
-                                <option value="{{ static_url("examples/default.js") }}">default</option>
-                                <option value="{{ static_url("examples/another.js") }}">another</option>
-                            </select>
+                        <li class="nav-item btn-group">
+                            <a id="editor-tab" class="flex-sm-fill text-sm-center nav-link active lightnav" data-toggle="pill" href="#code-editor-area" role="tab" aria-controls="code-editor-area" aria-selected="true">code editor</a>
+                            <a id="examples-dropdown" class="flex-sm-fill text-sm-center nav-link active lightnav dropdown-toggle dropdown-toggle-split" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" role="tab">
+                                    <span class="sr-only">Toggle Dropdown</span>
+                            </a>
+                            <div id="examples-list" class="dropdown-menu">
+                                    <a class="dropdown-item purplink" href="#" data-link="{{ static_url("examples/default.js") }}">default example</a>
+                                    <a class="dropdown-item purplink" href="#" data-link="{{ static_url("examples/square.js") }}">square</a>
+                                    <a class="dropdown-item purplink" href="#">Something else here</a>
+                                    <div class="dropdown-divider"></div>
+                                    <a id="reload-edited-session" class="dropdown-item purplink" href="#">reload last edited</a>
+                                    <a id="reload-saved-session" class="dropdown-item purplink"  href="#">reload last saved</a>
+                                    <a id="save-session" class="dropdown-item purplink"><strong>save current</strong></a>
+                            </div>
                         </li>
                     </ul>
-
                     <div id="tab-messages-pane" class="tab-content">
                         <div id="printer" class="tab-pane fade show" role="tabpanel" aria-labelledby="pills-info-tab">
                             <p>printer settings to go here</p>
                             <p><button id="temp-display-btn" class="btn-sm btn-primary" data-toggle="button">Poll Temperature</button></p>
                             <p>
-                                <div class="row">
-                                    <div class="col-md-6">
-                                        
-                                        <div class="dropdown">
-                                            <button class="btn btn-secondary dropdown-toggle" type="button" id="serial-port-dropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                                Connect to printer port:
-                                            </button>
-                                            <div id="serial-ports-list" class="dropdown-menu" aria-labelledby="serial-port-dropdown">
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6">
-                                        
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="dropdown">
+                                        <button class="btn btn-secondary dropdown-toggle" type="button" id="serial-port-dropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                            Connect to printer port:
+                                        </button>
+                                        <div id="serial-ports-list" class="dropdown-menu" aria-labelledby="serial-port-dropdown"></div>
                                     </div>
                                 </div>
+                                <div class="col-md-6">
+                                    -----
+                                </div>
+                            </div>
                             </p>
                         </div>
                         <div id="code-editor-area" class="tab-pane fade show active" role="tabpanel" aria-labelledby="pills-editor-tab">
-                           <div> 
-                            <textarea id="code-editor">
-// run gcode directly in a function
-// this will only work once - to persist functions use the "lp" object
-function doMove(x,y)
-{
-	var gtokens = ["G92"];
-    gtokens.push("X"+x); gtokens.push("Y"+y);
-    gcode(gtokens.join(" "));
-}
-
-// ex: a global function
-lp.movex = x => gcode("G92 X" + x);
-
-// use the API to move to a spot
-// lp is the liveprinter object (x,y,z,e, layerHeight and move/print functions)
-lp.moveto({x:100,y:120,z:10});
-
-//turn on hot end to 190C
-gcode("M104 S190");
-
-//check temp (see console)
-gcode("M105");
-
-// extrude some plastic!
-//can even move the filament direct, and negative is backwards
-lp.extrudeto({x:100,y:100,z:10,e:-60});
-
-//relative
-lp.extrude({x:10,y:12});
-
-                     </textarea>
-                        </div>
-                        <div class="container">
+                            <div class="row">
+                                <div class="col-12 cm-contain"><form>
+                                <textarea id="code-editor">
+                                    // start coding here or load an example from the dropdown above!
+                                </textarea></form>
+                                </div>
+                            </div>
                             <div class="row" id="buttons">
-                                <div class="col-2"><strong>Errors:</strong></div>
-                                <div class="col-10" id="code-errors"></div>
+                                    <div class="col-2"><strong>Errors:</strong></div>
+                                    <div class="col-8" id="code-errors"></div>
                             </div>
                             <div class="row">
                                 <div class="col-12">
@@ -107,12 +81,10 @@ lp.extrude({x:10,y:12});
                                 </div>
                             </div>
                         </div>
-                    </div>
-                    
                     </div> <!-- close tab menus -->
                     <div class="panel-l"></div>
                     <div class="panel-b-l"></div>
-                </div>
+                </div> <!-- fullheight box-->
             </div> <!-- close col -->
 
             <!-- end input-->
@@ -141,7 +113,7 @@ lp.extrude({x:10,y:12});
                             <ul></ul>
                         </div>
                     </div>
-                    <div id="temperature"></div>
+                    <div id="temperature"><p class='alert alert-danger fade show' role='alert'></p></div>
                     <div class="panel-r lines"></div>
                     <div class="panel-b-r"></div>
                 </div>
@@ -153,10 +125,11 @@ lp.extrude({x:10,y:12});
 
     <!-- Bootstrap 4 -->
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
-    <link rel="stylesheet" href="{{ static_url("lib/codemirror/codemirror.css") }}">
+    <link rel="stylesheet" href="{{ static_url("lib/codemirror/codemirror.css") }}" type="text/css">
     <link rel="stylesheet" href="{{ static_url("lib/addon/lint/lint.css") }}">
     <link rel="stylesheet" href="{{ static_url("lib/addon/fold/foldgutter.css") }}">
     <link rel="stylesheet" href="{{ static_url("lib/addon/hint/show-hint.css") }}">
+    <link rel="stylesheet" href="{{ static_url("lib/addon/scroll/simplescrollbars.css") }}">
     <script src="https://code.jquery.com/jquery-3.3.1.min.js"
             integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8="
             crossorigin="anonymous"></script>
@@ -179,7 +152,9 @@ lp.extrude({x:10,y:12});
     <script src="{{ static_url("lib/addon/lint/json-lint.js") }}"></script>
     <script src="{{ static_url("lib/addon/hint/show-hint.js") }}"></script>
     <script src="{{ static_url("lib/addon/hint/javascript-hint.js") }}"></script>
+    <script src="{{ static_url("lib/addon/scroll/simplescrollbars.js") }}"></script>
     <!-- liveprinter javascript -->
     <script src="{{ static_url("liveprinter.js") }}" type="text/javascript"></script>
+    <link rel="stylesheet" href="{{ static_url("liveprinter.css") }}" type="text/css">
 </body>
 </html>

@@ -126,6 +126,7 @@
             // start CodeMirror
             var CodeEditor = CodeMirror.fromTextArea(document.getElementById("code-editor"), {
                 lineNumbers: true,
+                scrollbarStyle: "simple",
                 styleActiveLine: true,
                 lineWrapping: true,
                 autocomplete: true,
@@ -145,13 +146,18 @@
                 foldGutter: true,
                 autoCloseBrackets: true
             });
-            let exList = $("#examples-list");
-            exList.on("change", function() {
-                let filename = this.value;
-                var jqxhr = $.get( filename)
+            //
+            // build examples loader links for dynamically loading example files
+            //
+            let exList = $("#examples-list > .dropdown-item").not("[id*='session']" );
+            exList.on("click", function() {
+                let me = $(this);
+                let filename = me.data("link");
+                clearError(); // clear loading errors
+                var jqxhr = $.ajax( {url: filename, dataType:"text" })
                     .done(function(content) {
                         let newDoc = CodeMirror.Doc(content, "javascript");
-                        CodeEditor.swapDoc(newDoc);
+                        blinkElem($(".CodeMirror"), "slow", () => CodeEditor.swapDoc(newDoc));
                     })
                     .fail(function() {
                         doError({name:"error", message:"file load error:"+filename});
@@ -396,6 +402,7 @@
             });
 
 
+            
             /**
              * Movement API
              *
@@ -766,16 +773,81 @@
             //
             // blink an element using css animation class
             //
-            var blinkElem = function ($elem) {
-                $elem.removeClass("blinkit"); // remove to make sure it's not there
+            var blinkElem = function ($elem, speed, callback) {
+                $elem.removeClass("blinkit fast slow"); // remove to make sure it's not there
                 $elem.on("animationend", function () {
-                    $(this).removeClass("blinkit");
+                    if (callback !== undefined && typeof callback == "function") callback();
+                    $(this).removeClass("blinkit fast slow");
                 });
-                $elem.addClass("blinkit");
+                if (speed == "fast")
+                {
+                    $elem.addClass("blinkit fast");
+                }
+                else if (speed == "slow") {
+                    $elem.addClass("blinkit slow");
+                } else {
+                    $elem.addClass("blinkit");
+                }
             };
 
 
-            // set up things...
+            function globalEval(code, line) {
+                clearError();
+                code = jQuery.trim(code);
+                console.log(code);
+                if (code) {
+
+                    // give quick access to liveprinter API
+                    code = "let lp = window.scope.printer;" + code;
+                    code = "let sched = window.scope.scheduler;" + code;
+                    code = "let socket = window.scope.socket;" + code;
+                    code = "let gcode = window.scope.sendGCode;" + code;
+
+                    // wrap code in anonymous function to avoid redeclaring scope variables and
+                    // scope bleed.  For global functions that persist, use lp scope
+
+                    // error handling
+                    code = 'try {' + code;
+                    code = code + '} catch (e) { e.lineNumber=line;doError(e); }';
+
+                    code = "let line =" + line + ";" + code;
+
+                    // function wrapping
+                    code = '(function(){"use strict";' + code;
+                    code = code + "})();";
+
+                    console.log("adding code:" + code);
+                    let script = document.createElement("script");
+                    script.text = code;
+                    /*
+                     * NONE OF THIS WORKS IN CHROME... should be aesy, but no.
+                     *
+                    let node = null;
+                    script.onreadystatechange = script.onload = function () {
+                        console.log("loaded");
+                        node.printer = printer;
+                        node.scheduler = Scheduler;
+                        node.socket = socketHandler;
+
+                        node.parentNode.removeChild(script);
+                        node = null;
+                    };
+                    script.onerror = function (e) { console.log("script error:" + e) };
+
+                    node = document.head.appendChild(script);
+                    */
+                    // run and remove
+                    document.head.appendChild(script).parentNode.removeChild(script);
+                }
+            } // end globalEval
+
+
+            /*
+            * START SETTING UP SESSION VARIABLES ETC>
+            * **************************************
+            * 
+            */
+
             var printer = new Printer();
 
             // handler for JSON-RPC calls from server
@@ -995,55 +1067,103 @@
             scope.sendGCode = sendGCode;
 
 
-            function globalEval(code, line) {
-                clearError();
-                code = jQuery.trim(code);
-                console.log(code);
-                if (code) {
+            /**
+             * Local Storage for saving/loading documents.
+             * Default behaviour is loading the last edited session.
+             * 
+             */
 
-                    // give quick access to liveprinter API
-                    code = "let lp = window.scope.printer;" + code;
-                    code = "let sched = window.scope.scheduler;" + code;
-                    code = "let socket = window.scope.socket;" + code;
-                    code = "let gcode = window.scope.sendGCode;" + code;
-
-                    // wrap code in anonymous function to avoid redeclaring scope variables and
-                    // scope bleed.  For global functions that persist, use lp scope
-
-                    // error handling
-                    code = 'try {' + code;
-                    code = code + '} catch (e) { e.lineNumber=line;doError(e); }';
-
-                    code = "let line =" + line + ";" + code;
-
-                    // function wrapping
-                    code = '(function(){"use strict";' + code;
-                    code = code + "})();";
-
-                    console.log("adding code:" + code);
-                    let script = document.createElement("script");
-                    script.text = code;
-                    /*
-                     * NONE OF THIS WORKS IN CHROME... should be aesy, but no.
-                     *
-                    let node = null;
-                    script.onreadystatechange = script.onload = function () {
-                        console.log("loaded");
-                        node.printer = printer;
-                        node.scheduler = Scheduler;
-                        node.socket = socketHandler;
-
-                        node.parentNode.removeChild(script);
-                        node = null;
-                    };
-                    script.onerror = function (e) { console.log("script error:" + e) };
-
-                    node = document.head.appendChild(script);
-                    */
-                    // run and remove
-                    document.head.appendChild(script).parentNode.removeChild(script);
+            // from https://developer.mozilla.org/en-US/docs/Web/API/Web_Storage_API/Using_the_Web_Storage_API
+            function storageAvailable(type) {
+                try {
+                    var storage = window[type],
+                        x = '__storage_test__';
+                    storage.setItem(x, x);
+                    storage.removeItem(x);
+                    return true;
+                }
+                catch(e) {
+                    return e instanceof DOMException && (
+                        // everything except Firefox
+                        e.code === 22 ||
+                        // Firefox
+                        e.code === 1014 ||
+                        // test name field too, because code might not be present
+                        // everything except Firefox
+                        e.name === 'QuotaExceededError' ||
+                        // Firefox
+                        e.name === 'NS_ERROR_DOM_QUOTA_REACHED') &&
+                        // acknowledge QuotaExceededError only if there's something already stored
+                        storage.length !== 0;
                 }
             }
+
+            if (storageAvailable('localStorage')) {
+                let editedKey = "edited";
+                let savedKey = "saved";
+
+                let changeFunc = cm => {
+                    let txt = cm.getDoc().getValue();
+                    localStorage.setItem(editedKey, txt);
+                };
+
+                CodeEditor.on("change", changeFunc);
+
+                let reloadSession = () => {
+                    CodeEditor.off("change");
+                    let newFile = localStorage.getItem(editedKey);
+                    if (newFile !== undefined && newFile)
+                    {
+                        blinkElem($(".CodeMirror"), "slow", () => {    
+                            CodeEditor.swapDoc(
+                                CodeMirror.Doc(
+                                    newFile, "javascript"
+                                )
+                            );
+                            CodeEditor.on("change", changeFunc);
+                        });
+                    }
+                };
+
+                $("#reload-edited-session").on("click", reloadSession);
+
+                $("#save-session").on("click", () => {
+                    CodeEditor.off("change");
+                    let txt = CodeEditor.getDoc().getValue();
+                    localStorage.setItem(savedKey, txt);
+                    blinkElem($(".CodeMirror"), "fast", () => {
+                        CodeEditor.on("change", changeFunc);
+                    });
+                    // mark as reload-able
+                    $("#reload-saved-session").removeClass("graylink");
+                });
+
+                // start as non-reloadable
+                $("#reload-saved-session").addClass("graylink");
+
+                $("#reload-saved-session").on("click", () => {
+                    CodeEditor.off("change");
+                    let newFile = localStorage.getItem(savedKey);
+                    if (newFile !== undefined && newFile)
+                    {
+                        blinkElem($(".CodeMirror"), "slow", () => {    
+                            CodeEditor.swapDoc(
+                                CodeMirror.Doc(
+                                    newFile, "javascript"
+                                )
+                            );
+                            CodeEditor.on("change", changeFunc);
+                        });
+                    }
+                });
+
+                // finally, load the last stored session:
+                reloadSession();
+            }
+            else {
+                errorHandler({name:"save error", message:"no local storage available for saving files!"});
+            }
+
         })();
     });
 })();
