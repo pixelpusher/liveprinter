@@ -128,19 +128,35 @@
                 lineNumbers: true,
                 styleActiveLine: true,
                 lineWrapping: true,
+                autocomplete: true,
                 mode: "javascript",
                 lint: {
                     globalstrict: true,
                     strict: false,
                     esversion: 6
                 },
-                gutters: ["CodeMirror-lint-markers"],
+                gutters: ["CodeMirror-lint-markers", "CodeMirror-linenumbers", "CodeMirror-foldgutter"],
                 extraKeys: {
                     "Ctrl-Enter": compileCode,
-                    "Cmd-Enter": compileCode
-                }
+                    "Cmd-Enter": compileCode,
+                    "Ctrl-Space": "autocomplete",
+                    "Ctrl-Q": function(cm){ cm.foldCode(cm.getCursor()); }
+                },
+                foldGutter: true,
+                autoCloseBrackets: true
             });
-
+            let exList = $("#examples-list");
+            exList.on("change", function() {
+                let filename = this.value;
+                var jqxhr = $.get( filename)
+                    .done(function(content) {
+                        let newDoc = CodeMirror.Doc(content, "javascript");
+                        CodeEditor.swapDoc(newDoc);
+                    })
+                    .fail(function() {
+                        doError({name:"error", message:"file load error:"+filename});
+                    });
+              });
 
             // borrowed from https://github.com/cncjs/gcode-parser/blob/master/src/index.js (MIT License)
             // See http://linuxcnc.org/docs/html/gcode/overview.html#gcode:comments
@@ -312,6 +328,7 @@
                 handleError: function (errorJSON) {
                     // TODO:
                     console.log("JSON RPC ERROR: " + errorJSON);
+                    errorHandler.error({message: errorJSON});
                 },
 
                 handleJSONRPC: function (jsonRPC) {
