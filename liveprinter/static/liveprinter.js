@@ -116,11 +116,10 @@
             CodeMirror.defaults.undoDepth = 100;
 
             var compileCode = function (ed) {
+                // changeFunc(CodeEditor);
                 runCode();
-
-                //blinkElem($(".CodeMirror-line > span"));
-
-                blinkElem($(".CodeMirror"));
+                blinkElem($("form"));
+                // reloadSession();
             };
 
             // start CodeMirror
@@ -268,19 +267,24 @@
                 }
             };
 
+            /**
+             * Handle websockets communications
+             * and event listeners
+             * 
+             */
             var socketHandler = {
-                socket: null,
+                socket: null, //websocket
                 listeners: [], // listeners for json rpc calls
 
                 start: function () {
                     $("#info > ul").empty();
                     $("#errors > ul").empty();
                     $("#commands > ul").empty();
-
                     var url = "ws://" + location.host + "/json";
-                    socketHandler.socket = new WebSocket(url);
+                    this.socket = new WebSocket(url);
                     console.log('opening socket');
-                    socketHandler.socket.onmessage = function (event) {
+                    
+                    this.socket.onmessage = function (event) {
                         //console.log(event.data);
                         let jsonRPC = JSON.parse(event.data);
                         //console.log(jsonRPC);
@@ -289,36 +293,30 @@
                     };
 
                     // runs when printer connection is established via websockets
-                    socketHandler.socket.onopen = function () {
-
+                    this.socket.onopen = function () {
                         // TEST
                         // printer.extrude({
                         //     'x': 20,
                         //     'y': 30,
                         //     'z': 10,
                         // });
-
+    
                         //sendGCode("G92");
                         //sendGCode("G28");
-
+    
                         var node = $("<li>PRINTER CONNECTED</li>");
                         node.hide();
                         $("#info").prepend(node);
                         node.slideDown();
-
-
+    
                         let message = {
                             'jsonrpc': '2.0',
                             'id': 6,
                             'method': 'get-serial-ports',
                             'params': [],
                         };
-
-                        let message_json = JSON.stringify(message);
-                        socketHandler.socket.send(message_json);
-
-                        // FIXME: unhide start button
-
+                        let message_json = JSON.stringify(message);                    
+                        this.send(message_json);
                     };
                 },
 
@@ -341,18 +339,18 @@
                     // call all listeners
                     //console.log("socket:");
                     //console.log(jsonRPC);
-                    socketHandler.listeners.map(listener => { if (listener[jsonRPC.method]) { listener[jsonRPC.method](jsonRPC.params); } });
+                    this.listeners.map(listener => { if (listener[jsonRPC.method]) { listener[jsonRPC.method](jsonRPC.params); } });
                 },
 
                 //
                 // add a listener to the queue of jsonrpc event listeners
                 // must have a function for jsonrpc event method name which takes appropriate params json object
                 registerListener: function (listener) {
-                    socketHandler.listeners.push(listener);
+                    this.listeners.push(listener);
                 },
 
                 removeListener: function (listener) {
-                    socketHandler.listeners = socketHandler.listeners.filter(l => (l !== listener));
+                    this.listeners = this.listeners.filter(l => (l !== listener));
                 }
             };
 
@@ -648,6 +646,40 @@
                     this.extrudeto(params);
                 } // end moveto
 
+                //
+                // @param note is midi
+                // @param axis is x,y,z
+                //
+                midi2feedrate(note, axis) {
+                    // MIDI note 69     = A4(440Hz)
+                    // 2 to the power (69-69) / 12 * 440 = A4 440Hz
+                    // 2 to the power (64-69) / 12 * 440 = E4 329.627Hz
+                    // Ultimaker:
+                    // 47.069852, 47.069852, 160.0,
+                    //freq_xyz[j] = Math.pow(2.0, (note-69)/12.0)*440.0 
+
+                    let freq = Math.pow(2.0, (note-69)/12.0)*440.0;
+                    let feed = (freq * 60.0 ) / parseFloat(this.speedScale()[axis]);
+
+                    return feed;
+                }
+
+                extents()
+                {
+                    let bs = Printer.bedSize[this.model];
+                    return {"x":bs["x"], "y":bs["y"], "z":bs["z"] };
+                }
+                //
+                // for calculating note frequencies
+                //
+                speedScale()
+                {
+                    let bs = Printer.speedScale[this.model];
+                    return {"x":bs["x"], "y":bs["y"], "z":bs["z"] };
+                }
+
+                // speedScale
+
                 // end Printer class
             };
 
@@ -733,6 +765,11 @@
             };
 
             Printer.defaultPrintSpeed = 50; // mm/s
+
+            Printer.speedScale = {
+                UM2 : {'x': 47.069852, 'y':47.069852, 'z':160.0},
+                UM2plus : {'x': 47.069852, 'y':47.069852, 'z':160.0}
+            };
 
             //////////////////////////////////////////////////////////
 
@@ -1098,72 +1135,73 @@
                 }
             }
 
-            if (storageAvailable('localStorage')) {
-                let editedKey = "edited";
-                let savedKey = "saved";
+            let editedKey = "edited";
+            let savedKey = "saved";
 
-                let changeFunc = cm => {
-                    let txt = cm.getDoc().getValue();
-                    localStorage.setItem(editedKey, txt);
-                };
+            let changeFunc = cm => {
+                let txt = cm.getDoc().getValue();
+                localStorage.setItem(editedKey, txt);
+            };
 
-                CodeEditor.on("change", changeFunc);
+            CodeEditor.on("change", changeFunc);
 
-                let reloadSession = () => {
-                    CodeEditor.off("change");
-                    let newFile = localStorage.getItem(editedKey);
-                    if (newFile !== undefined && newFile)
-                    {
-                        blinkElem($(".CodeMirror"), "slow", () => {    
-                            CodeEditor.swapDoc(
-                                CodeMirror.Doc(
-                                    newFile, "javascript"
-                                )
-                            );
-                            CodeEditor.on("change", changeFunc);
-                        });
-                    }
-                };
-
-                $("#reload-edited-session").on("click", reloadSession);
-
-                $("#save-session").on("click", () => {
-                    CodeEditor.off("change");
-                    let txt = CodeEditor.getDoc().getValue();
-                    localStorage.setItem(savedKey, txt);
-                    blinkElem($(".CodeMirror"), "fast", () => {
+            let reloadSession = () => {
+                CodeEditor.off("change");
+                let newFile = localStorage.getItem(editedKey);
+                if (newFile !== undefined && newFile)
+                {
+                    blinkElem($(".CodeMirror"), "slow", () => {    
+                        CodeEditor.swapDoc(
+                            CodeMirror.Doc(
+                                newFile, "javascript"
+                            )
+                        );
                         CodeEditor.on("change", changeFunc);
                     });
-                    // mark as reload-able
-                    $("#reload-saved-session").removeClass("graylink");
+                }
+            };
+
+            $("#reload-edited-session").on("click", reloadSession);
+
+            $("#save-session").on("click", () => {
+                CodeEditor.off("change");
+                let txt = CodeEditor.getDoc().getValue();
+                localStorage.setItem(savedKey, txt);
+                blinkElem($(".CodeMirror"), "fast", () => {
+                    CodeEditor.on("change", changeFunc);
                 });
+                // mark as reload-able
+                $("#reload-saved-session").removeClass("graylink");
+            });
 
-                // start as non-reloadable
-                $("#reload-saved-session").addClass("graylink");
+            // start as non-reloadable
+            $("#reload-saved-session").addClass("graylink");
 
-                $("#reload-saved-session").on("click", () => {
-                    CodeEditor.off("change");
-                    let newFile = localStorage.getItem(savedKey);
-                    if (newFile !== undefined && newFile)
-                    {
-                        blinkElem($(".CodeMirror"), "slow", () => {    
-                            CodeEditor.swapDoc(
-                                CodeMirror.Doc(
-                                    newFile, "javascript"
-                                )
-                            );
-                            CodeEditor.on("change", changeFunc);
-                        });
-                    }
-                });
+            $("#reload-saved-session").on("click", () => {
+                CodeEditor.off("change");
+                let newFile = localStorage.getItem(savedKey);
+                if (newFile !== undefined && newFile)
+                {
+                    blinkElem($(".CodeMirror"), "slow", () => {    
+                        CodeEditor.swapDoc(
+                            CodeMirror.Doc(
+                                newFile, "javascript"
+                            )
+                        );
+                        CodeEditor.on("change", changeFunc);
+                    });
+                }
+            });
 
+            if (storageAvailable('localStorage')) {
                 // finally, load the last stored session:
                 reloadSession();
             }
             else {
                 errorHandler({name:"save error", message:"no local storage available for saving files!"});
             }
-
+            // disable form reloading on code compile
+            $('form').submit(false);
         })();
     });
 })();
