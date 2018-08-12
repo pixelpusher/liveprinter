@@ -115,26 +115,52 @@
         CodeMirror.defaults.undoDepth = 100;
 
         var compileCode = function (ed) {
+            // changeFunc(CodeEditor);
             runCode();
-
-            //blinkElem($(".CodeMirror-line > span"));
-
-            blinkElem($(".CodeMirror"));
+            blinkElem($("form"));
+            // reloadSession();
         };
 
         // start CodeMirror
         var CodeEditor = CodeMirror.fromTextArea(document.getElementById("code-editor"), {
             lineNumbers: true,
+            scrollbarStyle: "simple",
             styleActiveLine: true,
             lineWrapping: true,
-            mode: "text/x-python",
-            gutters: ["CodeMirror-lint-markers"],
+            autocomplete: true,
+            mode: "javascript",
+            lint: {
+                globalstrict: true,
+                strict: false,
+                esversion: 6
+            },
+            gutters: ["CodeMirror-lint-markers", "CodeMirror-linenumbers", "CodeMirror-foldgutter"],
             extraKeys: {
                 "Ctrl-Enter": compileCode,
-                "Cmd-Enter": compileCode
-            }
+                "Cmd-Enter": compileCode,
+                "Ctrl-Space": "autocomplete",
+                "Ctrl-Q": function(cm){ cm.foldCode(cm.getCursor()); }
+            },
+            foldGutter: true,
+            autoCloseBrackets: true
         });
-
+        //
+        // build examples loader links for dynamically loading example files
+        //
+        let exList = $("#examples-list > .dropdown-item").not("[id*='session']" );
+        exList.on("click", function() {
+            let me = $(this);
+            let filename = me.data("link");
+            clearError(); // clear loading errors
+            var jqxhr = $.ajax( {url: filename, dataType:"text" })
+                .done(function(content) {
+                    let newDoc = CodeMirror.Doc(content, "javascript");
+                    blinkElem($(".CodeMirror"), "slow", () => CodeEditor.swapDoc(newDoc));
+                })
+                .fail(function() {
+                    doError({name:"error", message:"file load error:"+filename});
+                });
+            });
 
         // borrowed from https://github.com/cncjs/gcode-parser/blob/master/src/index.js (MIT License)
         // See http://linuxcnc.org/docs/html/gcode/overview.html#gcode:comments
@@ -240,19 +266,24 @@
             }
         };
 
+        /**
+            * Handle websockets communications
+            * and event listeners
+            * 
+            */
         var socketHandler = {
-            socket: null,
+            socket: null, //websocket
             listeners: [], // listeners for json rpc calls
 
             start: function () {
                 $("#info > ul").empty();
                 $("#errors > ul").empty();
                 $("#commands > ul").empty();
-
                 var url = "ws://" + location.host + "/json";
-                socketHandler.socket = new WebSocket(url);
+                this.socket = new WebSocket(url);
                 console.log('opening socket');
-                socketHandler.socket.onmessage = function (event) {
+                    
+                this.socket.onmessage = function (event) {
                     //console.log(event.data);
                     let jsonRPC = JSON.parse(event.data);
                     //console.log(jsonRPC);
@@ -261,36 +292,30 @@
                 };
 
                 // runs when printer connection is established via websockets
-                socketHandler.socket.onopen = function () {
-
+                this.socket.onopen = function () {
                     // TEST
                     // printer.extrude({
                     //     'x': 20,
                     //     'y': 30,
                     //     'z': 10,
                     // });
-
+    
                     //sendGCode("G92");
                     //sendGCode("G28");
-
+    
                     var node = $("<li>PRINTER CONNECTED</li>");
                     node.hide();
                     $("#info").prepend(node);
                     node.slideDown();
-
-
+    
                     let message = {
                         'jsonrpc': '2.0',
                         'id': 6,
                         'method': 'get-serial-ports',
                         'params': [],
                     };
-
-                    let message_json = JSON.stringify(message);
-                    socketHandler.socket.send(message_json);
-
-                    // FIXME: unhide start button
-
+                    let message_json = JSON.stringify(message);                    
+                    this.send(message_json);
                 };
             },
 
@@ -306,24 +331,25 @@
             handleError: function (errorJSON) {
                 // TODO:
                 console.log("JSON RPC ERROR: " + errorJSON);
+                errorHandler.error({message: errorJSON});
             },
 
             handleJSONRPC: function (jsonRPC) {
                 // call all listeners
                 //console.log("socket:");
                 //console.log(jsonRPC);
-                socketHandler.listeners.map(listener => { if (listener[jsonRPC.method]) { listener[jsonRPC.method](jsonRPC.params); } });
+                this.listeners.map(listener => { if (listener[jsonRPC.method]) { listener[jsonRPC.method](jsonRPC.params); } });
             },
 
             //
             // add a listener to the queue of jsonrpc event listeners
             // must have a function for jsonrpc event method name which takes appropriate params json object
             registerListener: function (listener) {
-                socketHandler.listeners.push(listener);
+                this.listeners.push(listener);
             },
 
             removeListener: function (listener) {
-                socketHandler.listeners = socketHandler.listeners.filter(l => (l !== listener));
+                this.listeners = this.listeners.filter(l => (l !== listener));
             }
         };
 
@@ -373,6 +399,7 @@
         });
 
 
+            
         /**
             * Movement API
             *
@@ -381,6 +408,9 @@
         // basic properties and functions for the physical printer like speeds, dimensions, extrusion settings
         // will be merged into the back end shortly and removed from this file
         //
+        // FUTURE NOTE: make this not a class but use object inheritance and prototyping
+        //
+        //
         class Printer {
 
             ///////
@@ -388,9 +418,9 @@
             ///////
 
             constructor() {
-                this.x = 0; // x position in mm
-                this.y = 0; // y position in mm
-                this.z = 0; // z position in mm
+                this.x = this.minx = 5; // x position in mm
+                this.y = this.miny = 5; // y position in mm
+                this.z = this.minz = 0; // z position in mm
                 this.e = 0; //filament position in mm
 
                 this.targetX = 0; // x position in mm
@@ -402,9 +432,20 @@
 
                 this.travelSpeed = { 'x': 5, 'y': 5, 'z': 0 }; // in mm/s
 
+                this.maxFilamentPerOperation = 30; // safety check to keep from using all filament, in mm
+                this.maxTimePerOperation = 10; // prevent very long operations, by accident - this is in seconds
+
+                // NOTE: disabled for now to use hardware retraction settings
                 this.currentRetraction = 0; // length currently retracted
-                this.retractLength = 2; // in mm - amount to retract after extrusion
-                this.retractSpeed = 30; //mm/s
+                this.retractLength = 3; // in mm - amount to retract after extrusion
+                this.retractSpeed = 300; //mm/s
+                this.firmwareRetract = true;    // use Marlin or printer for retraction
+
+                /**
+                    * What to do when movement or extrusion commands are out of machine bounds.
+                    * Can be clip (keep printing inside edges), bounce (bounce off edges), stop
+                    */
+                this.boundaryMode = "stop";
 
                 // TODO: use Quarternions for axis/angle: https://github.com/infusion/Quaternion.js
 
@@ -414,7 +455,6 @@
                 this._printSpeed = Printer.defaultPrintSpeed;
                 this._model = Printer.UM2plus; // default
                 this.layerHeight = 0.2; // thickness of a 3d printed extrudion, mm by default
-                this.mode = -1; // 0 is absolute, 1 is relative (temporarily).  -1 forces reset
             }
 
             //
@@ -429,10 +469,52 @@
 
             set printSpeed(s) {
                 let maxs = Printer.maxPrintSpeed[this._model];
-                this._printSpeed = Math.min(s, parseInt(maxs.x)); // pick in x direction...
+                this._printSpeed = Math.min(parseFloat(s), parseFloat(maxs.x)); // pick in x direction...
             }
 
             get printSpeed() { return this._printSpeed; }
+
+            /**
+             * Performs a quick startup by resetting the axes and moving the head
+             * to printing position (layerheight)
+             * 
+             * @param {float} temp is the temperature to start warming up to
+             */
+            start(temp="190") {
+                sendGCode("G28");
+                sendGCode("M104 S" + temp);
+                //set retract length
+                sendGCode("M207 S3 F" + this.retractSpeed+" Z0.2");
+                //set retract recover
+                sendGCode("M208 S0.1 F" + this.retractSpeed +" 300");
+                this.moveto({ x: this.cx, y: this.cy, z: this.layerHeight, speed: Printer.defaultPrintSpeed });
+                sendGCode("M106 S100"); // set fan to full
+            }
+
+            /**
+             * Get the center horizontal (x) position on the bed
+             */
+            get cx() {
+                return this.extents()["x"] / 2;
+            }
+
+            /**
+             * Get the center vertical (y) position on the bed,
+             */
+            get cy() {
+                return this.extents()["y"] / 2;
+            }
+
+            /// maxmimum values
+            get maxx() {
+                return this.extents()["x"] ;
+            }
+            get maxy() {
+                return this.extents()["y"] ;
+            }
+            get maxz() {
+                return this.extents()["z"] ;
+            }
 
             /**
                 * extrude from the printer head, withing bounds
@@ -440,6 +522,16 @@
                 *      Optional bounce (Boolean) key if movement should bounce off sides.
                 */
             extrudeto(params) {
+                let _speed = parseFloat((params.speed !== undefined) ? params.speed : this.printSpeed);
+                let _layerHeight = parseFloat((params.thickness !== undefined) ? params.thickness : this.layerHeight);
+
+                this.printSpeed = _speed.toFixed(4);
+
+                //
+                let onlyMove = (this.e == params.e);
+                let extrusionSpecified = !onlyMove && (params.e !== undefined);
+                let retract = ((params.retract !== undefined) && params.retract);
+
                 let __x = (params.x !== undefined) ? params.x : this.x;
                 let __y = (params.y !== undefined) ? params.y : this.y;
                 let __z = (params.z !== undefined) ? params.z : this.z;
@@ -448,27 +540,27 @@
                 __y = parseFloat(__y);
                 __z = parseFloat(__z);
 
-                let _speed = parseFloat((params.speed !== undefined) ? params.speed : this.printSpeed);
-                let _layerHeight = parseFloat((params.thickness !== undefined) ? params.thickness : this.layerHeight);
-
-                this.printSpeed = _speed;
+                let _extents = this.extents();
 
                 //
-                let onlyMove = (this.e == params.e);
-                let extrusionSpecified = !onlyMove && (params.e !== undefined);
-
-                console.log(onlyMove);
-
-                // TODO: handle *bounce* (much more complicated!)
-
-                // clip to printer size for safety
-                //console.log(Printer.bedSize);
-                //console.log(this.model);
-
-                let _bedSize = Printer.bedSize[this.model];
-                __x = Math.min(__x, _bedSize["x"]);
-                __y = Math.min(__y, _bedSize["y"]);
-                __z = Math.min(__z, _bedSize["z"]);
+                // handle movements outside printer boundaries
+                //
+                if (this.boundaryMode == "bounce")
+                {  
+                    //
+                    // TODO: this would be tail recursive?
+                    //
+                }
+                else // stop is default, for safety!
+                {
+                    // stop at edges
+                    __x = Math.min(__x, _extents.x);
+                    __y = Math.min(__y, _extents.y);
+                    __z = Math.min(__z, _extents.z);
+                }
+                //////////////////////////////////////
+                /// START CALCULATIONS      //////////
+                //////////////////////////////////////
 
                 let dx = this.x - __x;
                 let dy = this.y - __y;
@@ -478,14 +570,31 @@
                 let moveTime = dist / _speed; // in sec
 
                 console.log("time: " + moveTime + " / dist:" + dist);
+                    
+                //
+                // BREAK AT LARGE MOVES
+                //
+                if (moveTime > this.maxTimePerOperation) 
+                {
+                    throw Error("move time too long:" + moveTime);
+                }
+
                 let nozzleSpeed = {};
                 nozzleSpeed.x = dx / moveTime;
                 nozzleSpeed.y = dy / moveTime;
                 nozzleSpeed.z = dz / moveTime;
-
-                // sanity check:
-                //let speedCheck = Math.sqrt(nozzleSpeed.x * nozzleSpeed.x + nozzleSpeed.y * nozzleSpeed.y + nozzleSpeed.z * nozzleSpeed.z);
-                //console.log("speed check: " + speedCheck + "/" + _speed);
+                //
+                // safety checks
+                //
+                if (nozzleSpeed.x > Printer.maxPrintSpeed[this.model]["x"]) {
+                    throw Error("X travel too fast:" + nozzleSpeed.x);
+                }
+                if (nozzleSpeed.y > Printer.maxPrintSpeed[this.model]["y"]) {
+                    throw Error("Y travel too fast:" + nozzleSpeed.y);
+                }
+                if (nozzleSpeed.z > Printer.maxPrintSpeed[this.model]["z"]) {
+                    throw Error("Z travel too fast:" + nozzleSpeed.z);
+                }
 
                 // TODO: check for maximum speed!
 
@@ -511,14 +620,26 @@
                         // this was helpful: https://github.com/Ultimaker/GCodeGenJS/blob/master/js/gcode.js
                         let filamentLength = dist * _layerHeight * _layerHeight;//(Math.PI*filamentRadius*filamentRadius);
 
+                        //
+                        // safety check:
+                        //
+                        if (filamentLength > this.maxFilamentPerOperation) {
+                            throw Error("Too much filament in move:" + filamentLength);
+                        }
                         if (!Printer.extrusionInmm3[this.model]) {
                             filamentLength /= (filamentRadius * filamentRadius * Math.PI);
                         }
-
                         let filamentSpeed = filamentLength / moveTime;
 
-                        console.log("filament speed: " + filamentSpeed);
-                        console.log("filament distance : " + filamentLength + "/" + dist);
+                        //
+                        // safety check:
+                        //
+                        if (filamentSpeed > Printer.maxPrintSpeed[this.model]["e"]) {
+                            throw Error("Filament speed too fast:" + filamentSpeed);
+                        }
+
+                        //console.log("filament speed: " + filamentSpeed);
+                        //console.log("filament distance : " + filamentLength + "/" + dist);
                         //console.log("e type=" + typeof this.e);
 
                         this.targetE = this.e + filamentLength;
@@ -530,8 +651,6 @@
                 this.targetX = __x.toFixed(4);
                 this.targetY = __y.toFixed(4);
                 this.targetZ = __z.toFixed(4);
-
-
 
                 // TODO:
                 // schedule callback function to update state variables like layerheight,
@@ -547,11 +666,16 @@
                 }
 
                 //unretract first if needed
-                if (!onlyMove && this.currentRetraction) {
+                if (!onlyMove && !this.firmwareRetract && this.currentRetraction) {
                     this.targetE += this.currentRetraction;
                     // account for previous retraction
-                    sendGCode("G1 " + "E" + (this.currentRetraction + this.e).toFixed(4) + " F" + this.retractSpeed * 60);
+                    sendGCode("G1 " + "E" + (this.currentRetraction + this.e).toFixed(4) + " F" + this.retractSpeed);
                     this.currentRetraction = 0;
+                }
+
+                // unretract
+                if (!onlyMove && retract && this.firmwareRetract) {
+                    sendGCode("G11");
                 }
 
                 // G1 - Coordinated Movement X Y Z E
@@ -560,19 +684,26 @@
                 moveCode.push("Y" + this.targetY);
                 moveCode.push("Z" + this.targetZ);
                 moveCode.push("E" + this.targetE.toFixed(4));
-                moveCode.push("F" + this.printSpeed * 60); // mm/min as opposed to seconds
+                moveCode.push("F" + this.printSpeed*60); // mm/s to mm/min
                 sendGCode(moveCode.join(" "));
 
                 // RETRACT
-                if (!onlyMove && this.retractLength) {
+                if (!onlyMove && !this.firmwareRetract && this.retractLength) {
                     this.currentRetraction = this.retractLength;
                     this.targetE = parseFloat(this.targetE) - this.currentRetraction;
 
-                    sendGCode("G1 " + "E" + this.targetE.toFixed(4) + " F" + this.retractSpeed * 60);
+                    sendGCode("G1 " + "E" + this.targetE.toFixed(4) + " F" + this.retractSpeed);
                 }
+
+                // unretract
+                if (!onlyMove && retract && this.firmwareRetract) {
+                    sendGCode("G11");
+                }
+
                 // FIXME: sort out position updates in a sensible way...
                 //queueGCode("M114"); // get position after move (X:0 Y:0 Z:0 E:0)
 
+                // update position internally
                 this.e = parseFloat(this.targetE);
                 this.x = parseFloat(this.targetX);
                 this.y = parseFloat(this.targetY);
@@ -587,14 +718,9 @@
                 let __y = (params.y !== undefined) ? params.y : 0;
                 let __z = (params.z !== undefined) ? params.z : 0;
 
-                // make relative
-                __x = this.x + parseFloat(__x);
-                __y = this.y + parseFloat(__y);
-                __z = this.z + parseFloat(__z);
-
-                params.x = __x;
-                params.y = __y;
-                params.z = __z;
+                params.x = __x + this.x;
+                params.y = __y + this.y;
+                params.z = __z + this.z;
 
                 if (params.e !== undefined) params.e = (parseFloat(params.e) + this.e);
                 //console.log(params);
@@ -618,6 +744,107 @@
                 this.extrudeto(params);
             } // end moveto
 
+            /**
+             * @param {float} note as midi note
+             * @param {float} time in ms
+             * @param {string} axis x,y,z (default x) 
+             * @returns object with axis/distance & speed: {x:distance, speed:speed}
+             */
+            note(note, time, axis = "x") {
+                // low notes are pauses
+                if (note < 10) {
+                    this.wait(time);
+                    let moveObj = {};
+                    moveObj[axis] = 0;
+                    moveObj["speed"] = 0;
+                    return moveObj;
+                }
+                else {
+                    //this.printSpeed = this.midi2feedrate(note,axis); // mm/s
+                    let speed = this.midi2speed(note, axis); // mm/s
+                    let dist = speed * time / 1000; // time in ms
+                    let moveObj = {};
+                    moveObj[axis] = dist;
+                    moveObj["speed"] = speed;
+                    this.move(moveObj);
+                    return moveObj;
+                }
+            }
+
+            /**
+             * Fills an area based on layerHeight (as thickness of each line)
+             * @param {float} width of the area in mm
+             * @param {float} height of the area in mm
+             */
+            fill(w, h) {
+                for (var i = 0; i < h / lp.layerHeight; i++) {
+                    let m = (i % 2 == 0) ? -1 : 1;
+                    lp.extrude({ y: lp.layerHeight });
+                    lp.extrude({ x: m * w });
+                }
+            }
+
+            /**
+             * @param {number} note as midi note 
+             * @param {string} axis of movement: x,y,z 
+             * @returns speed in mm/s
+             */
+            midi2speed(note, axis) {
+                // MIDI note 69     = A4(440Hz)
+                // 2 to the power (69-69) / 12 * 440 = A4 440Hz
+                // 2 to the power (64-69) / 12 * 440 = E4 329.627Hz
+                // Ultimaker:
+                // 47.069852, 47.069852, 160.0,
+                //freq_xyz[j] = Math.pow(2.0, (note-69)/12.0)*440.0 
+
+                let freq = Math.pow(2.0, (note-69)/12.0)*440.0;
+                let speed = freq / parseFloat(this.speedScale()[axis]);
+
+                return speed;
+            }
+
+            m2s(note,axis) {
+                return this.midi2speed(note,axis);
+            }
+
+            extents()
+            {
+                let bs = Printer.bedSize[this.model];
+                return {"x":bs["x"], "y":bs["y"], "z":bs["z"] };
+            }
+            //
+            // for calculating note frequencies
+            //
+            speedScale()
+            {
+                let bs = Printer.speedScale[this.model];
+                return {"x":bs["x"], "y":bs["y"], "z":bs["z"] };
+            }
+
+            /**
+             * Causes the printer to wait for a number of milliseconds
+             * @param {float} ms to wait
+             */
+            wait(ms) {
+                sendGCode("M0 P" + ms);
+            }
+
+            pause() {
+                // retract filament, turn off fan and heater wait
+                this.extrude({ e: -16, speed: 250 });
+                this.move({ z: -3 });
+                sendGCode("M104 S0"); // turn off temp
+                sendGCode("M107 S0"); // turn off fan
+            }
+
+            resume(temp = "190") {
+                sendGCode("M109 S" + temp); // turn on temp, but wait until full temp reached
+                sendGCode("M106 S100"); // turn on fan
+                this.extrude({ e: 16, speed: 250 });
+            }
+
+
+
             // end Printer class
         };
 
@@ -627,24 +854,26 @@
         // supported printers
         Printer.UM2 = "UM2";
         Printer.UM2plus = "UM2plus";
+        Printer.UM2plusExt = "UM2plusExt";
         Printer.UM3 = "UM3";
         Printer.REPRAP = "REP";
 
         Printer.PRINTERS = [Printer.UM2, Printer.UM3, Printer.REPRAP];
 
         // dictionary of first GCODE sent to printer at start
-        Printer.GCODE_HEADERS = {
-            UM2: [
+        Printer.GCODE_HEADERS = {};
+        Printer.GCODE_HEADERS[Printer.UM2] = [
                 ";FLAVOR:UltiGCode",
                 ";TIME:1",
                 ";MATERIAL:1",
-            ],
-            UM2plus: [
+        ];
+        Printer.GCODE_HEADERS[Printer.UM2plus] = [
                 ";FLAVOR:UltiGCode",
                 ";TIME:1",
                 ";MATERIAL:1",
-            ],
-            UM3: [
+        ];
+
+        Printer.GCODE_HEADERS[Printer.UM3]= [
                 ";START_OF_HEADER",
                 ";HEADER_VERSION:0.1",
                 ";FLAVOR:Griffin",
@@ -665,44 +894,48 @@
                 ";PRINT.SIZE.MAX.Z:200",
                 ";END_OF_HEADER",
                 "G92 E0",
-            ],
-            REPRAP: [
+            ];
+            Printer.GCODE_HEADERS[Printer.REPRAP] = [
                 ";RepRap target",
                 "G28",
                 "G92 E0",
-            ]
-        };
+            ];
 
-        Printer.filamentDiameter = { UM2: 2.85, UM2plus: 2.85, UM3: 2.85, REPRAP: 2.85 };
-        Printer.extrusionInmm3 = { UM2: false, UM2plus: true, UM3: true, REPRAP: false };
+        Printer.filamentDiameter = {};
+        Printer.filamentDiameter[Printer.UM2] = Printer.filamentDiameter[Printer.UM2plus] =
+                Printer.filamentDiameter[Printer.REPRAP] = 2.85;
+        Printer.extrusionInmm3 = {};
+        Printer.extrusionInmm3[Printer.UM2]= Printer.extrusionInmm3[Printer.REPRAP] = false;
+        Printer.extrusionInmm3[Printer.UM2plus] = Printer.extrusionInmm3[Printer.UM3] = true;
 
         // TODO: FIX THESE!
         // https://ultimaker.com/en/products/ultimaker-2-plus/specifications
 
         // TODO: check these: there are max speeds for each motor (x,y,z,e)
 
-        Printer.maxTravelSpeed = {
-            UM2plus: { 'x': 300, 'y': 300, 'z': 80, 'e': 45 },
-            UM2: { 'x': 300, 'y': 300, 'z': 80, 'e': 45 },
-            UM3: { 'x': 300, 'y': 300, 'z': 80, 'e': 45 },
-            REPRAP: { 'x': 300, 'y': 300, 'z': 80, 'e': 45 }
-        };
+        Printer.maxTravelSpeed = {};
 
-        Printer.maxPrintSpeed = {
-            UM2: { 'x': 150, 'y': 150, 'z': 80 },
-            'UM2plus': { 'x': 150, 'y': 150, 'z': 80 },
-            UM3: { 'x': 150, 'y': 150, 'z': 80 },
-            REPRAP: { 'x': 150, 'y': 150, 'z': 80 }
-        };
+        Printer.maxTravelSpeed[Printer.UM3] =
+            Printer.maxTravelSpeed[Printer.UM2plus] = 
+                Printer.maxTravelSpeed[Printer.UM2] = { 'x': 300, 'y': 300, 'z': 80, 'e': 45 };
+        Printer.maxTravelSpeed[Printer.REPRAP] = { 'x': 300, 'y': 300, 'z': 80, 'e': 45 };
+            
+        Printer.maxPrintSpeed = {};
+        Printer.maxPrintSpeed[Printer.UM2] =
+            Printer.maxPrintSpeed[Printer.REPRAP] = { 'x': 150, 'y': 150, 'z': 80, 'e': 45 };
+        Printer.maxPrintSpeed[Printer.UM3] = Printer.maxPrintSpeed[Printer.UM2plus] = { 'x': 150, 'y': 150, 'z': 80, 'e': 45 };
 
-        Printer.bedSize = {
-            UM2: { 'x': 223, 'y': 223, 'z': 205 },
-            UM2plus: { 'x': 223, 'y': 223, 'z': 305 },
-            UM3: { 'x': 223, 'y': 223, 'z': 205 },
-            REPRAP: { 'x': 150, 'y': 150, 'z': 80 }
-        };
+        Printer.bedSize = {};
+        Printer.bedSize[Printer.UM2plus] = Printer.bedSize[Printer.UM2] 
+            = Printer.bedSize[Printer.UM3] = { 'x': 223, 'y': 223, 'z': 205 };
+        Printer.bedSize[Printer.UM2plusExt] ={ 'x': 223, 'y': 223, 'z': 305 };
+        Printer.bedSize[Printer.REPRAP] = { 'x': 150, 'y': 150, 'z': 80 };
 
-        Printer.defaultPrintSpeed = 50; // mm/s
+        Printer.defaultPrintSpeed = 30; // mm/s
+
+        Printer.speedScale = {};
+        Printer.speedScale[Printer.UM2] = {'x': 47.069852, 'y':47.069852, 'z':160.0};
+        Printer.speedScale[Printer.UM2plus] = {'x': 47.069852, 'y':47.069852, 'z':160.0};
 
         //////////////////////////////////////////////////////////
 
@@ -744,16 +977,83 @@
         //
         // blink an element using css animation class
         //
-        var blinkElem = function ($elem) {
-            $elem.removeClass("blinkit"); // remove to make sure it's not there
+        var blinkElem = function ($elem, speed, callback) {
+            $elem.removeClass("blinkit fast slow"); // remove to make sure it's not there
             $elem.on("animationend", function () {
-                $(this).removeClass("blinkit");
+                if (callback !== undefined && typeof callback == "function") callback();
+                $(this).removeClass("blinkit fast slow");
             });
-            $elem.addClass("blinkit");
+            if (speed == "fast")
+            {
+                $elem.addClass("blinkit fast");
+            }
+            else if (speed == "slow") {
+                $elem.addClass("blinkit slow");
+            } else {
+                $elem.addClass("blinkit");
+            }
         };
 
 
-        // set up things...
+        function globalEval(code, line) {
+            clearError();
+            code = jQuery.trim(code);
+            console.log(code);
+            if (code) {
+
+                // give quick access to liveprinter API
+                code = "let lp = window.scope.printer;" + code;
+                code = "let sched = window.scope.scheduler;" + code;
+                code = "let socket = window.scope.socket;" + code;
+                code = "let gcode = window.scope.sendGCode;" + code;
+                code = "let s = window.scope;" + code;
+
+
+                // wrap code in anonymous function to avoid redeclaring scope variables and
+                // scope bleed.  For global functions that persist, use lp scope or s
+
+                // error handling
+                code = 'try {' + code;
+                code = code + '} catch (e) { e.lineNumber=line;doError(e); }';
+
+                code = "let line =" + line + ";" + code;
+
+                // function wrapping
+                code = '(function(){"use strict";' + code;
+                code = code + "})();";
+
+                console.log("adding code:" + code);
+                let script = document.createElement("script");
+                script.text = code;
+                /*
+                    * NONE OF THIS WORKS IN CHROME... should be aesy, but no.
+                    *
+                let node = null;
+                script.onreadystatechange = script.onload = function () {
+                    console.log("loaded");
+                    node.printer = printer;
+                    node.scheduler = Scheduler;
+                    node.socket = socketHandler;
+
+                    node.parentNode.removeChild(script);
+                    node = null;
+                };
+                script.onerror = function (e) { console.log("script error:" + e) };
+
+                node = document.head.appendChild(script);
+                */
+                // run and remove
+                document.head.appendChild(script).parentNode.removeChild(script);
+            }
+        } // end globalEval
+
+
+        /*
+        * START SETTING UP SESSION VARIABLES ETC>
+        * **************************************
+        * 
+        */
+
         var printer = new Printer();
 
         // handler for JSON-RPC calls from server
@@ -851,7 +1151,7 @@
                 //console.log("error event:");
                 //console.log(event);
                 $("#info > ul").prepend("<li class='alert alert-primary alert-dismissible fade show' role='alert'>"
-                    //+ (new Date(event.time)).toDateString() // FIXME!
+                    + (new Date(parseInt(event.time))).toLocaleDateString('en-US')
                     + '<strong>'
                     + ": " + event.message
                     + '</strong>'
@@ -864,7 +1164,7 @@
             'resend': function (event) {
                 //console.log("error event:");
                 //console.log(event);
-                $("#info > ul").prepend("<li>" + (new Date()).toDateString() + ": " + event.message + "</li>");
+                $("#info > ul").prepend("<li>" + (new Date(parseInt(event.time))).toLocaleDateString('en-US') + ": " + event.message + "</li>");
                 blinkElem($("#info-tab"));
                 blinkElem($("#inbox"));
             }
@@ -878,7 +1178,7 @@
             'gcode': function (event) {
                 //console.log("error event:");
                 //console.log(event);
-                $("#commands > ul").prepend("<li>" + (new Date(event.time)).toDateString() + ": " + event.message + "</li>").fadeIn(50);
+                $("#commands > ul").prepend("<li>" + (new Date(parseInt(event.time))).toLocaleDateString('en-US') + ": " + event.message + "</li>").fadeIn(50);
                 blinkElem($("#commands-tab"));
                 blinkElem($("#inbox"));
             }
@@ -963,6 +1263,30 @@
             me.button('toggle');
         });
 
+        /*
+         * Clear printer queue on server 
+         */
+        $("#clear-btn").on("click", function () {
+            let message = {
+                'jsonrpc': '2.0',
+                'id': 7,
+                'method': 'clear-command-queue',
+                'params': [],
+            };
+            socketHandler.socket.send(JSON.stringify(message));
+        });
+
+
+        // TODO: temp probe that gets scheduled every 300ms and then removes self when
+        // tempHandler called
+
+        // update printing API to share with running script
+        scope.printer = printer;
+        scope.scheduler = Scheduler;
+        scope.socket = socketHandler;
+        scope.sendGCode = sendGCode;
+
+        // mouse handling functions
         scope.mx = 0;
         scope.my = 0;
         scope.pmx = 0;
@@ -979,7 +1303,7 @@
                 return $(window).click(func);
             }
         }
-        scope.mousemove = function (func, minDelta=20) {
+        scope.mousemove = function (func, minDelta = 20) {
             // global mouse functions
             // remove all revious handlers -- might be dangerous?
             $(document).off("mousemove");
@@ -992,7 +1316,7 @@
                 scope.pmy = e.pageY;
 
                 $(document).mousemove(function (evt) {
-                    let self = $(this); 
+                    let self = $(this);
                     scope.mx = evt.pageX;
                     scope.my = evt.pageY;
                     let distX = scope.mx - scope.pmx;
@@ -1009,7 +1333,7 @@
                         });
                         scope.pmx = evt.pageX;
                         scope.pmy = evt.pageY;
-                    }                    
+                    }
                 });
             });
             $(document).mouseup(function (e) {
@@ -1017,72 +1341,116 @@
                 scope.md = false;
                 $(document).off("mousemove");
             });
-        } 
+        }
 
         /*
-         * Example in use:
-         * 
+            * Example in use:
+            * 
             s.mousemove( function(e) {
-              console.log(e);
+                console.log(e);
 	            console.log((e.x-e.px) + "," + (e.y-e.py));
             }, 20);
         */
+            
 
+        /**
+            * Local Storage for saving/loading documents.
+            * Default behaviour is loading the last edited session.
+            * 
+            */
 
-
-        // TODO: temp probe that gets scheduled every 300ms and then removes self when
-        // tempHandler called
-
-        // update printing API to share with running script
-        scope.printer = printer;
-        scope.scheduler = Scheduler;
-        scope.socket = socketHandler;
-        scope.sendGCode = sendGCode;
-
-
-        function globalEval(code, line) {
-            clearError();
-            code = jQuery.trim(code);
-            console.log(code);
-            if (code) {
-
-                // give quick access to liveprinter API
-                //code = "lp = window.scope.printer\n" + code;
-                //code = "sched = window.scope.scheduler\n" + code;
-                //code = "socket = window.scope.socket\n" + code;
-                //code = "gcode = window.scope.sendGCode\n" + code;
-
-                // wrap code in anonymous function to avoid redeclaring scope variables and
-                // scope bleed.  For global functions that persist, use lp scope
-
-                // error handling
-                //code = 'try {' + code;
-                //code = code + '} catch (e) { e.lineNumber=line;doError(e); }';
-
-                //code = "let line =" + line + ";" + code;
-
-                // function wrapping
-                //code = '(function(){"use strict";' + code;
-                //code = code + "})();";
-
-                console.log("adding code:" + code);
-                //let src = { source: code };
-
-                //$B.py2js = function (src, module, locals_id, parent_scope, line_info) {
-                // src = Python source (string)
-                // module = module name (string)
-                // locals_id = the id of the block that will be created
-                // parent_scope = the scope where the code is created
-                // line_info = [line_num, parent_block_id] if debug mode is set
-                //
-                // Returns a tree structure representing the Python source code
-
-
-                let js_code =__BRYTHON__.py2js(code+"", "newcode", "newcode",scope).to_js();
-                console.log(js_code);
-                eval(js_code);
+        // from https://developer.mozilla.org/en-US/docs/Web/API/Web_Storage_API/Using_the_Web_Storage_API
+        function storageAvailable(type) {
+            try {
+                var storage = window[type],
+                    x = '__storage_test__';
+                storage.setItem(x, x);
+                storage.removeItem(x);
+                return true;
+            }
+            catch(e) {
+                return e instanceof DOMException && (
+                    // everything except Firefox
+                    e.code === 22 ||
+                    // Firefox
+                    e.code === 1014 ||
+                    // test name field too, because code might not be present
+                    // everything except Firefox
+                    e.name === 'QuotaExceededError' ||
+                    // Firefox
+                    e.name === 'NS_ERROR_DOM_QUOTA_REACHED') &&
+                    // acknowledge QuotaExceededError only if there's something already stored
+                    storage.length !== 0;
             }
         }
+
+        let editedKey = "edited";
+        let savedKey = "saved";
+
+        let changeFunc = cm => {
+            let txt = cm.getDoc().getValue();
+            localStorage.setItem(editedKey, txt);
+        };
+
+        CodeEditor.on("change", changeFunc);
+
+        let reloadSession = () => {
+            CodeEditor.off("change");
+            let newFile = localStorage.getItem(editedKey);
+            if (newFile !== undefined && newFile)
+            {
+                blinkElem($(".CodeMirror"), "slow", () => {    
+                    CodeEditor.swapDoc(
+                        CodeMirror.Doc(
+                            newFile, "javascript"
+                        )
+                    );
+                    CodeEditor.on("change", changeFunc);
+                });
+            }
+        };
+
+        $("#reload-edited-session").on("click", reloadSession);
+
+        $("#save-session").on("click", () => {
+            CodeEditor.off("change");
+            let txt = CodeEditor.getDoc().getValue();
+            localStorage.setItem(savedKey, txt);
+            blinkElem($(".CodeMirror"), "fast", () => {
+                CodeEditor.on("change", changeFunc);
+            });
+            // mark as reload-able
+            $("#reload-saved-session").removeClass("graylink");
+        });
+
+        // start as non-reloadable
+        $("#reload-saved-session").addClass("graylink");
+
+        $("#reload-saved-session").on("click", () => {
+            CodeEditor.off("change");
+            let newFile = localStorage.getItem(savedKey);
+            if (newFile !== undefined && newFile)
+            {
+                blinkElem($(".CodeMirror"), "slow", () => {    
+                    CodeEditor.swapDoc(
+                        CodeMirror.Doc(
+                            newFile, "javascript"
+                        )
+                    );
+                    CodeEditor.on("change", changeFunc);
+                });
+            }
+        });
+
+        if (storageAvailable('localStorage')) {
+            // finally, load the last stored session:
+            reloadSession();
+        }
+        else {
+            errorHandler({name:"save error", message:"no local storage available for saving files!"});
+        }
+        // disable form reloading on code compile
+        $('form').submit(false);
 
         brython(10);
 
