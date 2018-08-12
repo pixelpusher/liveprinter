@@ -435,9 +435,11 @@
                 this.maxFilamentPerOperation = 30; // safety check to keep from using all filament, in mm
                 this.maxTimePerOperation = 10; // prevent very long operations, by accident - this is in seconds
 
+                // NOTE: disabled for now to use hardware retraction settings
                 this.currentRetraction = 0; // length currently retracted
-                this.retractLength = 2; // in mm - amount to retract after extrusion
-                this.retractSpeed = 30; //mm/s
+                this.retractLength = 3; // in mm - amount to retract after extrusion
+                this.retractSpeed = 300; //mm/s
+                this.firmwareRetract = true;    // use Marlin or printer for retraction
 
                 /**
                     * What to do when movement or extrusion commands are out of machine bounds.
@@ -480,8 +482,13 @@
              */
             start(temp="190") {
                 sendGCode("G28");
-                sendGCode("M104 " + temp)
-                this.moveto({ x: this.cx, y: this.cy, z: this.layerHeight });
+                sendGCode("M104 S" + temp);
+                //set retract length
+                sendGCode("M207 S3 F" + this.retractSpeed+" Z0.2");
+                //set retract recover
+                sendGCode("M208 S0.1 F" + this.retractSpeed +" 300");
+                this.moveto({ x: this.cx, y: this.cy, z: this.layerHeight, speed: Printer.defaultPrintSpeed });
+                sendGCode("M106 S100"); // set fan to full
             }
 
             /**
@@ -500,13 +507,13 @@
 
             /// maxmimum values
             get maxx() {
-                return this.extents()["x"] / 2;
+                return this.extents()["x"] ;
             }
             get maxy() {
-                return this.extents()["y"] / 2;
+                return this.extents()["y"] ;
             }
             get maxz() {
-                return this.extents()["z"] / 2;
+                return this.extents()["z"] ;
             }
 
             /**
@@ -523,6 +530,7 @@
                 //
                 let onlyMove = (this.e == params.e);
                 let extrusionSpecified = !onlyMove && (params.e !== undefined);
+                let retract = ((params.retract !== undefined) && params.retract);
 
                 let __x = (params.x !== undefined) ? params.x : this.x;
                 let __y = (params.y !== undefined) ? params.y : this.y;
@@ -658,11 +666,16 @@
                 }
 
                 //unretract first if needed
-                if (!onlyMove && this.currentRetraction) {
+                if (!onlyMove && !this.firmwareRetract && this.currentRetraction) {
                     this.targetE += this.currentRetraction;
                     // account for previous retraction
-                    sendGCode("G1 " + "E" + (this.currentRetraction + this.e).toFixed(4) + " F" + this.retractSpeed * 60);
+                    sendGCode("G1 " + "E" + (this.currentRetraction + this.e).toFixed(4) + " F" + this.retractSpeed);
                     this.currentRetraction = 0;
+                }
+
+                // unretract
+                if (!onlyMove && retract && this.firmwareRetract) {
+                    sendGCode("G11");
                 }
 
                 // G1 - Coordinated Movement X Y Z E
@@ -671,19 +684,26 @@
                 moveCode.push("Y" + this.targetY);
                 moveCode.push("Z" + this.targetZ);
                 moveCode.push("E" + this.targetE.toFixed(4));
-                moveCode.push("F" + this.printSpeed * 60); // mm/min as opposed to seconds
+                moveCode.push("F" + this.printSpeed*60); // mm/s to mm/min
                 sendGCode(moveCode.join(" "));
 
                 // RETRACT
-                if (!onlyMove && this.retractLength) {
+                if (!onlyMove && !this.firmwareRetract && this.retractLength) {
                     this.currentRetraction = this.retractLength;
                     this.targetE = parseFloat(this.targetE) - this.currentRetraction;
 
-                    sendGCode("G1 " + "E" + this.targetE.toFixed(4) + " F" + this.retractSpeed * 60);
+                    sendGCode("G1 " + "E" + this.targetE.toFixed(4) + " F" + this.retractSpeed);
                 }
+
+                // unretract
+                if (!onlyMove && retract && this.firmwareRetract) {
+                    sendGCode("G11");
+                }
+
                 // FIXME: sort out position updates in a sensible way...
                 //queueGCode("M114"); // get position after move (X:0 Y:0 Z:0 E:0)
 
+                // update position internally
                 this.e = parseFloat(this.targetE);
                 this.x = parseFloat(this.targetX);
                 this.y = parseFloat(this.targetY);
@@ -725,11 +745,11 @@
             } // end moveto
 
             /**
-                * @param {float} note as midi note
-                * @param {float} time in ms
-                * @param {string} axis x,y,z (default x) 
-                * @returns object with axis/distance & speed: {x:distance, speed:speed}
-                */
+             * @param {float} note as midi note
+             * @param {float} time in ms
+             * @param {string} axis x,y,z (default x) 
+             * @returns object with axis/distance & speed: {x:distance, speed:speed}
+             */
             note(note, time, axis = "x") {
                 // low notes are pauses
                 if (note < 10) {
@@ -752,11 +772,23 @@
             }
 
             /**
-                * 
-                * @param {number} note as midi note 
-                * @param {string} axis of movement: x,y,z 
-                * @returns speed in mm/s
-                */
+             * Fills an area based on layerHeight (as thickness of each line)
+             * @param {float} width of the area in mm
+             * @param {float} height of the area in mm
+             */
+            fill(w, h) {
+                for (var i = 0; i < h / lp.layerHeight; i++) {
+                    let m = (i % 2 == 0) ? -1 : 1;
+                    lp.extrude({ y: lp.layerHeight });
+                    lp.extrude({ x: m * w });
+                }
+            }
+
+            /**
+             * @param {number} note as midi note 
+             * @param {string} axis of movement: x,y,z 
+             * @returns speed in mm/s
+             */
             midi2speed(note, axis) {
                 // MIDI note 69     = A4(440Hz)
                 // 2 to the power (69-69) / 12 * 440 = A4 440Hz
@@ -796,6 +828,21 @@
             wait(ms) {
                 sendGCode("M0 P" + ms);
             }
+
+            pause() {
+                // retract filament, turn off fan and heater wait
+                this.extrude({ e: -16, speed: 250 });
+                this.move({ z: -3 });
+                sendGCode("M104 S0"); // turn off temp
+                sendGCode("M107 S0"); // turn off fan
+            }
+
+            resume(temp = "190") {
+                sendGCode("M109 S" + temp); // turn on temp, but wait until full temp reached
+                sendGCode("M106 S100"); // turn on fan
+                this.extrude({ e: 16, speed: 250 });
+            }
+
 
 
             // end Printer class
@@ -1103,7 +1150,7 @@
                 //console.log("error event:");
                 //console.log(event);
                 $("#info > ul").prepend("<li class='alert alert-primary alert-dismissible fade show' role='alert'>"
-                    //+ (new Date(event.time)).toDateString() // FIXME!
+                    + (new Date(parseInt(event.time))).toLocaleDateString('en-US')
                     + '<strong>'
                     + ": " + event.message
                     + '</strong>'
@@ -1116,7 +1163,7 @@
             'resend': function (event) {
                 //console.log("error event:");
                 //console.log(event);
-                $("#info > ul").prepend("<li>" + (new Date()).toDateString() + ": " + event.message + "</li>");
+                $("#info > ul").prepend("<li>" + (new Date(parseInt(event.time))).toLocaleDateString('en-US') + ": " + event.message + "</li>");
                 blinkElem($("#info-tab"));
                 blinkElem($("#inbox"));
             }
@@ -1130,7 +1177,7 @@
             'gcode': function (event) {
                 //console.log("error event:");
                 //console.log(event);
-                $("#commands > ul").prepend("<li>" + (new Date(event.time)).toDateString() + ": " + event.message + "</li>").fadeIn(50);
+                $("#commands > ul").prepend("<li>" + (new Date(parseInt(event.time))).toLocaleDateString('en-US') + ": " + event.message + "</li>").fadeIn(50);
                 blinkElem($("#commands-tab"));
                 blinkElem($("#inbox"));
             }
