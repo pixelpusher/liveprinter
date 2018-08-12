@@ -103,7 +103,8 @@ td {
 }
 
 #tab-messages-pane {
-    /* height: 26em;  */
+    min-height: 26em;
+    max-height: 40em;
     /* 30px for heigh of below + 8px border + 8px padding*/
 }
 
@@ -111,7 +112,8 @@ td {
     overflow-y: scroll;
     overflow-x: hidden;
     padding: 0.4em;
-    height: calc(100% - 0.4em);
+    /*height: calc(100% - 0.4em);*/
+    max-height:40em;
 }
 
 #code-errors {
