@@ -1,5 +1,15 @@
 # LivePrinter
 
+## Get involved!
+
+There's a forum on https://talk.lurk.org/channel/liveprinter
+
+Evan is on Twitter at @evanraskob and can answer questions, etc.
+
+We can create a Reddit forum or YouTube channel if there is demand for it.
+
+## About
+
 *Livecoding meets 3D printing: experiments in live computational sculpting*
 
 LivePrinter is a live, immediate system for combining the design and 3D printing of objects. Livecoding is used to control manufacturing precisely and procedurally with real-time flexibility. It brings improvisation and intuition to the act of making new computational forms.
