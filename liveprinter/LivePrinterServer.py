@@ -252,6 +252,40 @@ def json_handle_printerstate(printer:USBPrinter, *argv):
 
 
 #
+# Clear printer's queued commands
+#
+
+def json_handle_clearqueue(printer:USBPrinter, *argv):
+    
+    json = None
+
+    try:
+        connectionState = printer.getConnectionState()
+        if connectionState is ConnectionState.connected: 
+            printer.clearCommands()
+
+            json = {
+                    'jsonrpc': '2.0',
+                    'id': 6, 
+                    'method': 'clear-command-queue',
+                    'params': {
+                        'time': time(),
+                        'message': 'cleared'
+                        }
+                    }
+        else:
+            pass
+
+    except Exception as e:
+        # TODO: fix this to be a real error type so it gets sent to the clients properly
+       Logger.log("e", "could not get printer state: {}".format(repr(e)))
+       raise ValueError("could not get printer state: {}".format(repr(e)))
+    
+    return json
+
+
+
+#
 # Handle request for serial ports from front end
 #
 def json_handle_portslist(*msg):
@@ -331,7 +365,8 @@ if __name__ == '__main__':
     dispatcher.add_dict({"get-printer-state": lambda *msg: json_handle_printerstate(printer, *msg)})
     dispatcher.add_dict({"get-serial-ports": lambda *msg: json_handle_portslist(*msg)})
     dispatcher.add_dict({"set-serial-port": lambda port: json_handle_set_serial_port(printer, port)})
-
+    dispatcher.add_dict({"clear-command-queue": lambda *msg: json_handle_clearqueue(printer, *msg)})
+    
     # printer API:
 
     # dispatcher.add_dict({"extrude": lambda *msg: json_handle_extrude(printer, *msg)})

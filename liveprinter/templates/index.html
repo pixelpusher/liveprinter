@@ -30,16 +30,16 @@
                         <li class="nav-item btn-group">
                             <a id="editor-tab" class="flex-sm-fill text-sm-center nav-link active lightnav" data-toggle="pill" href="#code-editor-area" role="tab" aria-controls="code-editor-area" aria-selected="true">code editor</a>
                             <a id="examples-dropdown" class="flex-sm-fill text-sm-center nav-link active lightnav dropdown-toggle dropdown-toggle-split" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" role="tab">
-                                    <span class="sr-only">Toggle Dropdown</span>
+                                <span class="sr-only">Toggle Dropdown</span>
                             </a>
                             <div id="examples-list" class="dropdown-menu">
-                                    <a class="dropdown-item purplink" href="#" data-link="{{ static_url("examples/default.js") }}">default example</a>
-                                    <a class="dropdown-item purplink" href="#" data-link="{{ static_url("examples/square.js") }}">square</a>
-                                    <a class="dropdown-item purplink" href="#">Something else here</a>
-                                    <div class="dropdown-divider"></div>
-                                    <a id="reload-edited-session" class="dropdown-item purplink" href="#">reload last edited</a>
-                                    <a id="reload-saved-session" class="dropdown-item purplink"  href="#">reload last saved</a>
-                                    <a id="save-session" class="dropdown-item purplink"><strong>save current</strong></a>
+                                <a class="dropdown-item purplink" href="#" data-link="{{ static_url("examples/default.js") }}">default example</a>
+                                <a class="dropdown-item purplink" href="#" data-link="{{ static_url("examples/square.js") }}">square</a>
+                                <a class="dropdown-item purplink" href="#">Something else here</a>
+                                <div class="dropdown-divider"></div>
+                                <a id="reload-edited-session" class="dropdown-item purplink" href="#">reload last edited</a>
+                                <a id="reload-saved-session" class="dropdown-item purplink" href="#">reload last saved</a>
+                                <a id="save-session" class="dropdown-item purplink"><strong>save current</strong></a>
                             </div>
                         </li>
                     </ul>
@@ -48,32 +48,35 @@
                             <p>printer settings to go here</p>
                             <p><button id="temp-display-btn" class="btn-sm btn-primary" data-toggle="button">Poll Temperature</button></p>
                             <p>
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="dropdown">
-                                        <button class="btn btn-secondary dropdown-toggle" type="button" id="serial-port-dropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                            Connect to printer port:
-                                        </button>
-                                        <div id="serial-ports-list" class="dropdown-menu" aria-labelledby="serial-port-dropdown"></div>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="dropdown">
+                                            <button class="btn btn-med btn-secondary dropdown-toggle" type="button" id="serial-port-dropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                                Connect to printer port:
+                                            </button>
+                                            <div id="serial-ports-list" class="dropdown-menu" aria-labelledby="serial-port-dropdown"></div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <button id="clear-btn" class="btn-sm btn-primary">clear queue</button>
                                     </div>
                                 </div>
-                                <div class="col-md-6">
-                                    -----
-                                </div>
-                            </div>
                             </p>
                         </div>
+
                         <div id="code-editor-area" class="tab-pane fade show active" role="tabpanel" aria-labelledby="pills-editor-tab">
                             <div class="row">
-                                <div class="col-12 cm-contain"><form>
-                                <textarea id="code-editor">
+                                <div class="col-12 cm-contain">
+                                    <form>
+                                        <textarea id="code-editor">
                                     // start coding here or load an example from the dropdown above!
-                                </textarea></form>
+                                </textarea>
+                                    </form>
                                 </div>
                             </div>
                             <div class="row" id="buttons">
-                                    <div class="col-2"><strong>Errors:</strong></div>
-                                    <div class="col-8" id="code-errors"></div>
+                                <div class="col-2"><strong>Errors:</strong></div>
+                                <div class="col-8" id="code-errors"></div>
                             </div>
                             <div class="row">
                                 <div class="col-12">
@@ -81,47 +84,51 @@
                                 </div>
                             </div>
                         </div>
-                    </div> <!-- close tab menus -->
-                    <div class="panel-l"></div>
-                    <div class="panel-b-l"></div>
+                        <div class="panel-l"></div>
+                        <div class="panel-b-l"></div>
+                    </div> <!-- close tab menus --> 
+                  
                 </div> <!-- fullheight box-->
             </div> <!-- close col -->
 
             <!-- end input-->
             <div class="col-3 col-md-4">
                 <div id="inbox" class="box">
-                    <ul class="nav nav-tabs flex-column flex-sm-row" id="pconsole" role="tablist">
-                        <li class="nav-item">
-                            <a class="flex-sm-fill text-sm-center nav-link active" id="info-tab" data-toggle="pill" href="#info" role="tab" aria-controls="info" aria-selected="true">info</a>
-                        </li>
-                        <li class="flex-sm-fill text-sm-center nav-item">
-                            <a class="nav-link" id="errors-tab" data-toggle="pill" href="#errors" role="tab" aria-controls="errors" aria-selected="false">errors</a>
-                        </li>
-                        <li class="flex-sm-fill text-sm-center nav-item">
-                            <a class="nav-link" id="commands-tab" data-toggle="pill" href="#commands" role="tab" aria-controls="commands" aria-selected="false">commands</a>
-                        </li>
-                    </ul>
-                    <!-- Tab panes -->
-                    <div id="tab-messages-pane" class="tab-content">
-                        <div class="tab-pane fade show active" id="info" role="tabpanel" aria-labelledby="pills-info-tab">
-                            <ul></ul>
+                    <div style="position:relative;height:100%">
+                        <ul class="nav nav-tabs flex-column flex-sm-row" id="pconsole" role="tablist">
+                            <li class="nav-item">
+                                <a class="flex-sm-fill text-sm-center nav-link active" id="info-tab" data-toggle="pill" href="#info" role="tab" aria-controls="info" aria-selected="true">info</a>
+                            </li>
+                            <li class="flex-sm-fill text-sm-center nav-item">
+                                <a class="nav-link" id="errors-tab" data-toggle="pill" href="#errors" role="tab" aria-controls="errors" aria-selected="false">errors</a>
+                            </li>
+                            <li class="flex-sm-fill text-sm-center nav-item">
+                                <a class="nav-link" id="commands-tab" data-toggle="pill" href="#commands" role="tab" aria-controls="commands" aria-selected="false">commands</a>
+                            </li>
+                        </ul>
+                        <!-- Tab panes -->
+
+                        <div id="tab-messages-pane" class="tab-content">
+                            <div class="tab-pane fade show active" id="info" role="tabpanel" aria-labelledby="pills-info-tab">
+                                <ul></ul>
+                            </div>
+                            <div class="tab-pane fade" id="errors" role="tabpanel" aria-labelledby="pills-errors-tab">
+                                <ul></ul>
+                            </div>
+                            <div class="tab-pane fade" id="commands" role="tabpanel" aria-labelledby="pills-commands-tab">
+                                <ul></ul>
+                            </div>
                         </div>
-                        <div class="tab-pane fade" id="errors" role="tabpanel" aria-labelledby="pills-errors-tab">
-                            <ul></ul>
-                        </div>
-                        <div class="tab-pane fade" id="commands" role="tabpanel" aria-labelledby="pills-commands-tab">
-                            <ul></ul>
-                        </div>
+                        <div id="temperature"><p class='alert alert-danger fade show' role='alert'></p></div>
                     </div>
-                    <div id="temperature"><p class='alert alert-danger fade show' role='alert'></p></div>
                     <div class="panel-r lines"></div>
                     <div class="panel-b-r"></div>
                 </div>
             </div>
-            <!-- end 1st row -->
+
+            </div><!-- end 1st row -->
         </div>
         <!-- end main container-->
-    </div>
 
     <!-- Bootstrap 4 -->
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">

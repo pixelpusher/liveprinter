@@ -154,7 +154,6 @@ class USBPrinter(OutputDevice):
 
         # Queue for commands that need to be sent.
         self._command_queue = Queue()
-        # Event to indicate that an "ok" was received from the printer after sending a command.
 
         # Queue for messages from the printer.
         self._responses_queue = Queue()
@@ -171,6 +170,21 @@ class USBPrinter(OutputDevice):
 
         # start main communications thread
         self._update_thread.start()
+
+    #
+    # Clear all commands and reset
+    #
+    def clearCommands(self):
+        self.pausePrint()
+        self._last_command = None  # last line sent to the printer
+        self._last_line = 0
+        self._commands_on_printer = 0 # commands currently queued on printer
+        self._commands_list_start_index = 1 # index of first command in sequence send to the printer (might change if we need to remove commands from queue due to size)
+        self._commands_list = [] # list of all commands sent to the printer where index is added to the above 
+        self._commands_current_line = 1 # the current line being printed - might be updated when handling a resend
+        # self.sendCommand("M77") # stop print job timer
+        # self.sendCommand("M110 N0") # resent line numbers to 0
+
 
     def _autoDetectFinished(self, job: AutoDetectBaudJob):
         result = job.getResult()
@@ -315,7 +329,11 @@ class USBPrinter(OutputDevice):
     # Get a command that was sent before by its index (starts at 1, not 0)
     def getCommand(self, index):
         return self._commands_list[index-self._commands_list_start_index]
-
+    
+    ##
+    # Get a command that was sent before by its index (starts at 1, not 0)
+    def setCommand(self, index, cmd):
+        self._commands_list[index-self._commands_list_start_index] = cmd
 
 
     ## threaded update function.
@@ -363,11 +381,20 @@ class USBPrinter(OutputDevice):
                         #    Logger.log("i", "no unfinished tasks")
 
                     # if we're not at the top of the queue of commands, send the next one
-                    if (self._commands_current_line < self.countAllCommands()) and (self._commands_on_printer < 4):
+                    if (self._commands_current_line < self.countAllCommands()) and (self._commands_on_printer < 6):
                         # Logger.log("i","all commands: {}".format(self.countAllCommands()))
                         cmd = self.getCommand(self._commands_current_line)
-                        self._serialSendCommand(cmd, self._commands_current_line)
-                        sleep(0.01) # necessary to allow other threads to interact, otherwise events/lines are lost! (locking didn't fix that)
+                        
+                        # catch pause commands
+                        if cmd.startswith("M0"):
+                            self.setCommand(self._commands_current_line,"M400")
+                            self._serialSendCommand("M400", self._commands_current_line) #M400 is wait for moves to finish
+                            wait_times = re.findall("P(\d+)", cmd)
+                            for interval in wait_times:
+                                sleep(float(interval)/1000)
+                        else:
+                            self._serialSendCommand(cmd, self._commands_current_line)
+                            sleep(0.01) # necessary to allow other threads to interact, otherwise events/lines are lost! (locking didn't fix that)
                     
                 ###
                 ### Process printer responses

@@ -418,9 +418,9 @@
             ///////
 
             constructor() {
-                this.x = 0; // x position in mm
-                this.y = 0; // y position in mm
-                this.z = 0; // z position in mm
+                this.x = this.minx = 5; // x position in mm
+                this.y = this.miny = 5; // y position in mm
+                this.z = this.minz = 0; // z position in mm
                 this.e = 0; //filament position in mm
 
                 this.targetX = 0; // x position in mm
@@ -431,6 +431,9 @@
                 this.lastSpeed = -1.0;
 
                 this.travelSpeed = { 'x': 5, 'y': 5, 'z': 0 }; // in mm/s
+
+                this.maxFilamentPerOperation = 30; // safety check to keep from using all filament, in mm
+                this.maxTimePerOperation = 10; // prevent very long operations, by accident - this is in seconds
 
                 this.currentRetraction = 0; // length currently retracted
                 this.retractLength = 2; // in mm - amount to retract after extrusion
@@ -450,7 +453,6 @@
                 this._printSpeed = Printer.defaultPrintSpeed;
                 this._model = Printer.UM2plus; // default
                 this.layerHeight = 0.2; // thickness of a 3d printed extrudion, mm by default
-                this.mode = -1; // 0 is absolute, 1 is relative (temporarily).  -1 forces reset
             }
 
             //
@@ -465,10 +467,47 @@
 
             set printSpeed(s) {
                 let maxs = Printer.maxPrintSpeed[this._model];
-                this._printSpeed = Math.min(s, parseInt(maxs.x)); // pick in x direction...
+                this._printSpeed = Math.min(parseFloat(s), parseFloat(maxs.x)); // pick in x direction...
             }
 
             get printSpeed() { return this._printSpeed; }
+
+            /**
+             * Performs a quick startup by resetting the axes and moving the head
+             * to printing position (layerheight)
+             * 
+             * @param {float} temp is the temperature to start warming up to
+             */
+            start(temp="190") {
+                sendGCode("G28");
+                sendGCode("M104 " + temp)
+                this.moveto({ x: this.cx, y: this.cy, z: this.layerHeight });
+            }
+
+            /**
+             * Get the center horizontal (x) position on the bed
+             */
+            get cx() {
+                return this.extents()["x"] / 2;
+            }
+
+            /**
+             * Get the center vertical (y) position on the bed,
+             */
+            get cy() {
+                return this.extents()["y"] / 2;
+            }
+
+            /// maxmimum values
+            get maxx() {
+                return this.extents()["x"] / 2;
+            }
+            get maxy() {
+                return this.extents()["y"] / 2;
+            }
+            get maxz() {
+                return this.extents()["z"] / 2;
+            }
 
             /**
                 * extrude from the printer head, withing bounds
@@ -479,7 +518,7 @@
                 let _speed = parseFloat((params.speed !== undefined) ? params.speed : this.printSpeed);
                 let _layerHeight = parseFloat((params.thickness !== undefined) ? params.thickness : this.layerHeight);
 
-                this.printSpeed = _speed;
+                this.printSpeed = _speed.toFixed(4);
 
                 //
                 let onlyMove = (this.e == params.e);
@@ -507,9 +546,9 @@
                 else // stop is default, for safety!
                 {
                     // stop at edges
-                    __x = Math.min(this.x + parseFloat(__x), _extents.x);
-                    __y = Math.min(this.y + parseFloat(__y), _extents.y);
-                    __z = Math.min(this.z + parseFloat(__z), _extents.z);
+                    __x = Math.min(__x, _extents.x);
+                    __y = Math.min(__y, _extents.y);
+                    __z = Math.min(__z, _extents.z);
                 }
                 //////////////////////////////////////
                 /// START CALCULATIONS      //////////
@@ -527,7 +566,7 @@
                 //
                 // BREAK AT LARGE MOVES
                 //
-                if (moveTime > 10) 
+                if (moveTime > this.maxTimePerOperation) 
                 {
                     throw Error("move time too long:" + moveTime);
                 }
@@ -536,10 +575,18 @@
                 nozzleSpeed.x = dx / moveTime;
                 nozzleSpeed.y = dy / moveTime;
                 nozzleSpeed.z = dz / moveTime;
-
-                // sanity check:
-                //let speedCheck = Math.sqrt(nozzleSpeed.x * nozzleSpeed.x + nozzleSpeed.y * nozzleSpeed.y + nozzleSpeed.z * nozzleSpeed.z);
-                //console.log("speed check: " + speedCheck + "/" + _speed);
+                //
+                // safety checks
+                //
+                if (nozzleSpeed.x > Printer.maxPrintSpeed[this.model]["x"]) {
+                    throw Error("X travel too fast:" + nozzleSpeed.x);
+                }
+                if (nozzleSpeed.y > Printer.maxPrintSpeed[this.model]["y"]) {
+                    throw Error("Y travel too fast:" + nozzleSpeed.y);
+                }
+                if (nozzleSpeed.z > Printer.maxPrintSpeed[this.model]["z"]) {
+                    throw Error("Z travel too fast:" + nozzleSpeed.z);
+                }
 
                 // TODO: check for maximum speed!
 
@@ -565,11 +612,23 @@
                         // this was helpful: https://github.com/Ultimaker/GCodeGenJS/blob/master/js/gcode.js
                         let filamentLength = dist * _layerHeight * _layerHeight;//(Math.PI*filamentRadius*filamentRadius);
 
+                        //
+                        // safety check:
+                        //
+                        if (filamentLength > this.maxFilamentPerOperation) {
+                            throw Error("Too much filament in move:" + filamentLength);
+                        }
                         if (!Printer.extrusionInmm3[this.model]) {
                             filamentLength /= (filamentRadius * filamentRadius * Math.PI);
                         }
-
                         let filamentSpeed = filamentLength / moveTime;
+
+                        //
+                        // safety check:
+                        //
+                        if (filamentSpeed > Printer.maxPrintSpeed[this.model]["e"]) {
+                            throw Error("Filament speed too fast:" + filamentSpeed);
+                        }
 
                         //console.log("filament speed: " + filamentSpeed);
                         //console.log("filament distance : " + filamentLength + "/" + dist);
@@ -639,9 +698,9 @@
                 let __y = (params.y !== undefined) ? params.y : 0;
                 let __z = (params.z !== undefined) ? params.z : 0;
 
-                params.x = __x;
-                params.y = __y;
-                params.z = __z;
+                params.x = __x + this.x;
+                params.y = __y + this.y;
+                params.z = __z + this.z;
 
                 if (params.e !== undefined) params.e = (parseFloat(params.e) + this.e);
                 //console.log(params);
@@ -671,15 +730,25 @@
                 * @param {string} axis x,y,z (default x) 
                 * @returns object with axis/distance & speed: {x:distance, speed:speed}
                 */
-            note(note, time, axis="x") {
-                //this.printSpeed = this.midi2feedrate(note,axis); // mm/s
-                let speed = this.midi2speed(note,axis); // mm/s
-                let dist = speed * time/1000; // time in ms
-                let moveObj = {};
-                moveObj[axis] = dist;
-                moveObj["speed"] = speed;
-                this.move(moveObj);
-                return moveObj;
+            note(note, time, axis = "x") {
+                // low notes are pauses
+                if (note < 10) {
+                    sendGCode("M0 P" + time);
+                    let moveObj = {};
+                    moveObj[axis] = 0;
+                    moveObj["speed"] = 0;
+                    return moveObj;
+                }
+                else {
+                    //this.printSpeed = this.midi2feedrate(note,axis); // mm/s
+                    let speed = this.midi2speed(note, axis); // mm/s
+                    let dist = speed * time / 1000; // time in ms
+                    let moveObj = {};
+                    moveObj[axis] = dist;
+                    moveObj["speed"] = speed;
+                    this.move(moveObj);
+                    return moveObj;
+                }
             }
 
             /**
@@ -797,8 +866,8 @@
             
         Printer.maxPrintSpeed = {};
         Printer.maxPrintSpeed[Printer.UM2] =
-            Printer.maxPrintSpeed[Printer.REPRAP] ={ 'x': 150, 'y': 150, 'z': 80 };
-        Printer.maxPrintSpeed[Printer.UM3] = Printer.maxPrintSpeed[Printer.UM2plus] = { 'x': 150, 'y': 150, 'z': 80 };
+            Printer.maxPrintSpeed[Printer.REPRAP] = { 'x': 150, 'y': 150, 'z': 80, 'e': 45 };
+        Printer.maxPrintSpeed[Printer.UM3] = Printer.maxPrintSpeed[Printer.UM2plus] = { 'x': 150, 'y': 150, 'z': 80, 'e': 45 };
 
         Printer.bedSize = {};
         Printer.bedSize[Printer.UM2plus] = Printer.bedSize[Printer.UM2] 
@@ -806,7 +875,7 @@
         Printer.bedSize[Printer.UM2plusExt] ={ 'x': 223, 'y': 223, 'z': 305 };
         Printer.bedSize[Printer.REPRAP] = { 'x': 150, 'y': 150, 'z': 80 };
 
-        Printer.defaultPrintSpeed = 50; // mm/s
+        Printer.defaultPrintSpeed = 30; // mm/s
 
         Printer.speedScale = {};
         Printer.speedScale[Printer.UM2] = {'x': 47.069852, 'y':47.069852, 'z':160.0};
@@ -880,9 +949,11 @@
                 code = "let sched = window.scope.scheduler;" + code;
                 code = "let socket = window.scope.socket;" + code;
                 code = "let gcode = window.scope.sendGCode;" + code;
+                code = "let s = window.scope;" + code;
+
 
                 // wrap code in anonymous function to avoid redeclaring scope variables and
-                // scope bleed.  For global functions that persist, use lp scope
+                // scope bleed.  For global functions that persist, use lp scope or s
 
                 // error handling
                 code = 'try {' + code;
@@ -1134,6 +1205,20 @@
             }
             me.button('toggle');
         });
+
+        /*
+         * Clear printer queue on server 
+         */
+        $("#clear-btn").on("click", function () {
+            let message = {
+                'jsonrpc': '2.0',
+                'id': 7,
+                'method': 'clear-command-queue',
+                'params': [],
+            };
+            socketHandler.socket.send(JSON.stringify(message));
+        });
+
 
         // TODO: temp probe that gets scheduled every 300ms and then removes self when
         // tempHandler called
