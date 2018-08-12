@@ -31,6 +31,8 @@
 
         var outgoingQueue = []; // messages for the server
 
+        var pythonMode = true;
+
         var Scheduler = {
             ScheduledEvents: [],
             audioContext: new AudioContext(),
@@ -127,14 +129,7 @@
             scrollbarStyle: "simple",
             styleActiveLine: true,
             lineWrapping: true,
-            autocomplete: true,
-            mode: "javascript",
-            lint: {
-                globalstrict: true,
-                strict: false,
-                esversion: 6
-            },
-            gutters: ["CodeMirror-lint-markers", "CodeMirror-linenumbers", "CodeMirror-foldgutter"],
+            //autocomplete: true,
             extraKeys: {
                 "Ctrl-Enter": compileCode,
                 "Cmd-Enter": compileCode,
@@ -144,6 +139,23 @@
             foldGutter: true,
             autoCloseBrackets: true
         });
+
+        var setLanguageMode = () => {
+            if (pythonMode) {
+                CodeEditor.setOption("mode", "text/x-python");
+                CodeEditor.setOption("lint", true);
+                CodeEditor.setOption("gutters", ["CodeMirror-linenumbers", "CodeMirror-foldgutter"]);
+            } else {
+                CodeEditor.setOption("mode", "javascript");
+                CodeEditor.setOption("lint", {
+                    globalstrict: true,
+                    strict: false,
+                    esversion: 6
+                });
+                CodeEditor.setOption("gutters", ["CodeMirror-lint-markers", "CodeMirror-linenumbers", "CodeMirror-foldgutter"]);
+            }
+        };
+
         //
         // build examples loader links for dynamically loading example files
         //
@@ -1000,50 +1012,70 @@
             code = jQuery.trim(code);
             console.log(code);
             if (code) {
+                if (pythonMode) {
 
-                // give quick access to liveprinter API
-                code = "let lp = window.scope.printer;" + code;
-                code = "let sched = window.scope.scheduler;" + code;
-                code = "let socket = window.scope.socket;" + code;
-                code = "let gcode = window.scope.sendGCode;" + code;
-                code = "let s = window.scope;" + code;
+                    let script = document.createElement("script");
+                    script.type = "text/python";
+                    script.text = code;
+                   
+                    // run and remove
+                    let scriptsContainer = $("#python-scripts");
+                    scriptsContainer.empty(); // remove old ones
+                    scriptsContainer.append(script); // append new one
+
+                    brython(); // re-run brython
+
+                    //code = __BRYTHON__.py2js(code + "", "newcode", "newcode").to_js();
+                    //console.log(code);
+                    // eval(code);
+                }
+                else {
+
+                    // give quick access to liveprinter API
+                    code = "let lp = window.scope.printer;" + code;
+                    code = "let sched = window.scope.scheduler;" + code;
+                    code = "let socket = window.scope.socket;" + code;
+                    code = "let gcode = window.scope.sendGCode;" + code;
+                    code = "let s = window.scope;" + code;
+                    code = "let None = function() {};" + code;
 
 
-                // wrap code in anonymous function to avoid redeclaring scope variables and
-                // scope bleed.  For global functions that persist, use lp scope or s
+                    // wrap code in anonymous function to avoid redeclaring scope variables and
+                    // scope bleed.  For global functions that persist, use lp scope or s
 
-                // error handling
-                code = 'try {' + code;
-                code = code + '} catch (e) { e.lineNumber=line;doError(e); }';
+                    // error handling
+                    code = 'try {' + code;
+                    code = code + '} catch (e) { e.lineNumber=line;doError(e); }';
 
-                code = "let line =" + line + ";" + code;
+                    code = "let line =" + line + ";" + code;
 
-                // function wrapping
-                code = '(function(){"use strict";' + code;
-                code = code + "})();";
+                    // function wrapping
+                    code = '(function(){"use strict";' + code;
+                    code = code + "})();";
 
-                console.log("adding code:" + code);
-                let script = document.createElement("script");
-                script.text = code;
-                /*
-                    * NONE OF THIS WORKS IN CHROME... should be aesy, but no.
-                    *
-                let node = null;
-                script.onreadystatechange = script.onload = function () {
-                    console.log("loaded");
-                    node.printer = printer;
-                    node.scheduler = Scheduler;
-                    node.socket = socketHandler;
-
-                    node.parentNode.removeChild(script);
-                    node = null;
-                };
-                script.onerror = function (e) { console.log("script error:" + e) };
-
-                node = document.head.appendChild(script);
-                */
-                // run and remove
-                document.head.appendChild(script).parentNode.removeChild(script);
+                    console.log("adding code:" + code);
+                    let script = document.createElement("script");
+                    script.text = code;
+                    /*
+                        * NONE OF THIS WORKS IN CHROME... should be aesy, but no.
+                        *
+                    let node = null;
+                    script.onreadystatechange = script.onload = function () {
+                        console.log("loaded");
+                        node.printer = printer;
+                        node.scheduler = Scheduler;
+                        node.socket = socketHandler;
+    
+                        node.parentNode.removeChild(script);
+                        node = null;
+                    };
+                    script.onerror = function (e) { console.log("script error:" + e) };
+    
+                    node = document.head.appendChild(script);
+                    */
+                    // run and remove
+                    document.head.appendChild(script).parentNode.removeChild(script);
+                }
             }
         } // end globalEval
 
@@ -1262,6 +1294,22 @@
             }
             me.button('toggle');
         });
+
+
+        $("#python-mode-btn").on("click", function () {
+            let me = $(this);
+            pythonMode = !me.hasClass('active'); // because it becomes active *after* a push
+            
+            if (pythonMode) {
+                me.text("python mode");
+            }
+            else {
+                me.text("javascript mode")
+            }
+            setLanguageMode(); // update codemirror editor
+            me.button('toggle');
+        });
+
 
         /*
          * Clear printer queue on server 
