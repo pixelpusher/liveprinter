@@ -733,7 +733,7 @@
             note(note, time, axis = "x") {
                 // low notes are pauses
                 if (note < 10) {
-                    sendGCode("M0 P" + time);
+                    this.wait(time);
                     let moveObj = {};
                     moveObj[axis] = 0;
                     moveObj["speed"] = 0;
@@ -788,6 +788,15 @@
                 let bs = Printer.speedScale[this.model];
                 return {"x":bs["x"], "y":bs["y"], "z":bs["z"] };
             }
+
+            /**
+             * Causes the printer to wait for a number of milliseconds
+             * @param {float} ms to wait
+             */
+            wait(ms) {
+                sendGCode("M0 P" + ms);
+            }
+
 
             // end Printer class
         };
