@@ -409,6 +409,9 @@
             // basic properties and functions for the physical printer like speeds, dimensions, extrusion settings
             // will be merged into the back end shortly and removed from this file
             //
+            // FUTURE NOTE: make this not a class but use object inheritance and prototyping
+            //
+            //
             class Printer {
 
                 ///////
@@ -433,6 +436,12 @@
                     this.currentRetraction = 0; // length currently retracted
                     this.retractLength = 2; // in mm - amount to retract after extrusion
                     this.retractSpeed = 30; //mm/s
+
+                    /**
+                     * What to do when movement or extrusion commands are out of machine bounds.
+                     * Can be clip (keep printing inside edges), bounce (bounce off edges), stop
+                     */
+                    this.boundaryMode = "stop";
 
                     // TODO: use Quarternions for axis/angle: https://github.com/infusion/Quaternion.js
 
@@ -468,14 +477,6 @@
                  *      Optional bounce (Boolean) key if movement should bounce off sides.
                  */
                 extrudeto(params) {
-                    let __x = (params.x !== undefined) ? params.x : this.x;
-                    let __y = (params.y !== undefined) ? params.y : this.y;
-                    let __z = (params.z !== undefined) ? params.z : this.z;
-
-                    __x = parseFloat(__x);
-                    __y = parseFloat(__y);
-                    __z = parseFloat(__z);
-
                     let _speed = parseFloat((params.speed !== undefined) ? params.speed : this.printSpeed);
                     let _layerHeight = parseFloat((params.thickness !== undefined) ? params.thickness : this.layerHeight);
 
@@ -485,18 +486,35 @@
                     let onlyMove = (this.e == params.e);
                     let extrusionSpecified = !onlyMove && (params.e !== undefined);
 
-                    console.log(onlyMove);
+                    let __x = (params.x !== undefined) ? params.x : this.x;
+                    let __y = (params.y !== undefined) ? params.y : this.y;
+                    let __z = (params.z !== undefined) ? params.z : this.z;
 
-                    // TODO: handle *bounce* (much more complicated!)
+                    __x = parseFloat(__x);
+                    __y = parseFloat(__y);
+                    __z = parseFloat(__z);
 
-                    // clip to printer size for safety
-                    //console.log(Printer.bedSize);
-                    //console.log(this.model);
+                    let _extents = this.extents();
 
-                    let _bedSize = Printer.bedSize[this.model];
-                    __x = Math.min(__x, _bedSize["x"]);
-                    __y = Math.min(__y, _bedSize["y"]);
-                    __z = Math.min(__z, _bedSize["z"]);
+                    //
+                    // handle movements outside printer boundaries
+                    //
+                    if (this.boundaryMode == "bounce")
+                    {  
+                        //
+                        // TODO: this would be tail recursive?
+                        //
+                    }
+                    else // stop is default, for safety!
+                    {
+                        // stop at edges
+                        __x = Math.min(this.x + parseFloat(__x), _extents.x);
+                        __y = Math.min(this.y + parseFloat(__y), _extents.y);
+                        __z = Math.min(this.z + parseFloat(__z), _extents.z);
+                    }
+                    //////////////////////////////////////
+                    /// START CALCULATIONS      //////////
+                    //////////////////////////////////////
 
                     let dx = this.x - __x;
                     let dy = this.y - __y;
@@ -506,6 +524,15 @@
                     let moveTime = dist / _speed; // in sec
 
                     console.log("time: " + moveTime + " / dist:" + dist);
+                    
+                    //
+                    // BREAK AT LARGE MOVES
+                    //
+                    if (moveTime > 10) 
+                    {
+                        throw Error("move time too long:" + moveTime);
+                    }
+
                     let nozzleSpeed = {};
                     nozzleSpeed.x = dx / moveTime;
                     nozzleSpeed.y = dy / moveTime;
@@ -545,8 +572,8 @@
 
                             let filamentSpeed = filamentLength / moveTime;
 
-                            console.log("filament speed: " + filamentSpeed);
-                            console.log("filament distance : " + filamentLength + "/" + dist);
+                            //console.log("filament speed: " + filamentSpeed);
+                            //console.log("filament distance : " + filamentLength + "/" + dist);
                             //console.log("e type=" + typeof this.e);
 
                             this.targetE = this.e + filamentLength;
@@ -558,8 +585,6 @@
                     this.targetX = __x.toFixed(4);
                     this.targetY = __y.toFixed(4);
                     this.targetZ = __z.toFixed(4);
-
-
 
                     // TODO:
                     // schedule callback function to update state variables like layerheight,
@@ -615,11 +640,6 @@
                     let __y = (params.y !== undefined) ? params.y : 0;
                     let __z = (params.z !== undefined) ? params.z : 0;
 
-                    // make relative
-                    __x = this.x + parseFloat(__x);
-                    __y = this.y + parseFloat(__y);
-                    __z = this.z + parseFloat(__z);
-
                     params.x = __x;
                     params.y = __y;
                     params.z = __z;
@@ -646,11 +666,30 @@
                     this.extrudeto(params);
                 } // end moveto
 
-                //
-                // @param note is midi
-                // @param axis is x,y,z
-                //
-                midi2feedrate(note, axis) {
+                /**
+                 * @param {float} note as midi note
+                 * @param {float} time in ms
+                 * @param {string} axis x,y,z (default x) 
+                 * @returns object with axis/distance & speed: {x:distance, speed:speed}
+                 */
+                note(note, time, axis="x") {
+                    //this.printSpeed = this.midi2feedrate(note,axis); // mm/s
+                    let speed = this.midi2speed(note,axis); // mm/s
+                    let dist = speed * time/1000; // time in ms
+                    let moveObj = {};
+                    moveObj[axis] = dist;
+                    moveObj["speed"] = speed;
+                    this.move(moveObj);
+                    return moveObj;
+                }
+
+                /**
+                 * 
+                 * @param {number} note as midi note 
+                 * @param {string} axis of movement: x,y,z 
+                 * @returns speed in mm/s
+                 */
+                midi2speed(note, axis) {
                     // MIDI note 69     = A4(440Hz)
                     // 2 to the power (69-69) / 12 * 440 = A4 440Hz
                     // 2 to the power (64-69) / 12 * 440 = E4 329.627Hz
@@ -659,9 +698,13 @@
                     //freq_xyz[j] = Math.pow(2.0, (note-69)/12.0)*440.0 
 
                     let freq = Math.pow(2.0, (note-69)/12.0)*440.0;
-                    let feed = (freq * 60.0 ) / parseFloat(this.speedScale()[axis]);
+                    let speed = freq / parseFloat(this.speedScale()[axis]);
 
-                    return feed;
+                    return speed;
+                }
+
+                m2s(note,axis) {
+                    return this.midi2speed(note,axis);
                 }
 
                 extents()
@@ -678,8 +721,6 @@
                     return {"x":bs["x"], "y":bs["y"], "z":bs["z"] };
                 }
 
-                // speedScale
-
                 // end Printer class
             };
 
@@ -689,24 +730,26 @@
             // supported printers
             Printer.UM2 = "UM2";
             Printer.UM2plus = "UM2plus";
+            Printer.UM2plusExt = "UM2plusExt";
             Printer.UM3 = "UM3";
             Printer.REPRAP = "REP";
 
             Printer.PRINTERS = [Printer.UM2, Printer.UM3, Printer.REPRAP];
 
             // dictionary of first GCODE sent to printer at start
-            Printer.GCODE_HEADERS = {
-                UM2: [
+            Printer.GCODE_HEADERS = {};
+            Printer.GCODE_HEADERS[Printer.UM2] = [
                     ";FLAVOR:UltiGCode",
                     ";TIME:1",
                     ";MATERIAL:1",
-                ],
-                UM2plus: [
+            ];
+            Printer.GCODE_HEADERS[Printer.UM2plus] = [
                     ";FLAVOR:UltiGCode",
                     ";TIME:1",
                     ";MATERIAL:1",
-                ],
-                UM3: [
+            ];
+
+            Printer.GCODE_HEADERS[Printer.UM3]= [
                     ";START_OF_HEADER",
                     ";HEADER_VERSION:0.1",
                     ";FLAVOR:Griffin",
@@ -727,49 +770,48 @@
                     ";PRINT.SIZE.MAX.Z:200",
                     ";END_OF_HEADER",
                     "G92 E0",
-                ],
-                REPRAP: [
+                ];
+                Printer.GCODE_HEADERS[Printer.REPRAP] = [
                     ";RepRap target",
                     "G28",
                     "G92 E0",
-                ]
-            };
+                ];
 
-            Printer.filamentDiameter = { UM2: 2.85, UM2plus: 2.85, UM3: 2.85, REPRAP: 2.85 };
-            Printer.extrusionInmm3 = { UM2: false, UM2plus: true, UM3: true, REPRAP: false };
+            Printer.filamentDiameter = {};
+            Printer.filamentDiameter[Printer.UM2] = Printer.filamentDiameter[Printer.UM2plus] =
+                 Printer.filamentDiameter[Printer.REPRAP] = 2.85;
+            Printer.extrusionInmm3 = {};
+            Printer.extrusionInmm3[Printer.UM2]= Printer.extrusionInmm3[Printer.REPRAP] = false;
+            Printer.extrusionInmm3[Printer.UM2plus] = Printer.extrusionInmm3[Printer.UM3] = true;
 
             // TODO: FIX THESE!
             // https://ultimaker.com/en/products/ultimaker-2-plus/specifications
 
             // TODO: check these: there are max speeds for each motor (x,y,z,e)
 
-            Printer.maxTravelSpeed = {
-                UM2plus: { 'x': 300, 'y': 300, 'z': 80, 'e': 45 },
-                UM2: { 'x': 300, 'y': 300, 'z': 80, 'e': 45 },
-                UM3: { 'x': 300, 'y': 300, 'z': 80, 'e': 45 },
-                REPRAP: { 'x': 300, 'y': 300, 'z': 80, 'e': 45 }
-            };
+            Printer.maxTravelSpeed = {};
 
-            Printer.maxPrintSpeed = {
-                UM2: { 'x': 150, 'y': 150, 'z': 80 },
-                'UM2plus': { 'x': 150, 'y': 150, 'z': 80 },
-                UM3: { 'x': 150, 'y': 150, 'z': 80 },
-                REPRAP: { 'x': 150, 'y': 150, 'z': 80 }
-            };
+            Printer.maxTravelSpeed[Printer.UM3] =
+                Printer.maxTravelSpeed[Printer.UM2plus] = 
+                    Printer.maxTravelSpeed[Printer.UM2] = { 'x': 300, 'y': 300, 'z': 80, 'e': 45 };
+            Printer.maxTravelSpeed[Printer.REPRAP] = { 'x': 300, 'y': 300, 'z': 80, 'e': 45 };
+            
+            Printer.maxPrintSpeed = {};
+            Printer.maxPrintSpeed[Printer.UM2] =
+                Printer.maxPrintSpeed[Printer.REPRAP] ={ 'x': 150, 'y': 150, 'z': 80 };
+            Printer.maxPrintSpeed[Printer.UM3] = Printer.maxPrintSpeed[Printer.UM2plus] = { 'x': 150, 'y': 150, 'z': 80 };
 
-            Printer.bedSize = {
-                UM2: { 'x': 223, 'y': 223, 'z': 205 },
-                UM2plus: { 'x': 223, 'y': 223, 'z': 305 },
-                UM3: { 'x': 223, 'y': 223, 'z': 205 },
-                REPRAP: { 'x': 150, 'y': 150, 'z': 80 }
-            };
+            Printer.bedSize = {};
+            Printer.bedSize[Printer.UM2plus] = Printer.bedSize[Printer.UM2] 
+                = Printer.bedSize[Printer.UM3] = { 'x': 223, 'y': 223, 'z': 205 };
+            Printer.bedSize[Printer.UM2plusExt] ={ 'x': 223, 'y': 223, 'z': 305 };
+            Printer.bedSize[Printer.REPRAP] = { 'x': 150, 'y': 150, 'z': 80 };
 
             Printer.defaultPrintSpeed = 50; // mm/s
 
-            Printer.speedScale = {
-                UM2 : {'x': 47.069852, 'y':47.069852, 'z':160.0},
-                UM2plus : {'x': 47.069852, 'y':47.069852, 'z':160.0}
-            };
+            Printer.speedScale = {};
+            Printer.speedScale[Printer.UM2] = {'x': 47.069852, 'y':47.069852, 'z':160.0};
+            Printer.speedScale[Printer.UM2plus] = {'x': 47.069852, 'y':47.069852, 'z':160.0};
 
             //////////////////////////////////////////////////////////
 
