@@ -787,12 +787,14 @@
              * Fills an area based on layerHeight (as thickness of each line)
              * @param {float} width of the area in mm
              * @param {float} height of the area in mm
+             * @param {float} lh the layerheight (or gap, if larger)
              */
-            fill(w, h) {
-                for (var i = 0; i < h / lp.layerHeight; i++) {
-                    let m = (i % 2 == 0) ? -1 : 1;
-                    lp.extrude({ y: lp.layerHeight });
-                    lp.extrude({ x: m * w });
+            fill(w, h, lh = this.layerHeight) {
+                let inc = lh * Math.PI;
+                for (var i = 0, y = 0; y < h; i++ , y += inc) {
+                    let m = (i % 2 == 0) ? 1 : -1;
+                    this.move({ y: inc });
+                    this.extrude({ x: m * w });
                 }
             }
 
@@ -1014,6 +1016,10 @@
             if (code) {
                 if (pythonMode) {
 
+
+                    code = "from browser import document as doc\nfrom browser import window as win\nlp = win.scope.printer\ngcode = win.scope.sendGCode\n"
+                        + code;
+
                     let script = document.createElement("script");
                     script.type = "text/python";
                     script.text = code;
@@ -1026,7 +1032,7 @@
                     brython(); // re-run brython
 
                     //code = __BRYTHON__.py2js(code + "", "newcode", "newcode").to_js();
-                    //console.log(code);
+                    console.log(code);
                     // eval(code);
                 }
                 else {
