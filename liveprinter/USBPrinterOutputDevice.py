@@ -184,6 +184,7 @@ class USBPrinter(OutputDevice):
         self._commands_current_line = 1 # the current line being printed - might be updated when handling a resend
         # self.sendCommand("M77") # stop print job timer
         # self.sendCommand("M110 N0") # resent line numbers to 0
+        self.resumePrint()
 
 
     def _autoDetectFinished(self, job: AutoDetectBaudJob):
