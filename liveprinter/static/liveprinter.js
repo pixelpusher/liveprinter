@@ -134,7 +134,7 @@
                 "Ctrl-Enter": compileCode,
                 "Cmd-Enter": compileCode,
                 "Ctrl-Space": "autocomplete",
-                "Ctrl-Q": function(cm){ cm.foldCode(cm.getCursor()); }
+                "Ctrl-Q": function (cm) { cm.foldCode(cm.getCursor()); }
             },
             foldGutter: true,
             autoCloseBrackets: true
@@ -159,20 +159,20 @@
         //
         // build examples loader links for dynamically loading example files
         //
-        let exList = $("#examples-list > .dropdown-item").not("[id*='session']" );
-        exList.on("click", function() {
+        let exList = $("#examples-list > .dropdown-item").not("[id*='session']");
+        exList.on("click", function () {
             let me = $(this);
             let filename = me.data("link");
             clearError(); // clear loading errors
-            var jqxhr = $.ajax( {url: filename, dataType:"text" })
-                .done(function(content) {
+            var jqxhr = $.ajax({ url: filename, dataType: "text" })
+                .done(function (content) {
                     let newDoc = CodeMirror.Doc(content, "javascript");
                     blinkElem($(".CodeMirror"), "slow", () => CodeEditor.swapDoc(newDoc));
                 })
-                .fail(function() {
-                    doError({name:"error", message:"file load error:"+filename});
+                .fail(function () {
+                    doError({ name: "error", message: "file load error:" + filename });
                 });
-            });
+        });
 
         // borrowed from https://github.com/cncjs/gcode-parser/blob/master/src/index.js (MIT License)
         // See http://linuxcnc.org/docs/html/gcode/overview.html#gcode:comments
@@ -294,7 +294,7 @@
                 var url = "ws://" + location.host + "/json";
                 this.socket = new WebSocket(url);
                 console.log('opening socket');
-                    
+
                 this.socket.onmessage = function (event) {
                     //console.log(event.data);
                     let jsonRPC = JSON.parse(event.data);
@@ -311,22 +311,22 @@
                     //     'y': 30,
                     //     'z': 10,
                     // });
-    
+
                     //sendGCode("G92");
                     //sendGCode("G28");
-    
+
                     var node = $("<li>PRINTER CONNECTED</li>");
                     node.hide();
                     $("#info").prepend(node);
                     node.slideDown();
-    
+
                     let message = {
                         'jsonrpc': '2.0',
                         'id': 6,
                         'method': 'get-serial-ports',
                         'params': [],
                     };
-                    let message_json = JSON.stringify(message);                    
+                    let message_json = JSON.stringify(message);
                     this.send(message_json);
                 };
             },
@@ -343,7 +343,7 @@
             handleError: function (errorJSON) {
                 // TODO:
                 console.log("JSON RPC ERROR: " + errorJSON);
-                errorHandler.error({message: errorJSON});
+                errorHandler.error({ message: errorJSON });
             },
 
             handleJSONRPC: function (jsonRPC) {
@@ -411,7 +411,7 @@
         });
 
 
-            
+
         /**
             * Movement API
             *
@@ -430,18 +430,15 @@
             ///////
 
             constructor() {
-                this.x = this.minx = this.maxxOffset = 5; // x position in mm
-                this.y = this.miny = this.maxYOffset = 5; // y position in mm
-                this.z = this.minz = this.maxZOffset = 0.1; // z position in mm
-                
+                this.x = this.minx = 5; // x position in mm
+                this.y = this.miny = 5; // y position in mm
+                this.z = this.minz = 0; // z position in mm
                 this.e = 0; //filament position in mm
 
-                this.target = {
-                    x: 0, // x position in mm
-                    y: 0, // y position in mm
-                    z: 0, // z position in mm
-                    e: 0 //filament position in mm
-                };
+                this.targetX = 0; // x position in mm
+                this.targetY = 0; // y position in mm
+                this.targetZ = 0; // z position in mm
+                this.targetE = 0; //filament position in mm
 
                 this.lastSpeed = -1.0;
 
@@ -495,13 +492,13 @@
              * 
              * @param {float} temp is the temperature to start warming up to
              */
-            start(temp="190") {
+            start(temp = "190") {
                 sendGCode("G28");
                 sendGCode("M104 S" + temp);
                 //set retract length
-                sendGCode("M207 S3 F" + this.retractSpeed+" Z0.2");
+                sendGCode("M207 S3 F" + this.retractSpeed + " Z0.2");
                 //set retract recover
-                sendGCode("M208 S0.1 F" + this.retractSpeed +" 300");
+                sendGCode("M208 S0.1 F" + this.retractSpeed + " 300");
                 this.moveto({ x: this.cx, y: this.cy, z: this.layerHeight, speed: Printer.defaultPrintSpeed });
                 sendGCode("M106 S100"); // set fan to full
             }
@@ -522,51 +519,13 @@
 
             /// maxmimum values
             get maxx() {
-                return this.extents()["x"] - this.maxxOffset; // some padding
+                return this.extents()["x"];
             }
             get maxy() {
-                return this.extents()["y"] - this.maxYOffset;
+                return this.extents()["y"];
             }
             get maxz() {
-                return this.extents()["z"] - this.maxZOffset;
-            }
-
-            /**
-             * Subtract a vector object (x,y,z,e or whatever) from another and return a new vector.
-             * TODO: Consider using toxiclibs or other vector3 lib
-             * @param {vector3} v0 first vector 
-             * @param {vector3} v1 amount to subtract
-             */
-            subV3(v0, v1) {
-                v2 = {};
-                try {
-                    for (var axis in v0) {
-                        v2[axis] = v0[axis] - v1[axis];
-                    }
-                } catch (e) {
-                    // rethrow, caught in GUI
-                    throw (e);
-                }
-                return v2;
-            }
-
-            /**
-             * Add a vector object (x,y,z,e or whatever) to another and return a new vector3.
-             * TODO: Consider using toxiclibs or other vector3 lib
-             * @param {vector3} v0 first vector 
-             * @param {vector3} v1 amount to subtract
-             */
-            addV3(v0, v1) {
-                v2 = {};
-                try {
-                    for (var axis in v0) {
-                        v2[axis] = v0[axis] + v1[axis];
-                    }
-                } catch (e) {
-                    // rethrow, caught in GUI
-                    throw (e);
-                }
-                return v2;
+                return this.extents()["z"];
             }
 
             /**
@@ -575,9 +534,14 @@
                 *      Optional bounce (Boolean) key if movement should bounce off sides.
                 */
             extrudeto(params) {
-                let extrusionSpecified = (params.e !== undefined);
-                let onlyMove = (this.e == params.e) && !extrusionSpecified;
+                let _speed = parseFloat((params.speed !== undefined) ? params.speed : this.printSpeed);
+                let _layerHeight = parseFloat((params.thickness !== undefined) ? params.thickness : this.layerHeight);
 
+                this.printSpeed = _speed.toFixed(4);
+
+                //
+                let onlyMove = (this.e == params.e);
+                let extrusionSpecified = !onlyMove && (params.e !== undefined);
                 let retract = ((params.retract !== undefined) && params.retract);
 
                 let __x = (params.x !== undefined) ? params.x : this.x;
@@ -588,21 +552,23 @@
                 __y = parseFloat(__y);
                 __z = parseFloat(__z);
 
+                let _extents = this.extents();
+
                 //
-                // if there's nowhere to move, return
+                // handle movements outside printer boundaries
                 //
-                /*
-                if (((Math.abs(__x - this.x) + Math.abs(__y - this.y) + Math.abs(__z - this.z)) < 0.1) 
-                    && ((params.e === undefined) || (Math.abs(parseFloat(params.e) - this.e) < 0.05)))
-                {
-                    return this;
+                if (this.boundaryMode == "bounce") {
+                    //
+                    // TODO: this would be tail recursive?
+                    //
                 }
-                */
-
-                this.printSpeed = parseFloat((params.speed !== undefined) ? params.speed : this.printSpeed);
-                this.layerHeight = parseFloat((params.thickness !== undefined) ? params.thickness : this.layerHeight);
-                
-
+                else // stop is default, for safety!
+                {
+                    // stop at edges
+                    __x = Math.min(__x, _extents.x);
+                    __y = Math.min(__y, _extents.y);
+                    __z = Math.min(__z, _extents.z);
+                }
                 //////////////////////////////////////
                 /// START CALCULATIONS      //////////
                 //////////////////////////////////////
@@ -615,12 +581,11 @@
                 let moveTime = dist / _speed; // in sec
 
                 console.log("time: " + moveTime + " / dist:" + dist);
-                    
+
                 //
                 // BREAK AT LARGE MOVES
                 //
-                if (moveTime > this.maxTimePerOperation) 
-                {
+                if (moveTime > this.maxTimePerOperation) {
                     throw Error("move time too long:" + moveTime);
                 }
 
@@ -646,14 +611,14 @@
                 //  nozzle_speed{mm/s} = (radius_filament^2) * PI * filament_speed{mm/s} / layer_height^2
 
                 //  filament_speed{mm/s} = layer_height^2 * nozzle_speed{mm/s}/(radius_filament^2)*PI
-                this.target.e = this.e;
+                this.targetE = this.e;
 
-                if (!onlyMove) // only if we need to extrude
+                if (!onlyMove) // only if we need to move
                 {
                     if (extrusionSpecified) {
                         // if filament length was specified, use that.
                         // Otherwise calculate based on layer height
-                        this.target.e = parseFloat(params.e); // TODO: not sure if this is good idea yet)
+                        this.targetE = parseFloat(params.e); // TODO: not sure if this is good idea yet)
 
                     }
                     // otherwise, calculate filament length needed based on layerheight, etc.
@@ -687,149 +652,73 @@
                         //console.log("filament distance : " + filamentLength + "/" + dist);
                         //console.log("e type=" + typeof this.e);
 
-                        this.target.e = this.e + filamentLength;
-                        //console.log("E:" + this.target.e);
+                        this.targetE = this.e + filamentLength;
+                        //console.log("E:" + this.targetE);
                     }
                 }
 
                 // update target position for printer head, to send as gcode
-                this.target.x = __x; 
-                this.target.y = __y;
-                this.target.z = __z;
+                this.targetX = __x.toFixed(4);
+                this.targetY = __y.toFixed(4);
+                this.targetZ = __z.toFixed(4);
 
-                // Handle movements outside printer boundaries if there's a need.
-                // Tail recursive.
-                //
+                // TODO:
+                // schedule callback function to update state variables like layerheight,
+                // etc? But, query printer for physical vars
 
-                this._extrude(this.subV3(this.target, { x:this.x, y:this.y, z:this.z, e:this.e }));
-            } // end extrudeto
+                // gcode to send to printer
+                // https://github.com/Ultimaker/Ultimaker2Marlin
 
-            /**
-             * clip object's x,y,z properties to printer bounds and return it
-             * @param {object} position: object with x,y,z properties clip
-             */
-            clipToPrinterBounds(position) {
-                position.x = Math.min(position.x, this.maxx);
-                position.y = Math.min(position.y, this.maxy);
-                position.z = Math.min(position.z, this.maxz);
-
-                // stop at min edges
-                position.x = Math.max(position.x, this.minx);
-                position.y = Math.max(position.y, this.miny);
-                position.z = Math.max(position.z, this.minz);
-
-                return position;
-            }
-
-
-            /**
-             * Internally recursive extrude - move until target.x,Y,Z reached.
-             * @param {float} scalingFactor amount to scale move by (used in bounce mode)  
-             * */
-            _extrude(leftToMove) {
-                // if there's nowhere to move, return
-                //
-                let sumMovement = 0;
-                let absMovement = {};
-
-                for (var axis in leftToMove) {
-                    absMovement[axis] = Math.abs(leftToMove[axis]);
-                    sumMovement += absMovement[axis];
+                if (this.mode != 0) {
+                    // mode change
+                    this.mode = 0;
+                    sendGCode("G90"); // abs coordinates
                 }
-                if ( sumMovement < 0.1) {
-                    return this;
-                }
-
-                // otherwise...
-                // next position to move/extrude to
-                let nextPosition = {
-                    x: this.target.x,
-                    y: this.target.y,
-                    z: this.target.z,
-                    e: this.target.e
-                };
-
-                this.clipToPrinterBounds(nextPosition);
-
-                let scalingFactor = 1;
-
-                if (this.boundaryMode == "bounce") {
-                    let xsteps = absMovement[x] / (this.minx - this.maxx);
-                    let ysteps = absMovement[y] / (this.miny - this.maxy);
-                    let zsteps = absMovement[z] / (this.minz - this.maxz);
-
-                    scalingFactor = zsteps;
-
-                    if (xsteps > ysteps && xsteps > zsteps) scalingFactor = xsteps;
-                    else if (ysteps > xsteps && ysteps > zsteps) scalingFactor = ysteps;
-
-                    nextPosition.x *= scalingFactor;
-                    nextPosition.y *= scalingFactor;
-                    nextPosition.z *= scalingFactor;
-                    nextPosition.e *= scalingFactor;
-
-                    let vdiff = this.subV3({ x: this.x, y: this.y, z: this.z, e: this.e }, nextPosition);
-                    for (var axis in absMovement) {
-                        absMovement[axis] = absMovement[axis] - Math.abs(vdiff[axis]);
-                    }
-
-                }
-                else {
-                    for (var axis in absMovement) {
-                        absMovement[axis] = 0;
-                    }
-
-                    //target
-                }
-                
-                this.x = nextPosition.x;
-                this.y = nextPosition.y;
-                this.z = nextPosition.z;
-                this.e = nextPosition.e;
-               
 
                 //unretract first if needed
                 if (!onlyMove && !this.firmwareRetract && this.currentRetraction) {
-                    this.e += this.currentRetraction;
+                    this.targetE += this.currentRetraction;
                     // account for previous retraction
-                    sendGCode("G1 " + "E" + this.e.toFixed(4) + " F" + this.retractSpeed.toFixed(4));
+                    sendGCode("G1 " + "E" + (this.currentRetraction + this.e).toFixed(4) + " F" + this.retractSpeed);
                     this.currentRetraction = 0;
                 }
 
                 // unretract
-                if (!onlyMove && retract && this.firmwareRetract && this.currentRetraction > 0) { // ugh what an ungly check
+                if (!onlyMove && retract && this.firmwareRetract) {
                     sendGCode("G11");
-                    this.currentRetraction = 0;
                 }
 
                 // G1 - Coordinated Movement X Y Z E
                 let moveCode = ["G1"];
-                moveCode.push("X" + this.x.toFixed(4));
-                moveCode.push("Y" + this.y.toFixed(4));
-                moveCode.push("Z" + this.z.toFixed(4));
-                moveCode.push("E" + this.e.toFixed(4));
-                moveCode.push("F" + (this.printSpeed * 60).toFixed(4)); // mm/s to mm/min
+                moveCode.push("X" + this.targetX);
+                moveCode.push("Y" + this.targetY);
+                moveCode.push("Z" + this.targetZ);
+                moveCode.push("E" + this.targetE.toFixed(4));
+                moveCode.push("F" + this.printSpeed * 60); // mm/s to mm/min
                 sendGCode(moveCode.join(" "));
 
                 // RETRACT
                 if (!onlyMove && !this.firmwareRetract && this.retractLength) {
                     this.currentRetraction = this.retractLength;
-                    this.e -= this.currentRetraction;
-                    sendGCode("G1 " + "E" + this.e.toFixed(4) + " F" + this.retractSpeed.toFixed(4));
+                    this.targetE = parseFloat(this.targetE) - this.currentRetraction;
+
+                    sendGCode("G1 " + "E" + this.targetE.toFixed(4) + " F" + this.retractSpeed);
                 }
 
-                // retract
+                // unretract
                 if (!onlyMove && retract && this.firmwareRetract) {
-                    sendGCode("G10");
-                    this.currentRetraction = 3.5; // guess... this is handled in hardware, just need to be > 0
+                    sendGCode("G11");
                 }
-               
-                // Tail recursive, until target.x,Y,Z is hit
-                //
-                this._extrude(absMovement);
 
-            } // end _extrude
+                // FIXME: sort out position updates in a sensible way...
+                //queueGCode("M114"); // get position after move (X:0 Y:0 Z:0 E:0)
 
+                // update position internally
+                this.e = parseFloat(this.targetE);
+                this.x = parseFloat(this.targetX);
+                this.y = parseFloat(this.targetY);
+                this.z = parseFloat(this.targetZ);
+            } // end extrudeto
 
             //
             // relative extrusion
@@ -920,28 +809,26 @@
                 // 47.069852, 47.069852, 160.0,
                 //freq_xyz[j] = Math.pow(2.0, (note-69)/12.0)*440.0 
 
-                let freq = Math.pow(2.0, (note-69)/12.0)*440.0;
+                let freq = Math.pow(2.0, (note - 69) / 12.0) * 440.0;
                 let speed = freq / parseFloat(this.speedScale()[axis]);
 
                 return speed;
             }
 
-            m2s(note,axis) {
-                return this.midi2speed(note,axis);
+            m2s(note, axis) {
+                return this.midi2speed(note, axis);
             }
 
-            extents()
-            {
+            extents() {
                 let bs = Printer.bedSize[this.model];
-                return {"x":bs["x"], "y":bs["y"], "z":bs["z"] };
+                return { "x": bs["x"], "y": bs["y"], "z": bs["z"] };
             }
             //
             // for calculating note frequencies
             //
-            speedScale()
-            {
+            speedScale() {
                 let bs = Printer.speedScale[this.model];
-                return {"x":bs["x"], "y":bs["y"], "z":bs["z"] };
+                return { "x": bs["x"], "y": bs["y"], "z": bs["z"] };
             }
 
             /**
@@ -986,49 +873,49 @@
         // dictionary of first GCODE sent to printer at start
         Printer.GCODE_HEADERS = {};
         Printer.GCODE_HEADERS[Printer.UM2] = [
-                ";FLAVOR:UltiGCode",
-                ";TIME:1",
-                ";MATERIAL:1",
+            ";FLAVOR:UltiGCode",
+            ";TIME:1",
+            ";MATERIAL:1",
         ];
         Printer.GCODE_HEADERS[Printer.UM2plus] = [
-                ";FLAVOR:UltiGCode",
-                ";TIME:1",
-                ";MATERIAL:1",
+            ";FLAVOR:UltiGCode",
+            ";TIME:1",
+            ";MATERIAL:1",
         ];
 
-        Printer.GCODE_HEADERS[Printer.UM3]= [
-                ";START_OF_HEADER",
-                ";HEADER_VERSION:0.1",
-                ";FLAVOR:Griffin",
-                ";GENERATOR.NAME:GCodeGenJS",
-                ";GENERATOR.VERSION:?",
-                ";GENERATOR.BUILD_DATE:2016-11-26",
-                ";TARGET_MACHINE.NAME:Ultimaker Jedi",
-                ";EXTRUDER_TRAIN.0.INITIAL_TEMPERATURE:200",
-                ";EXTRUDER_TRAIN.0.MATERIAL.VOLUME_USED:1",
-                ";EXTRUDER_TRAIN.0.NOZZLE.DIAMETER:0.4",
-                ";BUILD_PLATE.INITIAL_TEMPERATURE:0",
-                ";PRINT.TIME:1",
-                ";PRINT.SIZE.MIN.X:0",
-                ";PRINT.SIZE.MIN.Y:0",
-                ";PRINT.SIZE.MIN.Z:0",
-                ";PRINT.SIZE.MAX.X:215",
-                ";PRINT.SIZE.MAX.Y:215",
-                ";PRINT.SIZE.MAX.Z:200",
-                ";END_OF_HEADER",
-                "G92 E0",
-            ];
-            Printer.GCODE_HEADERS[Printer.REPRAP] = [
-                ";RepRap target",
-                "G28",
-                "G92 E0",
-            ];
+        Printer.GCODE_HEADERS[Printer.UM3] = [
+            ";START_OF_HEADER",
+            ";HEADER_VERSION:0.1",
+            ";FLAVOR:Griffin",
+            ";GENERATOR.NAME:GCodeGenJS",
+            ";GENERATOR.VERSION:?",
+            ";GENERATOR.BUILD_DATE:2016-11-26",
+            ";TARGET_MACHINE.NAME:Ultimaker Jedi",
+            ";EXTRUDER_TRAIN.0.INITIAL_TEMPERATURE:200",
+            ";EXTRUDER_TRAIN.0.MATERIAL.VOLUME_USED:1",
+            ";EXTRUDER_TRAIN.0.NOZZLE.DIAMETER:0.4",
+            ";BUILD_PLATE.INITIAL_TEMPERATURE:0",
+            ";PRINT.TIME:1",
+            ";PRINT.SIZE.MIN.X:0",
+            ";PRINT.SIZE.MIN.Y:0",
+            ";PRINT.SIZE.MIN.Z:0",
+            ";PRINT.SIZE.MAX.X:215",
+            ";PRINT.SIZE.MAX.Y:215",
+            ";PRINT.SIZE.MAX.Z:200",
+            ";END_OF_HEADER",
+            "G92 E0",
+        ];
+        Printer.GCODE_HEADERS[Printer.REPRAP] = [
+            ";RepRap target",
+            "G28",
+            "G92 E0",
+        ];
 
         Printer.filamentDiameter = {};
         Printer.filamentDiameter[Printer.UM2] = Printer.filamentDiameter[Printer.UM2plus] =
-                Printer.filamentDiameter[Printer.REPRAP] = 2.85;
+            Printer.filamentDiameter[Printer.REPRAP] = 2.85;
         Printer.extrusionInmm3 = {};
-        Printer.extrusionInmm3[Printer.UM2]= Printer.extrusionInmm3[Printer.REPRAP] = false;
+        Printer.extrusionInmm3[Printer.UM2] = Printer.extrusionInmm3[Printer.REPRAP] = false;
         Printer.extrusionInmm3[Printer.UM2plus] = Printer.extrusionInmm3[Printer.UM3] = true;
 
         // TODO: FIX THESE!
@@ -1039,26 +926,26 @@
         Printer.maxTravelSpeed = {};
 
         Printer.maxTravelSpeed[Printer.UM3] =
-            Printer.maxTravelSpeed[Printer.UM2plus] = 
-                Printer.maxTravelSpeed[Printer.UM2] = { 'x': 300, 'y': 300, 'z': 80, 'e': 45 };
+            Printer.maxTravelSpeed[Printer.UM2plus] =
+            Printer.maxTravelSpeed[Printer.UM2] = { 'x': 300, 'y': 300, 'z': 80, 'e': 45 };
         Printer.maxTravelSpeed[Printer.REPRAP] = { 'x': 300, 'y': 300, 'z': 80, 'e': 45 };
-            
+
         Printer.maxPrintSpeed = {};
         Printer.maxPrintSpeed[Printer.UM2] =
             Printer.maxPrintSpeed[Printer.REPRAP] = { 'x': 150, 'y': 150, 'z': 80, 'e': 45 };
         Printer.maxPrintSpeed[Printer.UM3] = Printer.maxPrintSpeed[Printer.UM2plus] = { 'x': 150, 'y': 150, 'z': 80, 'e': 45 };
 
         Printer.bedSize = {};
-        Printer.bedSize[Printer.UM2plus] = Printer.bedSize[Printer.UM2] 
+        Printer.bedSize[Printer.UM2plus] = Printer.bedSize[Printer.UM2]
             = Printer.bedSize[Printer.UM3] = { 'x': 223, 'y': 223, 'z': 205 };
-        Printer.bedSize[Printer.UM2plusExt] ={ 'x': 223, 'y': 223, 'z': 305 };
+        Printer.bedSize[Printer.UM2plusExt] = { 'x': 223, 'y': 223, 'z': 305 };
         Printer.bedSize[Printer.REPRAP] = { 'x': 150, 'y': 150, 'z': 80 };
 
         Printer.defaultPrintSpeed = 30; // mm/s
 
         Printer.speedScale = {};
-        Printer.speedScale[Printer.UM2] = {'x': 47.069852, 'y':47.069852, 'z':160.0};
-        Printer.speedScale[Printer.UM2plus] = {'x': 47.069852, 'y':47.069852, 'z':160.0};
+        Printer.speedScale[Printer.UM2] = { 'x': 47.069852, 'y': 47.069852, 'z': 160.0 };
+        Printer.speedScale[Printer.UM2plus] = { 'x': 47.069852, 'y': 47.069852, 'z': 160.0 };
 
         //////////////////////////////////////////////////////////
 
@@ -1106,8 +993,7 @@
                 if (callback !== undefined && typeof callback == "function") callback();
                 $(this).removeClass("blinkit fast slow");
             });
-            if (speed == "fast")
-            {
+            if (speed == "fast") {
                 $elem.addClass("blinkit fast");
             }
             else if (speed == "slow") {
@@ -1132,7 +1018,7 @@
                     let script = document.createElement("script");
                     script.type = "text/python";
                     script.text = code;
-                   
+
                     // run and remove
                     let scriptsContainer = $("#python-scripts");
                     scriptsContainer.empty(); // remove old ones
@@ -1363,7 +1249,7 @@
                 }
                 else {
                     $("#info > ul").prepend("<li>serial ports: " + event.message + "</li > ").fadeIn(50);
-                    for ( let p of event.message) {
+                    for (let p of event.message) {
                         window.scope.serialPorts.push(p);
                     }
                 }
@@ -1387,7 +1273,7 @@
                     });
                     portsDropdown.append(newButton);
                 });
-                    
+
                 blinkElem($("#serial-ports-list"));
                 blinkElem($("#info-tab"));
             }
@@ -1414,7 +1300,7 @@
         $("#python-mode-btn").on("click", function () {
             let me = $(this);
             pythonMode = !me.hasClass('active'); // because it becomes active *after* a push
-            
+
             if (pythonMode) {
                 me.text("python mode");
             }
@@ -1514,7 +1400,7 @@
 	            console.log((e.x-e.px) + "," + (e.y-e.py));
             }, 20);
         */
-            
+
 
         /**
             * Local Storage for saving/loading documents.
@@ -1531,7 +1417,7 @@
                 storage.removeItem(x);
                 return true;
             }
-            catch(e) {
+            catch (e) {
                 return e instanceof DOMException && (
                     // everything except Firefox
                     e.code === 22 ||
@@ -1560,9 +1446,8 @@
         let reloadSession = () => {
             CodeEditor.off("change");
             let newFile = localStorage.getItem(editedKey);
-            if (newFile !== undefined && newFile)
-            {
-                blinkElem($(".CodeMirror"), "slow", () => {    
+            if (newFile !== undefined && newFile) {
+                blinkElem($(".CodeMirror"), "slow", () => {
                     CodeEditor.swapDoc(
                         CodeMirror.Doc(
                             newFile, "javascript"
@@ -1592,9 +1477,8 @@
         $("#reload-saved-session").on("click", () => {
             CodeEditor.off("change");
             let newFile = localStorage.getItem(savedKey);
-            if (newFile !== undefined && newFile)
-            {
-                blinkElem($(".CodeMirror"), "slow", () => {    
+            if (newFile !== undefined && newFile) {
+                blinkElem($(".CodeMirror"), "slow", () => {
                     CodeEditor.swapDoc(
                         CodeMirror.Doc(
                             newFile, "javascript"
@@ -1610,7 +1494,7 @@
             reloadSession();
         }
         else {
-            errorHandler({name:"save error", message:"no local storage available for saving files!"});
+            errorHandler({ name: "save error", message: "no local storage available for saving files!" });
         }
         // disable form reloading on code compile
         $('form').submit(false);
