@@ -532,6 +532,44 @@
             }
 
             /**
+             * Subtract a vector object (x,y,z,e or whatever) from another and return a new vector.
+             * TODO: Consider using toxiclibs or other vector3 lib
+             * @param {vector3} v0 first vector 
+             * @param {vector3} v1 amount to subtract
+             */
+            subV3(v0, v1) {
+                v2 = {};
+                try {
+                    for (var axis in v0) {
+                        v2[axis] = v0[axis] - v1[axis];
+                    }
+                } catch (e) {
+                    // rethrow, caught in GUI
+                    throw (e);
+                }
+                return v2;
+            }
+
+            /**
+             * Add a vector object (x,y,z,e or whatever) to another and return a new vector3.
+             * TODO: Consider using toxiclibs or other vector3 lib
+             * @param {vector3} v0 first vector 
+             * @param {vector3} v1 amount to subtract
+             */
+            addV3(v0, v1) {
+                v2 = {};
+                try {
+                    for (var axis in v0) {
+                        v2[axis] = v0[axis] + v1[axis];
+                    }
+                } catch (e) {
+                    // rethrow, caught in GUI
+                    throw (e);
+                }
+                return v2;
+            }
+
+            /**
                 * extrude from the printer head, withing bounds
                 * @param {Object} params Parameters dictionary containing either x,y,z keys or direction/angle (radians) keys.
                 *      Optional bounce (Boolean) key if movement should bounce off sides.
@@ -663,7 +701,7 @@
                 // Tail recursive.
                 //
 
-                this._extrude();
+                this._extrude(this.subV3(this.target, { x:this.x, y:this.y, z:this.z, e:this.e }));
             } // end extrudeto
 
             /**
@@ -688,15 +726,21 @@
              * Internally recursive extrude - move until target.x,Y,Z reached.
              * @param {float} scalingFactor amount to scale move by (used in bounce mode)  
              * */
-            _extrude(nextAmount, finalAmount) {
-                //
+            _extrude(leftToMove) {
                 // if there's nowhere to move, return
                 //
-                if ((Math.abs(this.target.x - this.x) + Math.abs(this.target.y - this.y)
-                    + Math.abs(this.target.z - this.z) + Math.abs(this.target.e - this.e)) < 0.1) {
+                let sumMovement = 0;
+                let absMovement = {};
+
+                for (var axis in leftToMove) {
+                    absMovement[axis] = Math.abs(leftToMove[axis]);
+                    sumMovement += absMovement[axis];
+                }
+                if ( sumMovement < 0.1) {
                     return this;
                 }
 
+                // otherwise...
                 // next position to move/extrude to
                 let nextPosition = {
                     x: this.target.x,
@@ -710,41 +754,39 @@
                 let scalingFactor = 1;
 
                 if (this.boundaryMode == "bounce") {
-                    let xsteps = Math.abs(this.target.x - this.x) / (this.minx - this.maxx);
-                    let ysteps = Math.abs(this.target.y - this.y) / (this.miny - this.maxy);
-                    let zsteps = Math.abs(this.target.z - this.z) / (this.minz - this.maxz);
-                    
+                    let xsteps = absMovement[x] / (this.minx - this.maxx);
+                    let ysteps = absMovement[y] / (this.miny - this.maxy);
+                    let zsteps = absMovement[z] / (this.minz - this.maxz);
 
                     scalingFactor = zsteps;
 
                     if (xsteps > ysteps && xsteps > zsteps) scalingFactor = xsteps;
                     else if (ysteps > xsteps && ysteps > zsteps) scalingFactor = ysteps;
 
-                    xsteps *= scalingFactor;
-                    ysteps *= scalingFactor;
-                    zsteps *= scalingFactor;
+                    nextPosition.x *= scalingFactor;
+                    nextPosition.y *= scalingFactor;
+                    nextPosition.z *= scalingFactor;
+                    nextPosition.e *= scalingFactor;
 
-                    nextPosition.x *= xsteps;
-                    nextPosition.y *= ysteps;
-                    nextPosition.z *= zsteps;
+                    let vdiff = this.subV3({ x: this.x, y: this.y, z: this.z, e: this.e }, nextPosition);
+                    for (var axis in absMovement) {
+                        absMovement[axis] = absMovement[axis] - Math.abs(vdiff[axis]);
+                    }
 
-                    // TODO
-                    // is this +=???
-                    this.x = nextPosition.x;
-                    this.y = nextPosition.y;
-                    this.z = nextPosition.z;
-                    this.e += nextPosition.e;
                 }
                 else {
-                    this.x = this.target.x;
-                    this.y = this.target.y;
-                    this.z = this.target.z;
-                    this.e = this.target.e;
-                }
+                    for (var axis in absMovement) {
+                        absMovement[axis] = 0;
+                    }
 
-                this.target = nextPosition;
+                    //target
+                }
                 
-                
+                this.x = nextPosition.x;
+                this.y = nextPosition.y;
+                this.z = nextPosition.z;
+                this.e = nextPosition.e;
+               
 
                 //unretract first if needed
                 if (!onlyMove && !this.firmwareRetract && this.currentRetraction) {
@@ -784,7 +826,7 @@
                
                 // Tail recursive, until target.x,Y,Z is hit
                 //
-                this._extrude();
+                this._extrude(absMovement);
 
             } // end _extrude
 
