@@ -481,6 +481,10 @@
                  */
                 this.boundaryMode = "stop";
 
+                this.maxMovePerCycle = 40; // max mm to move per calculation (see _extrude method)
+
+                this.moveCallback = null;   // callback function run every move/extrude cycle
+
                 // TODO: use Quarternions for axis/angle: https://github.com/infusion/Quaternion.js
                 // or this.travelSpeed = { "direction": 30, "angle": [0,30,0] }; // in mm/s  
             }
@@ -719,6 +723,13 @@
             } // end sendExtrusionGCode
 
 
+            // TODO: have this chop up moves and call a callback function each time,
+            // like in _extrude
+            //             
+            // call movement callback function with this lp object
+            // if(that.moveCallback)
+            //        that.moveCallback(that);
+
             /**
              * Relative extrusion.
              * @param {objects} params Can be specified as x,y,z,e or dist (distance), angle (xy plane), elev (z dir). All in mm.
@@ -871,7 +882,7 @@
         Printer.prototype._extrude = meth("_extrude",function (that,moveVector, leftToMove, retract) {
             // if there's nowhere to move, return
             //console.log(that);
-            //console.log("left to move:" + leftToMove);
+            console.log("left to move:" + leftToMove);
 
             //console.log("CURRENT:");
             //console.log(that.position);
@@ -880,8 +891,9 @@
                 return false;
             }
 
+            let amountMoved = Math.min(leftToMove, that.maxMovePerCycle);
             // calculate next position
-            let nextPosition = Vector.prototype.add(that.position, Vector.prototype.mult(moveVector, leftToMove));
+            let nextPosition = Vector.prototype.add(that.position, Vector.prototype.mult(moveVector, amountMoved));
 
             //console.log("VECTOR:");
             //console.log(moveVector);
@@ -891,9 +903,7 @@
 
             //console.log("NEXT:");
             //console.log(nextPosition);
-
-            let amountMoved = leftToMove; // assume we moved all the way unless otherwise calculated
-
+            
             if (that.boundaryMode == "bounce") {
                 let moved = new Vector();
                 // calculate movement per axis, based on printer bounds
@@ -919,12 +929,13 @@
                     //console.log(moved);
                 }
                 amountMoved = moved.mag();
-                //console.log("amt moved:" + amountMoved);
-                //console.log(moved);
+                console.log("amt moved:" + amountMoved);
+                console.log(moved);
             } else {
                 that.clipToPrinterBounds(nextPosition.axes);
             }
             leftToMove -= amountMoved;
+
 
             // update current position
             //console.log("current pos:")
@@ -935,6 +946,7 @@
             //console.log(nextPosition);
             //console.log(that.position);
             //console.log(that);
+
             that.sendExtrusionGCode(retract);
 
             // Tail recursive, until target x,y,z is hit
