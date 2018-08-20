@@ -14,6 +14,10 @@
 // License for the specific language governing permissions and limitations
 // under the License.
 
+// import vector functions - doesn't work in chrome ?
+//import { Vector } from './lib/Vector.prototype.js';
+
+
 (function () {
     "use strict";
 
@@ -410,8 +414,6 @@
             return { list: list, from: CodeMirror.Pos(cur.line, start), to: CodeMirror.Pos(cur.line, end) };
         });
 
-
-            
         /**
             * Movement API
             *
@@ -430,22 +432,39 @@
             ///////
 
             constructor() {
-                this.x = this.minx = this.maxxOffset = 5; // x position in mm
-                this.y = this.miny = this.maxYOffset = 5; // y position in mm
-                this.z = this.minz = this.maxZOffset = 0.1; // z position in mm
+                // TODO: not sure about this being valid - maybe check for max speed?
+                this._printSpeed = Printer.defaultPrintSpeed;
+                this._model = Printer.UM2plus; // default
+                this.layerHeight = 0.2; // thickness of a 3d printed extrudion, mm by default
                 
-                this.e = 0; //filament position in mm
-
-                this.target = {
+                let coords = {
                     x: 0, // x position in mm
-                    y: 0, // y position in mm
+                    y: 0,// y position in mm
                     z: 0, // z position in mm
-                    e: 0 //filament position in mm
-                };
+                    e: -99999
+                }; //filament position in mm
+
+                this.minPosition = new Vector(coords);
+
+                coords = {
+                    x: Printer.bedSize[this.model]["x"], // x position in mm
+                    y: Printer.bedSize[this.model]["y"], // y position in mm
+                    z: Printer.bedSize[this.model]["z"], // z position in mm
+                    e: 999999
+                }; //filament position in mm
+
+                this.maxPosition = new Vector(coords);
+
+                coords = {
+                    x: this.minPosition.axes.x, // x position in mm
+                    y: this.minPosition.axes.y, // y position in mm
+                    z: this.minPosition.axes.z, // z position in mm
+                    e: 0
+                }; //filament position in mm
+
+                this.position = new Vector(coords);
 
                 this.lastSpeed = -1.0;
-
-                this.travelSpeed = { 'x': 5, 'y': 5, 'z': 0 }; // in mm/s
 
                 this.maxFilamentPerOperation = 30; // safety check to keep from using all filament, in mm
                 this.maxTimePerOperation = 10; // prevent very long operations, by accident - this is in seconds
@@ -457,20 +476,24 @@
                 this.firmwareRetract = true;    // use Marlin or printer for retraction
 
                 /**
-                    * What to do when movement or extrusion commands are out of machine bounds.
-                    * Can be clip (keep printing inside edges), bounce (bounce off edges), stop
-                    */
+                 * What to do when movement or extrusion commands are out of machine bounds.
+                 * Can be clip (keep printing inside edges), bounce (bounce off edges), stop
+                 */
                 this.boundaryMode = "stop";
 
                 // TODO: use Quarternions for axis/angle: https://github.com/infusion/Quaternion.js
-
-                // or this.travelSpeed = { "direction": 30, "angle": [0,30,0] }; // in mm/s
-
-                // TODO: not sure about this being valid - maybe check for max speed?
-                this._printSpeed = Printer.defaultPrintSpeed;
-                this._model = Printer.UM2plus; // default
-                this.layerHeight = 0.2; // thickness of a 3d printed extrudion, mm by default
+                // or this.travelSpeed = { "direction": 30, "angle": [0,30,0] }; // in mm/s  
             }
+
+            get x() { return this.position.axes.x; }
+            get y() { return this.position.axes.y; }
+            get z() { return this.position.axes.z; }
+            get e() { return this.position.axes.e; }
+
+            set x(val) { this.position.axes.x = val; }
+            set y(val) { this.position.axes.y = val; }
+            set z(val) { this.position.axes.z = val; }
+            set e(val) { this.position.axes.e = val; }
 
             //
             // set printer model - should be one definined in this class!
@@ -487,7 +510,46 @@
                 this._printSpeed = Math.min(parseFloat(s), parseFloat(maxs.x)); // pick in x direction...
             }
 
+            get maxSpeed() { return Printer.maxPrintSpeed[this._model]; } // in mm/s
+
             get printSpeed() { return this._printSpeed; }
+
+            get extents() {
+                return this.maxPosition.axes;
+            }
+
+            /**
+             * Get the center horizontal (x) position on the bed
+             */
+            get cx() {
+                return (this.maxPosition.axes.x - this.minPosition.axes.x) / 2;
+            }
+            /**
+             * Get the center vertical (y) position on the bed,
+             */
+            get cy() {
+                return (this.maxPosition.axes.y - this.minPosition.axes.y) / 2;
+            }
+            /// maxmimum values
+            get minx() {
+                return this.minPosition.axes.x;
+            }
+            get miny() {
+                return this.minPosition.axes.y;
+            }
+            get minz() {
+                return this.minPosition.axes.z;
+            }
+            // maxmimum values
+            get maxx() {
+                return this.maxPosition.axes.x;
+            }
+            get maxy() {
+                return this.maxPosition.axes.y;
+            }
+            get maxz() {
+                return this.maxPosition.axes.z;
+            }
 
             /**
              * Performs a quick startup by resetting the axes and moving the head
@@ -506,208 +568,10 @@
                 sendGCode("M106 S100"); // set fan to full
             }
 
-            /**
-             * Get the center horizontal (x) position on the bed
-             */
-            get cx() {
-                return this.extents()["x"] / 2;
-            }
-
-            /**
-             * Get the center vertical (y) position on the bed,
-             */
-            get cy() {
-                return this.extents()["y"] / 2;
-            }
-
-            /// maxmimum values
-            get maxx() {
-                return this.extents()["x"] - this.maxxOffset; // some padding
-            }
-            get maxy() {
-                return this.extents()["y"] - this.maxYOffset;
-            }
-            get maxz() {
-                return this.extents()["z"] - this.maxZOffset;
-            }
-
-            /**
-             * Subtract a vector object (x,y,z,e or whatever) from another and return a new vector.
-             * TODO: Consider using toxiclibs or other vector3 lib
-             * @param {vector3} v0 first vector 
-             * @param {vector3} v1 amount to subtract
-             */
-            subV3(v0, v1) {
-                v2 = {};
-                try {
-                    for (var axis in v0) {
-                        v2[axis] = v0[axis] - v1[axis];
-                    }
-                } catch (e) {
-                    // rethrow, caught in GUI
-                    throw (e);
-                }
-                return v2;
-            }
-
-            /**
-             * Add a vector object (x,y,z,e or whatever) to another and return a new vector3.
-             * TODO: Consider using toxiclibs or other vector3 lib
-             * @param {vector3} v0 first vector 
-             * @param {vector3} v1 amount to subtract
-             */
-            addV3(v0, v1) {
-                v2 = {};
-                try {
-                    for (var axis in v0) {
-                        v2[axis] = v0[axis] + v1[axis];
-                    }
-                } catch (e) {
-                    // rethrow, caught in GUI
-                    throw (e);
-                }
-                return v2;
-            }
-
-            /**
-                * extrude from the printer head, withing bounds
-                * @param {Object} params Parameters dictionary containing either x,y,z keys or direction/angle (radians) keys.
-                *      Optional bounce (Boolean) key if movement should bounce off sides.
-                */
-            extrudeto(params) {
-                let extrusionSpecified = (params.e !== undefined);
-                let onlyMove = (this.e == params.e) && !extrusionSpecified;
-
-                let retract = ((params.retract !== undefined) && params.retract);
-
-                let __x = (params.x !== undefined) ? params.x : this.x;
-                let __y = (params.y !== undefined) ? params.y : this.y;
-                let __z = (params.z !== undefined) ? params.z : this.z;
-
-                __x = parseFloat(__x);
-                __y = parseFloat(__y);
-                __z = parseFloat(__z);
-
-                //
-                // if there's nowhere to move, return
-                //
-                /*
-                if (((Math.abs(__x - this.x) + Math.abs(__y - this.y) + Math.abs(__z - this.z)) < 0.1) 
-                    && ((params.e === undefined) || (Math.abs(parseFloat(params.e) - this.e) < 0.05)))
-                {
-                    return this;
-                }
-                */
-
-                this.printSpeed = parseFloat((params.speed !== undefined) ? params.speed : this.printSpeed);
-                this.layerHeight = parseFloat((params.thickness !== undefined) ? params.thickness : this.layerHeight);
-                
-
-                //////////////////////////////////////
-                /// START CALCULATIONS      //////////
-                //////////////////////////////////////
-
-                let dx = this.x - __x;
-                let dy = this.y - __y;
-                let dz = this.z - __z;
-                let dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
-
-                let moveTime = dist / _speed; // in sec
-
-                console.log("time: " + moveTime + " / dist:" + dist);
-                    
-                //
-                // BREAK AT LARGE MOVES
-                //
-                if (moveTime > this.maxTimePerOperation) 
-                {
-                    throw Error("move time too long:" + moveTime);
-                }
-
-                let nozzleSpeed = {};
-                nozzleSpeed.x = dx / moveTime;
-                nozzleSpeed.y = dy / moveTime;
-                nozzleSpeed.z = dz / moveTime;
-                //
-                // safety checks
-                //
-                if (nozzleSpeed.x > Printer.maxPrintSpeed[this.model]["x"]) {
-                    throw Error("X travel too fast:" + nozzleSpeed.x);
-                }
-                if (nozzleSpeed.y > Printer.maxPrintSpeed[this.model]["y"]) {
-                    throw Error("Y travel too fast:" + nozzleSpeed.y);
-                }
-                if (nozzleSpeed.z > Printer.maxPrintSpeed[this.model]["z"]) {
-                    throw Error("Z travel too fast:" + nozzleSpeed.z);
-                }
-
-                // TODO: check for maximum speed!
-
-                //  nozzle_speed{mm/s} = (radius_filament^2) * PI * filament_speed{mm/s} / layer_height^2
-
-                //  filament_speed{mm/s} = layer_height^2 * nozzle_speed{mm/s}/(radius_filament^2)*PI
-                this.target.e = this.e;
-
-                if (!onlyMove) // only if we need to extrude
-                {
-                    if (extrusionSpecified) {
-                        // if filament length was specified, use that.
-                        // Otherwise calculate based on layer height
-                        this.target.e = parseFloat(params.e); // TODO: not sure if this is good idea yet)
-
-                    }
-                    // otherwise, calculate filament length needed based on layerheight, etc.
-                    else {
-                        let filamentRadius = Printer.filamentDiameter[this.model] / 2;
-
-                        // for extrusion into free space
-                        // apparently, some printers take the filament into account (so this is in mm3)
-                        // this was helpful: https://github.com/Ultimaker/GCodeGenJS/blob/master/js/gcode.js
-                        let filamentLength = dist * _layerHeight * _layerHeight;//(Math.PI*filamentRadius*filamentRadius);
-
-                        //
-                        // safety check:
-                        //
-                        if (filamentLength > this.maxFilamentPerOperation) {
-                            throw Error("Too much filament in move:" + filamentLength);
-                        }
-                        if (!Printer.extrusionInmm3[this.model]) {
-                            filamentLength /= (filamentRadius * filamentRadius * Math.PI);
-                        }
-                        let filamentSpeed = filamentLength / moveTime;
-
-                        //
-                        // safety check:
-                        //
-                        if (filamentSpeed > Printer.maxPrintSpeed[this.model]["e"]) {
-                            throw Error("Filament speed too fast:" + filamentSpeed);
-                        }
-
-                        //console.log("filament speed: " + filamentSpeed);
-                        //console.log("filament distance : " + filamentLength + "/" + dist);
-                        //console.log("e type=" + typeof this.e);
-
-                        this.target.e = this.e + filamentLength;
-                        //console.log("E:" + this.target.e);
-                    }
-                }
-
-                // update target position for printer head, to send as gcode
-                this.target.x = __x; 
-                this.target.y = __y;
-                this.target.z = __z;
-
-                // Handle movements outside printer boundaries if there's a need.
-                // Tail recursive.
-                //
-
-                this._extrude(this.subV3(this.target, { x:this.x, y:this.y, z:this.z, e:this.e }));
-            } // end extrudeto
-
-            /**
-             * clip object's x,y,z properties to printer bounds and return it
-             * @param {object} position: object with x,y,z properties clip
-             */
+           /**
+           * clip object's x,y,z properties to printer bounds and return it
+           * @param {object} position: object with x,y,z properties clip
+           */
             clipToPrinterBounds(position) {
                 position.x = Math.min(position.x, this.maxx);
                 position.y = Math.min(position.y, this.maxy);
@@ -721,87 +585,117 @@
                 return position;
             }
 
-
             /**
-             * Internally recursive extrude - move until target.x,Y,Z reached.
-             * @param {float} scalingFactor amount to scale move by (used in bounce mode)  
-             * */
-            _extrude(leftToMove) {
-                // if there's nowhere to move, return
-                //
-                let sumMovement = 0;
-                let absMovement = {};
+            * extrude from the printer head, withing bounds
+            * @param {Object} params Parameters dictionary containing either x,y,z keys or direction/angle (radians) keys.
+            *      Optional bounce (Boolean) key if movement should bounce off sides.
+            */
+            extrudeto(params) {
+                let extrusionSpecified = (params.e !== undefined);
+                let retract = ((params.retract !== undefined) && params.retract);
 
-                for (var axis in leftToMove) {
-                    absMovement[axis] = Math.abs(leftToMove[axis]);
-                    sumMovement += absMovement[axis];
-                }
-                if ( sumMovement < 0.1) {
-                    return this;
-                }
+                let __x = (params.x !== undefined) ? parseFloat(params.x) : this.x;
+                let __y = (params.y !== undefined) ? parseFloat(params.y) : this.y;
+                let __z = (params.z !== undefined) ? parseFloat(params.z) : this.z;
+                let __e = (extrusionSpecified) ? parseFloat(params.e) : this.e;
 
-                // otherwise...
-                // next position to move/extrude to
-                let nextPosition = {
-                    x: this.target.x,
-                    y: this.target.y,
-                    z: this.target.z,
-                    e: this.target.e
-                };
+                let newPosition = new Vector({ x: __x, y: __y, z: __z, e: __e });
 
-                this.clipToPrinterBounds(nextPosition);
+                this.printSpeed = parseFloat((params.speed !== undefined) ? params.speed : this.printSpeed);
+                this.layerHeight = parseFloat((params.thickness !== undefined) ? params.thickness : this.layerHeight);
 
-                let scalingFactor = 1;
+                //////////////////////////////////////
+                /// START CALCULATIONS      //////////
+                //////////////////////////////////////
 
-                if (this.boundaryMode == "bounce") {
-                    let xsteps = absMovement[x] / (this.minx - this.maxx);
-                    let ysteps = absMovement[y] / (this.miny - this.maxy);
-                    let zsteps = absMovement[z] / (this.minz - this.maxz);
+                let distanceVec = Vector.prototype.sub(newPosition, this.position);
+                let distanceMag = distanceVec.mag();
 
-                    scalingFactor = zsteps;
+                // FYI:
+                //  nozzle_speed{mm/s} = (radius_filament^2) * PI * filament_speed{mm/s} / layer_height^2
+                //  filament_speed{mm/s} = layer_height^2 * nozzle_speed{mm/s}/(radius_filament^2)*PI
 
-                    if (xsteps > ysteps && xsteps > zsteps) scalingFactor = xsteps;
-                    else if (ysteps > xsteps && ysteps > zsteps) scalingFactor = ysteps;
+                if (!extrusionSpecified) {
+                    // otherwise, calculate filament length needed based on layerheight, etc.
+                    let filamentRadius = Printer.filamentDiameter[this.model] / 2;
 
-                    nextPosition.x *= scalingFactor;
-                    nextPosition.y *= scalingFactor;
-                    nextPosition.z *= scalingFactor;
-                    nextPosition.e *= scalingFactor;
+                    // for extrusion into free space
+                    // apparently, some printers take the filament into account (so this is in mm3)
+                    // this was helpful: https://github.com/Ultimaker/GCodeGenJS/blob/master/js/gcode.js
+                    let filamentLength = distanceMag * this.layerHeight * this.layerHeight;//(Math.PI*filamentRadius*filamentRadius);
 
-                    let vdiff = this.subV3({ x: this.x, y: this.y, z: this.z, e: this.e }, nextPosition);
-                    for (var axis in absMovement) {
-                        absMovement[axis] = absMovement[axis] - Math.abs(vdiff[axis]);
+                    //
+                    // safety check:
+                    //
+                    if (filamentLength > this.maxFilamentPerOperation) {
+                        throw Error("Too much filament in move:" + filamentLength);
+                    }
+                    if (!Printer.extrusionInmm3[this.model]) {
+                        filamentLength /= (filamentRadius * filamentRadius * Math.PI);
                     }
 
-                }
-                else {
-                    for (var axis in absMovement) {
-                        absMovement[axis] = 0;
-                    }
+                    //console.log("filament speed: " + filamentSpeed);
+                    //console.log("filament distance : " + filamentLength + "/" + dist);
 
-                    //target
+                    distanceVec.axes.e = filamentLength;
+                    newPosition.axes.e = this.e + distanceVec.axes.e;
                 }
-                
-                this.x = nextPosition.x;
-                this.y = nextPosition.y;
-                this.z = nextPosition.z;
-                this.e = nextPosition.e;
+
+                let velocity = distanceVec.divSelf(distanceMag);
+                let moveTime = distanceMag / this.printSpeed; // in sec, doesn't matter that new 'e' not taken into account because it's not in firmware
                
 
+                console.log("time: " + moveTime + " / dist:" + distanceMag);
+
+                //
+                // BREAK AT LARGE MOVES
+                //
+                if (moveTime > this.maxTimePerOperation) {
+                    throw Error("move time too long:" + moveTime);
+                }
+
+                let nozzleSpeed = (new Vector(distanceVec)).divSelf(moveTime);
+                //
+                // safety checks
+                //
+                if (nozzleSpeed.axes.x > this.maxSpeed["x"]) {
+                    throw Error("X travel too fast:" + nozzleSpeed.x);
+                }
+                if (nozzleSpeed.axes.y > this.maxSpeed["y"]) {
+                    throw Error("Y travel too fast:" + nozzleSpeed.y);
+                }
+                if (nozzleSpeed.axes.z > this.maxSpeed["z"]) {
+                    throw Error("Z travel too fast:" + nozzleSpeed.z);
+                }
+                if (nozzleSpeed.axes.e > this.maxSpeed["e"]) {
+                    throw Error("Z travel too fast:" + nozzleSpeed.z);
+                }
+
+                // Handle movements outside printer boundaries if there's a need.
+                // Tail recursive.
+                //
+                //console.log(this);
+                this._extrude(velocity, distanceMag, retract);
+            } // end extrudeto
+
+            /**
+             * Send movement update GCode to printer based on current position (this.x,y,z).
+             * 
+             * @param {boolean} retract if true (default) add GCode for retraction/unretraction. Will use either hardware or software retraction if set in Printer object
+             * */
+            sendExtrusionGCode(retract = true) {
                 //unretract first if needed
-                if (!onlyMove && !this.firmwareRetract && this.currentRetraction) {
+                if (!this.firmwareRetract && this.currentRetraction) {
                     this.e += this.currentRetraction;
                     // account for previous retraction
                     sendGCode("G1 " + "E" + this.e.toFixed(4) + " F" + this.retractSpeed.toFixed(4));
                     this.currentRetraction = 0;
                 }
-
                 // unretract
-                if (!onlyMove && retract && this.firmwareRetract && this.currentRetraction > 0) { // ugh what an ungly check
+                if (this.firmwareRetract && this.currentRetraction > 0) { // ugh what an ungly check
                     sendGCode("G11");
                     this.currentRetraction = 0;
                 }
-
                 // G1 - Coordinated Movement X Y Z E
                 let moveCode = ["G1"];
                 moveCode.push("X" + this.x.toFixed(4));
@@ -812,71 +706,74 @@
                 sendGCode(moveCode.join(" "));
 
                 // RETRACT
-                if (!onlyMove && !this.firmwareRetract && this.retractLength) {
-                    this.currentRetraction = this.retractLength;
-                    this.e -= this.currentRetraction;
-                    sendGCode("G1 " + "E" + this.e.toFixed(4) + " F" + this.retractSpeed.toFixed(4));
+                if (retract && this.retractLength) {
+                    if (this.firmwareRetract) {
+                        sendGCode("G10");
+                        this.currentRetraction = 3.5; // this is handled in hardware, just need to be > 0                        
+                    } else {
+                        this.currentRetraction = this.retractLength;
+                        this.e -= this.currentRetraction;
+                        sendGCode("G1 " + "E" + this.e.toFixed(4) + " F" + this.retractSpeed.toFixed(4));
+                    }
                 }
-
-                // retract
-                if (!onlyMove && retract && this.firmwareRetract) {
-                    sendGCode("G10");
-                    this.currentRetraction = 3.5; // guess... this is handled in hardware, just need to be > 0
-                }
-               
-                // Tail recursive, until target.x,Y,Z is hit
-                //
-                this._extrude(absMovement);
-
-            } // end _extrude
+            } // end sendExtrusionGCode
 
 
-            //
-            // relative extrusion
-            //
+            /**
+             * Relative extrusion.
+             * @param {objects} params Can be specified as x,y,z,e or dist (distance), angle (xy plane), elev (z dir). All in mm.
+             */
             extrude(params) {
-                let __x = (params.x !== undefined) ? params.x : 0;
-                let __y = (params.y !== undefined) ? params.y : 0;
-                let __z = (params.z !== undefined) ? params.z : 0;
-
-                params.x = __x + this.x;
-                params.y = __y + this.y;
-                params.z = __z + this.z;
-
-                if (params.e !== undefined) params.e = (parseFloat(params.e) + this.e);
-                //console.log(params);
-
+                if (params.angle !== undefined && params.dist !== undefined) {
+                    params.dist = parseFloat(params.dist);
+                    params.angle = parseFloat(params.angle);
+                    params.x = params.dist * Math.cos(params.angle);
+                    params.y = params.dist * Math.sin(params.angle);
+                    if (params.elev !== undefined) {
+                        params.z = params.dist * Math.sin(parseFloat(params.elev));
+                    }
+                    params.e = (params.e !== undefined) ? parseFloat(params.e) + this.e : undefined;
+                } else {
+                    params.x = (params.x !== undefined) ? parseFloat(params.x) + this.x : 0;
+                    params.y = (params.y !== undefined) ? parseFloat(params.y) + this.y : 0;
+                    params.z = (params.z !== undefined) ? parseFloat(params.z) + this.z : 0;
+                    params.e = (params.e !== undefined) ? parseFloat(params.e) + this.e : undefined;
+                }
                 this.extrudeto(params);
-            } // end extrudeto
-
-            // PRINTER API
-            // relative movement
-            //
+            }
+            
+            /**
+             * Relative movement.
+             * @param {any} params Can be specified as x,y,z,e or dist (distance), angle (xy plane), elev (z dir). All in mm.
+             */
             move(params) {
                 params.e = 0; // no filament extrusion
+                params.retract = false;
                 this.extrude(params);
-            } // end move
+            }
 
-            // PRINTER API
-            // abs movement
-            //
+            /**
+             * Absolute movement.
+             * @param {any} params Can be specified as x,y,z,e. All in mm.
+             */
             moveto(params) {
                 params.e = this.e; // keep filament at current position
+                params.retract = false;
                 this.extrudeto(params);
-            } // end moveto
+            } 
 
             /**
              * @param {float} note as midi note
              * @param {float} time in ms
-             * @param {string} axis x,y,z (default x) 
+             * @param {object or Vector} direction in x,y,z (default x) 
              * @returns object with axis/distance & speed: {x:distance, speed:speed}
              */
-            note(note, time, axis = "x") {
+            note(note, time, axes) {
                 // low notes are pauses
                 if (note < 10) {
                     this.wait(time);
                     let moveObj = {};
-                    moveObj[axis] = 0;
+                    moveObj[x] = 0;
                     moveObj["speed"] = 0;
                     return moveObj;
                 }
@@ -885,7 +782,8 @@
                     let speed = this.midi2speed(note, axis); // mm/s
                     let dist = speed * time / 1000; // time in ms
                     let moveObj = {};
-                    moveObj[axis] = dist;
+                    // TODO: fix or other axes
+                    moveObj[axes] = dist;
                     moveObj["speed"] = speed;
                     this.move(moveObj);
                     return moveObj;
@@ -899,7 +797,7 @@
              * @param {float} lh the layerheight (or gap, if larger)
              */
             fill(w, h, lh = this.layerHeight) {
-                let inc = lh * Math.PI;
+                let inc = lh * Math.PI; // not totally sure why this works, but experimentally it does
                 for (var i = 0, y = 0; y < h; i++ , y += inc) {
                     let m = (i % 2 == 0) ? 1 : -1;
                     this.move({ y: inc });
@@ -930,11 +828,6 @@
                 return this.midi2speed(note,axis);
             }
 
-            extents()
-            {
-                let bs = Printer.bedSize[this.model];
-                return {"x":bs["x"], "y":bs["y"], "z":bs["z"] };
-            }
             //
             // for calculating note frequencies
             //
@@ -965,11 +858,91 @@
                 sendGCode("M106 S100"); // turn on fan
                 this.extrude({ e: 16, speed: 250 });
             }
-
-
-
             // end Printer class
         };
+
+
+        // defined outside class because we have to
+        /**
+         * Tail-recursive extrusion function.  Uses FEXT https://github.com/glathoud/fext
+         * @param {Vector} moveVector
+         * @param {Number} leftToMove
+         */
+        Printer.prototype._extrude = meth("_extrude",function (that,moveVector, leftToMove, retract) {
+            // if there's nowhere to move, return
+            //console.log(that);
+            //console.log("left to move:" + leftToMove);
+
+            //console.log("CURRENT:");
+            //console.log(that.position);
+
+            if (leftToMove < 0.08) {
+                return false;
+            }
+
+            // calculate next position
+            let nextPosition = Vector.prototype.add(that.position, Vector.prototype.mult(moveVector, leftToMove));
+
+            //console.log("VECTOR:");
+            //console.log(moveVector);
+
+            //console.log("CURRENT:");
+            //console.log(that.position);
+
+            //console.log("NEXT:");
+            //console.log(nextPosition);
+
+            let amountMoved = leftToMove; // assume we moved all the way unless otherwise calculated
+
+            if (that.boundaryMode == "bounce") {
+                let moved = new Vector();
+                // calculate movement per axis, based on printer bounds
+                // reverse velocity if bounds hit
+                for (let axis in nextPosition.axes) {
+                    // TODO:
+                    // for each axis, see where it intersects the printer bounds
+                    // then, using velocity, get other axes positions at that point
+                    // if any of them are over, skip to next axis
+
+                    if (nextPosition.axes[axis] > that.maxPosition.axes[axis]) {
+                        moved.axes[axis] = that.maxPosition.axes[axis] - that.position.axes[axis];
+                        nextPosition.axes[axis] = that.maxPosition.axes[axis];
+                        moveVector.axes[axis] *= -1;
+                    } else if (nextPosition.axes[axis] < that.minPosition.axes[axis]) {
+                        moved.axes[axis] = that.position.axes[axis] - that.minPosition.axes[axis];
+                        nextPosition.axes[axis] = that.minPosition.axes[axis];
+                        moveVector.axes[axis] *= -1;
+                    } else {
+                        moved.axes[axis] = nextPosition.axes[axis] - that.position.axes[axis];
+                    }
+                    //console.log("moved:");
+                    //console.log(moved);
+                }
+                amountMoved = moved.mag();
+                //console.log("amt moved:" + amountMoved);
+                //console.log(moved);
+            } else {
+                that.clipToPrinterBounds(nextPosition.axes);
+            }
+            leftToMove -= amountMoved;
+
+            // update current position
+            //console.log("current pos:")
+            //console.log(that.position);
+
+            that.position.set(nextPosition);
+            //console.log("next pos:");
+            //console.log(nextPosition);
+            //console.log(that.position);
+            //console.log(that);
+            that.sendExtrusionGCode(retract);
+
+            // Tail recursive, until target x,y,z is hit
+            //
+            return mret(that._extrude, moveVector, leftToMove, retract);
+
+        } // end _extrude 
+        );
 
 
         // TODO: this is dumb.  SHould be in another data model class called "printer model"

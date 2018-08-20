@@ -51,6 +51,8 @@
     <Content Include="liveprinter\static\lib\brython\brython_stdlib.js" />
     <Content Include="liveprinter\static\lib\codemirror\codemirror.css" />
     <Content Include="liveprinter\static\lib\codemirror\codemirror.js" />
+    <Content Include="liveprinter\static\lib\fext.js" />
+    <Content Include="liveprinter\static\lib\vector.js" />
     <Content Include="liveprinter\static\liveprinter.css" />
     <Content Include="liveprinter\static\liveprinter.js" />
     <Content Include="liveprinter\templates\index.html" />
