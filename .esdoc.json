@@ -1,0 +1,12 @@
+{
+  "source": "./liveprinter/static",
+  "destination": "./docs",
+  "excludes" : ["(examples|addon|brython|codemirror|fext)"],
+  "plugins": [
+  {
+     "name": "esdoc-standard-plugin",
+     "option": {
+      }
+  }
+  ]
+}
