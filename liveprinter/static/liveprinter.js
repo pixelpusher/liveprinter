@@ -37,6 +37,9 @@
 
         var pythonMode = true;
 
+        /**
+         * Object for scheduling events, etc.
+         */
         var Scheduler = {
             ScheduledEvents: [],
             audioContext: new AudioContext(),
@@ -466,6 +469,11 @@
 
                 this.lastSpeed = -1.0;
 
+                this.heading = 0;   // current angle of movement (xy) in radians
+                this.elevation = 0; // current angle of elevated movement (z) in radians
+
+                this.totalMoveTime = 0; // time spent moving/extruding
+
                 this.maxFilamentPerOperation = 30; // safety check to keep from using all filament, in mm
                 this.maxTimePerOperation = 10; // prevent very long operations, by accident - this is in seconds
 
@@ -647,7 +655,11 @@
 
                 let velocity = distanceVec.divSelf(distanceMag);
                 let moveTime = distanceMag / this.printSpeed; // in sec, doesn't matter that new 'e' not taken into account because it's not in firmware
-               
+
+                this.totalMoveTime += moveTime; // update total movement time for the printer
+
+                this.heading = Math.atan2(velocity.axes.x, velocity.axes.y);
+                this.elevation = Math.asin(velocity.z);
 
                 console.log("time: " + moveTime + " / dist:" + distanceMag);
 
@@ -735,24 +747,41 @@
              * @param {objects} params Can be specified as x,y,z,e or dist (distance), angle (xy plane), elev (z dir). All in mm.
              */
             extrude(params) {
-                if (params.angle !== undefined && params.dist !== undefined) {
+                // first, handle distance/angle mode
+                if (params.dist !== undefined) {
                     params.dist = parseFloat(params.dist);
-                    params.angle = parseFloat(params.angle);
+
+                    if (params.angle === undefined) {
+                        params.angle = this.heading; // use current heading angle
+                    }
+                    else {
+                        params.angle = parseFloat(params.angle);
+                    }
                     params.x = params.dist * Math.cos(params.angle);
                     params.y = params.dist * Math.sin(params.angle);
-                    if (params.elev !== undefined) {
-                        params.z = params.dist * Math.sin(parseFloat(params.elev));
+                    if (params.elev === undefined) {
+                        params.elev = this.elevation; // use current elevation angle
                     }
+                    params.z = params.dist * Math.sin(parseFloat(params.elev));
                     params.e = (params.e !== undefined) ? parseFloat(params.e) + this.e : undefined;
-                } else {
+                }
+                //otherwise, handle cartesian coordinates mode
+                else
+                {
                     params.x = (params.x !== undefined) ? parseFloat(params.x) + this.x : 0;
                     params.y = (params.y !== undefined) ? parseFloat(params.y) + this.y : 0;
                     params.z = (params.z !== undefined) ? parseFloat(params.z) + this.z : 0;
                     params.e = (params.e !== undefined) ? parseFloat(params.e) + this.e : undefined;
                 }
+
+                // run callback function, if any exists
+                if (this.moveCallback) this.moveCallback(this);
+
+                // extrude using absolute cartesian coords
                 this.extrudeto(params);
-            }
-            
+            } // end extrude
+
+
             /**
              * Relative movement.
              * @param {any} params Can be specified as x,y,z,e or dist (distance), angle (xy plane), elev (z dir). All in mm.
@@ -772,6 +801,30 @@
                 params.retract = false;
                 this.extrudeto(params);
             } 
+
+            /**
+             * Turn (clockwise positive, CCW negative)
+             * @param {Number} angle in degrees by default
+             * @param {Boolean} radians use radians if true
+             */
+            turn(angle, radians = false) {
+                let a = angle;
+
+                if (!radians) {
+                    a = this.d2r(angle);
+                }
+
+                this.heading += a;
+                return this;
+            }
+
+            /**
+             * Degrees to radians conversion.
+             * @param {any} angle in degrees
+             */
+            d2r(angle) {
+                return Math.PI * angle / 180;
+            }
 
             /**
              * @param {float} note as midi note
