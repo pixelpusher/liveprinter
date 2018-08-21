@@ -52,3 +52,5 @@ coverage.xml
 
 # PyBuilder
 target/
+docs/
+node_modules/

@@ -56,7 +56,7 @@ Vector.prototype.sub = function (v0, v1) {
 
 /**
  * Add a vector object (x,y,z,e or whatever) to another and return itself.
- * @param {Vector} v1 amount to add
+ * @param {Vector} v0 amount to add
  */
 Vector.prototype.addSelf = function (v0) {
     try {
