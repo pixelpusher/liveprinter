@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    
+    <meta charset="utf-8">
+    <title>CodeMirror - LivePrinter</title>
+    
+    <meta name="description" content="Livecoding for 3D printers and other CNC machines" />
+    
+        <meta name="keywords" content="livecoding,3d printing, cnc,javascript" />
+        <meta name="keyword" content="livecoding,3d printing, cnc,javascript" />
+    
+    
+    
+    <meta property="og:title" content=""/>
+    <meta property="og:type" content="website"/>
+    <meta property="og:image" content=""/>
+    
+    <meta property="og:url" content=""/>
+    
+    <script src="scripts/prettify/prettify.js"></script>
+    <script src="scripts/prettify/lang-css.js"></script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+
+<input type="checkbox" id="nav-trigger" class="nav-trigger" />
+<label for="nav-trigger" class="navicon-button x">
+  <div class="navicon"></div>
+</label>
+
+<label for="nav-trigger" class="overlay"></label>
+
+<nav>
+    
+    <input type="text" id="nav-search" placeholder="Search" />
+    
+    <h2><a href="index.html">Home</a></h2><h2><a href="https://github.com/pixelpusher/liveprinter" target="_blank" class="menu-item" id="website_link" >LivePrinter main website</a></h2><h2><a href="https://talk.lurk.org/channel/liveprinter" target="_blank" class="menu-item" id="forum_link" >Forum</a></h2><h3>Namespaces</h3><ul><li><a href="CodeMirror.html">CodeMirror</a></li><li><a href="LivePrinter.html">LivePrinter</a><ul class='methods'><li data-type='method' style='display: none;'><a href="LivePrinter.html#.setLanguageMode">setLanguageMode</a></li></ul></li></ul><h3>Classes</h3><ul><li><a href="LivePrinter-Scheduler.html">Scheduler</a><ul class='methods'><li data-type='method' style='display: none;'><a href="LivePrinter-Scheduler.html#.clearEvents">clearEvents</a></li><li data-type='method' style='display: none;'><a href="LivePrinter-Scheduler.html#.removeEvent">removeEvent</a></li><li data-type='method' style='display: none;'><a href="LivePrinter-Scheduler.html#.removeEventByName">removeEventByName</a></li><li data-type='method' style='display: none;'><a href="LivePrinter-Scheduler.html#.scheduleEvent">scheduleEvent</a></li><li data-type='method' style='display: none;'><a href="LivePrinter-Scheduler.html#.startScheduler">startScheduler</a></li></ul></li><li><a href="Printer.html">Printer</a><ul class='methods'><li data-type='method' style='display: none;'><a href="Printer.html#_extrude">_extrude</a></li><li data-type='method' style='display: none;'><a href="Printer.html#clipToPrinterBounds">clipToPrinterBounds</a></li><li data-type='method' style='display: none;'><a href="Printer.html#d2r">d2r</a></li><li data-type='method' style='display: none;'><a href="Printer.html#extrude">extrude</a></li><li data-type='method' style='display: none;'><a href="Printer.html#extrudeto">extrudeto</a></li><li data-type='method' style='display: none;'><a href="Printer.html#fill">fill</a></li><li data-type='method' style='display: none;'><a href="Printer.html#go">go</a></li><li data-type='method' style='display: none;'><a href="Printer.html#m2s">m2s</a></li><li data-type='method' style='display: none;'><a href="Printer.html#midi2speed">midi2speed</a></li><li data-type='method' style='display: none;'><a href="Printer.html#move">move</a></li><li data-type='method' style='display: none;'><a href="Printer.html#moveto">moveto</a></li><li data-type='method' style='display: none;'><a href="Printer.html#note">note</a></li><li data-type='method' style='display: none;'><a href="Printer.html#pause">pause</a></li><li data-type='method' style='display: none;'><a href="Printer.html#resume">resume</a></li><li data-type='method' style='display: none;'><a href="Printer.html#sendExtrusionGCode">sendExtrusionGCode</a></li><li data-type='method' style='display: none;'><a href="Printer.html#speedScale">speedScale</a></li><li data-type='method' style='display: none;'><a href="Printer.html#start">start</a></li><li data-type='method' style='display: none;'><a href="Printer.html#turn">turn</a></li><li data-type='method' style='display: none;'><a href="Printer.html#wait">wait</a></li></ul></li><li><a href="Vector.html">Vector</a><ul class='methods'><li data-type='method' style='display: none;'><a href="Vector.html#add">add</a></li><li data-type='method' style='display: none;'><a href="Vector.html#addSelf">addSelf</a></li><li data-type='method' style='display: none;'><a href="Vector.html#dist">dist</a></li><li data-type='method' style='display: none;'><a href="Vector.html#div">div</a></li><li data-type='method' style='display: none;'><a href="Vector.html#divSelf">divSelf</a></li><li data-type='method' style='display: none;'><a href="Vector.html#mag">mag</a></li><li data-type='method' style='display: none;'><a href="Vector.html#magSq">magSq</a></li><li data-type='method' style='display: none;'><a href="Vector.html#mult">mult</a></li><li data-type='method' style='display: none;'><a href="Vector.html#multSelf">multSelf</a></li><li data-type='method' style='display: none;'><a href="Vector.html#set">set</a></li><li data-type='method' style='display: none;'><a href="Vector.html#sub">sub</a></li><li data-type='method' style='display: none;'><a href="Vector.html#subSelf">subSelf</a></li></ul></li></ul>
+</nav>
+
+<div id="main">
+    
+    <h1 class="page-title">CodeMirror</h1>
+    
+
+    
+
+
+
+
+<section>
+
+<header>
+    
+        <h2>
+        CodeMirror
+        </h2>
+        
+    
+</header>
+
+<article>
+    
+        <div class="container-overview">
+        
+            
+
+<dl class="details">
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="liveprinter.js.html">liveprinter.js</a>, <a href="liveprinter.js.html#line152">line 152</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+            
+                <div class="description"><p>CodeMirror code editor instance. See <a href="https://codemirror.net/doc/manual.html">https://codemirror.net/doc/manual.html</a></p></div>
+            
+
+            
+        
+        </div>
+    
+
+    
+
+    
+
+    
+
+     
+
+    
+
+    
+
+    
+
+    
+
+    
+</article>
+
+</section>
+
+
+
+
+    
+    
+</div>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.5.5</a> on Sun Aug 26 2018 18:10:07 GMT+0100 (GMT Daylight Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
+</footer>
+
+<script>prettyPrint();</script>
+<script src="scripts/linenumber.js"></script>
+
+<script src="scripts/jquery-3.1.1.min.js"></script>
+
+<script src="scripts/search.js"></script>
+
+
+<script src="scripts/collapse.js"></script>
+
+
+
+</body>
+</html>

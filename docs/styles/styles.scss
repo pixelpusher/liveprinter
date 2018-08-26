@@ -1,0 +1,53 @@
+@import "vendor/bootstrap-custom";
+@import "vendor/prism.v2";
+@import "vars";
+@import "layout";
+@import "typography";
+@import "methods";
+@import "lists";
+
+ul {
+  margin: 1em 0 2em;
+}
+
+dl.details {
+  font-size: 0.9rem;
+}
+
+// Hide repeated class name (see also container.tmpl)
+// header.class {
+//   h2 {
+//     display: none;
+//   }
+// }
+
+//// jsdoc - default
+
+tt, code, kbd, samp {
+  font-family: Consolas, Monaco, 'Andale Mono', monospace;
+}
+
+.details {
+  @include clearfix;
+  margin: 2em 0;
+  border-left: 3px solid #eee;
+  padding-left: 1rem;
+
+  &:last-child {
+    margin-bottom: 1em;
+  }
+
+  a {
+    color: #7097b5;
+  }
+
+  dt {
+    width: 8rem;
+    float: left;
+    font-weight: 400;
+  }
+
+  dd {
+    margin-left: 9rem;
+  }
+}

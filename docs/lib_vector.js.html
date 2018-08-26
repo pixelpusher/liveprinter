@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    
+    <meta charset="utf-8">
+    <title>lib/vector.js - LivePrinter</title>
+    
+    <meta name="description" content="Livecoding for 3D printers and other CNC machines" />
+    
+        <meta name="keywords" content="livecoding,3d printing, cnc,javascript" />
+        <meta name="keyword" content="livecoding,3d printing, cnc,javascript" />
+    
+    
+    
+    <meta property="og:title" content=""/>
+    <meta property="og:type" content="website"/>
+    <meta property="og:image" content=""/>
+    
+    <meta property="og:url" content=""/>
+    
+    <script src="scripts/prettify/prettify.js"></script>
+    <script src="scripts/prettify/lang-css.js"></script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+
+<input type="checkbox" id="nav-trigger" class="nav-trigger" />
+<label for="nav-trigger" class="navicon-button x">
+  <div class="navicon"></div>
+</label>
+
+<label for="nav-trigger" class="overlay"></label>
+
+<nav>
+    
+    <input type="text" id="nav-search" placeholder="Search" />
+    
+    <h2><a href="index.html">Home</a></h2><h2><a href="https://github.com/pixelpusher/liveprinter" target="_blank" class="menu-item" id="website_link" >LivePrinter main website</a></h2><h2><a href="https://talk.lurk.org/channel/liveprinter" target="_blank" class="menu-item" id="forum_link" >Forum</a></h2><h3>Namespaces</h3><ul><li><a href="CodeMirror.html">CodeMirror</a></li><li><a href="LivePrinter.html">LivePrinter</a><ul class='methods'><li data-type='method' style='display: none;'><a href="LivePrinter.html#.setLanguageMode">setLanguageMode</a></li></ul></li></ul><h3>Classes</h3><ul><li><a href="LivePrinter-Scheduler.html">Scheduler</a><ul class='methods'><li data-type='method' style='display: none;'><a href="LivePrinter-Scheduler.html#.clearEvents">clearEvents</a></li><li data-type='method' style='display: none;'><a href="LivePrinter-Scheduler.html#.removeEvent">removeEvent</a></li><li data-type='method' style='display: none;'><a href="LivePrinter-Scheduler.html#.removeEventByName">removeEventByName</a></li><li data-type='method' style='display: none;'><a href="LivePrinter-Scheduler.html#.scheduleEvent">scheduleEvent</a></li><li data-type='method' style='display: none;'><a href="LivePrinter-Scheduler.html#.startScheduler">startScheduler</a></li></ul></li><li><a href="Printer.html">Printer</a><ul class='methods'><li data-type='method' style='display: none;'><a href="Printer.html#_extrude">_extrude</a></li><li data-type='method' style='display: none;'><a href="Printer.html#clipToPrinterBounds">clipToPrinterBounds</a></li><li data-type='method' style='display: none;'><a href="Printer.html#d2r">d2r</a></li><li data-type='method' style='display: none;'><a href="Printer.html#extrude">extrude</a></li><li data-type='method' style='display: none;'><a href="Printer.html#extrudeto">extrudeto</a></li><li data-type='method' style='display: none;'><a href="Printer.html#fill">fill</a></li><li data-type='method' style='display: none;'><a href="Printer.html#go">go</a></li><li data-type='method' style='display: none;'><a href="Printer.html#m2s">m2s</a></li><li data-type='method' style='display: none;'><a href="Printer.html#midi2speed">midi2speed</a></li><li data-type='method' style='display: none;'><a href="Printer.html#move">move</a></li><li data-type='method' style='display: none;'><a href="Printer.html#moveto">moveto</a></li><li data-type='method' style='display: none;'><a href="Printer.html#note">note</a></li><li data-type='method' style='display: none;'><a href="Printer.html#pause">pause</a></li><li data-type='method' style='display: none;'><a href="Printer.html#resume">resume</a></li><li data-type='method' style='display: none;'><a href="Printer.html#sendExtrusionGCode">sendExtrusionGCode</a></li><li data-type='method' style='display: none;'><a href="Printer.html#speedScale">speedScale</a></li><li data-type='method' style='display: none;'><a href="Printer.html#start">start</a></li><li data-type='method' style='display: none;'><a href="Printer.html#turn">turn</a></li><li data-type='method' style='display: none;'><a href="Printer.html#wait">wait</a></li></ul></li><li><a href="Vector.html">Vector</a><ul class='methods'><li data-type='method' style='display: none;'><a href="Vector.html#add">add</a></li><li data-type='method' style='display: none;'><a href="Vector.html#addSelf">addSelf</a></li><li data-type='method' style='display: none;'><a href="Vector.html#dist">dist</a></li><li data-type='method' style='display: none;'><a href="Vector.html#div">div</a></li><li data-type='method' style='display: none;'><a href="Vector.html#divSelf">divSelf</a></li><li data-type='method' style='display: none;'><a href="Vector.html#mag">mag</a></li><li data-type='method' style='display: none;'><a href="Vector.html#magSq">magSq</a></li><li data-type='method' style='display: none;'><a href="Vector.html#mult">mult</a></li><li data-type='method' style='display: none;'><a href="Vector.html#multSelf">multSelf</a></li><li data-type='method' style='display: none;'><a href="Vector.html#set">set</a></li><li data-type='method' style='display: none;'><a href="Vector.html#sub">sub</a></li><li data-type='method' style='display: none;'><a href="Vector.html#subSelf">subSelf</a></li></ul></li></ul>
+</nav>
+
+<div id="main">
+    
+    <h1 class="page-title">lib/vector.js</h1>
+    
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>
+/**
+ * A Vector object with optional fields (ex: x,y,z,e)
+ * @class 
+ * @constructor
+ * @param {any} mapping object with fields to deep copy into this Vector
+ */
+function Vector(mapping) {
+    this.axes = {};
+    if (mapping !== undefined) {
+        if (mapping instanceof Vector) {
+            // deep copy axes
+            for (let axis in mapping.axes) {
+                this.axes[axis] = mapping.axes[axis];
+            }
+        } else if (mapping instanceof Object) {
+            for (let axis in mapping) {
+                this.axes[axis] = mapping[axis];
+            }
+        }
+    }
+};
+
+
+/**
+* Subtract a vector object (x,y,z,e or whatever) from another and return a new vector.
+* TODO: Consider using toxiclibs or other Vector lib
+* @param {Vector} v0 first vector 
+* @returns {object} reference to this for chaining
+*/
+Vector.prototype.subSelf = function (v0) {
+    try {
+        for (let axis in v0.axes) {
+            this.axes[axis] = this.axes[axis] - v0.axes[axis];
+        }
+    } catch (e) {
+        // rethrow, caught in GUI
+        throw (e);
+    }
+    return this;
+};
+
+/**
+* Subtract a vector object (x,y,z,e or whatever) from another and return a new vector.
+* @param {Vector} v0 first vector 
+* @param {Vector} v1 amount to subtract
+* @returns {object} reference to this for chaining
+*/
+Vector.prototype.sub = function (v0, v1) {
+    v2 = new Vector();
+    try {
+        for (let axis in v0.axes) {
+            v2.axes[axis] = v0.axes[axis] - v1.axes[axis];
+        }
+    } catch (e) {
+        // rethrow, caught in GUI
+        throw (e);
+    }
+    return v2;
+};
+
+/**
+ * Add a vector object (x,y,z,e or whatever) to another and return itself.
+ * @param {Vector} v0 amount to add
+ * @returns {object} reference to this for chaining
+ */
+Vector.prototype.addSelf = function (v0) {
+    try {
+        for (let axis in v0.axes) {
+            this.axes[axis] = this.axes[axis] + v0[axis];
+        }
+    } catch (e) {
+        // rethrow, caught in GUI
+        throw (e);
+    }
+    return this;
+};
+
+/**
+ * Add a vector object (x,y,z,e or whatever) to another and return a new Vector.
+ * TODO: Consider using toxiclibs or other Vector lib
+ * @param {Vector} v0 first vector 
+ * @param {Vector} v1 amount to add
+ * @returns {object} reference to this for chaining
+ */
+Vector.prototype.add = function (v0, v1) {
+    v2 = new Vector();
+    try {
+        for (let axis in v0.axes) {
+            v2.axes[axis] = v0.axes[axis] + v1.axes[axis];
+        }
+    } catch (e) {
+        // rethrow, caught in GUI
+        throw (e);
+    }
+    return v2;
+};
+
+/**
+ * Magnitude squared of this vector as a scalar.
+ * @returns {float} magnitude
+ */
+Vector.prototype.magSq = function (v0) {
+    let v1 = (v0 === undefined ? this : v0);
+    let sumAxes = 0;
+    for (let v in v1.axes) {
+        sumAxes += v1.axes[v] * v1.axes[v];
+    }
+    return sumAxes;
+};
+
+/**
+ * Magnitude of this vector as a scalar.
+ * @returns {float} magnitude
+ */
+Vector.prototype.mag = function (v0) {
+    let v1 = (v0 === undefined ? this : v0);
+    return Math.sqrt(v1.magSq());
+};
+
+/**
+ * Scalar distance between Vectors.
+ * @param {Vector} v0 (required) first vector 
+ * @param {Vector} v1 (optional) second vector (if not included, will use this)
+ * @returns {float} scalar vector
+ */
+Vector.prototype.dist = function (v0, v1) {
+    let v2 = (v1 === undefined ? this : v1);
+    return Vector.sub(v0, v2).mag();
+}
+
+/**
+ * Divide a vector by a scalar
+ * @param {Number} amt to divide by
+ * @returns {Vector} this object for chaining
+ */
+Vector.prototype.divSelf = function (amt) {
+    for (let axis in this.axes) {
+        this.axes[axis] /= amt;
+    }
+    return this;
+}
+
+/**
+* Divide a vector object (x,y,z,e or whatever) by an amount and return a new one.
+* @param {Vector} v0 first vector 
+* @param {number} amt amount to divide by
+* @returns {Vector} new Vector
+*/
+Vector.prototype.div = function (v0, amt) {
+    v1 = new Vector();
+    try {
+        for (let axis in v0.axes) {
+            v1.axes[axis] = v0.axes[axis]/amt;
+        }
+    } catch (e) {
+        // rethrow, caught in GUI
+        throw (e);
+    }
+    return v1;
+};
+
+
+/**
+ * Multiply a vector by a scalar
+ * @param {Number} amt to multiply by
+ * @returns {Vector} this object for chaining
+ */
+Vector.prototype.multSelf = function (amt) {
+    for (let axis in this.axes) {
+        this.axes[axis] *= amt;
+    }
+    return this;
+}
+
+/**
+* Multiply a vector object (x,y,z,e or whatever) by an amount and return a new one.
+* @param {Vector} v0 first vector 
+* @param {number} amt amount to divide by
+* @returns {Vector} new Vector
+*/
+Vector.prototype.mult = function (v0, amt) {
+    v1 = new Vector();
+    try {
+        for (let axis in v0.axes) {
+            v1.axes[axis] = v0.axes[axis] * amt;
+        }
+    } catch (e) {
+        // rethrow, caught in GUI
+        throw (e);
+    }
+    return v1;
+};
+
+
+/**
+ * Set the properties of this Vector based on another or a mapping object
+ * @param {object} mapping object with fields to deep copy into this Vector
+ * @returns {Vector} this object for chaining
+ */
+Vector.prototype.set = function(mapping)
+{
+    if (mapping !== undefined) {
+        if (mapping instanceof Vector) {
+            // deep copy axes
+            for (let axis in mapping.axes) {
+                this.axes[axis] = mapping.axes[axis];
+            }
+        } else if (mapping instanceof Object) {
+            for (let axis in mapping) {
+                this.axes[axis] = mapping[axis];
+            }
+        }
+    }
+    return this;
+}</code></pre>
+        </article>
+    </section>
+
+
+
+
+    
+    
+</div>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.5.5</a> on Sun Aug 26 2018 18:10:07 GMT+0100 (GMT Daylight Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
+</footer>
+
+<script>prettyPrint();</script>
+<script src="scripts/linenumber.js"></script>
+
+<script src="scripts/jquery-3.1.1.min.js"></script>
+
+<script src="scripts/search.js"></script>
+
+
+<script src="scripts/collapse.js"></script>
+
+
+
+</body>
+</html>
