@@ -55,6 +55,7 @@
     <Content Include="liveprinter\static\lib\vector.js" />
     <Content Include="liveprinter\static\liveprinter.css" />
     <Content Include="liveprinter\static\liveprinter.js" />
+    <Content Include="liveprinter\static\printer.js" />
     <Content Include="liveprinter\templates\index.html" />
     <Content Include="liveprinter\templates\message.html" />
     <Content Include="liveprinter\testing\gcodegrammar.js" />
