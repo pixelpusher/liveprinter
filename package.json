@@ -13,6 +13,7 @@
   "author": "Evan Raskob and others",
   "devDependencies": {
     "esdoc": "^1.1.0",
-    "esdoc-standard-plugin": "^1.0.0"
+    "esdoc-standard-plugin": "^1.0.0",
+    "tidy-jsdoc": "^0.2.1"
   }
 }

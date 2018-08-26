@@ -1,6 +1,8 @@
 
 /**
  * A Vector object with optional fields (ex: x,y,z,e)
+ * @class 
+ * @constructor
  * @param {any} mapping object with fields to deep copy into this Vector
  */
 function Vector(mapping) {
@@ -19,10 +21,12 @@ function Vector(mapping) {
     }
 };
 
+
 /**
 * Subtract a vector object (x,y,z,e or whatever) from another and return a new vector.
 * TODO: Consider using toxiclibs or other Vector lib
 * @param {Vector} v0 first vector 
+* @returns {object} reference to this for chaining
 */
 Vector.prototype.subSelf = function (v0) {
     try {
@@ -40,6 +44,7 @@ Vector.prototype.subSelf = function (v0) {
 * Subtract a vector object (x,y,z,e or whatever) from another and return a new vector.
 * @param {Vector} v0 first vector 
 * @param {Vector} v1 amount to subtract
+* @returns {object} reference to this for chaining
 */
 Vector.prototype.sub = function (v0, v1) {
     v2 = new Vector();
@@ -57,6 +62,7 @@ Vector.prototype.sub = function (v0, v1) {
 /**
  * Add a vector object (x,y,z,e or whatever) to another and return itself.
  * @param {Vector} v0 amount to add
+ * @returns {object} reference to this for chaining
  */
 Vector.prototype.addSelf = function (v0) {
     try {
@@ -75,6 +81,7 @@ Vector.prototype.addSelf = function (v0) {
  * TODO: Consider using toxiclibs or other Vector lib
  * @param {Vector} v0 first vector 
  * @param {Vector} v1 amount to add
+ * @returns {object} reference to this for chaining
  */
 Vector.prototype.add = function (v0, v1) {
     v2 = new Vector();
@@ -90,8 +97,9 @@ Vector.prototype.add = function (v0, v1) {
 };
 
 /**
-* Magnitude of this vector as a scalar.
-*/
+ * Magnitude squared of this vector as a scalar.
+ * @returns {float} magnitude
+ */
 Vector.prototype.magSq = function (v0) {
     let v1 = (v0 === undefined ? this : v0);
     let sumAxes = 0;
@@ -103,6 +111,7 @@ Vector.prototype.magSq = function (v0) {
 
 /**
  * Magnitude of this vector as a scalar.
+ * @returns {float} magnitude
  */
 Vector.prototype.mag = function (v0) {
     let v1 = (v0 === undefined ? this : v0);
@@ -113,6 +122,7 @@ Vector.prototype.mag = function (v0) {
  * Scalar distance between Vectors.
  * @param {Vector} v0 (required) first vector 
  * @param {Vector} v1 (optional) second vector (if not included, will use this)
+ * @returns {float} scalar vector
  */
 Vector.prototype.dist = function (v0, v1) {
     let v2 = (v1 === undefined ? this : v1);
@@ -122,6 +132,7 @@ Vector.prototype.dist = function (v0, v1) {
 /**
  * Divide a vector by a scalar
  * @param {Number} amt to divide by
+ * @returns {Vector} this object for chaining
  */
 Vector.prototype.divSelf = function (amt) {
     for (let axis in this.axes) {
@@ -134,6 +145,7 @@ Vector.prototype.divSelf = function (amt) {
 * Divide a vector object (x,y,z,e or whatever) by an amount and return a new one.
 * @param {Vector} v0 first vector 
 * @param {number} amt amount to divide by
+* @returns {Vector} new Vector
 */
 Vector.prototype.div = function (v0, amt) {
     v1 = new Vector();
@@ -152,6 +164,7 @@ Vector.prototype.div = function (v0, amt) {
 /**
  * Multiply a vector by a scalar
  * @param {Number} amt to multiply by
+ * @returns {Vector} this object for chaining
  */
 Vector.prototype.multSelf = function (amt) {
     for (let axis in this.axes) {
@@ -164,6 +177,7 @@ Vector.prototype.multSelf = function (amt) {
 * Multiply a vector object (x,y,z,e or whatever) by an amount and return a new one.
 * @param {Vector} v0 first vector 
 * @param {number} amt amount to divide by
+* @returns {Vector} new Vector
 */
 Vector.prototype.mult = function (v0, amt) {
     v1 = new Vector();
@@ -181,7 +195,8 @@ Vector.prototype.mult = function (v0, amt) {
 
 /**
  * Set the properties of this Vector based on another or a mapping object
- * @param {any} mapping object with fields to deep copy into this Vector
+ * @param {object} mapping object with fields to deep copy into this Vector
+ * @returns {Vector} this object for chaining
  */
 Vector.prototype.set = function(mapping)
 {
@@ -197,4 +212,5 @@ Vector.prototype.set = function(mapping)
             }
         }
     }
+    return this;
 }
