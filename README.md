@@ -92,6 +92,8 @@ See the Issues section for a proper to do list
 ## Development
 If you want to get involved, please give us a shout!  The more the better.
 
+There is [an API and function reference for the client end](https://pixelpusher.github.io/liveprinter/docs/).
+
 ### License and Dependencies
 LivePrinter is completely open source (AGPL 3.0). To summarise, it is built on and inspired by other open source projects:
 * [Python](http://python.org)
