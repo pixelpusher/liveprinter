@@ -10,11 +10,11 @@ function Vector(mapping) {
     if (mapping !== undefined) {
         if (mapping instanceof Vector) {
             // deep copy axes
-            for (let axis in mapping.axes) {
+            for (const axis in mapping.axes) {
                 this.axes[axis] = mapping.axes[axis];
             }
         } else if (mapping instanceof Object) {
-            for (let axis in mapping) {
+            for (const axis in mapping) {
                 this.axes[axis] = mapping[axis];
             }
         }
@@ -30,7 +30,7 @@ function Vector(mapping) {
 */
 Vector.prototype.subSelf = function (v0) {
     try {
-        for (let axis in v0.axes) {
+        for (const axis in v0.axes) {
             this.axes[axis] = this.axes[axis] - v0.axes[axis];
         }
     } catch (e) {
@@ -46,10 +46,10 @@ Vector.prototype.subSelf = function (v0) {
 * @param {Vector} v1 amount to subtract
 * @returns {object} reference to this for chaining
 */
-Vector.prototype.sub = function (v0, v1) {
-    v2 = new Vector();
+Vector.sub = function (v0, v1) {
+    const v2 = new Vector();
     try {
-        for (let axis in v0.axes) {
+        for (const axis in v0.axes) {
             v2.axes[axis] = v0.axes[axis] - v1.axes[axis];
         }
     } catch (e) {
@@ -66,7 +66,7 @@ Vector.prototype.sub = function (v0, v1) {
  */
 Vector.prototype.addSelf = function (v0) {
     try {
-        for (let axis in v0.axes) {
+        for (const axis in v0.axes) {
             this.axes[axis] = this.axes[axis] + v0[axis];
         }
     } catch (e) {
@@ -83,10 +83,10 @@ Vector.prototype.addSelf = function (v0) {
  * @param {Vector} v1 amount to add
  * @returns {object} reference to this for chaining
  */
-Vector.prototype.add = function (v0, v1) {
-    v2 = new Vector();
+Vector.add = function (v0, v1) {
+    const v2 = new Vector();
     try {
-        for (let axis in v0.axes) {
+        for (const axis in v0.axes) {
             v2.axes[axis] = v0.axes[axis] + v1.axes[axis];
         }
     } catch (e) {
@@ -101,9 +101,9 @@ Vector.prototype.add = function (v0, v1) {
  * @returns {float} magnitude
  */
 Vector.prototype.magSq = function (v0) {
-    let v1 = (v0 === undefined ? this : v0);
+    const v1 = (v0 === undefined ? this : v0);
     let sumAxes = 0;
-    for (let v in v1.axes) {
+    for (const v in v1.axes) {
         sumAxes += v1.axes[v] * v1.axes[v];
     }
     return sumAxes;
@@ -114,7 +114,7 @@ Vector.prototype.magSq = function (v0) {
  * @returns {float} magnitude
  */
 Vector.prototype.mag = function (v0) {
-    let v1 = (v0 === undefined ? this : v0);
+    const v1 = (v0 === undefined ? this : v0);
     return Math.sqrt(v1.magSq());
 };
 
@@ -125,7 +125,7 @@ Vector.prototype.mag = function (v0) {
  * @returns {float} scalar vector
  */
 Vector.prototype.dist = function (v0, v1) {
-    let v2 = (v1 === undefined ? this : v1);
+    const v2 = (v1 === undefined ? this : v1);
     return Vector.sub(v0, v2).mag();
 }
 
@@ -135,7 +135,7 @@ Vector.prototype.dist = function (v0, v1) {
  * @returns {Vector} this object for chaining
  */
 Vector.prototype.divSelf = function (amt) {
-    for (let axis in this.axes) {
+    for (const axis in this.axes) {
         this.axes[axis] /= amt;
     }
     return this;
@@ -147,10 +147,10 @@ Vector.prototype.divSelf = function (amt) {
 * @param {number} amt amount to divide by
 * @returns {Vector} new Vector
 */
-Vector.prototype.div = function (v0, amt) {
-    v1 = new Vector();
+Vector.div = function (v0, amt) {
+    const v1 = new Vector();
     try {
-        for (let axis in v0.axes) {
+        for (const axis in v0.axes) {
             v1.axes[axis] = v0.axes[axis]/amt;
         }
     } catch (e) {
@@ -167,7 +167,7 @@ Vector.prototype.div = function (v0, amt) {
  * @returns {Vector} this object for chaining
  */
 Vector.prototype.multSelf = function (amt) {
-    for (let axis in this.axes) {
+    for (const axis in this.axes) {
         this.axes[axis] *= amt;
     }
     return this;
@@ -179,10 +179,10 @@ Vector.prototype.multSelf = function (amt) {
 * @param {number} amt amount to divide by
 * @returns {Vector} new Vector
 */
-Vector.prototype.mult = function (v0, amt) {
-    v1 = new Vector();
+Vector.mult = function (v0, amt) {
+    const v1 = new Vector();
     try {
-        for (let axis in v0.axes) {
+        for (const axis in v0.axes) {
             v1.axes[axis] = v0.axes[axis] * amt;
         }
     } catch (e) {
@@ -203,11 +203,11 @@ Vector.prototype.set = function(mapping)
     if (mapping !== undefined) {
         if (mapping instanceof Vector) {
             // deep copy axes
-            for (let axis in mapping.axes) {
+            for (const axis in mapping.axes) {
                 this.axes[axis] = mapping.axes[axis];
             }
         } else if (mapping instanceof Object) {
-            for (let axis in mapping) {
+            for (const axis in mapping) {
                 this.axes[axis] = mapping[axis];
             }
         }
