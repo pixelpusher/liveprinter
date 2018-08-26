@@ -12,9 +12,9 @@ This project is about developing an open, interactively programmed 3D printing s
 
 Server-side javacscript: [documentation and api reference](./docs/)
 
-#Project Page
+# Project Page
 
 See the [main github page](https://github.com/pixelpusher/liveprinter/) for more information and to download the code and try it for yourself.
 
-#Credits
+# Credits
 Copyright 2018 Evan Raskob and others.
