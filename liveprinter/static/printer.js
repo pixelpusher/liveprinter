@@ -38,6 +38,7 @@ class Printer {
 
         /**
          *  the function (Websockets or other) that this object will use to send gcode to the printer
+         *  @type {Function}
          */
         this.send = _messageSendFunc;
 
@@ -79,8 +80,13 @@ class Printer {
 
         this.lastSpeed = -1.0;
 
-        this.heading = 0;   // current angle of movement (xy) in radians
-        this.elevation = 0; // current angle of elevated movement (z) in radians
+        ////////////////////////////////////////////
+        // these are used in in the go() function
+        this._heading = 0;   // current angle of movement (xy) in radians
+        this._elevation = 0; // current angle of elevated movement (z) in radians
+        this._distance = 0; // next distance to move
+        this._waitTime = 0;
+        ////////////////////////////////////////////
 
         this.totalMoveTime = 0; // time spent moving/extruding
 
@@ -101,12 +107,7 @@ class Printer {
 
         this.maxMovePerCycle = 400; // max mm to move per calculation (see _extrude method)
 
-        this.moveCallback = null;   // callback function run every move/extrude cycle
-
         this.queuedMessages = []; // messages queued to be sent by this.send(...)
-
-        // TODO: use Quarternions for axis/angle: https://github.com/infusion/Quaternion.js
-        // or this.travelSpeed = { "direction": 30, "angle": [0,30,0] }; // in mm/s  
     }
 
     get x() { return this.position.axes.x; }
@@ -118,6 +119,11 @@ class Printer {
     set y(val) { this.position.axes.y = val; }
     set z(val) { this.position.axes.z = val; }
     set e(val) { this.position.axes.e = val; }
+
+    /**
+     * readonly total movetime
+     */
+    get time() { return this.totalMoveTime; }
 
     //
     // set printer model - should be one definined in this class!
@@ -176,6 +182,93 @@ class Printer {
     }
 
     /**
+     * Set the extrusion thickness (in mm)
+     * @param {float} val thickness of the extruded line in mm
+     * @returns {Printer} reference to this object for chaining
+     */
+    thick(val) {
+        this.thickness = val;
+        return this;
+    }
+
+    /**
+     * Set the overall speed of the extrusion in mm/s
+     * @param {float} val Speed for the extrusion in mm/s
+     * @returns {Printer} reference to this object for chaining
+     */
+    speed(val) {
+        this.printSpeed = val;
+        return this;
+    }
+
+    /**
+     * Immediately perform a "retract" which is a shortcut for just moving the filament back up at a speed.  Sets the internal retract variables to those passed in.
+     * @param {any} len Length of filament to retract.  Set to 0 to use current setting (or leave out)
+     * @param {any} speed Speed of retraction. Will be clipped to max filament feed speed for printer model.  Set to 0 for current or leave out.
+     * @returns {Printer} reference to this object for chaining
+     * @example 
+     * Custom retraction:
+     * lp.extrude({x:40,y:80, retract:false}).retract(6,30);
+     * // next move, will unretract that amount too
+     * 
+     * // or extrude an angle/distance and then force retract
+     * lp.firmwareRetract = false; // turn off automatic retraction in firmware
+     * lp.angle(45).dist(50).go(1).retract(6,30);
+     * 
+     * // retract again with same settings
+     * lp.angle(45).dist(50).go(1).retract();
+     */
+    retract(len = this.retractLength, speed = this.retractSpeed) {
+        if (len > 0) {
+            this.retractLength = len;
+        }
+        // set speed safely!
+        if (speed > 0) {
+            this.retractSpeed = Math.min(speed, Printer.maxPrintSpeed["e"]);
+        }
+        // RETRACT        
+        this.currentRetraction = this.retractLength;
+        this.e -= this.currentRetraction;
+        this.send("G1 " + "E" + this.e.toFixed(4) + " F" + this.retractSpeed.toFixed(4));
+            
+        return this;
+    }
+
+    /**
+     * Immediately perform an "unretract" which is a shortcut for just extruding the filament out at a speed.  Sets the internal retract variables to those passed in.
+     * @param {any} len Length of filament to unretract.  Set to 0 to use current setting (or leave out)
+     * @param {any} speed Speed of unretraction. Will be clipped to max filament feed speed for printer model.  Set to 0 for current or leave out.
+     * @returns {Printer} reference to this object for chaining
+     * @example 
+     * Custom unretraction:
+     * lp.extrude({x:40,y:80, retract:false}).retract(6,30);
+     * lp.unretract();
+     * 
+     * // next move, will unretract that amount too
+     * 
+     * // or extrude an angle/distance and then force retract
+     * lp.firmwareRetract = false; // turn off automatic retraction in firmware
+     * lp.angle(45).dist(50).go(1).retract(6,30);
+     * lp.unretract(8,30); // extract a little more to get it going
+     */
+    unretract(len = this.retractLength, speed = this.retractSpeed) {
+        if (len > 0) {
+            this.retractLength = len;
+        }
+        // set speed safely!
+        if (speed > 0) {
+            this.retractSpeed = Math.min(speed, Printer.maxPrintSpeed["e"]);
+        }
+        // RETRACT        
+        this.e += this.retractLength;
+        this.send("G1 " + "E" + this.e.toFixed(4) + " F" + this.retractSpeed.toFixed(4));
+        this.currentRetraction = 0;
+
+        return this;
+    }
+
+
+    /**
      * Performs a quick startup by resetting the axes and moving the head
      * to printing position (layerheight).
      * @param {float} temp is the temperature to start warming up to
@@ -213,10 +306,69 @@ class Printer {
     }
 
     /**
-     *  Send all the queued command messages via the send function (probably websockets)
+     * Perform current operations (extrusion) based on direction/elevation/distance.
+     * @param {Boolean} extruding Whether to extrude whilst moving (true if yes, false if not)
      * @returns {Printer} reference to this object for chaining
      */
-    go() {
+    go(extruding = false) {
+        // wait, if necessary
+        if (this._waitTime > 0) {
+            this.wait(this._waitTime);
+            this._waitTime = 0;
+        }
+        else {
+            const _x = this.distance * Math.cos(this._heading);
+            const _y = this.distance * Math.sin(this._heading);
+            const _z = this.distance * Math.cos(this._elevation);
+        }
+        return this.extrude({ x: _x, y: _y, z: _z });
+    }
+
+    /**
+     * Set the direction of movement for the next operation.
+     * @param {float} ang Anlg of movement (in xy plane)
+     * @returns {Printer} reference to this object for chaining
+     */
+    angle(ang) {
+        this._heading = ang;
+        return this;
+    }
+
+    /**
+     * Set the direction of movement for the next operation.
+     * @param {float} elev elevation angle (in z direction, in degrees) for next movement
+     * @returns {Printer} reference to this object for chaining
+     */
+    elevation(elev) {
+        this._elevation = elev;
+        return this;
+    }
+
+    // shortcut
+    elev(_elev) {
+        return this.elevation(_elev); 
+    }
+
+    /**
+     * Set the distance of movement for the next operation.
+     * @param {float} d distance to move next time
+     * @returns {Printer} reference to this object for chaining
+     */
+    distance(d) {
+        this._distance = d;
+        return this;
+    }
+
+    // shortcut
+    dist(d) {
+        return this.distance(d);
+    }
+
+    /**
+    *  Send all the queued command messages via the send function (probably websockets)
+    * @returns {Printer} reference to this object for chaining
+    */
+    sendQueued() {
         for (let msg of this.queuedMessages) {
             this.send(msg);
         }
@@ -224,8 +376,8 @@ class Printer {
     }
 
     /**
-    * extrude from the printer head, withing bounds
-    * @param {Object} params Parameters dictionary containing either x,y,z keys or direction/angle (radians) keys.
+    * Extrude plastic from the printer head to specific coordinates, within printer bounds
+    * @param {Object} params Parameters dictionary containing either x,y,z keys or direction/angle (radians) keys and retract setting (true/false).
     *      Optional bounce (Boolean) key if movement should bounce off sides.
     * @returns {Printer} reference to this object for chaining
     */
@@ -280,14 +432,13 @@ class Printer {
             newPosition.axes.e = this.e + distanceVec.axes.e;
         }
 
-
         const velocity = Vector.div(distanceVec, distanceMag);
         const moveTime = distanceMag / this.printSpeed; // in sec, doesn't matter that new 'e' not taken into account because it's not in firmware
 
         this.totalMoveTime += moveTime; // update total movement time for the printer
 
-        this.heading = Math.atan2(velocity.axes.x, velocity.axes.y);
-        this.elevation = Math.asin(velocity.axes.z);
+        this._heading = Math.atan2(velocity.axes.y, velocity.axes.x);
+        this._elevation = Math.asin(velocity.axes.z);
 
         console.log("time: " + moveTime + " / dist:" + distanceMag);
 
@@ -372,9 +523,9 @@ class Printer {
     //        that.moveCallback(that);
 
     /**
-     * Relative extrusion.
-     * @param {objects} params Can be specified as x,y,z,e or dist (distance), angle (xy plane), elev (z dir). All in mm.
-    * @returns {Printer} reference to this object for chaining
+     * Extrude plastic from the printer head, relative to the current print head position, within printer bounds
+     * @param {Object} params Parameters dictionary containing either x,y,z keys or direction/angle (radians) keys and retract setting (true/false).
+     * @returns {Printer} reference to this object for chaining
      */
     extrude(params) {
         // first, handle distance/angle mode
@@ -402,9 +553,6 @@ class Printer {
             params.z = (params.z !== undefined) ? parseFloat(params.z) + this.z : this.z;
             params.e = (params.e !== undefined) ? parseFloat(params.e) + this.e : undefined;
         }
-
-        // run callback function, if any exists
-        if (this.moveCallback) this.moveCallback(this);
 
         // extrude using absolute cartesian coords
         return this.extrudeto(params);
@@ -437,7 +585,10 @@ class Printer {
      * Turn (clockwise positive, CCW negative)
      * @param {Number} angle in degrees by default
      * @param {Boolean} radians use radians if true
-      * @returns {Printer} reference to this object for chaining
+     * @returns {Printer} reference to this object for chaining
+     * @example
+     * Turn 45 degrees twice (so 90 total) and extrude 40 mm in that direction:
+     * lp.turn(45).turn(45).distance(40).go(1);
      */
     turn(angle, radians = false) {
         let a = angle;
@@ -446,7 +597,7 @@ class Printer {
             a = this.d2r(angle);
         }
 
-        this.heading += a;
+        this._heading += a;
         return this;
     }
 
@@ -460,31 +611,50 @@ class Printer {
     }
 
     /**
+     * Convert MIDI notes and duration into direction and angle for future movement.
+     * Low notes below 10 are treated a pauses.
      * @param {float} note as midi note
      * @param {float} time in ms
-     * @param {object} axes direction in x,y,z (default x) 
-     * @returns {object} with axis/distance & speed: {x:distance, speed:speed}
+     * @param {string} axes move direction as x,y,z (default "x") 
+     * @returns {Printer} reference to this object for chaining
+     * @example
+     * Play MIDI note 41 for 400ms on the x & y axes
+     *     lp.note(41, 400, "xy").go();
      */
-    note(note, time, axes) {
-        // low notes are pauses
-        if (note < 10) {
-            this.wait(time);
-            let moveObj = {};
-            moveObj[x] = 0;
-            moveObj["speed"] = 0;
-            return moveObj;
+    note(note=40, time=200, axes="x") {
+        const a = [];
+        a.push(...axes); // turn into array of axes
+        // total movement
+        let totalMove = 0;
+        let totalSpeed = 0;
+        let yangle = 0, xangle = 0, zangle = 0;
+
+        for (const axis in a) {
+            // low notes below 10 are treated as pauses
+            if (note < 10) {
+                // set the next movement as a wait
+                this._waitTime = time;
+                break;
+            }
+            else {
+                let _speed = this.midi2speed(note, axis); // mm/s
+                let _dist = this.printSpeed * time / 1000; // time in ms
+
+                totalMove += _dist * _dist;
+                totalSpeed += _speed * _speed;
+
+                if (axis === "x") xangle = 90;
+                if (axis === "y") yangle = 90;
+                if (axis === "z") zangle = 90;
+            }
         }
-        else {
-            //this.printSpeed = this.midi2feedrate(note,axis); // mm/s
-            let speed = this.midi2speed(note, axis); // mm/s
-            let dist = speed * time / 1000; // time in ms
-            let moveObj = {};
-            // TODO: fix or other axes
-            moveObj[axes] = dist;
-            moveObj["speed"] = speed;
-            this.move(moveObj);
-            return moveObj;
-        }
+        // combine all separate distances and speeds into one
+        this._heading = Math.atan2(yangle, xangle);
+        this._elevation = zangle;
+        this._distance = Math.sqrt(totalMove);
+        this.printSpeed = Math.sqrt(totalSpeed);
+
+        return this;
     }
 
     /**
@@ -626,7 +796,7 @@ Printer.prototype._extrude = meth("_extrude", function (that, moveVector, leftTo
             // for each axis, see where it intersects the printer bounds
             // then, using velocity, get other axes positions at that point
             // if any of them are over, skip to next axis
-            if (axis != "e")
+            if (axis !== "e")
             {
                 if (nextPosition.axes[axis] > that.maxPosition.axes[axis]) {
                     // hit - calculate up to min position
@@ -651,7 +821,7 @@ Printer.prototype._extrude = meth("_extrude", function (that, moveVector, leftTo
             // find shortest time before an axis was hit
             // if it hits two (or more?) at the same time, mark both
             for (const axis in moved.axes) {
-                if (moved.axes[axis] == shortestAxisTime) {
+                if (moved.axes[axis] === shortestAxisTime) {
                     shortestAxes.push(axis);
                 } else if (moved.axes[axis] < shortestAxisTime) {
                     shortestAxes = [axis];
