@@ -313,15 +313,19 @@ class Printer {
     go(extruding = false) {
         // wait, if necessary
         if (this._waitTime > 0) {
-            this.wait(this._waitTime);
-            this._waitTime = 0;
+            return this.wait();
         }
         else {
-            const _x = this.distance * Math.cos(this._heading);
-            const _y = this.distance * Math.sin(this._heading);
-            const _z = this.distance * Math.cos(this._elevation);
+            const _x = this._distance * Math.cos(this._heading);
+            const _y = this._distance * Math.sin(this._heading);
+            const _z = this._distance * Math.sin(this._elevation);
+            const _e = extruding ? undefined : 0; // no filament extrusion
+
+            return this.extrude({ x: _x, y: _y, z: _z, e: _e });
         }
-        return this.extrude({ x: _x, y: _y, z: _z });
+        // never reached
+        return this;
+        
     }
 
     /**
@@ -625,11 +629,10 @@ class Printer {
         const a = [];
         a.push(...axes); // turn into array of axes
         // total movement
-        let totalMove = 0;
         let totalSpeed = 0;
         let yangle = 0, xangle = 0, zangle = 0;
 
-        for (const axis in a) {
+        for (const axis of a) {
             // low notes below 10 are treated as pauses
             if (note < 10) {
                 // set the next movement as a wait
@@ -638,21 +641,27 @@ class Printer {
             }
             else {
                 let _speed = this.midi2speed(note, axis); // mm/s
-                let _dist = this.printSpeed * time / 1000; // time in ms
 
-                totalMove += _dist * _dist;
                 totalSpeed += _speed * _speed;
 
-                if (axis === "x") xangle = 90;
-                if (axis === "y") yangle = 90;
-                if (axis === "z") zangle = 90;
+                if (axis === "x") {
+                    if (this._heading < Math.PI / 2 && this._heading > -Math.PI / 2) xangle = -90;
+                    else xangle = 90;
+                } else if (axis === "y") {
+                    if (this._heading > 0 && this._heading < Math.PI) yangle = 90;
+                    else yangle = -90;
+                }
+                else if (axis === "z") {
+                    if (this._elevation > 0) zangle = 90;
+                    else zangle = -90;
+                }
             }
         }
         // combine all separate distances and speeds into one
         this._heading = Math.atan2(yangle, xangle);
         this._elevation = zangle;
-        this._distance = Math.sqrt(totalMove);
         this.printSpeed = Math.sqrt(totalSpeed);
+        this._distance = this.printSpeed * time / 1000; // time in ms
 
         return this;
     }
@@ -717,8 +726,9 @@ class Printer {
      * @param {float} ms to wait
      * @returns {Printer} reference to this object for chaining
      */
-    wait(ms) {
+    wait(ms = this._waitTime) {
         this.send("M0 P" + ms);
+        this._waitTime = 0;
         return this;
     }
 
@@ -856,7 +866,8 @@ Printer.prototype._extrude = meth("_extrude", function (that, moveVector, leftTo
     // update current position
     //console.log("current pos:")
     //console.log(that.position);
-
+    that._heading = Math.atan2(moveVector.axes.y, moveVector.axes.x);
+    that._elevation = Math.asin(moveVector.axes.z);
     that.position.set(nextPosition);
     //console.log("next pos:");
     //console.log(nextPosition);
