@@ -18,6 +18,9 @@ The current software toolchains of 3D printing place the artist and designer at 
 
 This project is about developing an open, interactively programmed 3D printing system for live computational making. The system extends digital printing and CNC machining into the realm of performance and also has potential in design and science pedagogy. 
 
+You can watch a
+[![video of LivePrinter in action](https://img.youtube.com/vi/JJcg6MGmrDM/0.jpg)](https://www.youtube.com/watch?v=JJcg6MGmrDM&list=PLuA35183Y-6-GB69A7t3pcTRx6nrI7QxO&t=0s&index=2)
+
 ## Design Principles
 LivePrinter is designed to be:
 
