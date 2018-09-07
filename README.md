@@ -33,7 +33,7 @@ LivePrinter is designed to be:
   - *Be collaborative, social, performative:* Allow for others to take part in the making process, whether that's contributing directly to the livecoding or spectating as audience. 
  
  This is an overview of the system:
-![alt text](https://pixelpusher.github.io/liveprinter/docs/diagrams/liveprinter-architecture.png "liveprinter system overview diagram").
+![liveprinter architecture](https://pixelpusher.github.io/liveprinter/docs/diagrams/LivePrinter-Architecture.png "liveprinter system overview diagram").
 
 ## Installing and Running
 
