@@ -54,3 +54,5 @@ coverage.xml
 target/
 docs/
 node_modules/
+/liveprinter/static/imgs/simple-cloud.svg
+/liveprinter/static/imgs/diskette.svg
