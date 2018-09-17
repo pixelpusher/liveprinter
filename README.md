@@ -4,6 +4,8 @@
 
 There's a forum on https://talk.lurk.org/channel/liveprinter
 
+You can [join our email list](http://pixelist.info/liveprinter-email-list/) to keep up to date with performances, demonstrations, workshops, and important updates.
+
 Evan is on Twitter at @evanraskob and can answer questions, etc.
 
 We can create a Reddit forum or YouTube channel if there is demand for it.
@@ -83,14 +85,6 @@ The front-end uses some Tornado templating and the usual JQuery/JavaScript.  Soo
 ## Similar Projects
 * [OpenGB](https://github.com/amorphitec/opengb) has been an inspiration
 * [Fabrica](https://github.com/arthurwolf/fabrica), a front-end for [Smoothieware](https://github.com/Smoothieware/Smoothieware) looks interesting.  Smoothieware integration might be nice, someday.
-
-## TO DO
-
-See the Issues section for a proper to do list
-
-* Choose/implement a livecoding language
-* Support for MIDI to G-Code so you can make music with this
-* Support for loading "code scores"
 
 ## Development
 If you want to get involved, please give us a shout!  The more the better.
