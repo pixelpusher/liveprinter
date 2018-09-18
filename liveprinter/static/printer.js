@@ -330,8 +330,8 @@ class Printer {
 
     /**
      * Set the direction of movement for the next operation.
-     * @param {float} ang Anlg of movement (in xy plane)
-     * @returns {Printer} reference to this object for chaining
+     * @param {float} ang Angle of movement (in xy plane)
+     * @returns {Printer} Reference to this object for chaining
      */
     angle(ang) {
         this._heading = ang;
