@@ -1,107 +1,72 @@
-// run gcode directly in a function
-// this will only work once - to persist functions use the "lp" object
-function doMove(x,y)
-{
-	var gtokens = ["G92"];
-    gtokens.push("X"+x); gtokens.push("Y"+y);
-    gcode(gtokens.join(" "));
-}
+// Using LivePrinter!
+// Note: You've probably already done steps 1-6 but they're here for reference anyway.
+// ------------------
+// by Evan Raskob, 2018
 
-// start up - home axes, start temperature (argument), turn on fan
-lp.start(190);
+//Step 1: Turn on printer
+//
+//Step 2: level bed (on the actual printer itself)
+//
+//Step 3:  start server (Use Visual Studio Code, or your favourite Python environment)
+//
+//Step 4: open http://localhost:8888
+//
+//Step 5: click printer settings tab, select serial port
+//
+//Step 6: click code tab to load editor
+//
+// Step 7: set temperature, home axes, turn on fan to ready bed for printing:
+lp.start(210);
 
+// Step 8: click printer tab again and hit the button to start live temperature polling
+
+// Now your printer is ready to print! (When the target temperature of 210C is reached)
+
+//
+// MOVING AND EXTRUDING BY SPECIFYING COORDINATES DIRECTLY
+//--------------------------------------------------------
+// Try moving - you can do this whilst it warms up:
+
+//absolute move to x=20mm, y=20mm at speed 80mm/s:
+lp.moveto({x:20,y:20,speed:80});
+
+// relative move at 1/2 the speed - we should be at (60,60,0.2) now.
+lp.move({x:40,y:40,speed:40});
+
+// lower the bed to 20mm less than the bottom: 
+lp.moveto({z:lp.maxz-20,speed:40});
+
+// extrude some plastic! 16mm to be exact.
+// you can move the filament directly, and negative is backwards
+// watch the speed!
+lp.extrude({e:20,speed:10});
+
+// now, clean that up and let's print.
+// move back to the centre of the bed, with the head ready for a first layer:
+lp.moveto({z:lp.layerHeight, x:lp.cx,y:lp.cy, speed:80});
+
+// extrude absolute:
+lp.extrudeto({x:lp.minx+20, y:lp.miny+20, speed:15});
+
+//
+
+//
+// MOVING AND EXTRUDING RELATIVELY
+//--------------------------------------------------------
+
+// move at an angle of 20 degrees (if moving to the right on the x axis as 0 degrees)
+// at a distance of 40mm
+lp.angle(20).distance(40).go();
+
+// move another 40mm in the same direction, but this time extrude -- go(1)
+lp.dist(40).go(1);
+
+// turn 10 degrees counter-clock-wise and extrude a distance of 10mm at a line thickness of 0.3mm
+lp.turn(10).dist(10).thick(0.3).go(1);
+
+
+// pause printing - turn off heater, etc.
 lp.pause();
 
+// turn it all back on again
 lp.resume(190);
-
-// home axes
-gcode("G28");
-
-// turn off printer
-gcode("M80");
-
-// resume
-gcode("M999"); 
-
-gcode("M410");
-
-// unconditional stop (press button to resume)
-gcode("M0")
-
-
-for (var i=0; i < 8; i++)
-{
-	lp.note(47+i*2,250,"y");
-    lp.note(0,250+i*50);
-}
-
-lp.moveto({x:100, y:100, speed:50});
-lp.moveto({x:lp.cx,speed:50});
-lp.moveto({y:lp.cy,speed:50});
-
-lp.note(47,500,"y");
-
-lp.note(50,500,"y");
-lp.note(0,500,"y");
-
-//turn on hot end to 190C
-gcode("M104 S190");
-
-gcode("M119");
-
-gcode("M104 S0"); // turn off temp
-gcode("M106 S100"); 
-
-gcode("M107"); 
-// turn off fan
-
-
-//set retract length
-gcode("M207 S3 F300 Z0.2");
-//set retract recover
-gcode("M208 S0.1 F300");
-
-//check temp (see console)
-gcode("M105");
-
-gcode("M410");
-
-
-
-lp.extrude({z:10,e:16,speed:2});
-
-lp.moveto({y:lp.cy, x:lp.cx,z:lp.layerHeight,speed:30});
-
-gcode("G11"); 
-lp.extrude({x:-lp.maxx/4});
-gcode("G10"); 
-
-lp.move({x:40})
-
-for (var i=0; i<6; i++)
-{
-  	let m = (i%2==0) ? -1 : 1;
-	//gcode("G11"); 
-  	lp.extrude({y:-lp.maxy/20});
-	lp.extrude({x:m*lp.maxx/5});
-	//gcode("G10"); 
-}
-
-lp.fill = (w,h) => {
-  for (var i=0; i<h/lp.layerHeight; i++)
-  {
-      let m = (i%2==0) ? -1 : 1;
-      lp.extrude({y:lp.layerHeight});
-      lp.extrude({x:m*w});
-  }
-  gcode("G10"); 
-};
-
-lp.fill(50,10);
-
-// extrude some plastic!
-//can even move the filament direct, and negative is backwards
-lp.extrudeto({x:100,y:100,z:10,e:-60});
-
-//relative
-lp.extrude({x:10,y:12});
