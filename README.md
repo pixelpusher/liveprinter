@@ -4,6 +4,8 @@
 
 There's a forum on https://talk.lurk.org/channel/liveprinter
 
+You can [join our email list](http://pixelist.info/liveprinter-email-list/) to keep up to date with performances, demonstrations, workshops, and important updates.
+
 Evan is on Twitter at @evanraskob and can answer questions, etc.
 
 We can create a Reddit forum or YouTube channel if there is demand for it.
@@ -18,6 +20,9 @@ The current software toolchains of 3D printing place the artist and designer at 
 
 This project is about developing an open, interactively programmed 3D printing system for live computational making. The system extends digital printing and CNC machining into the realm of performance and also has potential in design and science pedagogy. 
 
+You can watch a
+[![video of LivePrinter in action](https://img.youtube.com/vi/JJcg6MGmrDM/0.jpg)](https://www.youtube.com/watch?v=JJcg6MGmrDM&list=PLuA35183Y-6-GB69A7t3pcTRx6nrI7QxO&t=0s&index=2)
+
 ## Design Principles
 LivePrinter is designed to be:
 
@@ -29,6 +34,8 @@ LivePrinter is designed to be:
   - *Be understandable and appropriate for artists, designers, and non-technical people:* This is a (fun!) tool for making intuitively, and the langauge should reflect that, even at the expense of technical accuracy (of language).
   - *Be collaborative, social, performative:* Allow for others to take part in the making process, whether that's contributing directly to the livecoding or spectating as audience. 
  
+ This is an overview of the system:
+![liveprinter architecture](https://pixelpusher.github.io/liveprinter/docs/diagrams/LivePrinter-Architecture.png "liveprinter system overview diagram").
 
 ## Installing and Running
 
@@ -38,9 +45,7 @@ The server runs on Python 3 (3.6 tested) so you will need that installed.  then,
 * tornado (tested with 5.0.2)
 * json-rpc (tested with 1.11.0)
 
-Run the server using your Python environment of choice - it's in the liveprinter folder, called LivePrinterServer.py.  By default, the server runs on port 8888 so open a web browser to http://localhost:8888 (or [change it](https://github.com/pixelpusher/liveprinter/blob/master/liveprinter/LivePrinterServer.py#L28)).  It also uses a "fake" serial port for offline testing, so you can make that live by setting "use_dummy_serial" to false [on this line](https://github.com/pixelpusher/liveprinter/blob/master/liveprinter/LivePrinterServer.py#L147) and then it will attempt to use the first serial port (autodetection of G Code-enable printers attached to a port is forthcoming)
-
-To run the documentation generator, see [ESDoc](https://esdoc.org/manual/usage.html#installation).
+Run the server using your Python environment of choice - it's in the liveprinter folder, called LivePrinterServer.py.  By default, the server runs on port 8888 so open a web browser to http://localhost:8888 (or [change it](https://github.com/pixelpusher/liveprinter/blob/master/liveprinter/LivePrinterServer.py#L28)).  It can run without a printer using a "fake" serial port.
 
 ### An aside on Python Virtual Environments
 
@@ -81,18 +86,11 @@ The front-end uses some Tornado templating and the usual JQuery/JavaScript.  Soo
 * [OpenGB](https://github.com/amorphitec/opengb) has been an inspiration
 * [Fabrica](https://github.com/arthurwolf/fabrica), a front-end for [Smoothieware](https://github.com/Smoothieware/Smoothieware) looks interesting.  Smoothieware integration might be nice, someday.
 
-## TO DO
-
-See the Issues section for a proper to do list
-
-* Choose/implement a livecoding language
-* Support for MIDI to G-Code so you can make music with this
-* Support for loading "code scores"
-
 ## Development
 If you want to get involved, please give us a shout!  The more the better.
 
 There is [an API and function reference for the client end](https://pixelpusher.github.io/liveprinter/docs/).
+
 
 ### License and Dependencies
 LivePrinter is completely open source (AGPL 3.0). To summarise, it is built on and inspired by other open source projects:
