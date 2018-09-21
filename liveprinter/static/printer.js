@@ -278,9 +278,9 @@ class Printer {
         this.send("G28");
         this.send("M104 S" + temp);
         //set retract length
-        this.send("M207 S3 F" + this.retractSpeed + " Z0.2");
+        this.send("M207 S"+this.retractLength+" F" + this.retractSpeed + " Z0.2");
         //set retract recover
-        this.send("M208 S0.1 F" + this.retractSpeed + " 300");
+        this.send("M208 S0 F" + this.retractSpeed);
         this.moveto({ x: this.cx, y: this.cy, z: this.layerHeight, speed: Printer.defaultPrintSpeed });
         this.send("M106 S100"); // set fan to full
 
@@ -363,9 +363,22 @@ class Printer {
         return this;
     }
 
-    // shortcut
+    /**
+     * Shortcut to distance()
+     * @param {float} d distance to move next time
+     * @returns {Printer} reference to this object for chaining
+     */
     dist(d) {
         return this.distance(d);
+    }
+
+    /**
+     * Set firmware retraction on or off (for after every move).
+     * @param {Boolean} state True if on, false if off
+     */
+    fwretract(state) {
+        this.firmwareRetract = state;
+        return this;
     }
 
     /**
@@ -509,7 +522,7 @@ class Printer {
         if (retract && this.retractLength) {
             if (this.firmwareRetract) {
                 this.send("G10");
-                this.currentRetraction = 3.5; // this is handled in hardware, just need to be > 0                        
+                this.currentRetraction = this.retractLength; // this is handled in hardware                       
             } else {
                 this.currentRetraction = this.retractLength;
                 this.e -= this.currentRetraction;
@@ -867,7 +880,8 @@ Printer.prototype._extrude = meth("_extrude", function (that, moveVector, leftTo
     //console.log("current pos:")
     //console.log(that.position);
     that._heading = Math.atan2(moveVector.axes.y, moveVector.axes.x);
-    that._elevation = Math.asin(moveVector.axes.z);
+    // DON'T DO THIS ANYMORE... counter-intuitive!
+    //that._elevation = Math.asin(moveVector.axes.z);
     that.position.set(nextPosition);
     //console.log("next pos:");
     //console.log(nextPosition);
