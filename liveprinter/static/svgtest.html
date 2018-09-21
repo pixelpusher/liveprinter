@@ -82,7 +82,7 @@
                         if (path && path.length) {
                             let pp = path[0];
                             let prevText = $("#code").val();
-                            let cmd = `lp.move({"x":${(parseFloat(pp[0]) * scale).toFixed(4)}, "y":${(parseFloat(pp[1]) * scale).toFixed(4)});\n`;
+                            let cmd = `lp.move({"x":${(parseFloat(pp[0]) * scale).toFixed(4)}, "y":${(parseFloat(pp[1]) * scale).toFixed(4)}});\n`;
                             $("#code").val(prevText + cmd);
 
                             pathsText += '[';
@@ -98,7 +98,7 @@
                                     miny = Math.min(y, miny);
 
                                     prevText = $("#code").val();
-                                    cmd = `lp.extrude({"x":${x.toFixed(4)}, "y":${y.toFixed(4)});\n`;
+                                    cmd = `lp.extrude({"x":${x.toFixed(4)}, "y":${y.toFixed(4)}});\n`;
                                     $("#code").val(prevText + cmd);
 
                                     pathsText += `[${x}, ${y}],`
