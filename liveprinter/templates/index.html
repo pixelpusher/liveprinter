@@ -33,15 +33,21 @@
                                 <span class="sr-only">Toggle Dropdown</span>
                             </a>
                             <div id="examples-list" class="dropdown-menu">
-                                <a class="dropdown-item purplink" href="#" data-link="{{ static_url("examples/default.js") }}">default example</a>
+                                <a class="dropdown-item purplink" href="#" data-link="{{ static_url("examples/default.js") }}">getting started</a>
+                                <a class="dropdown-item purplink" href="#" data-link="{{ static_url("examples/using-functions.js") }}">using functions</a>
+                                <a class="dropdown-item purplink" href="#" data-link="{{ static_url("examples/sending-gcode.js") }}">sending gcode</a>
+                                <a class="dropdown-item purplink" href="#" data-link="{{ static_url("examples/circle.js") }}">draw a circle</a>
+                                <div class="dropdown-divider"></div>
                                 <a class="dropdown-item purplink" href="#" data-link="{{ static_url("examples/pythontest.py") }}">python geolocation etc.</a>
+                                <a class="dropdown-item purplink" href="#" data-link="{{ static_url("examples/maryhadalittlelamb.py") }}">playing Mary Had a Little Lamb</a>
+                                <a class="dropdown-item purplink" href="#" data-link="{{ static_url("examples/circle.py") }}">drawing a circle</a>
                                 <div class="dropdown-divider"></div>
                                 <a id="reload-edited-session" class="dropdown-item purplink" href="#">reload last edited</a>
                                 <a id="reload-saved-session" class="dropdown-item purplink" href="#">reload last saved</a>
                                 <a id="save-session" class="dropdown-item purplink"><strong>save current</strong></a>
                             </div>
                         </li>
-                        <li class="nav-item">&nbsp;<button id="python-mode-btn" class="btn-sm btn-secondary active" data-toggle="button">python mode</button></li>
+                        <li class="nav-item">&nbsp;<button id="python-mode-btn" class="btn-sm btn-secondary" data-toggle="button">javascript mode</button></li>
                     </ul>
                     <div id="tab-messages-pane" class="tab-content">
                         <div id="printer" class="tab-pane fade show" role="tabpanel" aria-labelledby="pills-info-tab">
@@ -129,17 +135,18 @@
     </div>
     <!-- end main container-->
     <!-- Bootstrap 4 -->
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+    <!--<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">-->
+    <link rel="stylesheet" href="{{ static_url("lib/cached/bootstrap.min.css") }}" type="text/css">
     <link rel="stylesheet" href="{{ static_url("lib/codemirror/codemirror.css") }}" type="text/css">
     <link rel="stylesheet" href="{{ static_url("lib/addon/lint/lint.css") }}">
     <link rel="stylesheet" href="{{ static_url("lib/addon/fold/foldgutter.css") }}">
     <link rel="stylesheet" href="{{ static_url("lib/addon/hint/show-hint.css") }}">
     <link rel="stylesheet" href="{{ static_url("lib/addon/scroll/simplescrollbars.css") }}">
-    <script src="https://code.jquery.com/jquery-3.3.1.min.js"
+    <!--<script src="https://code.jquery.com/jquery-3.3.1.min.js"
             integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8="
-            crossorigin="anonymous"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
-    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
+            crossorigin="anonymous"></script>-->
+    <!--<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>-->
     <script src="{{ static_url("lib/codemirror/codemirror.js") }}"></script>
     <script src="{{ static_url("lib/addon/selection/active-line.js") }}"></script>
     <script src="{{ static_url("lib/addon/edit/closebrackets.js") }}"></script>
@@ -149,9 +156,14 @@
     <script src="{{ static_url("lib/addon/fold/comment-fold.js") }}"></script>
     <script src="{{ static_url("lib/addon/fold/brace-fold.js") }}"></script>
     <script src="{{ static_url("lib/codemirror/mode/javascript/javascript.js") }}"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jshint/2.9.5/jshint.min.js"></script>
+    <!--<script src="https://cdnjs.cloudflare.com/ajax/libs/jshint/2.9.5/jshint.min.js"></script>
     <script src="https://rawgithub.com/zaach/jsonlint/79b553fb65c192add9066da64043458981b3972b/lib/jsonlint.js"></script>
-    <script src="https://unpkg.com/csslint@1.0.5/dist/csslint.js"></script>
+    <script src="https://unpkg.com/csslint@1.0.5/dist/csslint.js"></script>-->
+    <script src="{{ static_url("lib/cached/jquery-3.3.1.min.js") }}"></script>
+    <script src="{{ static_url("lib/cached/popper.min.js") }}"></script>
+    <script src="{{ static_url("lib/cached/bootstrap.min.js") }}"></script>
+    <script src="{{ static_url("lib/cached/jshint.min.js") }}"></script>
+    <script src="{{ static_url("lib/cached/jsonlint.js") }}"></script>
     <script src="{{ static_url("lib/addon/lint/lint.js") }}"></script>
     <script src="{{ static_url("lib/addon/lint/javascript-lint.js") }}"></script>
     <script src="{{ static_url("lib/addon/lint/json-lint.js") }}"></script>
@@ -164,6 +176,7 @@
     <!-- liveprinter javascript -->
     <script src="{{ static_url("lib/vector.js") }}" type="text/javascript"></script>
     <script src="{{ static_url("printer.js") }}" type="text/javascript"></script>
+    <script src="{{ static_url("scales.js") }}" type="text/javascript"></script>
     <script src="{{ static_url("liveprinter.js") }}" type="text/javascript"></script>
     <link rel="stylesheet" href="{{ static_url("liveprinter.css") }}" type="text/css">
 
