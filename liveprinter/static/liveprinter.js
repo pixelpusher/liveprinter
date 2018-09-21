@@ -550,6 +550,7 @@ $.when($.ready).then(
                     code = "let gcode = window.scope.sendGCode;" + code;
                     code = "let s = window.scope;" + code;
                     code = "let None = function() {};" + code;
+                    code = "cancel = clearPrinterCommandQueue;" + code; //alias
 
 
                     // wrap code in anonymous function to avoid redeclaring scope variables and
@@ -823,10 +824,7 @@ $.when($.ready).then(
         });
 
 
-        /*
-         * Clear printer queue on server 
-         */
-        $("#clear-btn").on("click", function () {
+        function clearPrinterCommandQueue() {
             let message = {
                 'jsonrpc': '2.0',
                 'id': 7,
@@ -834,9 +832,13 @@ $.when($.ready).then(
                 'params': [],
             };
             socketHandler.socket.send(JSON.stringify(message));
-        });
 
+        /*
+         * Clear printer queue on server 
+         */
+        $("#clear-btn").on("click", clearPrinterCommandQueue);
 
+        
         // TODO: temp probe that gets scheduled every 300ms and then removes self when
         // tempHandler called
 

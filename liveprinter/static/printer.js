@@ -95,7 +95,7 @@ class Printer {
 
         // NOTE: disabled for now to use hardware retraction settings
         this.currentRetraction = 0; // length currently retracted
-        this.retractLength = 3; // in mm - amount to retract after extrusion
+        this.retractLength = 10; // in mm - amount to retract after extrusion.  This is high because most moves are slow...
         this.retractSpeed = 300; //mm/s
         this.firmwareRetract = true;    // use Marlin or printer for retraction
 
@@ -308,9 +308,10 @@ class Printer {
     /**
      * Perform current operations (extrusion) based on direction/elevation/distance.
      * @param {Boolean} extruding Whether to extrude whilst moving (true if yes, false if not)
+     * @param {Boolean} retract Whether to retract at end (usually true). Set to 0 if executing a few moves in a row
      * @returns {Printer} reference to this object for chaining
      */
-    go(extruding = false) {
+    go(extruding = false, retract=true) {
         // wait, if necessary
         if (this._waitTime > 0) {
             return this.wait();

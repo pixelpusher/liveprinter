@@ -183,7 +183,7 @@ class USBPrinter(OutputDevice):
         self._commands_list = [] # list of all commands sent to the printer where index is added to the above 
         self._commands_current_line = 1 # the current line being printed - might be updated when handling a resend
         # self.sendCommand("M77") # stop print job timer
-        # self.sendCommand("M110 N0") # resent line numbers to 0
+        self._serialSendRawCommand("M110 N1") # reset line numbers to 1
         self.resumePrint()
 
 
@@ -318,6 +318,25 @@ class USBPrinter(OutputDevice):
             self._responses_queue.put(response)
             self._commands_on_printer -= 1
             self._commands_current_line -=  1
+            Logger.log("w", "Timeout when sending command to printer via USB.")
+
+    ##
+    # Immediately send a command with no line number
+    ##
+    def _serialSendRawCommand(self, cmd:Union[str,bytes]):
+
+        if type(send_command == str):
+            send_command = send_command.encode()
+        if not send_command.endswith(b"\n"):
+            send_command += b"\n"
+
+        try:
+            self._serial.write(send_command)    
+        except SerialTimeoutException:
+            response = PrinterResponse(**{"type":"error", 
+                                            "message":"Timeout when sending command to printer via USB.",
+                                            'command': self._last_command})
+            self._responses_queue.put(response)
             Logger.log("w", "Timeout when sending command to printer via USB.")
 
     ##

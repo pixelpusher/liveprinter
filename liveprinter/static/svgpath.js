@@ -157,27 +157,30 @@ function parseSVGPath(path, xoffset, yoffset) {
  * @returns text string of commands
  */
 
-function paths2code(paths, func)
-{
-    if (func === undefined) func = (x,y) => [x,y]; // passthrough
+function paths2code(paths, func) {
+    if (func === undefined) func = (x, y) => [x, y]; // passthrough
     let commands = "";
+    let minx = 99999;
+    let maxx = -99999;
+    let miny = 99999;
+    let maxy = -99999;
 
     paths.map(path => {
         if (path && path.length) {
-            let pp = path[0];
-            let pp2 = func(parseFloat(pp[0]), parseFloat(pp[1]));
+            let pp = path.shift();
+            const pp2 = func(parseFloat(pp[0]), parseFloat(pp[1]));
             let prevText = $("#code").val();
-            let cmd = `lp.move({"x":${pp2[0].toFixed(4)}, "y":${pp2[1].toFixed(4)});\n`;
+            let cmd = `lp.moveto({"x":${pp2[0].toFixed(4)}, "y":${pp2[1].toFixed(4)}});\n`;
             commands += cmd;
 
             path.map(points => {
                 points.map(p => {
-                    let xy = func(parseFloat(p[0]), parseFloat(p[1]));
+                    const xy = func(parseFloat(p[0]), parseFloat(p[1]));
                     maxx = Math.max(xy[0], maxx);
                     minx = Math.min(xy[0], minx);
                     maxy = Math.max(xy[1], maxy);
                     miny = Math.min(xy[1], miny);
-                    cmd = `lp.extrude({"x":${xy[0].toFixed(4)}, "y":${xy[1].toFixed(4)});\n`;
+                    cmd = `lp.extrudeto({"x":${xy[0].toFixed(4)}, "y":${xy[1].toFixed(4)}});\n`;
                     commands += cmd;
                 });
             });
@@ -185,8 +188,8 @@ function paths2code(paths, func)
     });
 
     let bounds = [minx, maxx, miny, maxy];
-    
-    commands = `\nlet bounds = [${bounds.toString()}];\n`+ commands;
+
+    commands = `\nlet bounds = [${bounds.toString()}];\n` + commands;
 
     return commands;
 }
