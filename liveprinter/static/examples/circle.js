@@ -5,10 +5,7 @@
 // draw a circle composed of a number of segments at a certain radius
 
 // center head first
-lp.moveto({ x: lp.cx, y: lp.cy, z: lp.layerHeight })
-
-//make sure elevation is 0!
-lp.elev(0);
+lp.moveto({ x: lp.cx, y: lp.cy, z: lp.layerHeight });
 
 {
     let radius = 30;
@@ -22,20 +19,20 @@ lp.elev(0);
     }
 }
 
-// define a circle function and use it!
-lp.circle = function (r, cx, cy, segs=10) {
+// define a circle function -- the lp.circle is a bit like this
+function circle (r, cx, cy, segs=10) {
     for (let i = 0; i < segs; i++) {
         let angle = Math.PI * 2 * i / (segs-1);
         let x = Math.cos(angle) * r;
         let y = Math.sin(angle) * r;
-        lp.extrudeto({ 'x': cx + x, 'y': cy + y, speed: 15 });
+        lp.extrudeto({ 'x': cx + x, 'y': cy + y});
     }
 }
 
-lp.unretract(8);
+// make a cylinder by moving up each time
 lp.circle(30, lp.cx, lp.cy);
-lp.move({ z: lp.layerHeight })
-lp.retract(10);
+lp.move({ z: lp.layerHeight });
+
 
 // draw a "cone"
 for (let i = 0; i < 20; i++) {

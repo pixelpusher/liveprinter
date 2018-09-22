@@ -41,12 +41,12 @@ $.when($.ready).then(
          * @memberOf LivePrinter
          * @inner
          */
-        var scope = window.scope;
+        let scope = window.scope; // shorthand
         scope.serialPorts = []; // available ports
 
-        var outgoingQueue = []; // messages for the server
+        let outgoingQueue = []; // messages for the server
 
-        var pythonMode = false;
+        let pythonMode = false;
 
 
 
@@ -550,7 +550,7 @@ $.when($.ready).then(
                     code = "let gcode = window.scope.sendGCode;" + code;
                     code = "let s = window.scope;" + code;
                     code = "let None = function() {};" + code;
-                    code = "cancel = clearPrinterCommandQueue;" + code; //alias
+                    code = "cancel = s.clearPrinterCommandQueue;" + code; //alias
 
 
                     // wrap code in anonymous function to avoid redeclaring scope variables and
@@ -824,7 +824,7 @@ $.when($.ready).then(
         });
 
 
-        function clearPrinterCommandQueue() {
+        scope.clearPrinterCommandQueue = function() {
             let message = {
                 'jsonrpc': '2.0',
                 'id': 7,
@@ -832,6 +832,7 @@ $.when($.ready).then(
                 'params': [],
             };
             socketHandler.socket.send(JSON.stringify(message));
+        }
 
         /*
          * Clear printer queue on server 
