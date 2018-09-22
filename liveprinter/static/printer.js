@@ -170,6 +170,18 @@ class Printer {
     get minz() {
         return this.minPosition.axes.z;
     }
+    /// maximum values
+    set minx(v) {
+        this.minPosition.axes.x = v;
+    }
+    set miny(v) {
+        this.minPosition.axes.y = v;
+    }
+    set minz(v) {
+        this.minPosition.axes.z = v;
+    }
+
+
     // maximum values
     get maxx() {
         return this.maxPosition.axes.x;
@@ -180,6 +192,17 @@ class Printer {
     get maxz() {
         return this.maxPosition.axes.z;
     }
+
+    set maxx(v) {
+        this.maxPosition.axes.x = v;
+    }
+    set maxy(v) {
+        this.maxPosition.axes.y = v;
+    }
+    set maxz(v) {
+        this.maxPosition.axes.z = v;
+    }
+
 
     /**
      * Set the extrusion thickness (in mm)
@@ -219,16 +242,17 @@ class Printer {
      * lp.angle(45).dist(50).go(1).retract();
      */
     retract(len = this.retractLength, speed = this.retractSpeed) {
-        if (len > 0) {
-            this.retractLength = len;
-        }
+        if (len < 0) throw new Error("retract length can't be less than 0: " + len);
+        this.retractLength = len;
+
+        if (speed <= 0) throw new Error("retract speed can't be 0 or less: " + speed);
         // set speed safely!
-        if (speed > 0) {
-            this.retractSpeed = Math.min(speed, Printer.maxPrintSpeed["e"]);
-        }
+        if (speed > Printer.maxPrintSpeed["e"]) throw new Error("retract speed to high: " + speed);
+        this.retractSpeed = speed;
+
         // RETRACT        
-        this.currentRetraction = this.retractLength;
-        this.e -= this.currentRetraction;
+        this.currentRetraction += this.retractLength;
+        this.e -= this.retractLength;
         this.send("G1 " + "E" + this.e.toFixed(4) + " F" + this.retractSpeed.toFixed(4));
             
         return this;
@@ -252,14 +276,16 @@ class Printer {
      * lp.unretract(8,30); // extract a little more to get it going
      */
     unretract(len = this.retractLength, speed = this.retractSpeed) {
-        if (len > 0) {
-            this.retractLength = len;
-        }
+        if (len < 0) throw new Error("retract length can't be less than 0: " + len);
+        this.retractLength = len;
+
+        if (speed <= 0) throw new Error("retract speed can't be 0 or less: " + speed);
+        if (speed > Printer.maxPrintSpeed["e"]) throw new Error("retract speed to high: " + speed);
+
         // set speed safely!
-        if (speed > 0) {
-            this.retractSpeed = Math.min(speed, Printer.maxPrintSpeed["e"]);
-        }
-        // RETRACT        
+        this.retractSpeed = Math.min(speed, Printer.maxPrintSpeed["e"]);
+
+        // UNRETRACT
         this.e += this.retractLength;
         this.send("G1 " + "E" + this.e.toFixed(4) + " F" + this.retractSpeed.toFixed(4));
         this.currentRetraction = 0;
@@ -335,17 +361,23 @@ class Printer {
      * @returns {Printer} Reference to this object for chaining
      */
     angle(ang) {
-        this._heading = ang;
+        if (!radians) {
+            a = this.d2r(ang);
+        }
+        this._heading = a;
         return this;
     }
 
     /**
      * Set the direction of movement for the next operation.
-     * @param {float} elev elevation angle (in z direction, in degrees) for next movement
+     * @param {float} angle elevation angle (in z direction, in degrees) for next movement
      * @returns {Printer} reference to this object for chaining
      */
-    elevation(elev) {
-        this._elevation = elev;
+    elevation(angle) {
+        if (!radians) {
+            a = this.d2r(angle);
+        }
+        this._elevation = a;
         return this;
     }
 
@@ -391,6 +423,42 @@ class Printer {
             this.send(msg);
         }
         return this;
+    }
+
+    /**
+     * Extrude a circle with the current point as its centre
+     * @param {any} xx x pos of center
+     * @param {any} yy y pos of center
+     * @param {any} r radius
+     * @param {any} segs segments (more means more perfect circle)
+     * @param {any} props normal extrude properties like speed, retract
+     */
+    circle(xx,yy,r, segs = 10, props) {
+        for (let i = 0; i < segs-1; i++) {
+            const angle = Math.PI * 2 * i / segs;
+            const _x = Math.cos(angle) * r;
+            const _y = Math.sin(angle) * r;
+            let args = { 'x': xx + _x, 'y': yy + _y };
+            // tack on args like fill, etc.
+            if (props !== undefined) {
+                for (let prop in props) {
+                    args[prop] = props[prop];
+                }
+            }
+            this.extrudeto(args);
+        }
+    }
+
+    /**
+     * Extrude a circle with the current point as its centre
+     * @param {any} xx x pos of center
+     * @param {any} yy y pos of center
+     * @param {any} r radius
+     * @param {any} segs segments (more means more perfect circle)
+     * @param {any} props normal extrude properties like speed, retract
+     */
+    rect(xx, yy, r, props) {
+        return this.circle(xx, yy, r, 4, props);
     }
 
     /**
@@ -456,7 +524,7 @@ class Printer {
         this.totalMoveTime += moveTime; // update total movement time for the printer
 
         this._heading = Math.atan2(velocity.axes.y, velocity.axes.x);
-        this._elevation = Math.asin(velocity.axes.z);
+        //this._elevation = Math.asin(velocity.axes.z); // removed because it was non-intuitive
 
         console.log("time: " + moveTime + " / dist:" + distanceMag);
 
