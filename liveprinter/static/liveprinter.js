@@ -837,7 +837,7 @@ $.when($.ready).then(
         /*
          * Clear printer queue on server 
          */
-        $("#clear-btn").on("click", clearPrinterCommandQueue);
+        $("#clear-btn").on("click", scope.clearPrinterCommandQueue);
 
         
         // TODO: temp probe that gets scheduled every 300ms and then removes self when
