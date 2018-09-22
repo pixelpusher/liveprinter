@@ -544,13 +544,13 @@ $.when($.ready).then(
                 }
                 else {
                     // give quick access to liveprinter API
+                    code = "let cancel = s.clearPrinterCommandQueue;" + code; //alias
                     code = "let lp = window.scope.printer;" + code;
                     code = "let sched = window.scope.scheduler;" + code;
                     code = "let socket = window.scope.socket;" + code;
                     code = "let gcode = window.scope.sendGCode;" + code;
                     code = "let s = window.scope;" + code;
                     code = "let None = function() {};" + code;
-                    code = "cancel = s.clearPrinterCommandQueue;" + code; //alias
 
 
                     // wrap code in anonymous function to avoid redeclaring scope variables and

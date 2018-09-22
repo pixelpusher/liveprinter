@@ -283,7 +283,7 @@ class Printer {
         if (speed > Printer.maxPrintSpeed["e"]) throw new Error("retract speed to high: " + speed);
 
         // set speed safely!
-        this.retractSpeed = Math.min(speed, Printer.maxPrintSpeed["e"]);
+        this.retractSpeed = speed;
 
         // UNRETRACT
         this.e += this.retractLength;
@@ -469,7 +469,7 @@ class Printer {
     */
     extrudeto(params) {
         let extrusionSpecified = (params.e !== undefined);
-        let retract = ((params.retract !== undefined) && params.retract);
+        let retract = ((params.retract === undefined) || params.retract);
 
         let __x = (params.x !== undefined) ? parseFloat(params.x) : this.x;
         let __y = (params.y !== undefined) ? parseFloat(params.y) : this.y;
