@@ -95,8 +95,8 @@ class Printer {
 
         // NOTE: disabled for now to use hardware retraction settings
         this.currentRetraction = 0; // length currently retracted
-        this.retractLength = 10; // in mm - amount to retract after extrusion.  This is high because most moves are slow...
-        this.retractSpeed = 300; //mm/s
+        this.retractLength = 6; // in mm - amount to retract after extrusion.  This is high because most moves are slow...
+        this.retractSpeed = 1000; //mm/min
         this.firmwareRetract = true;    // use Marlin or printer for retraction
 
         /**
@@ -253,7 +253,10 @@ class Printer {
         // RETRACT        
         this.currentRetraction += this.retractLength;
         this.e -= this.retractLength;
-        this.send("G1 " + "E" + this.e.toFixed(4) + " F" + this.retractSpeed.toFixed(4));
+
+        const fixedE = this.e.toFixed(4);
+        this.send("G1 " + "E" + fixedE + " F" + this.retractSpeed.toFixed(4));
+        this.e = parseFloat(fixedE); // make sure e is actually e even with rounding errors!
             
         return this;
     }
@@ -275,9 +278,9 @@ class Printer {
      * lp.angle(45).dist(50).go(1).retract(6,30);
      * lp.unretract(8,30); // extract a little more to get it going
      */
-    unretract(len = this.retractLength, speed = this.retractSpeed) {
+    unretract(len = this.currentRetraction, speed = this.retractSpeed) {
         if (len < 0) throw new Error("retract length can't be less than 0: " + len);
-        this.retractLength = len;
+        if (len !== this.currentRetraction) this.retractLength = len; // set new retract length if specified
 
         if (speed <= 0) throw new Error("retract speed can't be 0 or less: " + speed);
         if (speed > Printer.maxPrintSpeed["e"]) throw new Error("retract speed to high: " + speed);
@@ -286,8 +289,11 @@ class Printer {
         this.retractSpeed = speed;
 
         // UNRETRACT
-        this.e += this.retractLength;
-        this.send("G1 " + "E" + this.e.toFixed(4) + " F" + this.retractSpeed.toFixed(4));
+        this.e += len;
+        const fixedE = this.e.toFixed(4);
+        this.send("G1 " + "E" + fixedE + " F" + this.retractSpeed.toFixed(4));
+        this.e = parseFloat(fixedE); // make sure e is actually e even with rounding errors!
+
         this.currentRetraction = 0;
 
         return this;
@@ -368,12 +374,59 @@ class Printer {
         return this;
     }
 
+    run(strings) {
+        const mvChar = "M";
+        const exChar = "E";
+        const ltChar = "L";
+        const rtChar = "R";
+
+        // Match whole command
+        const cmdRegExp = /([a-zA-Z][0-9]+\.?[0-9]*)/gim;
+        const subCmdRegExp = /([a-zA-Z])([0-9]+\.?[0-9]*)/;
+
+        //console.log(strings.raw);
+        //console.log(strings.raw[0]);
+
+        for (let rawstring of strings.raw) {
+            console.log("strings: " + rawstring);
+            let found = rawstring.match(cmdRegExp);
+            console.log(found);
+            for (let cmd of found) {
+                console.log(cmd);
+                let matches = cmd.match(subCmdRegExp);
+
+                if (matches.length != 3) throw new Error("Error in command string: " + found);
+                let cmdChar = matches[1];
+                let value = parseFloat(matches[2]);
+
+                console.log(matches);
+
+                switch (cmdChar) {
+                    case mvChar: this.distance(value).go();
+                        break;
+                    case exChar: this.distance(value).go(1);
+                        break;
+                    case ltChar: this.turn(value);
+                        break;
+                    case rtChar: this.turn(-value);
+                        break;
+
+                    default:
+                        throw new Error("Error in command - unknown command char: " + cmdChar);
+                }
+            }
+        }
+        return this;
+    }
+
+
     /**
      * Set the direction of movement for the next operation.
      * @param {float} angle elevation angle (in z direction, in degrees) for next movement
+     * @param {Boolean} radians use radians or not 
      * @returns {Printer} reference to this object for chaining
      */
-    elevation(angle) {
+    elevation(angle,radians=false) {
         if (!radians) {
             a = this.d2r(angle);
         }

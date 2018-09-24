@@ -1017,6 +1017,8 @@ $.when($.ready).then(
         // disable form reloading on code compile
         $('form').submit(false);
 
-        brython(10);
+        setLanguageMode(); // set up python or javascript
+
+        //brython(10);
 
     });
