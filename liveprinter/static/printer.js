@@ -479,39 +479,41 @@ class Printer {
     }
 
     /**
-     * Extrude a circle with the current point as its centre
-     * @param {any} xx x pos of center
-     * @param {any} yy y pos of center
+     * Extrude a circle starting at the current point on the curve
      * @param {any} r radius
      * @param {any} segs segments (more means more perfect circle)
-     * @param {any} props normal extrude properties like speed, retract
      */
-    circle(xx,yy,r, segs = 10, props) {
-        for (let i = 0; i < segs-1; i++) {
-            const angle = Math.PI * 2 * i / segs;
-            const _x = Math.cos(angle) * r;
-            const _y = Math.sin(angle) * r;
-            let args = { 'x': xx + _x, 'y': yy + _y };
-            // tack on args like fill, etc.
-            if (props !== undefined) {
-                for (let prop in props) {
-                    args[prop] = props[prop];
-                }
-            }
-            this.extrudeto(args);
+    circle(r, segs = 10) {
+        // law of cosines
+        const r2x2 = r * r * 2;
+        const arc = sqrt(r2x2 - r2x2 * cos(segAngle));
+        const segAngle = Math.PI * 2 / segs;
+
+        lp.turn(Math.PI / 2);
+        // we're in the middle of segment
+        lp.turn(-segAngle / 2);
+
+        for (let i = 0; i < segs; i++) {
+            lp.turn(segAngle);
+            // print without retraction
+            lp.dist(arc).go(1, false);
         }
     }
 
     /**
-     * Extrude a circle with the current point as its centre
-     * @param {any} xx x pos of center
-     * @param {any} yy y pos of center
-     * @param {any} r radius
-     * @param {any} segs segments (more means more perfect circle)
-     * @param {any} props normal extrude properties like speed, retract
+     * Extrude a rectangle with the current point as its centre
+     * @param {any} w width
+     * @param {any} h height
+     * @returns {Printer} reference to this object for chaining
      */
-    rect(xx, yy, r, props) {
-        return this.circle(xx, yy, r, 4, props);
+    rect(w, h) {
+        for (let i = 0; i < 2; i++) {
+            lp.dist(w).go(1, false);
+            lp.turn(90);
+            lp.dist(h).go(1, false);
+            lp.turn(90);
+        }
+        return this;
     }
 
     /**
