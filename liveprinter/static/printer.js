@@ -105,7 +105,7 @@ class Printer {
          */
         this.boundaryMode = "stop";
 
-        this.maxMovePerCycle = 400; // max mm to move per calculation (see _extrude method)
+        this.maxMovePerCycle = 40; // max mm to move per calculation (see _extrude method)
 
         this.queuedMessages = []; // messages queued to be sent by this.send(...)
     }
@@ -225,9 +225,23 @@ class Printer {
     }
 
     /**
+     * Send the current retract settings to the printer (useful when updating the retraction settings locally)
+     * @returns {Printer} reference to this object for chaining
+    */
+    sendFirmwareRetractSettings() {
+        // update firmware retract settings
+        this.send("M207 S" + this.retractLength + " F" + this.retractSpeed + " Z0.2");
+        //set retract recover
+        this.send("M208 S0 F" + this.retractSpeed);
+
+        return this;
+    }
+
+
+    /**
      * Immediately perform a "retract" which is a shortcut for just moving the filament back up at a speed.  Sets the internal retract variables to those passed in.
-     * @param {any} len Length of filament to retract.  Set to 0 to use current setting (or leave out)
-     * @param {any} speed Speed of retraction. Will be clipped to max filament feed speed for printer model.  Set to 0 for current or leave out.
+     * @param {Number} len Length of filament to retract.  Set to 0 to use current setting (or leave out)
+     * @param {Number} speed (optional) Speed of retraction. Will be clipped to max filament feed speed for printer model.
      * @returns {Printer} reference to this object for chaining
      * @example 
      * Custom retraction:
@@ -241,15 +255,18 @@ class Printer {
      * // retract again with same settings
      * lp.angle(45).dist(50).go(1).retract();
      */
-    retract(len = this.retractLength, speed = this.retractSpeed) {
+    retract(len = this.retractLength, speed) {
         if (len < 0) throw new Error("retract length can't be less than 0: " + len);
         this.retractLength = len;
 
-        if (speed <= 0) throw new Error("retract speed can't be 0 or less: " + speed);
-        // set speed safely!
-        if (speed > Printer.maxPrintSpeed["e"]) throw new Error("retract speed to high: " + speed);
-        this.retractSpeed = speed;
-
+        if (speed !== undefined) {
+            if (speed <= 0) throw new Error("retract speed can't be 0 or less: " + speed);
+            // set speed safely!
+            if (speed > Printer.maxPrintSpeed["e"]) throw new Error("retract speed to high: " + speed);
+            // convert to mm/s
+            this.retractSpeed = speed * 60;
+            this.sendFirmwareRetractSettings();
+        }
         // RETRACT        
         this.currentRetraction += this.retractLength;
         this.e -= this.retractLength;
@@ -263,8 +280,8 @@ class Printer {
 
     /**
      * Immediately perform an "unretract" which is a shortcut for just extruding the filament out at a speed.  Sets the internal retract variables to those passed in.
-     * @param {any} len Length of filament to unretract.  Set to 0 to use current setting (or leave out)
-     * @param {any} speed Speed of unretraction. Will be clipped to max filament feed speed for printer model.  Set to 0 for current or leave out.
+     * @param {Number} len Length of filament to unretract.  Set to 0 to use current setting (or leave out)
+     * @param {Number} speed (optional) Speed of unretraction. Will be clipped to max filament feed speed for printer model.
      * @returns {Printer} reference to this object for chaining
      * @example 
      * Custom unretraction:
@@ -278,16 +295,18 @@ class Printer {
      * lp.angle(45).dist(50).go(1).retract(6,30);
      * lp.unretract(8,30); // extract a little more to get it going
      */
-    unretract(len = this.currentRetraction, speed = this.retractSpeed) {
+    unretract(len = this.currentRetraction, speed) {
         if (len < 0) throw new Error("retract length can't be less than 0: " + len);
         if (len !== this.currentRetraction) this.retractLength = len; // set new retract length if specified
 
-        if (speed <= 0) throw new Error("retract speed can't be 0 or less: " + speed);
-        if (speed > Printer.maxPrintSpeed["e"]) throw new Error("retract speed to high: " + speed);
-
-        // set speed safely!
-        this.retractSpeed = speed;
-
+        if (speed !== undefined) {
+            if (speed <= 0) throw new Error("retract speed can't be 0 or less: " + speed);
+            // set speed safely!
+            if (speed > Printer.maxPrintSpeed["e"]) throw new Error("retract speed to high: " + speed);
+            // convert to mm/s
+            this.retractSpeed = speed * 60;
+            this.sendFirmwareRetractSettings();
+        }
         // UNRETRACT
         this.e += len;
         const fixedE = this.e.toFixed(4);
@@ -309,10 +328,7 @@ class Printer {
     start(temp = "190") {
         this.send("G28");
         this.send("M104 S" + temp);
-        //set retract length
-        this.send("M207 S"+this.retractLength+" F" + this.retractSpeed + " Z0.2");
-        //set retract recover
-        this.send("M208 S0 F" + this.retractSpeed);
+        this.sendFirmwareRetractSettings();
         this.moveto({ x: this.cx, y: this.cy, z: this.layerHeight, speed: Printer.defaultPrintSpeed });
         this.send("M106 S100"); // set fan to full
 
@@ -354,7 +370,10 @@ class Printer {
             const _z = this._distance * Math.sin(this._elevation);
             const _e = extruding ? undefined : 0; // no filament extrusion
 
-            return this.extrude({ x: _x, y: _y, z: _z, e: _e });
+            // reset distance to 0 because we've traveled
+            this._distance = 0;
+
+            return this.extrude({ x: _x, y: _y, z: _z, e: _e, 'retract': (retract && extruding) }); // don't retract if not extruding!
         }
         // never reached
         return this;
@@ -364,9 +383,10 @@ class Printer {
     /**
      * Set the direction of movement for the next operation.
      * @param {float} ang Angle of movement (in xy plane)
+     * @param {Boolean} radians use radians or not
      * @returns {Printer} Reference to this object for chaining
      */
-    angle(ang) {
+    angle(ang, radians = false) {
         if (!radians) {
             a = this.d2r(ang);
         }
@@ -461,6 +481,7 @@ class Printer {
     /**
      * Set firmware retraction on or off (for after every move).
      * @param {Boolean} state True if on, false if off
+     * @returns {Printer} this printer object for chaining
      */
     fwretract(state) {
         this.firmwareRetract = state;
@@ -524,7 +545,7 @@ class Printer {
     */
     extrudeto(params) {
         let extrusionSpecified = (params.e !== undefined);
-        let retract = ((params.retract === undefined) || params.retract);
+        let retract = (!extrusionSpecified && (params.retract === undefined)) || params.retract;
 
         let __x = (params.x !== undefined) ? parseFloat(params.x) : this.x;
         let __y = (params.y !== undefined) ? parseFloat(params.y) : this.y;
@@ -578,7 +599,11 @@ class Printer {
 
         this.totalMoveTime += moveTime; // update total movement time for the printer
 
-        this._heading = Math.atan2(velocity.axes.y, velocity.axes.x);
+        // handle cases where velocity is 0
+        if (distanceVec.axes.y + distanceVec.axes.x > Number.EPSILON) {
+            const newHeading = Math.atan2(distanceVec.axes.y, distanceVec.axes.x);
+            if (!isNaN(newHeading)) this._heading = newHeading;
+        }
         //this._elevation = Math.asin(velocity.axes.z); // removed because it was non-intuitive
 
         console.log("time: " + moveTime + " / dist:" + distanceMag);
@@ -1105,7 +1130,7 @@ Printer.bedSize[Printer.UM2plus] = Printer.bedSize[Printer.UM2]
 Printer.bedSize[Printer.UM2plusExt] = { 'x': 223, 'y': 223, 'z': 305 };
 Printer.bedSize[Printer.REPRAP] = { 'x': 150, 'y': 150, 'z': 80 };
 
-Printer.defaultPrintSpeed = 30; // mm/s
+Printer.defaultPrintSpeed = 50; // mm/s
 
 Printer.speedScale = {};
 Printer.speedScale[Printer.UM2] = { 'x': 47.069852, 'y': 47.069852, 'z': 160.0 };
