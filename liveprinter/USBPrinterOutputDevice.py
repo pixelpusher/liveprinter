@@ -325,17 +325,17 @@ class USBPrinter(OutputDevice):
     ##
     def _serialSendRawCommand(self, cmd:Union[str,bytes]):
 
-        if type(send_command == str):
-            send_command = send_command.encode()
-        if not send_command.endswith(b"\n"):
-            send_command += b"\n"
+        if type(cmd == str):
+            cmd = cmd.encode()
+        if not cmd.endswith(b"\n"):
+            cmd += b"\n"
 
         try:
-            self._serial.write(send_command)    
+            self._serial.write(cmd)    
         except SerialTimeoutException:
             response = PrinterResponse(**{"type":"error", 
                                             "message":"Timeout when sending command to printer via USB.",
-                                            'command': self._last_command})
+                                            'command': cmd})
             self._responses_queue.put(response)
             Logger.log("w", "Timeout when sending command to printer via USB.")
 
