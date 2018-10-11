@@ -518,17 +518,17 @@ class Printer {
     circle(r, segs = 10) {
         // law of cosines
         const r2x2 = r * r * 2;
-        const arc = sqrt(r2x2 - r2x2 * cos(segAngle));
         const segAngle = Math.PI * 2 / segs;
+        const arc = Math.sqrt(r2x2 - r2x2 * Math.cos(segAngle));
 
-        lp.turn(Math.PI / 2);
+        this.turn(Math.PI / 2);
         // we're in the middle of segment
-        lp.turn(-segAngle / 2);
+        this.turn(-segAngle / 2);
 
         for (let i = 0; i < segs; i++) {
-            lp.turn(segAngle);
+            this.turn(segAngle);
             // print without retraction
-            lp.dist(arc).go(1, false);
+            this.dist(arc).go(1, false);
         }
     }
 
@@ -540,10 +540,10 @@ class Printer {
      */
     rect(w, h) {
         for (let i = 0; i < 2; i++) {
-            lp.dist(w).go(1, false);
-            lp.turn(90);
-            lp.dist(h).go(1, false);
-            lp.turn(90);
+            this.dist(w).go(1, false);
+            this.turn(90);
+            this.dist(h).go(1, false);
+            this.turn(90);
         }
         return this;
     }
@@ -573,7 +573,7 @@ class Printer {
         //////////////////////////////////////
 
         let distanceVec = Vector.sub(newPosition, this.position);
-        const distanceMag = Math.sqrt(distanceVec.axes.x * distanceVec.axes.x + distanceVec.axes.y * distanceVec.axes.y);
+        const distanceMag = Math.sqrt(distanceVec.axes.x * distanceVec.axes.x + distanceVec.axes.y * distanceVec.axes.y + distanceVec.axes.z * distanceVec.axes.z);
 
         // FYI:
         //  nozzle_speed{mm/s} = (radius_filament^2) * PI * filament_speed{mm/s} / layer_height^2
