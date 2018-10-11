@@ -573,13 +573,16 @@ class Printer {
         //////////////////////////////////////
 
         let distanceVec = Vector.sub(newPosition, this.position);
-        const distanceMag = Math.sqrt(distanceVec.axes.x * distanceVec.axes.x + distanceVec.axes.y * distanceVec.axes.y + distanceVec.axes.z * distanceVec.axes.z);
+        let distanceMag = 1; // calculated later
 
         // FYI:
         //  nozzle_speed{mm/s} = (radius_filament^2) * PI * filament_speed{mm/s} / layer_height^2
         //  filament_speed{mm/s} = layer_height^2 * nozzle_speed{mm/s}/(radius_filament^2)*PI
 
         if (!extrusionSpecified) {
+            // distance is purely 3D movement, not filament movement
+            distanceMag = Math.sqrt(distanceVec.axes.x * distanceVec.axes.x + distanceVec.axes.y * distanceVec.axes.y + distanceVec.axes.z * distanceVec.axes.z);
+
             // otherwise, calculate filament length needed based on layerheight, etc.
             const filamentRadius = Printer.filamentDiameter[this.model] / 2;
 
@@ -604,24 +607,16 @@ class Printer {
             distanceVec.axes.e = filamentLength;
             newPosition.axes.e = this.e + distanceVec.axes.e;
         }
+        else {
+            // distance is 3D movement PLUS filament movement
+            distanceMag = distanceVec.mag();
+        }
         // note: velocity in 'e' direction is always layerHeight^2
         const velocity = Vector.div(distanceVec, distanceMag);
         const moveTime = distanceMag / this.printSpeed; // in sec, doesn't matter that new 'e' not taken into account because it's not in firmware
 
         this.totalMoveTime += moveTime; // update total movement time for the printer
 
-        // handle cases where velocity is 0
-        /*
-        if ((distanceVec.axes.y + distanceVec.axes.x) > Number.EPSILON) {
-            console.log("not not going nowhere");
-            console.log("prev heading:" + this._heading);
-            let divScale = Math.sqrt(distanceVec.axes.y * distanceVec.axes.y + distanceVec.axes.x * distanceVec.axes.x);
-            let newHeading = Math.atan2(distanceVec.axes.y / divScale, distanceVec.axes.x / divScale);
-            if (!isNaN(newHeading)) this._heading = newHeading;
-            //if (this._heading < 0) this._heading += Math.PI; 
-            console.log("new heading:" + this._heading);
-        }
-        */
         //this._elevation = Math.asin(velocity.axes.z); // removed because it was non-intuitive
         
         console.log("time: " + moveTime + " / dist:" + distanceMag);
@@ -647,7 +642,7 @@ class Printer {
             throw Error("Z travel too fast:" + nozzleSpeed.axes.z);
         }
         if (nozzleSpeed.axes.e > this.maxSpeed["e"]) {
-            throw Error("Z travel too fast:" + nozzleSpeed.axes.z);
+            throw Error("E travel too fast:" + nozzleSpeed.axes.z);
         }
 
         // Handle movements outside printer boundaries if there's a need.
@@ -967,7 +962,7 @@ Printer.prototype._extrude = meth("_extrude", function (that, moveVector, leftTo
     //console.log(moveVector);
 
     if (isNaN(leftToMove) || leftToMove < 0.01) {
-        console.log("(extrude) end position:" + that.x + ", " + that.y + ", " + that.z + ", " + that.e);
+        //console.log("(extrude) end position:" + that.x + ", " + that.y + ", " + that.z + ", " + that.e);
         return false;
     }
 
