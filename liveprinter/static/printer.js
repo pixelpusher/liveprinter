@@ -105,7 +105,7 @@ class Printer {
          */
         this.boundaryMode = "stop";
 
-        this.maxMovePerCycle = 40; // max mm to move per calculation (see _extrude method)
+        this.maxMovePerCycle = 200; // max mm to move per calculation (see _extrude method)
 
         this.queuedMessages = []; // messages queued to be sent by this.send(...)
     }
@@ -370,6 +370,16 @@ class Printer {
             const _z = this._distance * Math.sin(this._elevation);
             const _e = extruding ? undefined : 0; // no filament extrusion
 
+            // debugging
+            let _div = Math.sqrt(_x * _x + _y * _y);
+            let _normx = _x / _div;
+            let _normy = _y / _div;
+
+            /* for debugging -- test if start and end are same
+            console.log("[go] end position:" + (this.x + _x) + "," + (this.y + _y) + "," + (this.z + _z) + "," + _e);
+            console.log("[go] move vec:" + _normx + ", " + _normy);
+            */
+
             // reset distance to 0 because we've traveled
             this._distance = 0;
 
@@ -387,6 +397,7 @@ class Printer {
      * @returns {Printer} Reference to this object for chaining
      */
     angle(ang, radians = false) {
+        let a = ang;
         if (!radians) {
             a = this.d2r(ang);
         }
@@ -408,18 +419,18 @@ class Printer {
         //console.log(strings.raw[0]);
 
         for (let rawstring of strings.raw) {
-            console.log("strings: " + rawstring);
+            //console.log("strings: " + rawstring);
             let found = rawstring.match(cmdRegExp);
-            console.log(found);
+            //console.log(found);
             for (let cmd of found) {
-                console.log(cmd);
+                //console.log(cmd);
                 let matches = cmd.match(subCmdRegExp);
 
-                if (matches.length != 3) throw new Error("Error in command string: " + found);
+                if (matches.length !== 3) throw new Error("Error in command string: " + found);
                 let cmdChar = matches[1];
                 let value = parseFloat(matches[2]);
 
-                console.log(matches);
+                //console.log(matches);
 
                 switch (cmdChar) {
                     case mvChar: this.distance(value).go();
@@ -562,7 +573,7 @@ class Printer {
         //////////////////////////////////////
 
         let distanceVec = Vector.sub(newPosition, this.position);
-        let distanceMag = distanceVec.mag();
+        const distanceMag = Math.sqrt(distanceVec.axes.x * distanceVec.axes.x + distanceVec.axes.y * distanceVec.axes.y);
 
         // FYI:
         //  nozzle_speed{mm/s} = (radius_filament^2) * PI * filament_speed{mm/s} / layer_height^2
@@ -593,19 +604,26 @@ class Printer {
             distanceVec.axes.e = filamentLength;
             newPosition.axes.e = this.e + distanceVec.axes.e;
         }
-
+        // note: velocity in 'e' direction is always layerHeight^2
         const velocity = Vector.div(distanceVec, distanceMag);
         const moveTime = distanceMag / this.printSpeed; // in sec, doesn't matter that new 'e' not taken into account because it's not in firmware
 
         this.totalMoveTime += moveTime; // update total movement time for the printer
 
         // handle cases where velocity is 0
-        if (distanceVec.axes.y + distanceVec.axes.x > Number.EPSILON) {
-            const newHeading = Math.atan2(distanceVec.axes.y, distanceVec.axes.x);
+        /*
+        if ((distanceVec.axes.y + distanceVec.axes.x) > Number.EPSILON) {
+            console.log("not not going nowhere");
+            console.log("prev heading:" + this._heading);
+            let divScale = Math.sqrt(distanceVec.axes.y * distanceVec.axes.y + distanceVec.axes.x * distanceVec.axes.x);
+            let newHeading = Math.atan2(distanceVec.axes.y / divScale, distanceVec.axes.x / divScale);
             if (!isNaN(newHeading)) this._heading = newHeading;
+            //if (this._heading < 0) this._heading += Math.PI; 
+            console.log("new heading:" + this._heading);
         }
+        */
         //this._elevation = Math.asin(velocity.axes.z); // removed because it was non-intuitive
-
+        
         console.log("time: " + moveTime + " / dist:" + distanceMag);
 
         //
@@ -777,6 +795,15 @@ class Printer {
     }
 
     /**
+     * Radians to degrees conversion.
+     * @param {float} angle in radians
+     * @returns {float} angle in degrees
+     */
+    r2d(angle) {
+        return angle*180 / Math.PI;
+    }
+
+    /**
      * Convert MIDI notes and duration into direction and angle for future movement.
      * Low notes below 10 are treated a pauses.
      * @param {float} note as midi note
@@ -939,7 +966,8 @@ Printer.prototype._extrude = meth("_extrude", function (that, moveVector, leftTo
     //console.log("left to move:" + leftToMove);
     //console.log(moveVector);
 
-    if (isNaN(leftToMove) || leftToMove < 0.08) {
+    if (isNaN(leftToMove) || leftToMove < 0.01) {
+        console.log("(extrude) end position:" + that.x + ", " + that.y + ", " + that.z + ", " + that.e);
         return false;
     }
 
@@ -987,6 +1015,7 @@ Printer.prototype._extrude = meth("_extrude", function (that, moveVector, leftTo
         //console.log(moved);
 
         if (outsideBounds) {
+            //console.log("outside");
             let shortestAxisTime = 99999;
             let shortestAxes = [];
 
@@ -1024,11 +1053,10 @@ Printer.prototype._extrude = meth("_extrude", function (that, moveVector, leftTo
     }
     leftToMove -= amountMoved;
 
-
     // update current position
     //console.log("current pos:")
     //console.log(that.position);
-    that._heading = Math.atan2(moveVector.axes.y, moveVector.axes.x);
+
     // DON'T DO THIS ANYMORE... counter-intuitive!
     //that._elevation = Math.asin(moveVector.axes.z);
     that.position.set(nextPosition);
@@ -1039,8 +1067,21 @@ Printer.prototype._extrude = meth("_extrude", function (that, moveVector, leftTo
 
     that.sendExtrusionGCode(retract);
 
+    // handle cases where velocity is 0 (might be movement up or down)
+
+    //console.log("prev heading:" + this._heading);
+    //console.log("move vec:" + moveVector.axes.x + ", " + moveVector.axes.y);
+
+    let _test = moveVector.axes.y * moveVector.axes.y + moveVector.axes.x * moveVector.axes.x;
+
+    if (_test > Number.EPSILON) {
+        //console.log("not not going nowhere __" + that._heading);
+        let newHeading = Math.atan2(moveVector.axes.y , moveVector.axes.x);
+        if (!isNaN(newHeading)) that._heading = newHeading;
+        //console.log("new heading:" + that._heading);
+    }
+
     // Tail recursive, until target x,y,z is hit
-    //
     return mret(that._extrude, moveVector, leftToMove, retract);
     //return false;
 

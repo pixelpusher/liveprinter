@@ -187,7 +187,7 @@ Vector.mult = function (v0, amt) {
         }
     } catch (e) {
         // rethrow, caught in GUI
-        throw (e);
+        throw e;
     }
     return v1;
 };

@@ -57,7 +57,7 @@ $.when($.ready).then(
          * @memberOf LivePrinter
          * @inner
          */
-        var Scheduler = {
+        window.scope.Scheduler = {
             ScheduledEvents: [],
             audioContext: new AudioContext(),
             schedulerInterval: 40,
@@ -67,7 +67,7 @@ $.when($.ready).then(
              * Clear all scheduled events.
              * */
             clearEvents: function () {
-                Scheduler.ScheduledEvents = [];
+                window.scope.Scheduler.ScheduledEvents = [];
             },
 
             /**
@@ -77,9 +77,9 @@ $.when($.ready).then(
             * @param repeat: true/false whether to reschedule
             */
             scheduleEvent: function (args) {
-                args.time = Scheduler.audioContext.currentTime;
+                args.time = window.scope.Scheduler.audioContext.currentTime;
 
-                Scheduler.ScheduledEvents.push(args);
+                window.scope.Scheduler.ScheduledEvents.push(args);
             },
 
             /**
@@ -88,7 +88,7 @@ $.when($.ready).then(
              */
             removeEvent: function (func) {
                 // run events 
-                Scheduler.ScheduledEvents = Scheduler.ScheduledEvents.filter(func);
+                window.scope.Scheduler.ScheduledEvents = window.scope.Scheduler.ScheduledEvents.filter(func);
             },
 
             /**
@@ -97,20 +97,20 @@ $.when($.ready).then(
              */
             removeEventByName: function (name) {
                 // run events 
-                Scheduler.ScheduledEvents = Scheduler.ScheduledEvents.filter(e => e.name != name);
+                window.scope.Scheduler.ScheduledEvents = window.scope.Scheduler.ScheduledEvents.filter(e => e.name != name);
             },
 
             /**
              * Start the Scheduler running events.
              */
             startScheduler: function () {
-                console.log("scheduler starting at time: " + Scheduler.audioContext.currentTime);
+                console.log("scheduler starting at time: " + window.scope.Scheduler.audioContext.currentTime);
 
                 function scheduler(nextTime) {
-                    let time = Scheduler.audioContext.currentTime * 1000; // in ms
+                    let time = window.scope.Scheduler.audioContext.currentTime * 1000; // in ms
 
                     // run events 
-                    Scheduler.ScheduledEvents.filter(
+                    window.scope.Scheduler.ScheduledEvents.filter(
                         function (event) {
                             let keep = true;
 
@@ -130,12 +130,12 @@ $.when($.ready).then(
                         });
                 }
 
-                Scheduler.timerID = window.setInterval(scheduler, Scheduler.schedulerInterval);
+                window.scope.Scheduler.timerID = window.setInterval(scheduler, window.scope.Scheduler.schedulerInterval);
             }
         };
 
 
-        Scheduler.startScheduler();
+        window.scope.Scheduler.startScheduler();
 
         // Scheduler.scheduleEvent({
         //     timeOffset: 2000,
@@ -226,6 +226,8 @@ $.when($.ready).then(
         /**
          * Convert code to JSON RPC for sending to the server.
          * @param {string} gcode to convert
+         * @returns {string} json message
+         * 
          */
         function codeToJSON(gcode) {
             if (typeof gcode === 'string') gcode = [stripComments(gcode)];
@@ -247,8 +249,6 @@ $.when($.ready).then(
                 //socketHandler.socket.send(message_json);
             }
             else throw new Error("invalid gcode in sendGCode[" + typeof text + "]:" + text);
-
-            return null;
         }
 
         /**
@@ -302,11 +302,11 @@ $.when($.ready).then(
         }
 
 
-        var updateTemperature = function (state) {
+        let updateTemperature = function (state) {
 
             if (state) {
                 // schedule temperature updates every little while
-                Scheduler.scheduleEvent({
+                window.scope.Scheduler.scheduleEvent({
                     name: "tempUpdates",
                     timeOffset: 5000,
                     func: function (time) {
@@ -319,15 +319,15 @@ $.when($.ready).then(
                 });
             } else {
                 // stop updates
-                Scheduler.removeEventByName("tempUpdates");
+                window.scope.Scheduler.removeEventByName("tempUpdates");
             }
         };
 
         /**
-            * Handle websockets communications
-            * and event listeners
-            * 
-            */
+        * Handle websockets communications
+        * and event listeners
+        * 
+        */
         var socketHandler = {
             socket: null, //websocket
             listeners: [], // listeners for json rpc calls
@@ -425,22 +425,22 @@ $.when($.ready).then(
 
         // CodeMirror stuff
 
-        var WORD = /[\w$]+/g, RANGE = 500;
+        const WORD = /[\w$]+/g, RANGE = 500;
 
         CodeMirror.registerHelper("hint", "anyword", function (editor, options) {
-            var word = options && options.word || WORD;
-            var range = options && options.range || RANGE;
-            var cur = editor.getCursor(), curLine = editor.getLine(cur.line);
-            var start = cur.ch, end = start;
+            const word = options && options.word || WORD;
+            const range = options && options.range || RANGE;
+            const cur = editor.getCursor(), curLine = editor.getLine(cur.line);
+            let start = cur.ch, end = start;
             while (end < curLine.length && word.test(curLine.charAt(end)))++end;
             while (start && word.test(curLine.charAt(start - 1)))--start;
-            var curWord = start !== end && curLine.slice(start, end);
+            let curWord = start !== end && curLine.slice(start, end);
 
-            var list = [], seen = {};
+            let list = [], seen = {};
             function scan(dir) {
-                var line = cur.line, end = Math.min(Math.max(line + dir * range, editor.firstLine()), editor.lastLine()) + dir;
+                let line = cur.line, end = Math.min(Math.max(line + dir * range, editor.firstLine()), editor.lastLine()) + dir;
                 for (; line !== end; line += dir) {
-                    var text = editor.getLine(line), m;
+                    let text = editor.getLine(line), m;
                     word.lastIndex = 0;
                     while (m = word.exec(text)) {
                         if ((!curWord || m[0].indexOf(curWord) === 0) && !seen.hasOwnProperty(m[0])) {
@@ -494,7 +494,7 @@ $.when($.ready).then(
         //
         // blink an element using css animation class
         //
-        var blinkElem = function ($elem, speed, callback) {
+        function blinkElem($elem, speed, callback) {
             $elem.removeClass("blinkit fast slow"); // remove to make sure it's not there
             $elem.on("animationend", function () {
                 if (callback !== undefined && typeof callback == "function") callback();
@@ -511,123 +511,42 @@ $.when($.ready).then(
             }
         };
 
-        /**
-         * Evaluate the code according to the current editor mode (javascript/python).
-         * @param {string} code to evaluate
-         * @param {integer} line line number for error displaying
-         */
-        function globalEval(code, line) {
-            clearError();
-            code = jQuery.trim(code);
-            console.log(code);
-            if (code) {
-                if (pythonMode) {
-
-
-                    code = "from browser import document as doc\nfrom browser import window as win\nlp = win.scope.printer\ngcode = win.scope.sendGCode\n"
-                        + code;
-
-                    let script = document.createElement("script");
-                    script.type = "text/python";
-                    script.text = code;
-                   
-                    // run and remove
-                    let scriptsContainer = $("#python-scripts");
-                    scriptsContainer.empty(); // remove old ones
-                    scriptsContainer.append(script); // append new one
-
-                    brython(); // re-run brython
-
-                    //code = __BRYTHON__.py2js(code + "", "newcode", "newcode").to_js();
-                    console.log(code);
-                    // eval(code);
-                }
-                else {
-                    // give quick access to liveprinter API
-                    code = "let cancel = s.clearPrinterCommandQueue;" + code; //alias
-                    code = "let lp = window.scope.printer;" + code;
-                    code = "let sched = window.scope.scheduler;" + code;
-                    code = "let socket = window.scope.socket;" + code;
-                    code = "let gcode = window.scope.sendGCode;" + code;
-                    code = "let s = window.scope;" + code;
-                    code = "let None = function() {};" + code;
-
-
-                    // wrap code in anonymous function to avoid redeclaring scope variables and
-                    // scope bleed.  For global functions that persist, use lp scope or s
-
-                    // error handling
-                    code = 'try {' + code;
-                    code = code + '} catch (e) { e.lineNumber=line;doError(e); }';
-
-                    code = "let line =" + line + ";" + code;
-
-                    // function wrapping
-                    code = '(function(){"use strict";' + code;
-                    code = code + "})();";
-
-                    console.log("adding code:" + code);
-                    let script = document.createElement("script");
-                    script.text = code;
-                    /*
-                        * NONE OF THIS WORKS IN CHROME... should be aesy, but no.
-                        *
-                    let node = null;
-                    script.onreadystatechange = script.onload = function () {
-                        console.log("loaded");
-                        node.printer = printer;
-                        node.scheduler = Scheduler;
-                        node.socket = socketHandler;
-    
-                        node.parentNode.removeChild(script);
-                        node = null;
-                    };
-                    script.onerror = function (e) { console.log("script error:" + e) };
-    
-                    node = document.head.appendChild(script);
-                    */
-                    // run and remove
-                    document.head.appendChild(script).parentNode.removeChild(script);
-                }
-            }
-        } // end globalEval
-
-
         /*
         * START SETTING UP SESSION VARIABLES ETC>
         * **************************************
         * 
         */
+        if (scope.printer) delete scope.printer;
 
-        var printer = new Printer(sendGCode);
+        scope.printer = new Printer(sendGCode);
 
         // handler for JSON-RPC calls from server
-        printer.jsonrpcListener = {
+        const jsonrpcPositionListener = {
             "position": function (params) {
                 console.log("position:");
                 console.log(params);
-                printer.x = parseFloat(params.x);
-                printer.y = parseFloat(params.y);
-                printer.z = parseFloat(params.z);
-                printer.e = parseFloat(params.e);
+                scope.printer.x = parseFloat(params.x);
+                scope.printer.y = parseFloat(params.y);
+                scope.printer.z = parseFloat(params.z);
+                scope.printer.e = parseFloat(params.e);
             }
         };
 
-        socketHandler.registerListener(printer.jsonrpcListener);
+        socketHandler.registerListener(jsonrpcPositionListener);
 
         $("#gcode").select();  // focus on code input
         socketHandler.start(); // start websockets
 
-        var responseJSON = JSON.stringify({
+        const responseJSON = JSON.stringify({
             "jsonrpc": "2.0",
             "id": 4,
             "method": "response",
             "params": []
         });
 
-        var waitingForResponse = false; // only ask for responses if we expect them?
+        let waitingForResponse = false; // only ask for responses if we expect them?
 
-        Scheduler.scheduleEvent({
+        window.scope.Scheduler.scheduleEvent({
             name: "queryResponses",
             timeOffset: 80,
             func: function (event) {
@@ -640,7 +559,7 @@ $.when($.ready).then(
         });
 
         // temperature event handler
-        var tempHandler = {
+        const tempHandler = {
             'temperature': function (tempEvent) {
                 //console.log("temp event:");
                 //console.log(tempEvent);
@@ -671,7 +590,7 @@ $.when($.ready).then(
 
 
         // temperature event handler
-        var errorHandler = {
+        const errorHandler = {
             'error': function (event) {
                 //console.log("error event:");
                 //console.log(event);
@@ -691,7 +610,7 @@ $.when($.ready).then(
         socketHandler.registerListener(errorHandler);
 
         // temperature event handler
-        var infoHandler = {
+        const infoHandler = {
             'info': function (event) {
                 //console.log("error event:");
                 //console.log(event);
@@ -719,7 +638,7 @@ $.when($.ready).then(
         socketHandler.registerListener(infoHandler);
 
         // temperature event handler
-        var commandHandler = {
+        const commandHandler = {
             'gcode': function (event) {
                 //console.log("error event:");
                 //console.log(event);
@@ -732,7 +651,7 @@ $.when($.ready).then(
         socketHandler.registerListener(commandHandler);
 
         // ok event handler
-        var okHandler = {
+        const okHandler = {
             'ok': function (event) {
                 //console.log("ok event:");
                 //console.log(event);
@@ -748,7 +667,7 @@ $.when($.ready).then(
 
 
         // portsListHandler event handler
-        var portsListHandler = {
+        const portsListHandler = {
             'serial-ports-list': function (event) {
                 window.scope.serialPorts = []; // reset serial ports list
                 let portsDropdown = $("#serial-ports-list");
@@ -843,9 +762,9 @@ $.when($.ready).then(
         // TODO: temp probe that gets scheduled every 300ms and then removes self when
         // tempHandler called
 
+
+
         // update printing API to share with running script
-        scope.printer = printer;
-        scope.scheduler = Scheduler;
         scope.socket = socketHandler;
         scope.sendGCode = sendGCode;
 
@@ -856,7 +775,7 @@ $.when($.ready).then(
         scope.pmy = 0;
         scope.md = false; // mouse down
         scope.pmd = false; // previous mouse down
-
+        
         // add click handler - wrapper for jquery
         scope.click = function (func, elem = "undefined") {
             if (elem !== "undefined" || elem) {
@@ -865,7 +784,8 @@ $.when($.ready).then(
             else {
                 return $(window).click(func);
             }
-        }
+        };
+
         /**
          * 
          * @param {Function} func function to run when mouse moved
@@ -915,7 +835,7 @@ $.when($.ready).then(
                 scope.md = false;
                 $(document).off("mousemove");
             });
-        }
+        };
 
 
         /**
@@ -1018,6 +938,89 @@ $.when($.ready).then(
         $('form').submit(false);
 
         setLanguageMode(); // set up python or javascript
+
+
+        /**
+         * Evaluate the code according to the current editor mode (javascript/python).
+         * @param {string} code to evaluate
+         * @param {integer} line line number for error displaying
+         */
+        function globalEval(code, line) {
+            clearError();
+            code = jQuery.trim(code);
+            console.log(code);
+            if (code) {
+                if (pythonMode) {
+
+
+                    code = "from browser import document as doc\nfrom browser import window as win\nlp = win.scope.printer\ngcode = win.scope.sendGCode\n"
+                        + code;
+
+                    let script = document.createElement("script");
+                    script.type = "text/python";
+                    script.text = code;
+
+                    // run and remove
+                    let scriptsContainer = $("#python-scripts");
+                    scriptsContainer.empty(); // remove old ones
+                    scriptsContainer.append(script); // append new one
+
+                    brython(); // re-run brython
+
+                    //code = __BRYTHON__.py2js(code + "", "newcode", "newcode").to_js();
+                    console.log(code);
+                    // eval(code);
+                }
+                else {
+                    // give quick access to liveprinter API
+                    code = "let cancel = s.clearPrinterCommandQueue;" + code; //alias
+                    code = "let lp = window.scope.printer;" + code;
+                    code = "let sched = window.scope.Scheduler;" + code;
+                    code = "let socket = window.scope.socket;" + code;
+                    code = "let gcode = window.scope.sendGCode;" + code;
+                    code = "let s = window.scope;" + code;
+                    code = "let None = function() {};" + code;
+
+
+                    // wrap code in anonymous function to avoid redeclaring scope variables and
+                    // scope bleed.  For global functions that persist, use lp scope or s
+
+                    // error handling
+                    code = 'try {' + code;
+                    code = code + '} catch (e) { e.lineNumber=line;doError(e); }';
+
+                    code = "let line =" + line + ";" + code;
+
+                    // function wrapping
+                    code = '(function(){"use strict";' + code;
+                    code = code + "})();";
+
+                    console.log("adding code:" + code);
+                    let script = document.createElement("script");
+                    script.text = code;
+                    /*
+                        * NONE OF THIS WORKS IN CHROME... should be aesy, but no.
+                        *
+                    let node = null;
+                    script.onreadystatechange = script.onload = function () {
+                        console.log("loaded");
+                        node.printer = printer;
+                        node.scheduler = Scheduler;
+                        node.socket = socketHandler;
+    
+                        node.parentNode.removeChild(script);
+                        node = null;
+                    };
+                    script.onerror = function (e) { console.log("script error:" + e) };
+    
+                    node = document.head.appendChild(script);
+                    */
+                    // run and remove
+                    document.head.appendChild(script).parentNode.removeChild(script);
+                }
+            }
+        } // end globalEval
+
 
         //brython(10);
 
