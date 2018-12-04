@@ -95,7 +95,7 @@ class Printer {
 
         // NOTE: disabled for now to use hardware retraction settings
         this.currentRetraction = 0; // length currently retracted
-        this.retractLength = 6; // in mm - amount to retract after extrusion.  This is high because most moves are slow...
+        this.retractLength = 6.5; // in mm - amount to retract after extrusion.  This is high because most moves are slow...
         this.retractSpeed = 1000; //mm/min
         this.firmwareRetract = true;    // use Marlin or printer for retraction
 
@@ -274,7 +274,7 @@ class Printer {
         const fixedE = this.e.toFixed(4);
         this.send("G1 " + "E" + fixedE + " F" + this.retractSpeed.toFixed(4));
         this.e = parseFloat(fixedE); // make sure e is actually e even with rounding errors!
-            
+
         return this;
     }
 
@@ -359,7 +359,7 @@ class Printer {
      * @param {Boolean} retract Whether to retract at end (usually true). Set to 0 if executing a few moves in a row
      * @returns {Printer} reference to this object for chaining
      */
-    go(extruding = false, retract=true) {
+    go(extruding = false, retract = true) {
         // wait, if necessary
         if (this._waitTime > 0) {
             return this.wait();
@@ -387,7 +387,7 @@ class Printer {
         }
         // never reached
         return this;
-        
+
     }
 
     /**
@@ -457,7 +457,7 @@ class Printer {
      * @param {Boolean} radians use radians or not 
      * @returns {Printer} reference to this object for chaining
      */
-    elevation(angle,radians=false) {
+    elevation(angle, radians = false) {
         if (!radians) {
             a = this.d2r(angle);
         }
@@ -467,7 +467,7 @@ class Printer {
 
     // shortcut
     elev(_elev) {
-        return this.elevation(_elev); 
+        return this.elevation(_elev);
     }
 
     /**
@@ -618,7 +618,7 @@ class Printer {
         this.totalMoveTime += moveTime; // update total movement time for the printer
 
         //this._elevation = Math.asin(velocity.axes.z); // removed because it was non-intuitive
-        
+
         console.log("time: " + moveTime + " / dist:" + distanceMag);
 
         //
@@ -659,18 +659,19 @@ class Printer {
      * @param {boolean} retract if true (default) add GCode for retraction/unretraction. Will use either hardware or software retraction if set in Printer object
      * */
     sendExtrusionGCode(retract = true) {
-        //unretract first if needed
-        if (!this.firmwareRetract && this.currentRetraction) {
-            this.e += this.currentRetraction;
-            // account for previous retraction
-            this.send("G1 " + "E" + this.e.toFixed(4) + " F" + this.retractSpeed.toFixed(4));
+        if (retract && this.currentRetraction > 0) {
+            //unretract manually first if needed
+            if (!this.firmwareRetract) {
+                this.e += this.currentRetraction;
+                // account for previous retraction
+                this.send("G1 " + "E" + this.e.toFixed(4) + " F" + this.retractSpeed.toFixed(4));
+                this.currentRetraction = 0;
+            } else
+                // unretract via firmware otherwise
+                this.send("G11");
             this.currentRetraction = 0;
         }
-        // unretract
-        if (this.firmwareRetract && this.currentRetraction > 0) { // ugh what an ungly check
-            this.send("G11");
-            this.currentRetraction = 0;
-        }
+
         // G1 - Coordinated Movement X Y Z E
         let moveCode = ["G1"];
         moveCode.push("X" + this.x.toFixed(4));
@@ -681,7 +682,7 @@ class Printer {
         this.send(moveCode.join(" "));
 
         // RETRACT
-        if (retract && this.retractLength) {
+        if (retract && this.retractLength > 0) {
             if (this.firmwareRetract) {
                 this.send("G10");
                 this.currentRetraction = this.retractLength; // this is handled in hardware                       
@@ -795,7 +796,7 @@ class Printer {
      * @returns {float} angle in degrees
      */
     r2d(angle) {
-        return angle*180 / Math.PI;
+        return angle * 180 / Math.PI;
     }
 
     /**
@@ -809,7 +810,7 @@ class Printer {
      * Play MIDI note 41 for 400ms on the x & y axes
      *     lp.note(41, 400, "xy").go();
      */
-    note(note=40, time=200, axes="x") {
+    note(note = 40, time = 200, axes = "x") {
         const a = [];
         a.push(...axes); // turn into array of axes
         // total movement
@@ -899,7 +900,7 @@ class Printer {
     /**
      * Convenience function for getting speed scales for midi notes from printer model.
      * @returns {object} x,y,z speed scales
-     */ 
+     */
     speedScale() {
         let bs = Printer.speedScale[this.model];
         return { "x": bs["x"], "y": bs["y"], "z": bs["z"] };
@@ -982,7 +983,7 @@ Printer.prototype._extrude = meth("_extrude", function (that, moveVector, leftTo
 
     if (that.boundaryMode === "bounce") {
         let moved = new Vector();
-        let outsideBounds = false; 
+        let outsideBounds = false;
 
         // calculate movement time per axis, based on printer bounds
 
@@ -991,8 +992,7 @@ Printer.prototype._extrude = meth("_extrude", function (that, moveVector, leftTo
             // for each axis, see where it intersects the printer bounds
             // then, using velocity, get other axes positions at that point
             // if any of them are over, skip to next axis
-            if (axis !== "e")
-            {
+            if (axis !== "e") {
                 if (nextPosition.axes[axis] > that.maxPosition.axes[axis]) {
                     // hit - calculate up to min position
                     moved.axes[axis] = (that.maxPosition.axes[axis] - that.position.axes[axis]) / moveVector.axes[axis];
@@ -1071,7 +1071,7 @@ Printer.prototype._extrude = meth("_extrude", function (that, moveVector, leftTo
 
     if (_test > Number.EPSILON) {
         //console.log("not not going nowhere __" + that._heading);
-        let newHeading = Math.atan2(moveVector.axes.y , moveVector.axes.x);
+        let newHeading = Math.atan2(moveVector.axes.y, moveVector.axes.x);
         if (!isNaN(newHeading)) that._heading = newHeading;
         //console.log("new heading:" + that._heading);
     }
