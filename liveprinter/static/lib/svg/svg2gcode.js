@@ -5,8 +5,8 @@ function svg2gcode(svg, settings) {
     settings.passes = settings.passes || 1;
     settings.scale = settings.scale || 1;
     settings.layerHeight = settings.layerHeight || 0.2; // cut z
-    settings.feedRate = settings.feedRate || (30 * 60); //convert mm/s to mm/min
-    settings.seekRate = settings.seekRate || (80 * 60); //convert mm/s to mm/min
+    settings.feedRate = settings.feedRate || 25; //mm/s
+    settings.seekRate = settings.seekRate || 80; //mm/s 
     settings.bitWidth = settings.bitWidth || 1; // in mm
     settings.minY = settings.minY || 0; // translate on bed
     settings.minX = settings.minY || 0;
@@ -107,7 +107,7 @@ function svg2gcode(svg, settings) {
         gcode.push(['G1',
             'X' + calcX(path[0][0]),
             'Y' + calcY(path[0][1]),
-            'F' + settings.seekRate
+            'F' + (settings.seekRate*60)
         ].join(' '));
 
         // seek to start of first path segment
@@ -121,7 +121,7 @@ function svg2gcode(svg, settings) {
         // begin print, move head into place
         gcode.push(['G1',
             'Z' + currentHeight,
-            'F' + settings.seekRate
+            'F' + (settings.seekRate*60)
         ].join(' '));
 
         lpcode.push([
@@ -129,7 +129,9 @@ function svg2gcode(svg, settings) {
         ]);
 
         // unretract if needed, get ready to print first segment
-        if (pathIdx > 0) lpcode.push('lp.unretract();');
+       // if (pathIdx > 0) lpcode.push('lp.unretract();');
+
+        lpcode.push('lp.unretract();'); // makes sense to do this every time
 
         // print each segment, one by one
         for (let segmentIdx = 0, segmentLength = path.length; segmentIdx < segmentLength; segmentIdx++) {
@@ -138,7 +140,7 @@ function svg2gcode(svg, settings) {
             gcode.push(['G1',
                 'X' + calcX(segment[0]),
                 'Y' + calcY(segment[1]),
-                'F' + settings.feedRate
+                'F' + (settings.feedRate*60)
             ].join(' '));
 
             lpcode.push(['lp.extrudeto({' +
@@ -159,7 +161,7 @@ function svg2gcode(svg, settings) {
         // go safe
         gcode.push(['G1',
             'Z' + settings.safeZ,
-            'F' + '300'
+            'F' + (settings.feedRate * 60)
         ].join(' '));
     }
 
@@ -168,11 +170,6 @@ function svg2gcode(svg, settings) {
 
     // turn off the spindle
     gcode.push('M5');
-
-    // go home
-    lpcode.push([
-        "lp.moveto({'z':" + (settings.safeZ), "'speed':80" + "});"
-    ]);
 
     gcode.push('G1 Z0 F300');
     gcode.push('G1 X0 Y0 F800');
