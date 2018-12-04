@@ -5,17 +5,15 @@ function svg2gcode(svg, settings) {
     settings.passes = settings.passes || 1;
     settings.scale = settings.scale || 1;
     settings.layerHeight = settings.layerHeight || 0.2; // cut z
-    settings.safeZ = settings.safeZ || 100;   // safe z
     settings.feedRate = settings.feedRate || (30 * 60); //convert mm/s to mm/min
     settings.seekRate = settings.seekRate || (80 * 60); //convert mm/s to mm/min
     settings.bitWidth = settings.bitWidth || 1; // in mm
-    settings.minY = 0; // translate on bed
-    settings.minX = 0;
-    settings.maxY = 150; // make sure not bigger than printer size!
-    settings.maxX = 150;
-    settings.offsetX = settings.offsetX || 0; // add an optional offset
-    settings.offsetY = settings.offsetY || 0;
-    settings.offsetZ = settings.offsetZ || 0;
+    settings.minY = settings.minY || 0; // translate on bed
+    settings.minX = settings.minY || 0;
+    settings.minZ = settings.minZ || 0;
+    settings.maxY = settings.maxY || 140; // make sure not bigger than printer size!
+    settings.maxX = settings.maxY || 140;
+    settings.safeZ = settings.safeZ || (settings.layerHeight * settings.passes + 10);   // safe z for traveling
 
     // total bounds
     let minX = Infinity,
@@ -25,8 +23,8 @@ function svg2gcode(svg, settings) {
 
 
     let
-        calcX = x => ((x - minX) * settings.scale + settings.offsetX).toFixed(4),
-        calcY = y => ((y - minY) * settings.scale + settings.offsetY).toFixed(4),
+        calcX = x => ((x - minX) * settings.scale + settings.minX).toFixed(4),
+        calcY = y => ((y - minY) * settings.scale + settings.minY).toFixed(4),
         paths = SVGReader.parse(svg, {}).allcolors,
         gcode,
         lpcode,
@@ -71,8 +69,8 @@ function svg2gcode(svg, settings) {
 
     // scale to larger of the dimensions
     // *****note: offsets aren't scaled (that would be weird)
-    if ((settings.offsetX + xDiff) > settings.maxX || (settings.offsetY + yDiff) > settings.maxY) {
-        newScale = Math.min(settings.maxX / (settings.offsetX + xDiff), settings.maxY / (settings.offsetY + yDiff));
+    if ((settings.minX + xDiff) > settings.maxX || (settings.minY + yDiff) > settings.maxY) {
+        newScale = Math.min((settings.maxX - settings.minX) / xDiff, (settings.maxY - settings.minY) / yDiff);
     }
 
     settings.scale *= newScale; // apply new scale
