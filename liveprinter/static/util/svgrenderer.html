@@ -18,9 +18,27 @@
 
 </head>
 <body>
-    <div id="filelocation"><input name="url" value="whitebolt.svg"/><input type="button" id="render" value="render" /></div>
+    <div id="filelocation"><input name="url" value="whitebolt.svg" /><input type="button" id="render" value="render" /></div>
     <div id="error">...</div>
-    <div><input type="button" id="redo" value="redo" /><input name="scale" value="0.5" /></div>
+    <div><input name="scale" value="0.5" /></div>
+    <div>
+        <p>
+            xoffset: <input name="xoffset" value="10" />
+        </p>
+        <p>
+            y offset: <input name="yoffset" value="10" />
+        </p>
+        <p>
+            z offset: <input name="zoffset" value="0" />
+        </p>
+        <p>
+            x max: <input name="xmax" value="140" />
+        </p>
+        <p>
+            y max: <input name="ymax" value="140" />
+        </p>
+
+    </div>
     <div id="drawing"></div>
 
     <script type="text/javascript">
@@ -29,25 +47,8 @@
         const localImgPath = "/static/imgs/";
 
         $("#render").click(function () {
-            doEverything($("input[name=url]").val());
+            doEverything(localImgPath +$("input[name=url]").val());
         });
-        $("#redo").click(function () {
-
-            let scaling = parseFloat(localImgPath + $("input[name=scale]").val());
-
-            let testt = paths2code(globals.paths, (x, y) => [x * scaling, y * scaling]);
-            $("#code").val(testt);
-            console.log(testt);
-        });
-
-        var globals = this; 
-        var scale = 0.20; // scale all points down
-        var xoff = 61.6;
-        var yoff = 55.4;
-        var minx = 99999;
-        var maxx = -99999;
-        var miny = 99999;
-        var maxy = -99999;
 
         function doEverything(filename) {
             if (filename === undefined) filename = localImgPath + "whitebolt.svg";
@@ -56,19 +57,23 @@
             $("#code").val('');
             $("#vars").val('');
 
-            globals.mysvg = SVG("drawing")
-            globals.paths = [];
-
             const jqxhr = $.ajax({ url: filename, dataType: "text" })
                 .done(function (content) {
 
-                    globals.mysvg.svg(content);
+                    SVG("drawing").svg(content);
 
                     // SVG loaded
-                    console.log(globals.mysvg);
+                    let settings = {
+                        minX: parseFloat($("input[name=xoffset]").val()),
+                        minY: parseFloat($("input[name=yoffset]").val()),
+                        minZ: parseFloat($("input[name=zoffset]").val()),
+                        maxX: parseFloat($("input[name=xmax]").val()),
+                        maxY: parseFloat($("input[name=ymax]").val()),
+                        scale: 1
+                    }
 
-                    let [lpcode, gcode] = svg2gcode(content); 
-                    
+                    let [lpcode, gcode] = svg2gcode(content, settings);
+
                     $("#vars").val(gcode);
 
                     $("#code").val(lpcode);
