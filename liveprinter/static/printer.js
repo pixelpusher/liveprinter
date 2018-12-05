@@ -619,7 +619,7 @@ class Printer {
 
         //this._elevation = Math.asin(velocity.axes.z); // removed because it was non-intuitive
 
-        console.log("time: " + moveTime + " / dist:" + distanceMag);
+        //console.log("time: " + moveTime + " / dist:" + distanceMag);
 
         //
         // BREAK AT LARGE MOVES
@@ -939,6 +939,114 @@ class Printer {
         this.send("M109 S" + temp); // turn on temp, but wait until full temp reached
         this.send("M106 S100"); // turn on fan
         this.extrude({ e: 16, speed: 250 });
+        return this;
+    }
+
+    /**
+     * Print paths 
+     * @param {Array} paths List of paths (lists of coordinates in x,y) to print
+     * @param {Object} settings Settings for the scaling, etc. of this object
+     * @returns {Printer} reference to this object for chaining
+     */
+    printPaths(paths, settings = { minY: 0, minX: 0, minZ: 0, maxX: 140, maxY: 140, scale: 1, passes: 1 }) {
+        settings.safeZ = settings.safeZ || (this.layerHeight * settings.passes + 10);   // safe z for traveling
+
+        // total bounds
+        let boundsMinX = Infinity,
+            boundsMinY = Infinity,
+            boundsMaxX = -Infinity,
+            boundsMaxY = -Infinity;
+
+        const
+            calcX = x => ((x - boundsMinX) * settings.scale + settings.minX).toFixed(4),
+            calcY = y => ((y - boundsMinY) * settings.scale + settings.minY).toFixed(4);
+
+        let idx = paths.length;
+        while (idx--) {
+            let subidx = paths[idx].length;
+            let bounds = { x: Infinity, y: Infinity, x2: -Infinity, y2: -Infinity, area: 0 };
+
+            // find lower and upper bounds
+            while (subidx--) {
+                boundsMinX = Math.min(paths[idx][subidx][0], settings.minX);
+                boundsMinY = Math.min(paths[idx][subidx][1], settings.minY);
+                boundsMaxX = Math.max(paths[idx][subidx][0], settings.maxX);
+                boundsMaxY = Math.max(paths[idx][subidx][1], settings.maxY);
+
+                if (paths[idx][subidx][0] < bounds.x) {
+                    bounds.x = paths[idx][subidx][0];
+                }
+
+                if (paths[idx][subidx][1] < bounds.y) {
+                    bounds.y = paths[idx][subidx][0];
+                }
+
+                if (paths[idx][subidx][0] > bounds.x2) {
+                    bounds.x2 = paths[idx][subidx][0];
+                }
+                if (paths[idx][subidx][1] > bounds.y2) {
+                    bounds.y2 = paths[idx][subidx][0];
+                }
+            }
+
+            // calculate area
+            bounds.area = (1 + bounds.x2 - bounds.x) * (1 + bounds.y2 - bounds.y);
+            paths[idx].bounds = bounds;
+        }
+
+        let newScale = 1;
+        const xDiff = (boundsMaxX - boundsMinX) * settings.scale;
+        const yDiff = (boundsMaxY - boundsMinY) * settings.scale;
+
+        // scale to larger of the dimensions
+        // *****note: offsets aren't scaled (that would be weird)
+        if ((settings.minX + xDiff) > settings.maxX || (settings.minY + yDiff) > settings.maxY) {
+            newScale = Math.min((settings.maxX - settings.minX) / xDiff, (settings.maxY - settings.minY) / yDiff);
+        }
+
+        settings.scale *= newScale; // apply new scale
+
+        // cut the inside parts first
+        //paths.sort(function (a, b) {
+        //    // sort by area
+        //    return (a.bounds.area < b.bounds.area) ? -1 : 1;
+        //});
+
+        paths.sort(function (a, b) {
+            // sort by horizontal position
+            return (a.bounds.x < b.bounds.x) ? -1 : 1;
+        });
+
+        for (let pathIdx = 0, pathLength = paths.length; pathIdx < pathLength; pathIdx++) {
+            const path = paths[pathIdx];
+            for (let i = 0; i <= settings.passes; i++) {
+                const currentHeight = i * this.layerHeight;
+
+                this.moveto({ 'z': currentHeight });
+                this.moveto({ 'x': calcX(path[0][0]), 'y': calcY(path[0][1]) });
+
+                this.unretract(); // makes sense to do this every time
+
+                // print each segment, one by one
+                for (let segmentIdx = 0, segmentLength = path.length; segmentIdx < segmentLength; segmentIdx++) {
+                    const segment = path[segmentIdx];
+                    this.extrudeto({
+                        'x': calcX(segment[0]),
+                        'y': calcY(segment[1]),
+                        'retract': false
+                    });
+                }
+
+                if (i < settings.passes) {
+                    paths[pathIdx].reverse(); //save time, do it backwards
+                }
+                else {
+                    // path finished, retract and raise up head
+                    this.retract();
+                    this.moveto({ 'z': settings.safeZ });
+                }
+            }
+        }
         return this;
     }
     // end Printer class

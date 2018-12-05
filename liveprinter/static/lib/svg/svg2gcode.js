@@ -8,9 +8,9 @@ function svg2gcode(svg, settings) {
     settings.feedRate = settings.feedRate || 25; //mm/s
     settings.seekRate = settings.seekRate || 80; //mm/s 
     settings.bitWidth = settings.bitWidth || 1; // in mm
-    settings.minY = settings.minY || 0; // translate on bed
-    settings.minX = settings.minY || 0;
-    settings.minZ = settings.minZ || 0;
+    settings.minY = settings.minY === undefined ? 0 : settings.minY; // translate on bed
+    settings.minX = settings.minY === undefined ? 0 : settings.minX;
+    settings.minZ = settings.minZ === undefined ? 0 : settings.minZ;
     settings.maxY = settings.maxY || 140; // make sure not bigger than printer size!
     settings.maxX = settings.maxY || 140;
     settings.safeZ = settings.safeZ || (settings.layerHeight * settings.passes + 10);   // safe z for traveling
@@ -29,6 +29,13 @@ function svg2gcode(svg, settings) {
         gcode,
         lpcode,
         path;
+
+    // for returning and setting to a variable
+    let lpcodeWithVars = [
+        "const shape = {",
+            "\tpaths: ["
+    ];
+
 
     let idx = paths.length;
     while (idx--) {
@@ -101,6 +108,8 @@ function svg2gcode(svg, settings) {
     for (let pathIdx = 0, pathLength = paths.length; pathIdx < pathLength; pathIdx++) {
         path = paths[pathIdx];
 
+        lpcodeWithVars.push("\t\t[" + "//" + pathIdx);
+
         let currentHeight = settings.layerHeight;
 
         // seek to start of first path segment
@@ -137,6 +146,10 @@ function svg2gcode(svg, settings) {
         for (let segmentIdx = 0, segmentLength = path.length; segmentIdx < segmentLength; segmentIdx++) {
             let segment = path[segmentIdx];
 
+            let pathTxt = "\t\t\t[" + calcX(segment[0]) + "," + calcY(segment[1]) + "]";
+            if (segmentIdx != (segmentLength-1)) pathTxt = pathTxt + ",";
+            lpcodeWithVars.push(pathTxt);
+
             gcode.push(['G1',
                 'X' + calcX(segment[0]),
                 'Y' + calcY(segment[1]),
@@ -150,6 +163,10 @@ function svg2gcode(svg, settings) {
                 "'retract':false});"
             ].join(','));
         }
+        if (pathIdx < pathLength)
+            lpcodeWithVars.push("\t\t],");
+        else
+            lpcodeWithVars.push("\t\t]");
 
         // path finished, retract and raise up head
         lpcode.push('lp.retract();');
@@ -174,5 +191,12 @@ function svg2gcode(svg, settings) {
     gcode.push('G1 Z0 F300');
     gcode.push('G1 X0 Y0 F800');
 
-    return [lpcode.join('\n'), gcode.join('\n')];
+    lpcodeWithVars.push("\t],");
+    lpcodeWithVars.push("\tboundsMinX: " + minX+",",
+    "\tboundsMinY: " + minY+",",
+    "\tboundsWidth: " + xDiff+",",
+    "\tboundsHeight: " + yDiff);
+    lpcodeWithVars.push("};");
+
+    return [lpcode.join('\n'), lpcodeWithVars.join('\n'), gcode.join('\n')];
 }
