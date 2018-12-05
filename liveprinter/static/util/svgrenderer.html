@@ -72,9 +72,9 @@
                         scale: 1
                     }
 
-                    let [lpcode, gcode] = svg2gcode(content, settings);
+                    let [lpcode, lpcodeWithVars, gcode] = svg2gcode(content, settings);
 
-                    $("#vars").val(gcode);
+                    $("#vars").val(lpcodeWithVars);
 
                     $("#code").val(lpcode);
                 })
