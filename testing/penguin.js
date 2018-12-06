@@ -1,401 +1,348 @@
-// JavaScript source code
+/*
+ * Penguin vector shape for testing
+ * By Evan Raskob, copyright 2018.
+ * License: Creative Commons Attribution 3.0
+ */
 
 
-lp.moveto({ 'z': 10.2 });
-lp.moveto({ 'x': 51.5376, 'y': 38.6496, 'speed': 80, });
-lp.moveto({ 'z': 0.2, 'speed': 80 });
-lp.unretract();
-lp.extrudeto({ 'x': 51.5376, 'y': 38.6496, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 51.5376, 'y': 38.6496, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 51.0100, 'y': 37.8492, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 50.1268, 'y': 36.2105, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 49.1011, 'y': 33.8009, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 48.2255, 'y': 31.6787, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 47.6091, 'y': 30.5510, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 47.0801, 'y': 29.9102, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 46.6794, 'y': 29.5986, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 46.2301, 'y': 29.3905, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 45.7234, 'y': 29.2955, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 45.4459, 'y': 29.2935, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 45.4459, 'y': 29.2935, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 44.9078, 'y': 29.3539, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 43.8368, 'y': 29.6745, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 42.7767, 'y': 30.2382, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 41.7326, 'y': 31.0170, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 40.7093, 'y': 31.9829, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 39.7117, 'y': 33.1078, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 38.7446, 'y': 34.3638, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 37.8129, 'y': 35.7229, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 36.4925, 'y': 37.8936, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 34.9014, 'y': 40.8873, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 33.5399, 'y': 43.7895, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 32.4470, 'y': 46.3761, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 32.0134, 'y': 47.4810, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 32.0134, 'y': 47.4810, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 31.2863, 'y': 49.4408, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 30.4200, 'y': 52.0559, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 29.9864, 'y': 53.6184, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 29.6634, 'y': 55.0645, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 29.4472, 'y': 56.4186, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 29.3339, 'y': 57.7048, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 29.3197, 'y': 58.9476, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 29.3486, 'y': 59.5603, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 29.3486, 'y': 59.5603, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 29.4270, 'y': 60.2549, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 29.7832, 'y': 62.0991, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 30.6769, 'y': 65.7565, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 32.1512, 'y': 71.6055, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 33.1453, 'y': 76.1461, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 33.6162, 'y': 78.9998, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 33.7664, 'y': 80.3253, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 33.7664, 'y': 80.3253, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 34.2897, 'y': 86.0445, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 34.9791, 'y': 95.2294, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 35.0977, 'y': 99.1723, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 35.0358, 'y': 101.2713, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 34.9531, 'y': 102.1146, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 34.9531, 'y': 102.1146, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 34.7733, 'y': 103.5082, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 34.5009, 'y': 105.1061, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 34.2336, 'y': 105.8723, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 33.8307, 'y': 106.4228, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 33.2347, 'y': 106.7776, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 32.3881, 'y': 106.9568, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 31.2336, 'y': 106.9806, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 30.5228, 'y': 106.9404, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 30.5228, 'y': 106.9404, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 30.3328, 'y': 106.9120, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 29.9520, 'y': 106.7716, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 29.5704, 'y': 106.5259, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 29.1891, 'y': 106.1823, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 28.6195, 'y': 105.4992, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 27.8688, 'y': 104.3140, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 27.1345, 'y': 102.8687, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 26.4236, 'y': 101.2219, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 25.4159, 'y': 98.5021, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 24.2182, 'y': 94.7172, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 23.2379, 'y': 91.1806, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 22.2953, 'y': 87.3662, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 22.0994, 'y': 86.5002, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 19.5136, 'y': 76.0365, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 17.9147, 'y': 73.6507, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 19.3263, 'y': 83.4440, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 21.4123, 'y': 93.2498, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 21.4123, 'y': 93.2498, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 21.6978, 'y': 93.9992, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 22.4755, 'y': 96.5443, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 22.7723, 'y': 97.8729, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 22.9929, 'y': 99.2900, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 23.0921, 'y': 100.7367, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 23.0820, 'y': 101.4525, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 23.0820, 'y': 101.4525, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 23.0392, 'y': 102.1648, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 22.8971, 'y': 103.5978, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 22.5619, 'y': 105.7301, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 21.9399, 'y': 108.4348, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 21.1920, 'y': 110.8328, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 20.7961, 'y': 111.8662, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 20.7961, 'y': 111.8662, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 19.8518, 'y': 114.0034, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 17.9662, 'y': 117.8891, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 17.6191, 'y': 118.5741, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 15.7495, 'y': 121.5596, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 15.7495, 'y': 121.5596, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 15.3146, 'y': 120.8940, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 14.5867, 'y': 119.7204, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 14.3297, 'y': 119.2070, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 14.3297, 'y': 119.2070, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 14.1695, 'y': 118.7858, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 13.8403, 'y': 117.6213, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 13.3318, 'y': 115.1608, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 12.6459, 'y': 110.8030, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 11.9790, 'y': 105.5701, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 11.3616, 'y': 99.8507, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 10.8239, 'y': 94.0335, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 10.3965, 'y': 88.5069, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 10.1096, 'y': 83.6595, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 10.0285, 'y': 81.6119, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 10.0285, 'y': 81.6119, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 10.0000, 'y': 79.6249, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 10.1069, 'y': 75.2083, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 10.3949, 'y': 70.4057, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 10.8191, 'y': 65.4619, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 11.3349, 'y': 60.6219, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 11.8973, 'y': 56.1306, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 12.4617, 'y': 52.2328, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 12.9831, 'y': 49.1735, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 13.2138, 'y': 48.0348, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 13.2138, 'y': 48.0348, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 13.4755, 'y': 47.0160, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 14.2348, 'y': 44.8517, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 15.2468, 'y': 42.5798, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 16.4372, 'y': 40.2743, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 17.7321, 'y': 38.0091, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 19.0572, 'y': 35.8578, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 20.9395, 'y': 33.0061, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 22.0161, 'y': 31.4628, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 22.0161, 'y': 31.4628, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 22.4603, 'y': 30.8272, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 23.1306, 'y': 29.7880, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 23.5976, 'y': 28.9195, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 23.9667, 'y': 28.0550, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 24.5670, 'y': 26.4016, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 26.0068, 'y': 22.6570, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 27.2375, 'y': 19.7500, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 27.2375, 'y': 19.7500, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 27.6089, 'y': 18.9410, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 28.3951, 'y': 17.4672, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 29.2310, 'y': 16.1751, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 30.1063, 'y': 15.0518, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 31.0110, 'y': 14.0847, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 31.9348, 'y': 13.2610, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 32.8676, 'y': 12.5680, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 33.7992, 'y': 11.9929, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 35.1721, 'y': 11.3234, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 36.9036, 'y': 10.7247, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 39.1233, 'y': 10.2490, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 40.2328, 'y': 10.0649, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 40.2328, 'y': 10.0649, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 40.7545, 'y': 10.0016, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 42.0950, 'y': 10.0000, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 44.5943, 'y': 10.2358, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 49.6746, 'y': 11.0732, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 51.6542, 'y': 11.4723, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 51.6542, 'y': 11.4723, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 51.9204, 'y': 11.5106, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 52.5896, 'y': 11.5241, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 53.8693, 'y': 11.4192, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 56.9873, 'y': 10.9775, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 59.0991, 'y': 10.7020, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 59.0991, 'y': 10.7020, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 60.3297, 'y': 10.6196, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 63.6773, 'y': 10.5623, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 68.5467, 'y': 10.6171, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 69.8501, 'y': 10.6479, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 70.1332, 'y': 11.5889, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 70.1332, 'y': 11.5889, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 69.2500, 'y': 11.8187, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 65.2472, 'y': 13.0129, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 61.3856, 'y': 14.3640, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 59.2490, 'y': 15.2031, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 59.2490, 'y': 15.2031, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 58.1751, 'y': 15.6653, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 56.1405, 'y': 16.6956, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 54.7367, 'y': 17.5763, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 53.8700, 'y': 18.2221, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 53.0654, 'y': 18.9194, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 52.3288, 'y': 19.6722, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 51.6660, 'y': 20.4843, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 51.0829, 'y': 21.3597, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 50.5853, 'y': 22.3022, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 50.1791, 'y': 23.3157, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 49.8702, 'y': 24.4042, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 49.6643, 'y': 25.5715, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 49.5673, 'y': 26.8216, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 49.5851, 'y': 28.1583, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 49.6389, 'y': 28.8604, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 49.6389, 'y': 28.8604, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 49.8556, 'y': 30.8142, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 50.2942, 'y': 33.4696, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 50.7564, 'y': 35.2906, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 51.2622, 'y': 37.2792, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 51.5376, 'y': 38.6496, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 51.5376, 'y': 38.6496, 'speed': 25, 'retract': false });
-lp.retract();
-lp.moveto({ 'z': 10.2, 'speed': 80 });
-lp.moveto({ 'x': 26.2174, 'y': 127.1433, 'speed': 80, });
-lp.moveto({ 'z': 0.2, 'speed': 80 });
-lp.unretract();
-lp.extrudeto({ 'x': 26.2174, 'y': 127.1433, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 26.2174, 'y': 127.1433, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 26.1049, 'y': 127.5022, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 25.5258, 'y': 129.1349, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 24.8772, 'y': 130.7186, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 24.0273, 'y': 132.5106, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 22.9836, 'y': 134.3503, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 22.0783, 'y': 135.6646, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 21.4180, 'y': 136.4719, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 20.7136, 'y': 137.2006, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 19.9659, 'y': 137.8307, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 19.5761, 'y': 138.1025, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 19.5761, 'y': 138.1025, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 19.1806, 'y': 138.3477, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 18.3896, 'y': 138.7757, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 17.2156, 'y': 139.2747, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 15.7089, 'y': 139.7097, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 14.3188, 'y': 139.9329, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 13.0992, 'y': 140.0000, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 12.1041, 'y': 139.9671, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 11.1505, 'y': 139.8523, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 10.9528, 'y': 139.8138, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 10.9528, 'y': 139.8138, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 11.0738, 'y': 139.5609, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 11.8691, 'y': 138.1753, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 12.9584, 'y': 136.5267, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 13.7093, 'y': 135.4709, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 13.7093, 'y': 135.4709, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 13.9097, 'y': 135.1673, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 14.2752, 'y': 134.4503, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 14.7405, 'y': 133.1468, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 15.2213, 'y': 131.1136, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 15.5639, 'y': 128.9248, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 15.8698, 'y': 125.7836, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 16.0112, 'y': 122.9019, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 16.0202, 'y': 122.4673, 'speed': 25, 'retract': false });
-lp.retract();
-lp.moveto({ 'z': 10.2, 'speed': 80 });
-lp.moveto({ 'x': 30.5186, 'y': 136.6868, 'speed': 80, });
-lp.moveto({ 'z': 0.2, 'speed': 80 });
-lp.unretract();
-lp.extrudeto({ 'x': 30.5186, 'y': 136.6868, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 30.5186, 'y': 136.6868, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 30.3927, 'y': 135.4983, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 29.7739, 'y': 131.2992, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 29.2956, 'y': 129.3058, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 29.0192, 'y': 128.5766, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 28.8221, 'y': 128.2364, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 28.7199, 'y': 128.1176, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 28.7199, 'y': 128.1176, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 28.5893, 'y': 128.0129, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 28.2031, 'y': 127.8056, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 27.3485, 'y': 127.4885, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 24.8934, 'y': 126.7598, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 21.8893, 'y': 125.7719, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 19.8457, 'y': 124.8906, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 18.4043, 'y': 124.0792, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 17.5239, 'y': 123.4556, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 16.7311, 'y': 122.7588, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 16.0458, 'y': 121.9831, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 15.7495, 'y': 121.5638, 'speed': 25, 'retract': false });
-lp.retract();
-lp.moveto({ 'z': 10.2, 'speed': 80 });
-lp.moveto({ 'x': 30.5186, 'y': 136.6868, 'speed': 80, });
-lp.moveto({ 'z': 0.2, 'speed': 80 });
-lp.unretract();
-lp.extrudeto({ 'x': 30.5186, 'y': 136.6868, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 30.5186, 'y': 136.6868, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 30.5346, 'y': 136.9367, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 30.6647, 'y': 137.4593, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 30.9305, 'y': 137.9895, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 31.3379, 'y': 138.4999, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 31.8928, 'y': 138.9629, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 32.6012, 'y': 139.3510, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 33.4689, 'y': 139.6369, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 34.5019, 'y': 139.7930, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 35.0822, 'y': 139.8138, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 35.0822, 'y': 139.8138, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 35.8742, 'y': 139.7791, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 37.4433, 'y': 139.5374, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 38.8911, 'y': 139.1455, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 40.0964, 'y': 138.6992, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 40.5701, 'y': 138.4855, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 40.5701, 'y': 138.4855, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 40.8293, 'y': 138.4109, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 41.5943, 'y': 138.4046, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 43.1605, 'y': 138.6603, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 46.4957, 'y': 139.5178, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 47.7277, 'y': 139.8138, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 47.7277, 'y': 139.8138, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 47.8487, 'y': 139.8033, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 48.0859, 'y': 139.6940, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 48.4081, 'y': 139.3451, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 48.7134, 'y': 138.6364, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 48.7978, 'y': 138.0068, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 48.7634, 'y': 137.5765, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 48.7145, 'y': 137.3655, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 48.7145, 'y': 137.3655, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 48.5971, 'y': 136.9984, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 48.3478, 'y': 136.4821, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 47.7343, 'y': 135.8495, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 47.0074, 'y': 135.2086, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 47.0074, 'y': 135.2086, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 46.7233, 'y': 135.0018, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 45.8562, 'y': 134.5814, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 44.0636, 'y': 133.9677, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 40.3984, 'y': 133.0246, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 39.3751, 'y': 132.8019, 'speed': 25, 'retract': false });
-lp.retract();
-lp.moveto({ 'z': 10.2, 'speed': 80 });
-lp.moveto({ 'x': 51.7083, 'y': 38.9244, 'speed': 80, });
-lp.moveto({ 'z': 0.2, 'speed': 80 });
-lp.unretract();
-lp.extrudeto({ 'x': 51.7083, 'y': 38.9244, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 51.7083, 'y': 38.9244, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 51.9706, 'y': 39.3597, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 52.4561, 'y': 40.2782, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 53.0914, 'y': 41.7460, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 53.7782, 'y': 43.7871, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 54.3003, 'y': 45.8070, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 54.8187, 'y': 48.5172, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 55.1215, 'y': 50.8624, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 55.1518, 'y': 51.2035, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 55.1518, 'y': 51.2035, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 55.3058, 'y': 51.8494, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 55.5583, 'y': 53.7126, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 55.7397, 'y': 56.2550, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 55.8539, 'y': 59.3776, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 55.9074, 'y': 64.9331, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 55.7785, 'y': 73.4478, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 55.4488, 'y': 82.5024, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 54.9483, 'y': 91.3052, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 54.4792, 'y': 97.2658, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 54.1288, 'y': 100.7485, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 53.7528, 'y': 103.7230, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 53.3550, 'y': 106.0903, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 53.1490, 'y': 107.0154, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 53.1490, 'y': 107.0154, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 52.9281, 'y': 107.6266, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 52.1462, 'y': 109.3062, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 51.3710, 'y': 110.7204, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 50.4300, 'y': 112.1988, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 49.3551, 'y': 113.5947, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 48.4802, 'y': 114.4990, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 47.8717, 'y': 114.9996, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 47.2476, 'y': 115.3970, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 46.6121, 'y': 115.6728, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 46.2912, 'y': 115.7594, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 46.2912, 'y': 115.7594, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 46.0847, 'y': 115.8160, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 45.6753, 'y': 116.0015, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 45.0760, 'y': 116.4378, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 44.3213, 'y': 117.2494, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 43.6406, 'y': 118.2333, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 43.0592, 'y': 119.2906, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 42.6026, 'y': 120.3224, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 42.2961, 'y': 121.2301, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 42.1650, 'y': 121.9147, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 42.1732, 'y': 122.1425, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 39.3751, 'y': 132.7978, 'speed': 25, 'retract': false });
-lp.retract();
-lp.moveto({ 'z': 10.2, 'speed': 80 });
-lp.moveto({ 'x': 40.0038, 'y': 131.6902, 'speed': 80, });
-lp.moveto({ 'z': 0.2, 'speed': 80 });
-lp.unretract();
-lp.extrudeto({ 'x': 40.0038, 'y': 131.6902, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 40.0038, 'y': 131.6902, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 41.1448, 'y': 131.9572, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 45.2651, 'y': 133.0808, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 47.3152, 'y': 133.8054, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 48.3354, 'y': 134.2977, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 48.6854, 'y': 134.5382, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 48.6854, 'y': 134.5382, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 49.0203, 'y': 134.8274, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 49.5652, 'y': 135.3750, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 49.9573, 'y': 135.8821, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 50.2133, 'y': 136.3492, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 50.3499, 'y': 136.7770, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 50.3836, 'y': 137.1659, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 50.3311, 'y': 137.5167, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 50.2090, 'y': 137.8298, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 49.9319, 'y': 138.2300, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 49.4743, 'y': 138.6373, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 48.8694, 'y': 138.9867, 'speed': 25, 'retract': false });
-lp.extrudeto({ 'x': 48.7145, 'y': 139.0518, 'speed': 25, 'retract': false });
-lp.retract();
-lp.moveto({ 'z': 10.2, 'speed': 80 });
-lp.moveto({ 'x': 48.2898, 'y': 121.7511, 'speed': 80, });
-lp.moveto({ 'z': 0.2, 'speed': 80 });
-lp.unretract();
-lp.extrudeto({ 'x': 48.2898, 'y': 121.7511, 'speed': 25, 'retract': false });
-lp.retract();
-lp.moveto({ 'z': 10.2, 'speed': 80 });
+s.penguin = {
+    paths: [
+        [//0
+            [52.0660, 39.4605],
+            [52.0660, 39.4605],
+            [52.5265, 40.3471],
+            [53.3128, 42.2448],
+            [53.9342, 44.2133],
+            [54.4083, 46.1383],
+            [54.8814, 48.6947],
+            [55.1605, 50.8855],
+            [55.1888, 51.2022],
+            [55.1888, 51.2022],
+            [55.3432, 51.8463],
+            [55.5961, 53.7064],
+            [55.7777, 56.2463],
+            [55.8917, 59.3672],
+            [55.9447, 64.9210],
+            [55.8150, 73.4348],
+            [55.4844, 82.4891],
+            [54.9839, 91.2917],
+            [54.5154, 97.2517],
+            [54.1659, 100.7337],
+            [53.7912, 103.7069],
+            [53.3951, 106.0725],
+            [53.1902, 106.9964],
+            [53.1902, 106.9964],
+            [53.0078, 107.5310],
+            [52.3919, 108.9187],
+            [51.7446, 110.1129],
+            [50.9012, 111.4249],
+            [49.8558, 112.7713],
+            [48.6025, 114.0687],
+            [47.5226, 114.9593],
+            [46.7347, 115.4943],
+            [46.3201, 115.7403],
+            [46.3201, 115.7403],
+            [45.9609, 115.9660],
+            [45.2879, 116.5030],
+            [44.6730, 117.1457],
+            [44.1132, 117.8838],
+            [43.6056, 118.7070],
+            [43.1473, 119.6051],
+            [42.5459, 121.0703],
+            [42.1980, 122.1108],
+            [39.4082, 132.7700],
+            [39.4082, 132.7700],
+            [40.4290, 132.9951],
+            [44.0864, 133.9451],
+            [45.8763, 134.5601],
+            [46.7433, 134.9795],
+            [47.0279, 135.1850],
+            [47.0279, 135.1850],
+            [47.7572, 135.8219],
+            [48.3669, 136.4565],
+            [48.6156, 136.9787],
+            [48.7350, 137.3501],
+            [48.7350, 137.3501],
+            [48.7860, 137.5630],
+            [48.8236, 137.9943],
+            [48.7409, 138.6215],
+            [48.4325, 139.3259],
+            [48.1039, 139.6764],
+            [47.8604, 139.7915],
+            [47.7357, 139.8067],
+            [47.7357, 139.8067],
+            [46.4938, 139.5224],
+            [43.1585, 138.6580],
+            [41.5954, 138.3963],
+            [40.8325, 138.4001],
+            [40.5741, 138.4743],
+            [40.5741, 138.4743],
+            [40.1023, 138.6870],
+            [38.9010, 139.1338],
+            [37.4537, 139.5279],
+            [35.8777, 139.7717],
+            [35.0780, 139.8067],
+            [35.0780, 139.8067],
+            [34.4982, 139.7858],
+            [33.4647, 139.6292],
+            [32.5950, 139.3424],
+            [31.8836, 138.9535],
+            [31.3252, 138.4901],
+            [30.9144, 137.9802],
+            [30.6458, 137.4514],
+            [30.5140, 136.9317],
+            [30.4978, 136.6839],
+            [30.4978, 136.6839],
+            [30.3703, 135.4960],
+            [29.7497, 131.2963],
+            [29.2746, 129.3002],
+            [29.0017, 128.5687],
+            [28.8078, 128.2265],
+            [28.7074, 128.1066],
+            [28.7074, 128.1066],
+            [28.5557, 127.9835],
+            [28.0999, 127.7450],
+            [27.0797, 127.3923],
+            [26.2092, 127.1489],
+            [26.2092, 127.1489],
+            [26.2092, 127.1489],
+            [26.0971, 127.5085],
+            [25.5194, 129.1437],
+            [24.8713, 130.7288],
+            [24.0206, 132.5216],
+            [22.9742, 134.3605],
+            [22.0652, 135.6728],
+            [21.4016, 136.4779],
+            [20.6929, 137.2038],
+            [19.9400, 137.8301],
+            [19.5472, 138.0996],
+            [19.5472, 138.0996],
+            [19.1525, 138.3463],
+            [18.3627, 138.7766],
+            [17.1902, 139.2776],
+            [15.6847, 139.7133],
+            [14.2951, 139.9352],
+            [13.0756, 140.0000],
+            [12.0802, 139.9643],
+            [11.1261, 139.8461],
+            [10.9282, 139.8067],
+            [10.9282, 139.8067],
+            [11.0473, 139.5517],
+            [11.8370, 138.1640],
+            [12.9246, 136.5232],
+            [13.6763, 135.4764],
+            [13.6763, 135.4764],
+            [13.8758, 135.1682],
+            [14.2324, 134.4223],
+            [14.5357, 133.5278],
+            [14.7900, 132.5129],
+            [15.0887, 130.8268],
+            [15.3548, 128.4222],
+            [15.5390, 124.9406],
+            [15.5600, 121.7236],
+            [15.5500, 121.2364],
+            [15.5500, 121.2364],
+            [15.2814, 120.5066],
+            [14.1159, 116.8231],
+            [13.0590, 112.7796],
+            [12.2306, 108.9807],
+            [11.6982, 106.1053],
+            [11.2043, 102.9696],
+            [10.7687, 99.5853],
+            [10.4109, 95.9643],
+            [10.1505, 92.1184],
+            [10.0070, 88.0595],
+            [10.0000, 83.7994],
+            [10.0538, 81.5976],
+            [10.0538, 81.5976],
+            [10.1319, 79.6114],
+            [10.3732, 75.1965],
+            [10.9050, 67.9270],
+            [11.8108, 58.3123],
+            [12.5373, 52.2314],
+            [13.0011, 49.1749],
+            [13.2183, 48.0378],
+            [13.2183, 48.0378],
+            [13.4739, 47.0205],
+            [14.2253, 44.8588],
+            [15.2341, 42.5891],
+            [16.4247, 40.2849],
+            [17.7214, 38.0200],
+            [19.0487, 35.8681],
+            [20.9312, 33.0132],
+            [22.0038, 31.4661],
+            [22.0038, 31.4661],
+            [22.4451, 30.8283],
+            [23.1109, 29.7857],
+            [23.5749, 28.9151],
+            [23.9421, 28.0501],
+            [24.5407, 26.3992],
+            [25.9789, 22.6647],
+            [27.2085, 19.7659],
+            [27.2085, 19.7659],
+            [27.5795, 18.9591],
+            [28.3653, 17.4885],
+            [29.2012, 16.1981],
+            [30.0769, 15.0754],
+            [30.9821, 14.1078],
+            [31.9066, 13.2827],
+            [32.8400, 12.5876],
+            [33.7723, 12.0099],
+            [35.1460, 11.3360],
+            [36.8777, 10.7312],
+            [39.0947, 10.2490],
+            [40.1994, 10.0644],
+            [40.1994, 10.0644],
+            [40.7181, 10.0016],
+            [42.0538, 10.0000],
+            [44.5484, 10.2342],
+            [48.0788, 10.7833],
+            [50.8480, 11.3168],
+            [51.6080, 11.4801],
+            [51.6080, 11.4801],
+            [51.8752, 11.5156],
+            [52.5468, 11.5248],
+            [53.8308, 11.4164],
+            [56.9539, 10.9707],
+            [59.0611, 10.6890],
+            [59.0611, 10.6890],
+            [60.2878, 10.6035],
+            [63.6312, 10.5477],
+            [68.4998, 10.6129],
+            [69.8036, 10.6473],
+            [70.0951, 11.6050],
+            [70.0951, 11.6050],
+            [69.2109, 11.8373],
+            [65.2096, 13.0383],
+            [61.3563, 14.3904],
+            [59.2277, 15.2275],
+            [59.2277, 15.2275],
+            [58.1508, 15.6882],
+            [56.1112, 16.7162],
+            [54.7045, 17.5955],
+            [53.8362, 18.2408],
+            [53.0304, 18.9377],
+            [52.2928, 19.6903],
+            [51.6295, 20.5024],
+            [51.0462, 21.3779],
+            [50.5487, 22.3207],
+            [50.1430, 23.3348],
+            [49.8349, 24.4241],
+            [49.6302, 25.5924],
+            [49.5348, 26.8436],
+            [49.5545, 28.1817],
+            [49.6094, 28.8845],
+            [49.6094, 28.8845],
+            [49.8181, 30.7352],
+            [50.2667, 33.3689],
+            [50.7504, 35.2200],
+            [51.2614, 37.0574],
+            [51.5247, 38.2113],
+            [51.5247, 38.2113],
+            [51.7642, 38.8359],
+            [52.0660, 39.4605],
+            [52.0660, 39.4605]
+        ],
+        [//1
+            [50.7336, 38.2113],
+            [50.7336, 38.2113],
+            [50.4646, 37.8153],
+            [49.9944, 37.0157],
+            [49.4351, 35.8129],
+            [48.6894, 33.4978],
+            [48.1622, 31.4902],
+            [47.7670, 30.4332],
+            [47.3772, 29.8353],
+            [47.0497, 29.5451],
+            [46.6535, 29.3512],
+            [46.1765, 29.2620],
+            [45.9037, 29.2593],
+            [45.9037, 29.2593],
+            [45.1679, 29.3286],
+            [43.7764, 29.6623],
+            [42.4873, 30.2334],
+            [41.2953, 31.0148],
+            [40.1953, 31.9793],
+            [39.1819, 33.0998],
+            [38.2500, 34.3491],
+            [37.3942, 35.7001],
+            [36.6094, 37.1257],
+            [35.8903, 38.5988],
+            [34.9233, 40.8378],
+            [33.3264, 45.0865],
+            [32.4548, 47.4548],
+            [32.4548, 47.4548],
+            [31.7340, 49.4185],
+            [30.8723, 52.0367],
+            [30.4391, 53.5996],
+            [30.1150, 55.0449],
+            [29.8965, 56.3970],
+            [29.7802, 57.6804],
+            [29.7627, 58.9193],
+            [29.7900, 59.5297],
+            [29.7900, 59.5297],
+            [29.8670, 60.2228],
+            [30.2211, 62.0644],
+            [31.1133, 65.7195],
+            [32.5875, 71.5700],
+            [33.5822, 76.1165],
+            [34.0534, 78.9770],
+            [34.2036, 80.3068],
+            [34.2036, 80.3068],
+            [34.7318, 86.0163],
+            [35.4315, 95.2003],
+            [35.5541, 99.1435],
+            [35.4936, 101.2412],
+            [35.4111, 102.0832],
+            [35.4111, 102.0832],
+            [35.2317, 103.4742],
+            [34.9610, 105.0702],
+            [34.6956, 105.8364],
+            [34.2951, 106.3876],
+            [33.7018, 106.7439],
+            [32.8582, 106.9253],
+            [31.7067, 106.9518],
+            [30.9975, 106.9131],
+            [30.9975, 106.9131],
+            [30.8079, 106.8851],
+            [30.4278, 106.7454],
+            [30.0470, 106.5002],
+            [29.6664, 106.1571],
+            [29.0978, 105.4745],
+            [28.3484, 104.2896],
+            [27.6153, 102.8443],
+            [26.9055, 101.1973],
+            [25.8992, 98.4767],
+            [24.7032, 94.6904],
+            [23.7240, 91.1521],
+            [22.7825, 87.3356],
+            [22.5867, 86.4691],
+            [20.0052, 76.0181],
+            [18.4230, 73.6448],
+            [19.8386, 83.4296],
+            [21.9205, 93.2144],
+            [21.9205, 93.2144],
+            [22.1866, 93.9632],
+            [23.0773, 97.1566],
+            [23.4478, 99.2530],
+            [23.5742, 100.7005],
+            [23.5860, 101.4170],
+            [23.5860, 101.4170],
+            [23.5552, 102.4553],
+            [23.3863, 104.4814],
+            [23.0908, 106.4330],
+            [22.6885, 108.3015],
+            [22.1989, 110.0782],
+            [21.6419, 111.7545],
+            [20.7228, 114.0616],
+            [19.4451, 116.7053],
+            [18.2521, 118.7913],
+            [16.9661, 120.7230],
+            [16.6742, 121.1115]
+        ],
+    ],
+    boundsMinX: 48.77070007324218,
+    boundsMinY: 21.74531249999999,
+    boundsWidth: 144.3292999267578,
+    boundsHeight: 312.21884765625
+};
