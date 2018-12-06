@@ -336,6 +336,27 @@ class Printer {
     }
 
     /**
+     * Set temperature, don't block other operation.
+     * to printing position (layerheight).
+     * @param {float} temp is the temperature to start warming up to
+     * @returns {Printer} reference to this object for chaining
+     */
+    temp(temp = "190") {
+        this.send("M104 S" + temp);
+        return this;
+    }
+
+    /**
+     * Set fan speed.
+     * @param {float} speed is the speed from 0-100 
+     * @returns {Printer} reference to this object for chaining
+     */
+    fan(speed = "100") {
+        this.send("M106 S" + temp);
+        return this;
+    }
+
+    /**
     * clip object's x,y,z properties to printer bounds and return it
     * @param {object} position: object with x,y,z properties clip
     * @returns {object} position clipped object
@@ -556,7 +577,7 @@ class Printer {
     */
     extrudeto(params) {
         let extrusionSpecified = (params.e !== undefined);
-        let retract = (!extrusionSpecified && (params.retract === undefined)) || params.retract;
+        let retract = (params.retract === undefined) ? !extrusionSpecified : params.retract; // don't retract if given e value alone, no matter what
 
         let __x = (params.x !== undefined) ? parseFloat(params.x) : this.x;
         let __y = (params.y !== undefined) ? parseFloat(params.y) : this.y;
@@ -947,9 +968,16 @@ class Printer {
      * @param {Array} paths List of paths (lists of coordinates in x,y) to print
      * @param {Object} settings Settings for the scaling, etc. of this object
      * @returns {Printer} reference to this object for chaining
+     * @test const p = [
+          [[20,20],
+           [30,30],
+           [50,30]]
+        ];
+
+        lp.printPaths({paths:p,minZ:0.2,passes:10});
      */
-    printPaths(paths, settings = { minY: 0, minX: 0, minZ: 0, maxX: 140, maxY: 140, scale: 1, passes: 1 }) {
-        settings.safeZ = settings.safeZ || (this.layerHeight * settings.passes + 10);   // safe z for traveling
+    printPaths({paths = [[]], minY = 0, minX = 0, minZ = 0, maxX = 140, maxY = 140, scale = 1, passes = 1, safeZ = 0 }) {
+        safeZ = safeZ || (this.layerHeight * passes + 10);   // safe z for traveling
 
         // total bounds
         let boundsMinX = Infinity,
@@ -958,8 +986,8 @@ class Printer {
             boundsMaxY = -Infinity;
 
         const
-            calcX = x => ((x - boundsMinX) * settings.scale + settings.minX).toFixed(4),
-            calcY = y => ((y - boundsMinY) * settings.scale + settings.minY).toFixed(4);
+            calcX = x => ((x - boundsMinX) * scale + minX).toFixed(4),
+            calcY = y => ((y - boundsMinY) * scale + minY).toFixed(4);
 
         let idx = paths.length;
         while (idx--) {
@@ -968,10 +996,10 @@ class Printer {
 
             // find lower and upper bounds
             while (subidx--) {
-                boundsMinX = Math.min(paths[idx][subidx][0], settings.minX);
-                boundsMinY = Math.min(paths[idx][subidx][1], settings.minY);
-                boundsMaxX = Math.max(paths[idx][subidx][0], settings.maxX);
-                boundsMaxY = Math.max(paths[idx][subidx][1], settings.maxY);
+                boundsMinX = Math.min(paths[idx][subidx][0], minX);
+                boundsMinY = Math.min(paths[idx][subidx][1], minY);
+                boundsMaxX = Math.max(paths[idx][subidx][0], maxX);
+                boundsMaxY = Math.max(paths[idx][subidx][1], maxY);
 
                 if (paths[idx][subidx][0] < bounds.x) {
                     bounds.x = paths[idx][subidx][0];
@@ -995,16 +1023,16 @@ class Printer {
         }
 
         let newScale = 1;
-        const xDiff = (boundsMaxX - boundsMinX) * settings.scale;
-        const yDiff = (boundsMaxY - boundsMinY) * settings.scale;
+        const xDiff = (boundsMaxX - boundsMinX) * scale;
+        const yDiff = (boundsMaxY - boundsMinY) * scale;
 
         // scale to larger of the dimensions
         // *****note: offsets aren't scaled (that would be weird)
-        if ((settings.minX + xDiff) > settings.maxX || (settings.minY + yDiff) > settings.maxY) {
-            newScale = Math.min((settings.maxX - settings.minX) / xDiff, (settings.maxY - settings.minY) / yDiff);
+        if ((minX + xDiff) > maxX || (minY + yDiff) > maxY) {
+            newScale = Math.min((maxX - minX) / xDiff, (maxY - minY) / yDiff);
         }
 
-        settings.scale *= newScale; // apply new scale
+        scale *= newScale; // apply new scale
 
         // cut the inside parts first
         //paths.sort(function (a, b) {
@@ -1019,12 +1047,11 @@ class Printer {
 
         for (let pathIdx = 0, pathLength = paths.length; pathIdx < pathLength; pathIdx++) {
             const path = paths[pathIdx];
-            for (let i = 0; i <= settings.passes; i++) {
+            for (let i = 1; i <= passes; i++) {
                 const currentHeight = i * this.layerHeight;
 
-                this.moveto({ 'z': currentHeight });
                 this.moveto({ 'x': calcX(path[0][0]), 'y': calcY(path[0][1]) });
-
+                this.moveto({ 'z': currentHeight });
                 this.unretract(); // makes sense to do this every time
 
                 // print each segment, one by one
@@ -1037,13 +1064,13 @@ class Printer {
                     });
                 }
 
-                if (i < settings.passes) {
+                if (i < passes) {
                     paths[pathIdx].reverse(); //save time, do it backwards
                 }
                 else {
                     // path finished, retract and raise up head
                     this.retract();
-                    this.moveto({ 'z': settings.safeZ });
+                    this.moveto({ 'z': safeZ });
                 }
             }
         }
