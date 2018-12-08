@@ -33,7 +33,7 @@ function svg2gcode(svg, settings) {
     // for returning and setting to a variable
     let lpcodeWithVars = [
         "const shape = {",
-            "\tpaths: ["
+            '\t"paths": ['
     ];
 
 
@@ -192,10 +192,10 @@ function svg2gcode(svg, settings) {
     gcode.push('G1 X0 Y0 F800');
 
     lpcodeWithVars.push("\t],");
-    lpcodeWithVars.push("\tboundsMinX: " + minX+",",
-    "\tboundsMinY: " + minY+",",
-    "\tboundsWidth: " + xDiff+",",
-    "\tboundsHeight: " + yDiff);
+    lpcodeWithVars.push('\t"boundsMinX": ' + minX+",",
+    '\t"boundsMinY": ' + minY+",",
+    '\t"boundsWidth": ' + xDiff+",",
+    '\t"boundsHeight": ' + yDiff);
     lpcodeWithVars.push("};");
 
     return [lpcode.join('\n'), lpcodeWithVars.join('\n'), gcode.join('\n')];

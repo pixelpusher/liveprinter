@@ -152,6 +152,13 @@ td {
     background-color: lightgrey;
     border-bottom-color: transparent;
 }
+#commands > ul, #info > ul {
+    list-style: none;
+    padding-inline-start: 0;
+}
+#commands > ul > li, #info > ul > li {
+    margin-bottom: 0;
+}
 
 /* contains all the nav and panes for code editor and printer settings (like serial connect)*/
 #code-editor-area {
