@@ -54,5 +54,9 @@ coverage.xml
 target/
 docs/
 node_modules/
+
+
+# misc
+goprosettings_donotcommit.txt 
 /liveprinter/static/imgs/simple-cloud.svg
 /liveprinter/static/imgs/diskette.svg
