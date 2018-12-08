@@ -780,7 +780,7 @@ class Printer {
     move(params) {
         params.e = 0; // no filament extrusion
         params.retract = false;
-        const _speed = (params.speed === undefined) ? this.travelSpeed : parseFloat(params.speed);
+        params.speed = (params.speed === undefined) ? this.travelSpeed : parseFloat(params.speed);
         return this.extrude(params);
     }
 
@@ -792,7 +792,7 @@ class Printer {
     moveto(params) {
         params.e = this.e; // keep filament at current position
         params.retract = false;
-        const _speed = (params.speed === undefined) ? this.travelSpeed : parseFloat(params.speed);
+        params.speed = (params.speed === undefined) ? this.travelSpeed : parseFloat(params.speed);
         return this.extrudeto(params);
     }
 
@@ -980,7 +980,8 @@ class Printer {
     /**
      * Print paths 
      * @param {Array} paths List of paths (lists of coordinates in x,y) to print
-     * @param {Object} settings Settings for the scaling, etc. of this object
+     * @param {Object} settings Settings for the scaling, etc. of this object. useaspect means respect aspect ratio (width/height). A width or height
+     * of 0 means to use the original paths' width/height.
      * @returns {Printer} reference to this object for chaining
      * @test const p = [
           [[20,20],
@@ -990,7 +991,7 @@ class Printer {
 
         lp.printPaths({paths:p,minZ:0.2,passes:10});
      */
-    printPaths({ paths = [[]], minY = 0, minX = 0, minZ = 0, maxX = this.maxx, maxY = this.maxy, passes = 1, safeZ = 0 }) {
+    printPaths({ paths = [[]], minY = 0, minX = 0, minZ = 0, width=0, height=0, useaspect = true, passes = 1, safeZ = 0 }) {
         safeZ = safeZ || (this.layerHeight * passes + 10);   // safe z for traveling
 
         // total bounds
@@ -1006,10 +1007,10 @@ class Printer {
 
             // find lower and upper bounds
             while (subidx--) {
-                boundsMinX = Math.min(paths[idx][subidx][0], minX);
-                boundsMinY = Math.min(paths[idx][subidx][1], minY);
-                boundsMaxX = Math.max(paths[idx][subidx][0], maxX);
-                boundsMaxY = Math.max(paths[idx][subidx][1], maxY);
+                boundsMinX = Math.min(paths[idx][subidx][0], boundsMinX);
+                boundsMinY = Math.min(paths[idx][subidx][1], boundsMinY);
+                boundsMaxX = Math.max(paths[idx][subidx][0], boundsMaxX);
+                boundsMaxY = Math.max(paths[idx][subidx][1], boundsMaxY);
 
                 if (paths[idx][subidx][0] < bounds.x) {
                     bounds.x = paths[idx][subidx][0];
@@ -1032,9 +1033,31 @@ class Printer {
             paths[idx].bounds = bounds;
         }
 
+
         // make range mapping functions for scaling - see util.js
-        const xmapping = makeMapping([boundsMinX, boundsMaxX], [minX, maxX]);
-        const ymapping = makeMapping([boundsMinY, boundsMaxY], [minY, maxY]);
+        const boundsW = boundsMaxX - boundsMinX;
+        const boundsH = boundsMaxY - boundsMinY;
+
+        const useBoth = width && height;
+        const useOne = width || height;
+
+        if (!useBoth) {
+            if (useOne) {
+                if (width > 0) {
+                    const ratio = boundsH / boundsW;
+                    height = width * ratio;
+                } else {
+                    const ratio = boundsW / boundsH;
+                    width = height * ratio;
+                }
+            } else {
+                width = boundsW;
+                height = boundsH;
+            }
+        }
+
+        const xmapping = makeMapping([boundsMinX, boundsMaxX], [minX, minX + width]);
+        const ymapping = makeMapping([boundsMinY, boundsMaxY], [minY, minY + height]);
 
         // print the inside parts first
         paths.sort(function (a, b) {

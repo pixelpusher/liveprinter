@@ -32,7 +32,7 @@ from datetime import datetime
 ## 
 class PrinterResponse():
     def __init__(self, **fields):
-        self._time = time()
+        self._time = time()*1000 #ms for javascript front end
         self._type = fields['type']
         self._command = fields['command']
         self._properties = {}
