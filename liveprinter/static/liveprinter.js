@@ -72,9 +72,7 @@ $.when($.ready).then(
 
             /**
             * Schedule a function to run (and optionally repeat).
-            * @param timeOffset: ms offset to schedule this for
-            * @param func: function
-            * @param repeat: true/false whether to reschedule
+            * @param {Object} args Object with timeOffset: ms offset to schedule this for, func: function, repeat: true/false whether to reschedule
             */
             scheduleEvent: function (args) {
                 args.time = window.scope.Scheduler.audioContext.currentTime;
@@ -97,7 +95,7 @@ $.when($.ready).then(
              */
             removeEventByName: function (name) {
                 // run events 
-                window.scope.Scheduler.ScheduledEvents = window.scope.Scheduler.ScheduledEvents.filter(e => e.name != name);
+                window.scope.Scheduler.ScheduledEvents = window.scope.Scheduler.ScheduledEvents.filter(e => e.name !== name);
             },
 
             /**
@@ -189,7 +187,7 @@ $.when($.ready).then(
                     esversion: 6
                 });
             }
-        };
+        }
 
         /**
          * build examples loader links for dynamically loading example files
@@ -237,7 +235,7 @@ $.when($.ready).then(
                     'jsonrpc': '2.0',
                     'id': 1,
                     'method': 'gcode',
-                    'params': gcode,
+                    'params': gcode
                 };
 
                 let message_json = JSON.stringify(message);
@@ -253,7 +251,7 @@ $.when($.ready).then(
 
         /**
          * Send GCode to the server via websockets.
-         * @param {string} gcode
+         * @param {string} gcode gcode to send
          */
         function sendGCode(gcode) {
             let message = codeToJSON(gcode);
@@ -369,7 +367,7 @@ $.when($.ready).then(
                         'jsonrpc': '2.0',
                         'id': 6,
                         'method': 'get-serial-ports',
-                        'params': [],
+                        'params': []
                     };
                     let message_json = JSON.stringify(message);                    
                     this.send(message_json);
@@ -406,7 +404,7 @@ $.when($.ready).then(
             },
 
             removeListener: function (listener) {
-                this.listeners = this.listeners.filter(l => (l !== listener));
+                this.listeners = this.listeners.filter(l => l !== listener);
             }
         };
 
@@ -497,19 +495,19 @@ $.when($.ready).then(
         function blinkElem($elem, speed, callback) {
             $elem.removeClass("blinkit fast slow"); // remove to make sure it's not there
             $elem.on("animationend", function () {
-                if (callback !== undefined && typeof callback == "function") callback();
+                if (callback !== undefined && typeof callback === "function") callback();
                 $(this).removeClass("blinkit fast slow");
             });
-            if (speed == "fast")
+            if (speed === "fast")
             {
                 $elem.addClass("blinkit fast");
             }
-            else if (speed == "slow") {
+            else if (speed === "slow") {
                 $elem.addClass("blinkit slow");
             } else {
                 $elem.addClass("blinkit");
             }
-        };
+        }
 
         /*
         * START SETTING UP SESSION VARIABLES ETC>
@@ -566,12 +564,10 @@ $.when($.ready).then(
                 let tmp = parseFloat(tempEvent.hotend).toFixed(2);
                 let target = parseFloat(tempEvent.hotend_target).toFixed(2);
 
-                $("#temperature").empty();
-                $("#temperature").append("<p class='alert alert-danger fade show' role='alert'>"
-                    + '<strong>hotend temp/target:<br />'
+                $("#temperature > p").html(
+                    '<strong>hotend temp/target:'
                     + tmp + " / " + target
-                    + '</strong>'
-                    + "</p>");
+                    + '</strong>');
 
                 // look for 10% diff, it's not very accurate...
                 /*
@@ -589,46 +585,24 @@ $.when($.ready).then(
         socketHandler.registerListener(tempHandler);
 
 
-        // temperature event handler
+        // error event handler
         const errorHandler = {
             'error': function (event) {
-                //console.log("error event:");
-                //console.log(event);
-
-                $("#errors > ul").append("<li class='alert alert-warning alert-dismissible fade show' role='alert'>"
-                    //+ (new Date(event.time)).toDateString() // FIXME!
-                    + '<strong>'
-                    + ": " + event.message
-                    + '</strong>'
-                    + '<button type="button" class="close" data-dismiss="alert" aria-label="Close">'
-                    + '<span aria-hidden="true">&times;</span></button>'
-                    + "</li>");
+                appendLoggingNode($("#errors > ul"), event.time, event.message);
                 blinkElem($("#errors-tab"));
                 blinkElem($("#inbox"));
             }
         };
         socketHandler.registerListener(errorHandler);
 
-        // temperature event handler
+        // info event handler
         const infoHandler = {
             'info': function (event) {
-                //console.log("error event:");
-                //console.log(event);
-                $("#info > ul").prepend("<li class='alert alert-primary alert-dismissible fade show' role='alert'>"
-                    + (new Date(parseInt(event.time))).toLocaleDateString('en-US')
-                    + '<strong>'
-                    + ": " + event.message
-                    + '</strong>'
-                    + '<button type="button" class="close" data-dismiss="alert" aria-label="Close">'
-                    + '<span aria-hidden="true">&times;</span></button>'
-                    + "</li>");
+                appendLoggingNode($("#info > ul"), event.time, event.message);
                 blinkElem($("#info-tab"));
-                blinkElem($("#inbox"));
             },
             'resend': function (event) {
-                //console.log("error event:");
-                //console.log(event);
-                $("#info > ul").prepend("<li>" + (new Date(parseInt(event.time))).toLocaleDateString('en-US') + ": " + event.message + "</li>");
+                appendLoggingNode($("#info > ul"), event.time, event.message);
                 blinkElem($("#info-tab"));
                 blinkElem($("#inbox"));
             }
@@ -637,12 +611,30 @@ $.when($.ready).then(
 
         socketHandler.registerListener(infoHandler);
 
-        // temperature event handler
+        /**
+         * Append a dismissible, styled text node to one of the side menus, formatted appropriately.
+         * @param {jQuery} elem JQuery element to append this to
+         * @param {Number} time Time of the event
+         * @param {String} message message text for new element
+         * @namespace LivePrinter
+         */
+        function appendLoggingNode(elem, time, message) {
+            const dateStr = (new Date(time)).toLocaleString('en-US', { year: '2-digit', month: '2-digit', day: '2-digit', hours: '2-digit', minutes: '2-digit', seconds: '2-digit' });
+            elem.prepend("<li class='alert alert-primary alert-dismissible fade show' role='alert'>"
+                + dateStr
+                + '<strong>'
+                + ": " + message
+                + '</strong>'
+                + '<button type="button" class="close" data-dismiss="alert" aria-label="Close">'
+                + '<span aria-hidden="true">&times;</span></button>'
+                + "</li>");
+        }
+
+        // command event handler
         const commandHandler = {
             'gcode': function (event) {
-                //console.log("error event:");
-                //console.log(event);
-                $("#commands > ul").prepend("<li>" + (new Date(parseInt(event.time))).toLocaleDateString('en-US') + ": " + event.message + "</li>").fadeIn(50);
+                //(new Date(parseInt(event.time))).toLocaleDateString('en-US')
+                appendLoggingNode($("#commands > ul"), event.time, event.message);
                 blinkElem($("#commands-tab"));
                 blinkElem($("#inbox"));
             }
@@ -674,15 +666,18 @@ $.when($.ready).then(
                 //console.log("list of serial ports:");
                 //console.log(event);
                 portsDropdown.empty();
-                if (event.message.length == 0) {
-                    $("#info > ul").append("<li>no serial ports found</li > ").fadeIn(50);
+                if (event.message.length === 0) {
+                    appendLoggingNode($("#info > ul"), (new Date()).getUTCMilliseconds(), "<li>no serial ports found</li > ");
                     window.scope.serialPorts.push("dummy");
                 }
                 else {
-                    $("#info > ul").prepend("<li>serial ports: " + event.message + "</li > ").fadeIn(50);
-                    for ( let p of event.message) {
+                    let msg = "<ul>Serial ports found:";
+                    for (let p of event.message) {
+                        msg += "<li>" + p + "</li>";
                         window.scope.serialPorts.push(p);
                     }
+                    msg += "</ul>";
+                    appendLoggingNode($("#info > ul"), (new Date()).getUTCMilliseconds(), msg);
                 }
 
                 window.scope.serialPorts.forEach(function (port) {
@@ -696,7 +691,7 @@ $.when($.ready).then(
                             'jsonrpc': '2.0',
                             'id': 6,
                             'method': 'set-serial-port',
-                            'params': [me.data("portName")],
+                            'params': [me.data("portName")]
                         };
                         socketHandler.socket.send(JSON.stringify(message));
                         $("#serial-ports-list > drop-down-menu > button").removeClass("active");
@@ -722,7 +717,7 @@ $.when($.ready).then(
                 me.text("stop polling temperature");
             }
             else {
-                me.text("start polling Temperature")
+                me.text("start polling Temperature");
             }
             me.button('toggle');
         });
@@ -736,22 +731,22 @@ $.when($.ready).then(
                 me.text("python mode");
             }
             else {
-                me.text("javascript mode")
+                me.text("javascript mode");
             }
             setLanguageMode(); // update codemirror editor
             me.button('toggle');
         });
 
 
-        scope.clearPrinterCommandQueue = function() {
+        scope.clearPrinterCommandQueue = function () {
             let message = {
                 'jsonrpc': '2.0',
                 'id': 7,
                 'method': 'clear-command-queue',
-                'params': [],
+                'params': []
             };
             socketHandler.socket.send(JSON.stringify(message));
-        }
+        };
 
         /*
          * Clear printer queue on server 

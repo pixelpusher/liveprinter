@@ -142,7 +142,7 @@ def json_handle_gcode(printer:USBPrinter, *argv):
                 'id': 4, 
                 'method': "gcode",
                 'params': {
-                    'time': time(),
+                    'time': time()*1000, # for javscript date conversion to seconds
                     'message': command_list
                     }
                 }
@@ -187,7 +187,7 @@ def json_handle_set_serial_port(printer:USBPrinter, port:str):
             'id': 5, 
             'method': 'serial-port-set',
             'params': {
-                'time': time(),
+                'time': time()*1000,
                 'message': port
                 }
             }
@@ -201,7 +201,7 @@ def json_handle_set_serial_port(printer:USBPrinter, port:str):
                 'id': 5, 
                 'method': 'serial-port-set',
                 'params': {
-                    'time': time(),
+                    'time': time()*1000,
                     'message': port
                     }
                 }
@@ -212,7 +212,7 @@ def json_handle_set_serial_port(printer:USBPrinter, port:str):
                     'id': 5, 
                     'method': 'serial-port-set',
                     'params': {
-                        'time': time(),
+                        'time': time()*1000,
                         'message': "error"
                         }
                   }
@@ -239,7 +239,7 @@ def json_handle_printerstate(printer:USBPrinter, *argv):
                 'id': 5, 
                 'method': 'printerstate',
                 'params': {
-                    'time': time(),
+                    'time': time()*1000,
                     'message': connectionState.name
                     }
                 }
@@ -269,7 +269,7 @@ def json_handle_clearqueue(printer:USBPrinter, *argv):
                     'id': 6, 
                     'method': 'clear-command-queue',
                     'params': {
-                        'time': time(),
+                        'time': time()*1000,
                         'message': 'cleared'
                         }
                     }
@@ -299,7 +299,7 @@ def json_handle_portslist(*msg):
                 'id': 6, 
                 'method': "serial-ports-list",
                 'params': {
-                    'time': time(),
+                    'time': time()*1000,
                     'message': ports
                     }
                 }
