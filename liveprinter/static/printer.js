@@ -48,6 +48,7 @@ class Printer {
 
         // TODO: not sure about this being valid - maybe check for max speed?
         this._printSpeed = Printer.defaultPrintSpeed;
+        this.travelSpeed = Printer.maxTravelSpeed;
         this._model = Printer.UM2plus; // default
         this.layerHeight = 0.2; // thickness of a 3d printed extrudion, mm by default
 
@@ -352,7 +353,7 @@ class Printer {
      * @returns {Printer} reference to this object for chaining
      */
     fan(speed = "100") {
-        this.send("M106 S" + temp);
+        this.send("M106 S" + speed);
         return this;
     }
 
@@ -409,6 +410,17 @@ class Printer {
         // never reached
         return this;
 
+    }
+
+    /**
+     * Set layer height safely and easily
+     *
+     * @param {float} height layer height in mm
+     * @returns {Printer} Reference to this object for chaining
+     */
+    lh(height) {
+        this.layerHeight = Math.max(Printer.MinLayerHeight, lh);
+        return this;
     }
 
     /**
@@ -586,7 +598,7 @@ class Printer {
 
         let newPosition = new Vector({ x: __x, y: __y, z: __z, e: __e });
 
-        this.printSpeed = parseFloat((params.speed !== undefined) ? params.speed : this.printSpeed);
+        let _speed = parseFloat((params.speed !== undefined) ? params.speed : this.printSpeed);
         this.layerHeight = parseFloat((params.thickness !== undefined) ? params.thickness : this.layerHeight);
 
         //////////////////////////////////////
@@ -634,7 +646,7 @@ class Printer {
         }
         // note: velocity in 'e' direction is always layerHeight^2
         const velocity = Vector.div(distanceVec, distanceMag);
-        const moveTime = distanceMag / this.printSpeed; // in sec, doesn't matter that new 'e' not taken into account because it's not in firmware
+        const moveTime = distanceMag / _speed; // in sec, doesn't matter that new 'e' not taken into account because it's not in firmware
 
         this.totalMoveTime += moveTime; // update total movement time for the printer
 
@@ -669,17 +681,17 @@ class Printer {
         // Handle movements outside printer boundaries if there's a need.
         // Tail recursive.
         //
-        this._extrude(velocity, distanceMag, retract);
+        this._extrude(_speed, velocity, distanceMag, retract);
 
         return this;
     } // end extrudeto
 
     /**
      * Send movement update GCode to printer based on current position (this.x,y,z).
-     * 
+     * @param {Int} speed print speed in mm/s
      * @param {boolean} retract if true (default) add GCode for retraction/unretraction. Will use either hardware or software retraction if set in Printer object
      * */
-    sendExtrusionGCode(retract = true) {
+    sendExtrusionGCode(speed, retract = true) {
         if (retract && this.currentRetraction > 0) {
             //unretract manually first if needed
             if (!this.firmwareRetract) {
@@ -699,7 +711,7 @@ class Printer {
         moveCode.push("Y" + this.y.toFixed(4));
         moveCode.push("Z" + this.z.toFixed(4));
         moveCode.push("E" + this.e.toFixed(4));
-        moveCode.push("F" + (this.printSpeed * 60).toFixed(4)); // mm/s to mm/min
+        moveCode.push("F" + (speed * 60).toFixed(4)); // mm/s to mm/min
         this.send(moveCode.join(" "));
 
         // RETRACT
@@ -768,6 +780,7 @@ class Printer {
     move(params) {
         params.e = 0; // no filament extrusion
         params.retract = false;
+        const _speed = (params.speed === undefined) ? this.travelSpeed : parseFloat(params.speed);
         return this.extrude(params);
     }
 
@@ -779,6 +792,7 @@ class Printer {
     moveto(params) {
         params.e = this.e; // keep filament at current position
         params.retract = false;
+        const _speed = (params.speed === undefined) ? this.travelSpeed : parseFloat(params.speed);
         return this.extrudeto(params);
     }
 
@@ -976,7 +990,7 @@ class Printer {
 
         lp.printPaths({paths:p,minZ:0.2,passes:10});
      */
-    printPaths({paths = [[]], minY = 0, minX = 0, minZ = 0, maxX = 140, maxY = 140, scale = 1, passes = 1, safeZ = 0 }) {
+    printPaths({ paths = [[]], minY = 0, minX = 0, minZ = 0, maxX = this.maxx, maxY = this.maxy, passes = 1, safeZ = 0 }) {
         safeZ = safeZ || (this.layerHeight * passes + 10);   // safe z for traveling
 
         // total bounds
@@ -984,10 +998,6 @@ class Printer {
             boundsMinY = Infinity,
             boundsMaxX = -Infinity,
             boundsMaxY = -Infinity;
-
-        const
-            calcX = x => ((x - boundsMinX) * scale + minX).toFixed(4),
-            calcY = y => ((y - boundsMinY) * scale + minY).toFixed(4);
 
         let idx = paths.length;
         while (idx--) {
@@ -1022,35 +1032,27 @@ class Printer {
             paths[idx].bounds = bounds;
         }
 
-        let newScale = 1;
-        const xDiff = (boundsMaxX - boundsMinX) * scale;
-        const yDiff = (boundsMaxY - boundsMinY) * scale;
+        // make range mapping functions for scaling - see util.js
+        const xmapping = makeMapping([boundsMinX, boundsMaxX], [minX, maxX]);
+        const ymapping = makeMapping([boundsMinY, boundsMaxY], [minY, maxY]);
 
-        // scale to larger of the dimensions
-        // *****note: offsets aren't scaled (that would be weird)
-        if ((minX + xDiff) > maxX || (minY + yDiff) > maxY) {
-            newScale = Math.min((maxX - minX) / xDiff, (maxY - minY) / yDiff);
-        }
-
-        scale *= newScale; // apply new scale
-
-        // cut the inside parts first
-        //paths.sort(function (a, b) {
-        //    // sort by area
-        //    return (a.bounds.area < b.bounds.area) ? -1 : 1;
-        //});
-
+        // print the inside parts first
+        paths.sort(function (a, b) {
+            // sort by area
+            return (a.bounds.area < b.bounds.area) ? -1 : 1;
+        });
+        /*
         paths.sort(function (a, b) {
             // sort by horizontal position
             return (a.bounds.x < b.bounds.x) ? -1 : 1;
         });
-
+        */
         for (let pathIdx = 0, pathLength = paths.length; pathIdx < pathLength; pathIdx++) {
             const path = paths[pathIdx];
             for (let i = 1; i <= passes; i++) {
-                const currentHeight = i * this.layerHeight;
+                const currentHeight = i * this.layerHeight + minZ;
 
-                this.moveto({ 'x': calcX(path[0][0]), 'y': calcY(path[0][1]) });
+                this.moveto({ 'x': xmapping(path[0][0]), 'y': ymapping(path[0][1]) });
                 this.moveto({ 'z': currentHeight });
                 this.unretract(); // makes sense to do this every time
 
@@ -1058,8 +1060,8 @@ class Printer {
                 for (let segmentIdx = 0, segmentLength = path.length; segmentIdx < segmentLength; segmentIdx++) {
                     const segment = path[segmentIdx];
                     this.extrudeto({
-                        'x': calcX(segment[0]),
-                        'y': calcY(segment[1]),
+                        'x': xmapping(segment[0]),
+                        'y': ymapping(segment[1]),
                         'retract': false
                     });
                 }
@@ -1091,7 +1093,7 @@ class Printer {
  * @returns {Boolean} false when done
  * @memberof Printer
  */
-Printer.prototype._extrude = meth("_extrude", function (that, moveVector, leftToMove, retract) {
+Printer.prototype._extrude = meth("_extrude", function (that, speed, moveVector, leftToMove, retract) {
     // if there's nowhere to move, return
     //console.log(that);
     //console.log("left to move:" + leftToMove);
@@ -1195,7 +1197,7 @@ Printer.prototype._extrude = meth("_extrude", function (that, moveVector, leftTo
     //console.log(that.position);
     //console.log(that);
 
-    that.sendExtrusionGCode(retract);
+    that.sendExtrusionGCode(speed, retract);
 
     // handle cases where velocity is 0 (might be movement up or down)
 
@@ -1212,7 +1214,7 @@ Printer.prototype._extrude = meth("_extrude", function (that, moveVector, leftTo
     }
 
     // Tail recursive, until target x,y,z is hit
-    return mret(that._extrude, moveVector, leftToMove, retract);
+    return mret(that._extrude, speed, moveVector, leftToMove, retract);
     //return false;
 
 } // end _extrude 
@@ -1270,6 +1272,8 @@ Printer.GCODE_HEADERS[Printer.REPRAP] = [
     "G28",
     "G92 E0"
 ];
+
+Printer.MinLayerHeight = 0.05; // in mm
 
 Printer.filamentDiameter = {};
 Printer.filamentDiameter[Printer.UM2] = Printer.filamentDiameter[Printer.UM2plus] =
