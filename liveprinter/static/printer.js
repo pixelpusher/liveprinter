@@ -99,6 +99,8 @@ class Printer {
         this.retractLength = 6.5; // in mm - amount to retract after extrusion.  This is high because most moves are slow...
         this.retractSpeed = 1000; //mm/min
         this.firmwareRetract = true;    // use Marlin or printer for retraction
+        this.extraUnretract = 1; // extra amount to unretract each time (recovery filament) in mm
+        this.unretractZHop = 2; //little z-direction hop on retracting to avoid blobs, in mm
 
         /**
          * What to do when movement or extrusion commands are out of machine bounds.
@@ -231,9 +233,9 @@ class Printer {
     */
     sendFirmwareRetractSettings() {
         // update firmware retract settings
-        this.send("M207 S" + this.retractLength + " F" + this.retractSpeed + " Z0.2");
+        this.send("M207 S" + this.retractLength + " F" + this.retractSpeed + " Z" + this.unretractZHop);
         //set retract recover
-        this.send("M208 S0 F" + this.retractSpeed);
+        this.send("M208 S" + this.extraUnretract + "F" + this.retractSpeed);
 
         return this;
     }
