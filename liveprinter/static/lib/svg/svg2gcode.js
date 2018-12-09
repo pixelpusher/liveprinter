@@ -19,7 +19,11 @@ function svg2gcode(svg, settings) {
     let minX = Infinity,
         minY = Infinity,
         maxX = -Infinity,
-        maxY = -Infinity;
+        maxY = -Infinity,
+        realMinX = Infinity,
+        realMinY = Infinity,
+        realMaxX = -Infinity,
+        realMaxY = -Infinity;
 
 
     let
@@ -150,15 +154,24 @@ function svg2gcode(svg, settings) {
             if (segmentIdx != (segmentLength-1)) pathTxt = pathTxt + ",";
             lpcodeWithVars.push(pathTxt);
 
+            const x = calcX(segment[0]);
+            const y = calcY(segment[1]); 
+
+            realMinX = Math.min(realMinX, x);
+            realMaxX = Math.max(realMaxX, x);
+            realMinY = Math.min(realMinY, y);
+            realMaxY = Math.max(realMaxY, y);
+
+
             gcode.push(['G1',
-                'X' + calcX(segment[0]),
-                'Y' + calcY(segment[1]),
+                'X' + x,
+                'Y' + y,
                 'F' + (settings.feedRate*60)
             ].join(' '));
 
             lpcode.push(['lp.extrudeto({' +
-                "'x': " + calcX(segment[0]),
-                "'y':" + calcY(segment[1]),
+                "'x': " + x,
+                "'y':" + y,
                 "'speed':" + settings.feedRate,
                 "'retract':false});"
             ].join(','));
@@ -192,10 +205,11 @@ function svg2gcode(svg, settings) {
     gcode.push('G1 X0 Y0 F800');
 
     lpcodeWithVars.push("\t],");
-    lpcodeWithVars.push('\t"boundsMinX": ' + minX+",",
-    '\t"boundsMinY": ' + minY+",",
-    '\t"boundsWidth": ' + xDiff+",",
-    '\t"boundsHeight": ' + yDiff);
+    lpcodeWithVars.push(
+        '\t"minX": ' + realMinX+",",
+        '\t"minY": ' + realMinY+",",
+        '\t"maxX": ' + realMaxX + ",",
+        '\t"maxY": ' + realMaxY);
     lpcodeWithVars.push("};");
 
     return [lpcode.join('\n'), lpcodeWithVars.join('\n'), gcode.join('\n')];
