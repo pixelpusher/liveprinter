@@ -748,7 +748,7 @@ class Printer {
             params.dist = parseFloat(params.dist);
 
             if (params.angle === undefined) {
-                params.angle = this.heading; // use current heading angle
+                params.angle = this._heading; // use current heading angle
             }
             else {
                 params.angle = parseFloat(params.angle);
