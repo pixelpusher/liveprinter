@@ -421,7 +421,7 @@ class Printer {
      * @returns {Printer} Reference to this object for chaining
      */
     lh(height) {
-        this.layerHeight = Math.max(Printer.MinLayerHeight, lh);
+        this.layerHeight = Math.max(Printer.MinLayerHeight, height);
         return this;
     }
 
