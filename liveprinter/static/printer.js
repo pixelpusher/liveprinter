@@ -971,7 +971,7 @@ class Printer {
      * @returns {Printer} reference to this object for chaining
      */
     wait(ms = this._waitTime) {
-        this.send("M0 P" + ms);
+        this.send("G4 P" + ms);
         this._waitTime = 0;
         return this;
     }
