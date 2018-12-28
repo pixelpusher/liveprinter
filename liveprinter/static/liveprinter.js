@@ -59,9 +59,9 @@ $.when($.ready).then(
          */
         window.scope.Scheduler = {
             ScheduledEvents: [],
-            audioContext: new AudioContext(),
             schedulerInterval: 40,
             timerID: null,
+            startTime: Date.now(),
 
             /**
              * Clear all scheduled events.
@@ -75,7 +75,7 @@ $.when($.ready).then(
             * @param {Object} args Object with timeOffset: ms offset to schedule this for, func: function, repeat: true/false whether to reschedule
             */
             scheduleEvent: function (args) {
-                args.time = window.scope.Scheduler.audioContext.currentTime;
+                args.time = Date.now() - window.scope.Scheduler.startTime;
 
                 window.scope.Scheduler.ScheduledEvents.push(args);
             },
@@ -102,10 +102,11 @@ $.when($.ready).then(
              * Start the Scheduler running events.
              */
             startScheduler: function () {
-                console.log("scheduler starting at time: " + window.scope.Scheduler.audioContext.currentTime);
+                
+                console.log("scheduler starting at time: " + this.startTime);
 
                 function scheduler(nextTime) {
-                    let time = window.scope.Scheduler.audioContext.currentTime * 1000; // in ms
+                    const time = Date.now() - window.scope.Scheduler.startTime; // in ms
 
                     // run events 
                     window.scope.Scheduler.ScheduledEvents.filter(

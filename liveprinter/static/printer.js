@@ -819,6 +819,28 @@ class Printer {
     }
 
     /**
+     * Fill a rectagular area.
+     * @param {Number} w width
+     * @param {Number} h height
+     * @param {Number} gap gap between fills
+     * @param {Boolean} retract retract when finished
+     */
+    fillDirection(w, h, gap, retract = true) {
+        if (gap === undefined) gap = 1.5 * this.layerHeight;
+        this.unretract();
+
+        for (let i = 0; i < h / gap; i++) {
+            let m = (i % 2 == 0) ? -1 : 1;
+            this.turn(-90 * m);
+            this.dist(w).go(1, false);
+            this.turn(90 * m); //turn back
+            this.dist(gap).go(1, false);
+        }
+        if (retract !== undefined && retract) lp.retract();
+    };
+
+
+    /**
      * Degrees to radians conversion.
      * @param {float} angle in degrees
      * @returns {float} angle in radians
@@ -993,7 +1015,7 @@ class Printer {
 
         lp.printPaths({paths:p,minZ:0.2,passes:10});
      */
-    printPaths({ paths = [[]], minY = 0, minX = 0, minZ = 0, width=0, height=0, useaspect = true, passes = 1, safeZ = 0 }) {
+    printPaths({ paths = [[]], minY = 0, minX = 0, minZ = 0, width = 0, height = 0, useaspect = true, passes = 1, safeZ = 0 }) {
         safeZ = safeZ || (this.layerHeight * passes + 10);   // safe z for traveling
 
         // total bounds
