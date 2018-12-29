@@ -1,0 +1,214 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <!-- Required meta tags -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>LivePrinter livecoding for CNC</title>
+</head>
+<body>
+    <div class="lines"></div>
+    <div class="container" id="body">
+        <div class="row">
+            <div class="col-12">
+                <div class="box">
+                    <h1>LivePrinter v.01</h1>
+                    <div class="col-12"><a href="http://github.com/pixelpusher/liveprinter"><em>http://github.com/pixelpusher/liveprinter</em></a></div>
+                </div>
+                <div class="panel-l"></div>
+                <div class="panel-b-l"></div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-9 col-md-8" id="printer-editor-col">
+                <div class="box bg-colorful1 fullheight">
+                    <ul id="editor-settings-nav" class="nav nav-tabs flex-column flex-sm-row" role="tablist">
+                        <li class="nav-item">
+                            <a id="printer-tab" class="flex-sm-fill text-sm-center nav-link lightnav" data-toggle="pill" href="#printer" role="tab" aria-controls="printer" aria-selected="false">printer settings</a>
+                        </li>
+                        <li class="nav-item">
+                            <a id="global-editor-tab" class="flex-sm-fill text-sm-center nav-link lightnav" data-toggle="pill" href="#global-code-editor-area" role="tab" aria-controls="global-code-editor-area" aria-selected="false">global code editor</a>
+                        </li>
+                        <li class="nav-item btn-group">
+                            <a id="editor-tab" class="flex-sm-fill text-sm-center nav-link active lightnav" data-toggle="pill" href="#code-editor-area" role="tab" aria-controls="code-editor-area" aria-selected="true">code editor</a>
+                            <a id="examples-dropdown" class="flex-sm-fill text-sm-center nav-link lightnav active dropdown-toggle dropdown-toggle-split" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" role="tab">
+                                <span class="sr-only">Toggle Dropdown</span>
+                            </a>
+                            <div id="examples-list" class="dropdown-menu">
+                                <a class="dropdown-item purplink" href="#" data-link="{{ static_url("examples/default.js") }}">getting started</a>
+                                <a class="dropdown-item purplink" href="#" data-link="{{ static_url("examples/using-functions.js") }}">using functions</a>
+                                <a class="dropdown-item purplink" href="#" data-link="{{ static_url("examples/sending-gcode.js") }}">sending gcode</a>
+                                <a class="dropdown-item purplink" href="#" data-link="{{ static_url("examples/circle.js") }}">draw a circle</a>
+                                <div class="dropdown-divider"></div>
+                                <a class="dropdown-item purplink" href="#" data-link="{{ static_url("examples/pythontest.py") }}">python geolocation etc.</a>
+                                <a class="dropdown-item purplink" href="#" data-link="{{ static_url("examples/maryhadalittlelamb.py") }}">playing Mary Had a Little Lamb</a>
+                                <a class="dropdown-item purplink" href="#" data-link="{{ static_url("examples/circle.py") }}">drawing a circle</a>
+                                <div class="dropdown-divider"></div>
+                                <a id="reload-edited-session" class="dropdown-item purplink" href="#">reload last edited</a>
+                                <a id="reload-saved-session" class="dropdown-item purplink" href="#">reload last saved</a>
+                                <a id="save-session" class="dropdown-item purplink"><strong>save current</strong></a>
+                            </div>
+                        </li>
+                        <li class="nav-item">&nbsp;<button id="python-mode-btn" class="btn-sm btn-secondary" data-toggle="button">javascript mode</button></li>
+                    </ul>
+                    <div id="tab-messages-pane" class="tab-content">
+                        <div id="printer" class="tab-pane fade show" role="tabpanel" aria-labelledby="pills-info-tab">
+                            <p>printer settings to go here</p>
+                            <p><button id="temp-display-btn" class="btn-sm btn-primary" data-toggle="button">Poll Temperature</button></p>
+                            <p>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="dropdown">
+                                            <button class="btn btn-med btn-secondary dropdown-toggle" type="button" id="serial-port-dropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                                Connect to printer port:
+                                            </button>
+                                            <div id="serial-ports-list" class="dropdown-menu" aria-labelledby="serial-port-dropdown"></div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <button id="clear-btn" class="btn-sm btn-primary">clear queue</button>
+                                    </div>
+                                </div>
+                            </p>
+                        </div>
+
+                        <!-- session code editor -->
+                        <div id="code-editor-area" class="tab-pane fade show active" role="tabpanel" aria-labelledby="pills-editor-tab">
+                            <div class="row">
+                                <div class="col-12 cm-contain">
+                                    <form>
+                                        <textarea id="code-editor">
+                                    // start coding functions, etc. here or load an example from the dropdown above!
+
+                                        </textarea>
+                                    </form>
+                                </div>
+                            </div>
+                            <div class="row buttons">
+                                <div class="col-2"><strong>Errors:</strong></div>
+                                <div class="col-8 code-errors"></div>
+                            </div>
+                            <div class="row instructions">
+                                <div class="col-12">
+                                    <p>Highlight lines of code and hit <kbd>cmd</kbd> or <kbd>ctrl</kbd>-<kbd>enter</kbd> to <button id="sendCode" class="btn btn-success btn-sm">send</button> them</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- global code editor-->
+                        <div id="global-code-editor-area" class="tab-pane fade show active hideAfterLoad" role="tabpanel" aria-labelledby="pills-global-editor-tab">
+                            <div class="row">
+                                <div class="col-12 cm-contain">
+                                    <form>
+                                        <textarea id="global-code-editor">
+                                    // start coding global functions, etc. here or load an example from the dropdown above!
+
+                                        </textarea>
+                                    </form>
+                                </div>
+                            </div>
+                            <div class="row buttons">
+                                <div class="col-2"><strong>Errors:</strong></div>
+                                <div class="col-8 code-errors"></div>
+                            </div>
+                            <div class="row instructions">
+                                <div class="col-12">
+                                    <p>Highlight lines of code and hit <kbd>cmd</kbd> or <kbd>ctrl</kbd>-<kbd>enter</kbd> to <button id="sendCode" class="btn btn-success btn-sm">send</button> them</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="panel-l"></div>
+                        <div class="panel-b-l"></div>
+                    </div> <!-- close tab menus -->
+
+                </div> <!-- fullheight box-->
+            </div> <!-- close col -->
+            <!-- end input-->
+            <div class="col-3 col-md-4">
+                <div id="inbox" class="box">
+                    <div style="position:relative;height:100%">
+                        <ul class="nav nav-tabs flex-column flex-sm-row" id="pconsole" role="tablist">
+                            <li class="nav-item">
+                                <a class="flex-sm-fill text-sm-center nav-link active" id="info-tab" data-toggle="pill" href="#info" role="tab" aria-controls="info" aria-selected="true">info</a>
+                            </li>
+                            <li class="flex-sm-fill text-sm-center nav-item">
+                                <a class="nav-link" id="errors-tab" data-toggle="pill" href="#errors" role="tab" aria-controls="errors" aria-selected="false">errors</a>
+                            </li>
+                            <li class="flex-sm-fill text-sm-center nav-item">
+                                <a class="nav-link" id="commands-tab" data-toggle="pill" href="#commands" role="tab" aria-controls="commands" aria-selected="false">commands</a>
+                            </li>
+                        </ul>
+                        <!-- Tab panes -->
+
+                        <div id="tab-messages-pane" class="tab-content">
+                            <div class="tab-pane fade show active" id="info" role="tabpanel" aria-labelledby="pills-info-tab">
+                                <ul></ul>
+                            </div>
+                            <div class="tab-pane fade" id="errors" role="tabpanel" aria-labelledby="pills-errors-tab">
+                                <ul></ul>
+                            </div>
+                            <div class="tab-pane fade" id="commands" role="tabpanel" aria-labelledby="pills-commands-tab">
+                                <ul></ul>
+                            </div>
+                        </div>
+                        <div id="temperature"><p class='alert alert-danger fade show' role='alert'></p></div>
+                    </div>
+                    <div class="panel-r lines"></div>
+                    <div class="panel-b-r"></div>
+                </div>
+            </div>
+
+        </div><!-- end 1st row -->
+    </div>
+    <!-- end main container-->
+    <!-- Bootstrap 4 -->
+    <!--<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">-->
+    <link rel="stylesheet" href="{{ static_url("lib/cached/bootstrap.min.css") }}" type="text/css">
+    <link rel="stylesheet" href="{{ static_url("lib/codemirror/codemirror.css") }}" type="text/css">
+    <link rel="stylesheet" href="{{ static_url("lib/addon/lint/lint.css") }}">
+    <link rel="stylesheet" href="{{ static_url("lib/addon/fold/foldgutter.css") }}">
+    <link rel="stylesheet" href="{{ static_url("lib/addon/hint/show-hint.css") }}">
+    <link rel="stylesheet" href="{{ static_url("lib/addon/scroll/simplescrollbars.css") }}">
+    <!--<script src="https://code.jquery.com/jquery-3.3.1.min.js"
+            integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8="
+            crossorigin="anonymous"></script>-->
+    <!--<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>-->
+    <script src="{{ static_url("lib/codemirror/codemirror.js") }}"></script>
+    <script src="{{ static_url("lib/addon/selection/active-line.js") }}"></script>
+    <script src="{{ static_url("lib/addon/edit/closebrackets.js") }}"></script>
+    <script src="{{ static_url("lib/addon/fold/foldcode.js") }}"></script>
+    <script src="{{ static_url("lib/addon/fold/foldgutter.js") }}"></script>
+    <script src="{{ static_url("lib/addon/fold/indent-fold.js") }}"></script>
+    <script src="{{ static_url("lib/addon/fold/comment-fold.js") }}"></script>
+    <script src="{{ static_url("lib/addon/fold/brace-fold.js") }}"></script>
+    <script src="{{ static_url("lib/codemirror/mode/javascript/javascript.js") }}"></script>
+    <!--<script src="https://cdnjs.cloudflare.com/ajax/libs/jshint/2.9.5/jshint.min.js"></script>
+    <script src="https://rawgithub.com/zaach/jsonlint/79b553fb65c192add9066da64043458981b3972b/lib/jsonlint.js"></script>
+    <script src="https://unpkg.com/csslint@1.0.5/dist/csslint.js"></script>-->
+    <script src="{{ static_url("lib/cached/jquery-3.3.1.min.js") }}"></script>
+    <script src="{{ static_url("lib/cached/popper.min.js") }}"></script>
+    <script src="{{ static_url("lib/cached/bootstrap.min.js") }}"></script>
+    <script src="{{ static_url("lib/cached/jshint.min.js") }}"></script>
+    <script src="{{ static_url("lib/cached/jsonlint.js") }}"></script>
+    <script src="{{ static_url("lib/addon/lint/lint.js") }}"></script>
+    <script src="{{ static_url("lib/addon/lint/javascript-lint.js") }}"></script>
+    <script src="{{ static_url("lib/addon/lint/json-lint.js") }}"></script>
+    <script src="{{ static_url("lib/addon/hint/show-hint.js") }}"></script>
+    <script src="{{ static_url("lib/addon/hint/javascript-hint.js") }}"></script>
+    <script src="{{ static_url("lib/addon/scroll/simplescrollbars.js") }}"></script>
+    <script src="{{ static_url("lib/brython/brython.js") }}"></script>
+    <script src="{{ static_url("lib/brython/brython_stdlib.js") }}"></script>
+    <script src="{{ static_url("lib/fext.js") }}"></script>
+    <!-- liveprinter javascript -->
+    <script src="{{ static_url("lib/vector.js") }}" type="text/javascript"></script>
+    <script src="{{ static_url("lib/util.js") }}" type="text/javascript"></script>
+    <script src="{{ static_url("printer.js") }}" type="text/javascript"></script>
+    <script src="{{ static_url("scales.js") }}" type="text/javascript"></script>
+    <script src="{{ static_url("liveprinter.js") }}" type="text/javascript"></script>
+    <link rel="stylesheet" href="{{ static_url("liveprinter.css") }}" type="text/css">
+
+    <div id="python-scripts"></div>
+</body>
+</html>

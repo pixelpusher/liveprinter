@@ -1,0 +1,96 @@
+﻿<!DOCTYPE html>
+
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="utf-8" />
+    <title></title>
+    <script src="../lib/cached/svg.2.6.6.min.js"></script>
+    <script src="../lib/cached/jquery-3.3.1.min.js"></script>
+    <script src="../lib/svg/SVGReader.js"></script>
+    <script src="../lib/svg/svg2gcode.js"></script>
+    <style type="text/css">
+        #drawing {
+            width: 90%;
+            min-height: 400px;
+            border: 1px dotted black;
+        }
+    </style>
+
+</head>
+<body>
+    <div id="filelocation"><input name="url" value="whitebolt.svg" /><input type="button" id="render" value="render" /></div>
+    <div id="error">...</div>
+    <div><input name="scale" value="0.5" /></div>
+    <div>
+        <p>
+            xoffset: <input name="xoffset" value="0" />
+        </p>
+        <p>
+            y offset: <input name="yoffset" value="0" />
+        </p>
+        <p>
+            z offset: <input name="zoffset" value="0" />
+        </p>
+        <p>
+            x max: <input name="xmax" value="100" />
+        </p>
+        <p>
+            y max: <input name="ymax" value="100" />
+        </p>
+
+    </div>
+    <div id="drawing"></div>
+
+    <script type="text/javascript">
+        "use strict";
+
+        const localImgPath = "/static/imgs/";
+
+        $("#render").click(function () {
+            doEverything(localImgPath +$("input[name=url]").val());
+        });
+
+        function doEverything(filename) {
+            if (filename === undefined) filename = localImgPath + "whitebolt.svg";
+
+            $("#drawing").empty();
+            $("#code").val('');
+            $("#vars").val('');
+
+            const jqxhr = $.ajax({ url: filename, dataType: "text" })
+                .done(function (content) {
+
+                    SVG("drawing").svg(content);
+
+                    // SVG loaded
+                    let settings = {
+                        minX: parseFloat($("input[name=xoffset]").val()),
+                        minY: parseFloat($("input[name=yoffset]").val()),
+                        minZ: parseFloat($("input[name=zoffset]").val()),
+                        maxX: parseFloat($("input[name=xmax]").val()),
+                        maxY: parseFloat($("input[name=ymax]").val()),
+                        scale: 1
+                    }
+
+                    let [lpcode, lpcodeWithVars, gcode] = svg2gcode(content, settings);
+
+                    $("#vars").val(lpcodeWithVars);
+
+                    $("#code").val(lpcode);
+                })
+                .fail(function () {
+                    $("#error").html("file load error:" + filename);
+                });
+        }
+
+        $.when($.ready).then(function (global) {
+            doEverything();
+        });
+
+    </script>
+    <div id="output">
+        <textarea id="vars" cols="160" rows="10"></textarea>
+        <textarea id="code" cols="160" rows="40"></textarea>
+    </div>
+</body>
+</html>
