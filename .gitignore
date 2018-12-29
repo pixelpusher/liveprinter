@@ -62,3 +62,5 @@ goprosettings_donotcommit.txt
 /liveprinter/static/imgs/diskette.svg
 /liveprinter/static/imgs/9D61BE7C.jpg
 /testing/saved
+.vscode/*
+package-lock.json
