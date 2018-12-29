@@ -98,7 +98,7 @@ td {
     height: calc(100% - 8px);
 }
 
-#buttons > * {
+.buttons > * {
     text-align: left;
 }
 
@@ -116,7 +116,7 @@ td {
     max-height:40em;
 }
 
-#code-errors {
+.code-errors {
     background-color: lawngreen;
     padding: 0.4em;
     color: darkmagenta;
@@ -161,7 +161,7 @@ td {
 }
 
 /* contains all the nav and panes for code editor and printer settings (like serial connect)*/
-#code-editor-area {
+#code-editor-area, #global-code-editor-area {
     color: #FFFF57;
 }
 .cm-contain {
@@ -174,7 +174,7 @@ td {
 }
 
 /* textarea that CodeMirror replaces on load */
-#code-editor {
+#code-editor, #global-code-editor {
     width: 100%;
     /* height: 22em; */
 }

@@ -48,8 +48,6 @@ $.when($.ready).then(
 
         let pythonMode = false;
 
-
-
         /**
          * Handy object for scheduling events at intervals, etc.
          * @class
@@ -102,7 +100,7 @@ $.when($.ready).then(
              * Start the Scheduler running events.
              */
             startScheduler: function () {
-                
+
                 console.log("scheduler starting at time: " + this.startTime);
 
                 function scheduler(nextTime) {
@@ -147,12 +145,12 @@ $.when($.ready).then(
         // Codemirror:
         // https://codemirror.net/doc/manual.html
         //////////////////////////////////////////////////////////////////////////////////////////
-        
+
         /**
-         * CodeMirror code editor instance. See {@link https://codemirror.net/doc/manual.html}
-         * @namespace CodeMirror
+         * CodeMirror code editor instance (local code). See {@link https://codemirror.net/doc/manual.html}
+         * @memberOf LivePrinter
          */
-        var CodeEditor = CodeMirror.fromTextArea(document.getElementById("code-editor"), {
+        const CodeEditor = CodeMirror.fromTextArea(document.getElementById("code-editor"), {
             lineNumbers: true,
             scrollbarStyle: "simple",
             styleActiveLine: true,
@@ -163,11 +161,136 @@ $.when($.ready).then(
                 "Ctrl-Enter": runCode,
                 "Cmd-Enter": runCode,
                 "Ctrl-Space": "autocomplete",
-                "Ctrl-Q": function(cm){ cm.foldCode(cm.getCursor()); }
+                "Ctrl-Q": function (cm) { cm.foldCode(cm.getCursor()); }
             },
             foldGutter: true,
             autoCloseBrackets: true
         });
+
+        /**
+         * Global code CodeMirror editor instance. See {@link https://codemirror.net/doc/manual.html}
+         * @namespace CodeMirror
+         * @memberOf LivePrinter
+         */
+        const GlobalCodeEditor = CodeMirror.fromTextArea(document.getElementById("global-code-editor"), {
+            lineNumbers: true,
+            scrollbarStyle: "simple",
+            styleActiveLine: true,
+            lineWrapping: true,
+            undoDepth: 20,
+            //autocomplete: true,
+            extraKeys: {
+                "Ctrl-Enter": runGlobalCode,
+                "Cmd-Enter": runGlobalCode,
+                "Ctrl-Space": "autocomplete",
+                "Ctrl-Q": function (cm) { cm.foldCode(cm.getCursor()); }
+            },
+            foldGutter: true,
+            autoCloseBrackets: true
+        });
+
+        //hide tab-panel after codeMirror rendering (by removing the extra 'active' class)
+        $('.hideAfterLoad').each(function () {
+            $(this).removeClass('active');
+        });
+
+        //GlobalCodeEditor.hide(); // hidden to start
+
+        // CodeMirror stuff
+
+        const WORD = /[\w$]+/g, RANGE = 500;
+
+        CodeMirror.registerHelper("hint", "anyword", function (editor, options) {
+            const word = options && options.word || WORD;
+            const range = options && options.range || RANGE;
+            const cur = editor.getCursor(), curLine = editor.getLine(cur.line);
+            let start = cur.ch, end = start;
+            while (end < curLine.length && word.test(curLine.charAt(end)))++end;
+            while (start && word.test(curLine.charAt(start - 1)))--start;
+            let curWord = start !== end && curLine.slice(start, end);
+
+            let list = [], seen = {};
+            function scan(dir) {
+                let line = cur.line, end = Math.min(Math.max(line + dir * range, editor.firstLine()), editor.lastLine()) + dir;
+                for (; line !== end; line += dir) {
+                    let text = editor.getLine(line), m;
+                    word.lastIndex = 0;
+                    while (m = word.exec(text)) {
+                        if ((!curWord || m[0].indexOf(curWord) === 0) && !seen.hasOwnProperty(m[0])) {
+                            seen[m[0]] = true;
+                            list.push(m[0]);
+                        }
+                    }
+                }
+            }
+            scan(-1);
+            scan(1);
+            return { list: list, from: CodeMirror.Pos(cur.line, start), to: CodeMirror.Pos(cur.line, end) };
+        });
+
+        /**
+         * Clear HTML of all displayed code errors
+         */
+        function clearError() {
+            $(".code-errors").html("<p>[no errors]</p>");
+        }
+
+        /**
+         * Show an error in the HTML GUI  
+         * @param {Error} e Standard JavaScript error object to show
+         * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SyntaxError
+         * @memberOf LivePrinter
+         */
+        function doError(e) {
+            // report to user
+            $(".code-errors").html("<p>" + e.name + ": " + e.message + "(line:" + e.lineNumber + ")</p>");
+            console.log(e);
+            /*
+            console.log("SyntaxError? " + (e instanceof SyntaxError)); // true
+            console.log(e); // true
+            console.log("SyntaxError? " + (e instanceof SyntaxError)); // true
+            console.log("ReferenceError? " + (e instanceof ReferenceError)); // true
+            console.log(e.message);                // "missing ; before statement"
+            console.log(e.name);                   // "SyntaxError"
+            console.log(e.fileName);               // "Scratchpad/1"
+            console.log(e.lineNumber);             // 1
+            console.log(e.columnNumber);           // 4
+            console.log(e.stack);                  // "@Scratchpad/1:2:3\n"
+            */
+
+            // this sucked because of coding... jst highlight instead!
+            /*
+            if (e.lineNumber) {
+                // remember that syntax errors start at line 1 which is line 0 in CodeMirror!
+                CodeEditor.setSelection({ line: (e.lineNumber-1), ch: e.columnNumber }, { line: (e.lineNumber-1), ch: (e.columnNumber + 1) });
+            }
+            */
+        }
+        window.doError = doError;
+
+        /**
+         * blink an element using css animation class
+         * @param {JQuery} $elem element to blink
+         * @param {String} speed "fast" or "slow" 
+         * @param {Function} callback function to run at end
+         * @memberOf LivePrinter
+         */
+
+        function blinkElem($elem, speed, callback) {
+            $elem.removeClass("blinkit fast slow"); // remove to make sure it's not there
+            $elem.on("animationend", function () {
+                if (callback !== undefined && typeof callback === "function") callback();
+                $(this).removeClass("blinkit fast slow");
+            });
+            if (speed === "fast") {
+                $elem.addClass("blinkit fast");
+            }
+            else if (speed === "slow") {
+                $elem.addClass("blinkit slow");
+            } else {
+                $elem.addClass("blinkit");
+            }
+        }
 
 
         /**
@@ -179,10 +302,23 @@ $.when($.ready).then(
                 CodeEditor.setOption("gutters", ["CodeMirror-linenumbers", "CodeMirror-foldgutter"]);
                 CodeEditor.setOption("mode", "text/x-python");
                 CodeEditor.setOption("lint", true);
+
+                GlobalCodeEditor.setOption("gutters", ["CodeMirror-linenumbers", "CodeMirror-foldgutter"]);
+                GlobalCodeEditor.setOption("mode", "text/x-python");
+                GlobalCodeEditor.setOption("lint", true);
+
             } else {
                 CodeEditor.setOption("gutters", ["CodeMirror-lint-markers", "CodeMirror-linenumbers", "CodeMirror-foldgutter"]);
                 CodeEditor.setOption("mode", "javascript");
                 CodeEditor.setOption("lint", {
+                    globalstrict: true,
+                    strict: false,
+                    esversion: 6
+                });
+
+                GlobalCodeEditor.setOption("gutters", ["CodeMirror-lint-markers", "CodeMirror-linenumbers", "CodeMirror-foldgutter"]);
+                GlobalCodeEditor.setOption("mode", "javascript");
+                GlobalCodeEditor.setOption("lint", {
                     globalstrict: true,
                     strict: false,
                     esversion: 6
@@ -193,27 +329,28 @@ $.when($.ready).then(
         /**
          * build examples loader links for dynamically loading example files
          * @memberOf LivePrinter
-         * */
-        let exList = $("#examples-list > .dropdown-item").not("[id*='session']" );
+         */
+        let exList = $("#examples-list > .dropdown-item").not("[id*='session']");
         exList.on("click", function () {
             let me = $(this);
             let filename = me.data("link");
             clearError(); // clear loading errors
-            var jqxhr = $.ajax( {url: filename, dataType:"text" })
-                .done(function(content) {
+            var jqxhr = $.ajax({ url: filename, dataType: "text" })
+                .done(function (content) {
                     let newDoc = CodeMirror.Doc(content, "javascript");
                     blinkElem($(".CodeMirror"), "slow", () => CodeEditor.swapDoc(newDoc));
                 })
-                .fail(function() {
-                    doError({name:"error", message:"file load error:"+filename});
+                .fail(function () {
+                    doError({ name: "error", message: "file load error:" + filename });
                 });
-            });
+        });
 
         /**
-         * Strip GCode comments from text.
+         * Strip GCode comments from text. Comments can be embedded in a line using parentheses () or for the remainder of a lineusing a semi-colon.
+         * The semi-colon is not treated as the start of a comment when enclosed in parentheses.
          * Borrowed from {@link https://github.com/cncjs/gcode-parser/blob/master/src/index.js} (MIT License)
          * See {@link http://linuxcnc.org/docs/html/gcode/overview.html#gcode:comments}
-         * Comments can be embedded in a line using parentheses () or for the remainder of a lineusing a semi-colon. The semi-colon is not treated as the start of a comment when enclosed in parentheses.
+         * @memberOf LivePrinter
          */
         const stripComments = (() => {
             const re1 = new RegExp(/\s*\([^\)]*\)/g); // Remove anything inside the parentheses
@@ -226,6 +363,7 @@ $.when($.ready).then(
          * Convert code to JSON RPC for sending to the server.
          * @param {string} gcode to convert
          * @returns {string} json message
+         * @memberOf LivePrinter
          * 
          */
         function codeToJSON(gcode) {
@@ -253,6 +391,7 @@ $.when($.ready).then(
         /**
          * Send GCode to the server via websockets.
          * @param {string} gcode gcode to send
+         * @memberOf LivePrinter
          */
         function sendGCode(gcode) {
             let message = codeToJSON(gcode);
@@ -263,6 +402,7 @@ $.when($.ready).then(
          * queue to be run after OK -- for movements, etc.
          * only if necessary... send if nothing is already in the queue
          * @param {string} gcode to send
+         * @memberOf LivePrinter
          */
         function queueGCode(gcode) {
             let message = codeToJSON(gcode);
@@ -273,11 +413,12 @@ $.when($.ready).then(
         }
 
         /**
-         * This function takes the highlighted code from the editor and runs the compiling and error-checking functions.
-         */ 
+         * This function takes the highlighted "local" code from the editor and runs the compiling and error-checking functions.
+         * @memberOf LivePrinter
+         */
         function runCode() {
             let code = CodeEditor.getSelection();
-            let cursor = CodeEditor.getCursor();
+            const cursor = CodeEditor.getCursor();
 
             // parse first??
             let validCode = true;
@@ -301,17 +442,50 @@ $.when($.ready).then(
         }
 
 
-        let updateTemperature = function (state) {
+        /**
+         * This function takes the highlighted "global" code from the editor and runs the compiling and error-checking functions.
+         */
+        function runGlobalCode() {
+            let code = GlobalCodeEditor.getSelection();
+            const cursor = GlobalCodeEditor.getCursor();
+
+            // parse first??
+            let validCode = true;
+
+            if (!code) {
+                // info level
+                //console.log("no selections");
+                code = GlobalCodeEditor.getLine(cursor.line);
+                GlobalCodeEditor.setSelection({ line: cursor.line, ch: 0 }, { line: cursor.line, ch: code.length });
+            }
+            // blink the form
+            blinkElem($("form"));
+
+            // run code
+            //if (validCode) {
+            try {
+                globalEval(code, cursor.line + 1, true);
+            } catch (e) {
+                doError(e);
+            }
+        }
+
+        /**
+         * Function to start or stop polling for temperature updates
+         * @param {Boolean} state true if starting, false if stopping
+         * @param {Integer} interval time interval between updates
+         * @memberOf LivePrinter
+         */
+        let updateTemperature = function (state, interval = 5000) {
 
             if (state) {
                 // schedule temperature updates every little while
                 window.scope.Scheduler.scheduleEvent({
                     name: "tempUpdates",
-                    timeOffset: 5000,
-                    func: function (time) {
+                    timeOffset: interval,
+                    func: (time) => {
                         if (socketHandler.socket.readyState === socketHandler.socket.OPEN) {
                             sendGCode("M105");
-                            //console.log("TEMP: " + new Date());
                         }
                     },
                     repeat: true
@@ -325,7 +499,7 @@ $.when($.ready).then(
         /**
         * Handle websockets communications
         * and event listeners
-        * 
+        * @memberOf LivePrinter
         */
         var socketHandler = {
             socket: null, //websocket
@@ -338,7 +512,7 @@ $.when($.ready).then(
                 var url = "ws://" + location.host + "/json";
                 this.socket = new WebSocket(url);
                 console.log('opening socket');
-                    
+
                 this.socket.onmessage = function (event) {
                     //console.log(event.data);
                     let jsonRPC = JSON.parse(event.data);
@@ -355,22 +529,22 @@ $.when($.ready).then(
                     //     'y': 30,
                     //     'z': 10,
                     // });
-    
+
                     //sendGCode("G92");
                     //sendGCode("G28");
-    
+
                     var node = $("<li>PRINTER CONNECTED</li>");
                     node.hide();
                     $("#info").prepend(node);
                     node.slideDown();
-    
+
                     let message = {
                         'jsonrpc': '2.0',
                         'id': 6,
                         'method': 'get-serial-ports',
                         'params': []
                     };
-                    let message_json = JSON.stringify(message);                    
+                    let message_json = JSON.stringify(message);
                     this.send(message_json);
                 };
             },
@@ -387,7 +561,7 @@ $.when($.ready).then(
             handleError: function (errorJSON) {
                 // TODO:
                 console.log("JSON RPC ERROR: " + errorJSON);
-                errorHandler.error({message: errorJSON});
+                errorHandler.error({ message: errorJSON });
             },
 
             handleJSONRPC: function (jsonRPC) {
@@ -422,93 +596,6 @@ $.when($.ready).then(
 
 
 
-        // CodeMirror stuff
-
-        const WORD = /[\w$]+/g, RANGE = 500;
-
-        CodeMirror.registerHelper("hint", "anyword", function (editor, options) {
-            const word = options && options.word || WORD;
-            const range = options && options.range || RANGE;
-            const cur = editor.getCursor(), curLine = editor.getLine(cur.line);
-            let start = cur.ch, end = start;
-            while (end < curLine.length && word.test(curLine.charAt(end)))++end;
-            while (start && word.test(curLine.charAt(start - 1)))--start;
-            let curWord = start !== end && curLine.slice(start, end);
-
-            let list = [], seen = {};
-            function scan(dir) {
-                let line = cur.line, end = Math.min(Math.max(line + dir * range, editor.firstLine()), editor.lastLine()) + dir;
-                for (; line !== end; line += dir) {
-                    let text = editor.getLine(line), m;
-                    word.lastIndex = 0;
-                    while (m = word.exec(text)) {
-                        if ((!curWord || m[0].indexOf(curWord) === 0) && !seen.hasOwnProperty(m[0])) {
-                            seen[m[0]] = true;
-                            list.push(m[0]);
-                        }
-                    }
-                }
-            }
-            scan(-1);
-            scan(1);
-            return { list: list, from: CodeMirror.Pos(cur.line, start), to: CodeMirror.Pos(cur.line, end) };
-        });
-
-        
-        function clearError() {
-            document.getElementById("code-errors").innerHTML = "<p>...</p>";
-        }
-
-        //
-        // needs to be global so scripts can call this when run
-        //
-        window.doError = function (e) {
-            // report to user
-            // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SyntaxError
-            document.getElementById("code-errors").innerHTML = "<p>" + e.name + ": " + e.message + "(line:" + e.lineNumber + ")</p>";
-            console.log(e);
-            /*
-            console.log("SyntaxError? " + (e instanceof SyntaxError)); // true
-            console.log(e); // true
-            console.log("SyntaxError? " + (e instanceof SyntaxError)); // true
-            console.log("ReferenceError? " + (e instanceof ReferenceError)); // true
-            console.log(e.message);                // "missing ; before statement"
-            console.log(e.name);                   // "SyntaxError"
-            console.log(e.fileName);               // "Scratchpad/1"
-            console.log(e.lineNumber);             // 1
-            console.log(e.columnNumber);           // 4
-            console.log(e.stack);                  // "@Scratchpad/1:2:3\n"
-            */
-
-            // this sucked because of coding... jst highlight instead!
-            /*
-            if (e.lineNumber) {
-                // remember that syntax errors start at line 1 which is line 0 in CodeMirror!
-                CodeEditor.setSelection({ line: (e.lineNumber-1), ch: e.columnNumber }, { line: (e.lineNumber-1), ch: (e.columnNumber + 1) });
-            }
-            */
-        };
-
-
-        //
-        // blink an element using css animation class
-        //
-        function blinkElem($elem, speed, callback) {
-            $elem.removeClass("blinkit fast slow"); // remove to make sure it's not there
-            $elem.on("animationend", function () {
-                if (callback !== undefined && typeof callback === "function") callback();
-                $(this).removeClass("blinkit fast slow");
-            });
-            if (speed === "fast")
-            {
-                $elem.addClass("blinkit fast");
-            }
-            else if (speed === "slow") {
-                $elem.addClass("blinkit slow");
-            } else {
-                $elem.addClass("blinkit");
-            }
-        }
 
         /*
         * START SETTING UP SESSION VARIABLES ETC>
@@ -557,7 +644,10 @@ $.when($.ready).then(
             repeat: true
         });
 
-        // temperature event handler
+        /**
+         * json-rpc temperature event handler
+         * @memberOf LivePrinter
+         */
         const tempHandler = {
             'temperature': function (tempEvent) {
                 //console.log("temp event:");
@@ -586,7 +676,10 @@ $.when($.ready).then(
         socketHandler.registerListener(tempHandler);
 
 
-        // error event handler
+        /**
+         * json-rpc error event handler
+         * @memberOf LivePrinter
+         */
         const errorHandler = {
             'error': function (event) {
                 appendLoggingNode($("#errors > ul"), event.time, event.message);
@@ -596,7 +689,11 @@ $.when($.ready).then(
         };
         socketHandler.registerListener(errorHandler);
 
-        // info event handler
+
+        /**
+         * json-rpc error event handler
+         * @memberOf LivePrinter
+         */
         const infoHandler = {
             'info': function (event) {
                 appendLoggingNode($("#info > ul"), event.time, event.message);
@@ -613,25 +710,9 @@ $.when($.ready).then(
         socketHandler.registerListener(infoHandler);
 
         /**
-         * Append a dismissible, styled text node to one of the side menus, formatted appropriately.
-         * @param {jQuery} elem JQuery element to append this to
-         * @param {Number} time Time of the event
-         * @param {String} message message text for new element
-         * @namespace LivePrinter
+         * json-rpc gcode event handler
+         * @memberOf LivePrinter
          */
-        function appendLoggingNode(elem, time, message) {
-            const dateStr = (new Date(time)).toLocaleString('en-US', { year: '2-digit', month: '2-digit', day: '2-digit', hours: '2-digit', minutes: '2-digit', seconds: '2-digit' });
-            elem.prepend("<li class='alert alert-primary alert-dismissible fade show' role='alert'>"
-                + dateStr
-                + '<strong>'
-                + ": " + message
-                + '</strong>'
-                + '<button type="button" class="close" data-dismiss="alert" aria-label="Close">'
-                + '<span aria-hidden="true">&times;</span></button>'
-                + "</li>");
-        }
-
-        // command event handler
         const commandHandler = {
             'gcode': function (event) {
                 //(new Date(parseInt(event.time))).toLocaleDateString('en-US')
@@ -643,7 +724,10 @@ $.when($.ready).then(
 
         socketHandler.registerListener(commandHandler);
 
-        // ok event handler
+        /**
+         * json-rpc ok event handler
+         * @memberOf LivePrinter
+         */
         const okHandler = {
             'ok': function (event) {
                 //console.log("ok event:");
@@ -659,7 +743,10 @@ $.when($.ready).then(
         socketHandler.registerListener(okHandler);
 
 
-        // portsListHandler event handler
+        /**
+         * json-rpc serial ports list event handler
+         * @memberOf LivePrinter
+         */
         const portsListHandler = {
             'serial-ports-list': function (event) {
                 window.scope.serialPorts = []; // reset serial ports list
@@ -700,13 +787,62 @@ $.when($.ready).then(
                     });
                     portsDropdown.append(newButton);
                 });
-                    
+
                 blinkElem($("#serial-ports-list"));
                 blinkElem($("#info-tab"));
             }
         };
 
         socketHandler.registerListener(portsListHandler);
+
+        /**
+         * Append a dismissible, styled text node to one of the side menus, formatted appropriately.
+         * @param {jQuery} elem JQuery element to append this to
+         * @param {Number} time Time of the event
+         * @param {String} message message text for new element
+         * @memberOf LivePrinter
+         */
+        function appendLoggingNode(elem, time, message) {
+            const dateStr = (new Date(time)).toLocaleString('en-US', { year: '2-digit', month: '2-digit', day: '2-digit', hours: '2-digit', minutes: '2-digit', seconds: '2-digit' });
+            elem.prepend("<li class='alert alert-primary alert-dismissible fade show' role='alert'>"
+                + dateStr
+                + '<strong>'
+                + ": " + message
+                + '</strong>'
+                + '<button type="button" class="close" data-dismiss="alert" aria-label="Close">'
+                + '<span aria-hidden="true">&times;</span></button>'
+                + "</li>");
+        }
+
+        ////////////////////////////////////////////////////////
+        ///////////////// GUI SETUP ////////////////////////////
+        /////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+        
+        $('a[data-toggle="pill"]').on('shown.bs.tab', function (e) {
+            const target = $(e.target).attr("href") // activated tab
+            if (target === "#global-code-editor-area") {
+                GlobalCodeEditor.refresh();
+                setLanguageMode(); // have to update gutter, etc.
+                clearError();
+            }
+            else if (target === "#code-editor-area") {
+                CodeEditor.refresh();
+                setLanguageMode(); // have to update gutter, etc.
+                clearError();
+            }  
+            //console.log(target);
+        });
+
+        //
+        // redirect error to browser GUI
+        //
+        $(window).on("error", function (evt) {
+            console.log("jQuery error event:", evt);
+            var e = evt.originalEvent; // get the javascript event
+            console.log("original event:", e);
+            doError(e);
+        });
 
         $("#sendCode").on("click", runCode);
 
@@ -727,7 +863,7 @@ $.when($.ready).then(
         $("#python-mode-btn").on("click", function () {
             let me = $(this);
             pythonMode = !me.hasClass('active'); // because it becomes active *after* a push
-            
+
             if (pythonMode) {
                 me.text("python mode");
             }
@@ -738,6 +874,8 @@ $.when($.ready).then(
             me.button('toggle');
         });
 
+        // make sure language mode is set
+        setLanguageMode();
 
         scope.clearPrinterCommandQueue = function () {
             let message = {
@@ -754,12 +892,13 @@ $.when($.ready).then(
          */
         $("#clear-btn").on("click", scope.clearPrinterCommandQueue);
 
-        
+
         // TODO: temp probe that gets scheduled every 300ms and then removes self when
         // tempHandler called
 
 
-
+        ////////////////////////////////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////////////////////////////////
         // update printing API to share with running script
         scope.socket = socketHandler;
         scope.sendGCode = sendGCode;
@@ -771,7 +910,7 @@ $.when($.ready).then(
         scope.pmy = 0;
         scope.md = false; // mouse down
         scope.pmd = false; // previous mouse down
-        
+
         // add click handler - wrapper for jquery
         scope.click = function (func, elem = "undefined") {
             if (elem !== "undefined" || elem) {
@@ -792,6 +931,7 @@ $.when($.ready).then(
          *     console.log(e);
 	     *     console.log((e.x-e.px) + "," + (e.y-e.py));
          *   }, 20);
+         * @memberOf LivePrinter
          */
         scope.mousemove = function (func, minDelta = 20) {
             // global mouse functions
@@ -833,14 +973,18 @@ $.when($.ready).then(
             });
         };
 
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        ///////////////////// Browser storage /////////////////////////////////////////////////////////
+        ///////////////////////////////////////////////////////////////////////////////////////////////
 
         /**
-            * Local Storage for saving/loading documents.
-            * Default behaviour is loading the last edited session.
-            * 
-            */
-
-        // from https://developer.mozilla.org/en-US/docs/Web/API/Web_Storage_API/Using_the_Web_Storage_API
+        * Local Storage for saving/loading documents.
+        * Default behaviour is loading the last edited session.
+        * @param {String} type type (global key in window object) for storage object 
+        * @returns {Boolean} true or false, if storage is available
+        * @see https://developer.mozilla.org/en-US/docs/Web/API/Web_Storage_API/Using_the_Web_Storage_API
+        * @memberOf LivePrinter
+        */
         function storageAvailable(type) {
             try {
                 var storage = window[type],
@@ -849,7 +993,7 @@ $.when($.ready).then(
                 storage.removeItem(x);
                 return true;
             }
-            catch(e) {
+            catch (e) {
                 return e instanceof DOMException && (
                     // everything except Firefox
                     e.code === 22 ||
@@ -865,40 +1009,66 @@ $.when($.ready).then(
             }
         }
 
-        let editedKey = "edited";
-        let savedKey = "saved";
+        const editedLocalKey = "editedLoc";
+        const savedLocalKey = "savedLoc";
 
-        let changeFunc = cm => {
+        const editedGlobalKey = "editedGlob";
+        const savedGlobalKey = "savedGlob";
+
+        const localChangeFunc = cm => {
             let txt = cm.getDoc().getValue();
-            localStorage.setItem(editedKey, txt);
+            localStorage.setItem(editedLocalKey, txt);
         };
 
-        CodeEditor.on("change", changeFunc);
+        const globalChangeFunc = cm => {
+            let txt = cm.getDoc().getValue();
+            localStorage.setItem(editedGlobalKey, txt);
+        };
 
-        let reloadSession = () => {
+        CodeEditor.on("change", localChangeFunc);
+
+        GlobalCodeEditor.on("change", globalChangeFunc);
+
+        let reloadLocalSession = () => {
             CodeEditor.off("change");
-            let newFile = localStorage.getItem(editedKey);
-            if (newFile !== undefined && newFile)
-            {
-                blinkElem($(".CodeMirror"), "slow", () => {    
+            let newFile = localStorage.getItem(editedLocalKey);
+            if (newFile !== undefined && newFile) {
+                blinkElem($(".CodeMirror"), "slow", () => {
                     CodeEditor.swapDoc(
                         CodeMirror.Doc(
                             newFile, "javascript"
                         )
                     );
-                    CodeEditor.on("change", changeFunc);
+                    CodeEditor.on("change", localChangeFunc);
                 });
             }
+            setLanguageMode();
         };
 
-        $("#reload-edited-session").on("click", reloadSession);
+        let reloadGlobalSession = () => {
+            GlobalCodeEditor.off("change");
+            let newFile = localStorage.getItem(editedGlobalKey);
+            if (newFile !== undefined && newFile) {
+                blinkElem($(".CodeMirror"), "slow", () => {
+                    GlobalCodeEditor.swapDoc(
+                        CodeMirror.Doc(
+                            newFile, "javascript"
+                        )
+                    );
+                    GlobalCodeEditor.on("change", globalChangeFunc);
+                });
+            }
+            setLanguageMode();
+        };
+
+        $("#reload-edited-session").on("click", reloadLocalSession);
 
         $("#save-session").on("click", () => {
             CodeEditor.off("change");
             let txt = CodeEditor.getDoc().getValue();
             localStorage.setItem(savedKey, txt);
             blinkElem($(".CodeMirror"), "fast", () => {
-                CodeEditor.on("change", changeFunc);
+                CodeEditor.on("change", localChangeFunc);
             });
             // mark as reload-able
             $("#reload-saved-session").removeClass("graylink");
@@ -910,38 +1080,38 @@ $.when($.ready).then(
         $("#reload-saved-session").on("click", () => {
             CodeEditor.off("change");
             let newFile = localStorage.getItem(savedKey);
-            if (newFile !== undefined && newFile)
-            {
-                blinkElem($(".CodeMirror"), "slow", () => {    
+            if (newFile !== undefined && newFile) {
+                blinkElem($(".CodeMirror"), "slow", () => {
                     CodeEditor.swapDoc(
                         CodeMirror.Doc(
                             newFile, "javascript"
                         )
                     );
-                    CodeEditor.on("change", changeFunc);
+                    CodeEditor.on("change", localChangeFunc);
                 });
             }
         });
 
         if (storageAvailable('localStorage')) {
             // finally, load the last stored session:
-            reloadSession();
+            reloadGlobalSession();
+            reloadLocalSession();
         }
         else {
-            errorHandler({name:"save error", message:"no local storage available for saving files!"});
+            errorHandler({ name: "save error", message: "no local storage available for saving files!" });
         }
         // disable form reloading on code compile
         $('form').submit(false);
 
-        setLanguageMode(); // set up python or javascript
-
 
         /**
-         * Evaluate the code according to the current editor mode (javascript/python).
-         * @param {string} code to evaluate
-         * @param {integer} line line number for error displaying
-         */
-        function globalEval(code, line) {
+          * Evaluate the code in local (within closure) or global space according to the current editor mode (javascript/python).
+          * @param {string} code to evaluate
+          * @param {integer} line line number for error displaying
+          * @param {Boolean} globally true if executing in global space, false (normal) if executing within closure to minimise side-effects
+          * @memberOf LivePrinter
+          */
+        function globalEval(code, line, globally = false) {
             clearError();
             code = jQuery.trim(code);
             console.log(code);
@@ -968,28 +1138,31 @@ $.when($.ready).then(
                     // eval(code);
                 }
                 else {
-                    // give quick access to liveprinter API
-                    code = "let cancel = s.clearPrinterCommandQueue;" + code; //alias
-                    code = "let lp = window.scope.printer;" + code;
-                    code = "let sched = window.scope.Scheduler;" + code;
-                    code = "let socket = window.scope.socket;" + code;
-                    code = "let gcode = window.scope.sendGCode;" + code;
-                    code = "let s = window.scope;" + code;
-                    code = "let None = function() {};" + code;
+                    if (!globally) {
+                        // give quick access to liveprinter API
+                        code = "let cancel = s.clearPrinterCommandQueue;" + code; //alias
+                        code = "let lp = window.scope.printer;" + code;
+                        code = "let sched = window.scope.Scheduler;" + code;
+                        code = "let socket = window.scope.socket;" + code;
+                        code = "let gcode = window.scope.sendGCode;" + code;
+                        code = "let s = window.scope;" + code;
+                        code = "let None = function() {};" + code;
 
 
-                    // wrap code in anonymous function to avoid redeclaring scope variables and
-                    // scope bleed.  For global functions that persist, use lp scope or s
+                        // wrap code in anonymous function to avoid redeclaring scope variables and
+                        // scope bleed.  For global functions that persist, use lp scope or s
 
-                    // error handling
-                    code = 'try {' + code;
-                    code = code + '} catch (e) { e.lineNumber=line;doError(e); }';
+                        // error handling
+                        code = 'try {' + code;
+                        code = code + '} catch (e) { e.lineNumber=line;window.doError(e); }';
 
-                    code = "let line =" + line + ";" + code;
+                        code = "let line =" + line + ";" + code;
 
-                    // function wrapping
-                    code = '(function(){"use strict";' + code;
-                    code = code + "})();";
+
+                        // function wrapping
+                        code = '(function(){"use strict";' + code;
+                        code = code + "})();";
+                    }
 
                     console.log("adding code:" + code);
                     let script = document.createElement("script");
@@ -1017,7 +1190,5 @@ $.when($.ready).then(
             }
         } // end globalEval
 
-
         //brython(10);
-
     });

@@ -52,32 +52,26 @@ class Printer {
         this._model = Printer.UM2plus; // default
         this.layerHeight = 0.2; // thickness of a 3d printed extrudion, mm by default
 
-        let coords = {
+        this.minPosition = new Vector({
             x: 0, // x position in mm
             y: 0,// y position in mm
             z: 0, // z position in mm
             e: -99999
-        }; //filament position in mm
+        });
 
-        this.minPosition = new Vector(coords);
-
-        coords = {
+        this.maxPosition = new Vector({
             x: Printer.bedSize[this.model]["x"], // x position in mm
             y: Printer.bedSize[this.model]["y"], // y position in mm
             z: Printer.bedSize[this.model]["z"], // z position in mm
             e: 999999
-        }; //filament position in mm
+        });
 
-        this.maxPosition = new Vector(coords);
-
-        coords = {
+        this.position = new Vector({
             x: this.minPosition.axes.x, // x position in mm
             y: this.minPosition.axes.y, // y position in mm
             z: this.minPosition.axes.z, // z position in mm
             e: 0
-        }; //filament position in mm
-
-        this.position = new Vector(coords);
+        });
 
         this.lastSpeed = -1.0;
 
@@ -439,7 +433,11 @@ class Printer {
         this._heading = a;
         return this;
     }
-
+    /**
+     * Run a set of commands specified in a grammar (experimental.)
+     * @param {String} strings commands to run - M(move),E(extrude),L(left turn),R(right turn)
+     * @returns {Printer} Reference to this object for chaining
+     */
     run(strings) {
         const mvChar = "M";
         const exChar = "E";
@@ -485,9 +483,18 @@ class Printer {
         return this;
     }
 
+    /**
+     * Move up quickly! (in mm)
+     * @param {Number} d distance in mm to move up
+     * @returns {Printer} Reference to this object for chaining
+     */
+    up(d) {
+        return this.move({ 'z': d, 'speed': this.travelSpeed });
+    }
 
     /**
      * Set the direction of movement for the next operation.
+     * TODO: This doesn't work with other commands.  Need to implement roll, pitch, yaw? 
      * @param {float} angle elevation angle (in z direction, in degrees) for next movement
      * @param {Boolean} radians use radians or not 
      * @returns {Printer} reference to this object for chaining
@@ -500,7 +507,12 @@ class Printer {
         return this;
     }
 
-    // shortcut
+    /**
+     * Shortcut for elevation.
+     * @see elevation
+     * @param {any} _elev
+     * @returns {Printer} reference to this object for chaining
+     */
     elev(_elev) {
         return this.elevation(_elev);
     }
