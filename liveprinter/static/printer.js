@@ -510,7 +510,7 @@ class Printer {
     /**
      * Shortcut for elevation.
      * @see elevation
-     * @param {any} _elev
+     * @param {any} _elev elevation
      * @returns {Printer} reference to this object for chaining
      */
     elev(_elev) {
@@ -842,14 +842,14 @@ class Printer {
         this.unretract();
 
         for (let i = 0; i < h / gap; i++) {
-            let m = (i % 2 == 0) ? -1 : 1;
+            let m = (i % 2 === 0) ? -1 : 1;
             this.turn(-90 * m);
             this.dist(w).go(1, false);
             this.turn(90 * m); //turn back
             this.dist(gap).go(1, false);
         }
         if (retract !== undefined && retract) lp.retract();
-    };
+    }
 
 
     /**
