@@ -48,7 +48,7 @@ class Printer {
 
         // TODO: not sure about this being valid - maybe check for max speed?
         this._printSpeed = Printer.defaultPrintSpeed;
-        this.travelSpeed = Printer.maxTravelSpeed;
+        this.travelSpeed = Printer.maxTravelSpeed[this._model];
         this._model = Printer.UM2plus; // default
         this.layerHeight = 0.2; // thickness of a 3d printed extrudion, mm by default
 

@@ -292,11 +292,26 @@ $.when($.ready).then(
             }
         }
 
+        /**
+         * Get the list of serial ports from the server (or refresh it) and display in the GUI (the listener will take care of that)
+         * @memberOf LivePrinter
+         */
+        function getSerialPorts() {
+            const message = {
+                'jsonrpc': '2.0',
+                'id': 6,
+                'method': 'get-serial-ports',
+                'params': []
+            };
+            socketHandler.sendMessage(message);
+        }
+        // expose as global
+        window.scope.getSerialPorts = getSerialPorts;
 
         /**
          * Toggle the language mode for livecoding scripts between Javascript and Python.
          * @memberOf LivePrinter
-         * */
+         */
         function setLanguageMode() {
             if (pythonMode) {
                 CodeEditor.setOption("gutters", ["CodeMirror-linenumbers", "CodeMirror-foldgutter"]);
@@ -549,6 +564,19 @@ $.when($.ready).then(
                 };
             },
 
+            /**
+             * Sends a message as a JSON string. Will stringify any object sent. 
+             * @param {any} message message to send (should be some sort of JSON format)
+             */
+            sendMessage(message) {
+                let message_json = JSON.stringify(message);
+                this.socket.send(message_json);
+            },
+
+            /**
+             * Show a message in the GUI 
+             * @param {Object} message message to show (should have id and html properties)
+             */ 
             showMessage: function (message) {
                 var existing = $("#m" + message.id);
                 if (existing.length > 0) return;
@@ -593,8 +621,6 @@ $.when($.ready).then(
         //};
 
         //socketHandler.registerListener(testListener);
-
-
 
 
         /*
@@ -859,6 +885,10 @@ $.when($.ready).then(
             me.button('toggle');
         });
 
+        $("#refresh-serial-ports-btn").on("click", function () {
+            let me = $(this);
+            getSerialPorts();
+        });
 
         $("#python-mode-btn").on("click", function () {
             let me = $(this);

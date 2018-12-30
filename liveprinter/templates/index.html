@@ -50,27 +50,33 @@
                                 <a id="save-session" class="dropdown-item purplink"><strong>save current</strong></a>
                             </div>
                         </li>
-                        <li class="nav-item">&nbsp;<button id="python-mode-btn" class="btn-sm btn-secondary" data-toggle="button">javascript mode</button></li>
+                        <li class="nav-item">&nbsp;<button id="python-mode-btn" class="btn btn-sm btn-secondary" data-toggle="button">javascript mode</button></li>
                     </ul>
                     <div id="tab-messages-pane" class="tab-content">
                         <div id="printer" class="tab-pane fade show" role="tabpanel" aria-labelledby="pills-info-tab">
-                            <p>printer settings to go here</p>
-                            <p><button id="temp-display-btn" class="btn-sm btn-primary" data-toggle="button">Poll Temperature</button></p>
-                            <p>
-                                <div class="row">
-                                    <div class="col-md-6">
-                                        <div class="dropdown">
-                                            <button class="btn btn-med btn-secondary dropdown-toggle" type="button" id="serial-port-dropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                                Connect to printer port:
-                                            </button>
-                                            <div id="serial-ports-list" class="dropdown-menu" aria-labelledby="serial-port-dropdown"></div>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <button id="clear-btn" class="btn-sm btn-primary">clear queue</button>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <button id="clear-btn" class="btn btn-lg btn-warning">clear queue</button>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <button id="temp-display-btn" class="btn-sm btn-primary" data-toggle="button">Poll Temperature</button>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <button id="refresh-serial-ports-btn" class="btn btn-sm btn-primary" type="button">Refresh Serial Ports</button>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="dropdown">
+                                        <button class="btn btn-med btn-secondary dropdown-toggle" type="button" id="serial-port-dropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                            Choose a printer port:
+                                        </button>
+                                        <div id="serial-ports-list" class="dropdown-menu" aria-labelledby="serial-port-dropdown"></div>
                                     </div>
                                 </div>
-                            </p>
+                            </div>
                         </div>
 
                         <!-- session code editor -->

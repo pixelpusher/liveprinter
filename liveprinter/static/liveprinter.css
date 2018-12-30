@@ -45,9 +45,11 @@
     animation-duration: 0.3s;
     animation-name: blinkonce;
 }
+
 .fast {
     animation-duration: 0.2s;
 }
+
 .slow {
     animation-duration: 0.5s;
 }
@@ -57,25 +59,25 @@
 }
 
 body {
-  background: white;
-  margin: 0.71em;
+    background: white;
+    margin: 0.71em;
 }
 
 body,
 input {
-  font-family: sans-serif;
-  font-size: 10pt;
-  color: black;
+    font-family: sans-serif;
+    font-size: 10pt;
+    color: black;
 }
 
 table {
-  border-collapse: collapse;
-  border: 0;
+    border-collapse: collapse;
+    border: 0;
 }
 
 td {
-  border: 0;
-  padding: 0;
+    border: 0;
+    padding: 0;
 }
 
 #printer-editor-col, #inbox {
@@ -85,6 +87,7 @@ td {
 #printer {
     background-color: white;
     height: 100%;
+    padding: 0.875em;
 }
 
 #nav {
@@ -108,12 +111,16 @@ td {
     /* 30px for heigh of below + 8px border + 8px padding*/
 }
 
+#printer > .row {
+    margin-bottom: 0.875em;
+}
+
 #info, #errors, #commands {
     overflow-y: scroll;
     overflow-x: hidden;
     padding: 0.4em;
     /*height: calc(100% - 0.4em);*/
-    max-height:40em;
+    max-height: 40em;
 }
 
 .code-errors {
@@ -135,7 +142,7 @@ td {
 
 #errors, #errors-tab.active {
     background-color: lightcoral;
-    border-bottom-color:transparent;
+    border-bottom-color: transparent;
 }
 
 #errors {
@@ -152,26 +159,30 @@ td {
     background-color: lightgrey;
     border-bottom-color: transparent;
 }
-#commands > ul, #info > ul {
-    list-style: none;
-    padding-inline-start: 0;
-}
-#commands > ul > li, #info > ul > li {
-    margin-bottom: 0;
-}
+
+    #commands > ul, #info > ul {
+        list-style: none;
+        padding-inline-start: 0;
+    }
+
+        #commands > ul > li, #info > ul > li {
+            margin-bottom: 0;
+        }
 
 /* contains all the nav and panes for code editor and printer settings (like serial connect)*/
 #code-editor-area, #global-code-editor-area {
     color: #FFFF57;
 }
+
 .cm-contain {
     position: relative;
     max-height: 36em;
     margin-bottom: 0.325em;
 }
-.cm-contain > form {
-    height: 100%;
-}
+
+    .cm-contain > form {
+        height: 100%;
+    }
 
 /* textarea that CodeMirror replaces on load */
 #code-editor, #global-code-editor {
@@ -215,9 +226,9 @@ kbd {
     border: 8px solid black;
 }
 
-.box > *:first-child {
-    margin-top: 0
-}
+    .box > *:first-child {
+        margin-top: 0
+    }
 
 .panel-r {
     position: absolute;
@@ -236,15 +247,15 @@ kbd {
     transform: skewY(45deg);
 }
 
-.panel-r::after {
-    position: absolute;
-    top: -8px;
-    right: 0;
-    bottom: -8px;
-    left: 0;
-    content: "";
-    transform: skewY(-45deg)
-}
+    .panel-r::after {
+        position: absolute;
+        top: -8px;
+        right: 0;
+        bottom: -8px;
+        left: 0;
+        content: "";
+        transform: skewY(-45deg)
+    }
 
 .panel-l {
     position: absolute;
@@ -264,15 +275,15 @@ kbd {
     transform: skewY(-45deg)
 }
 
-.panel-l::after {
-    position: absolute;
-    top: -8px;
-    right: 0;
-    bottom: -8px;
-    left: 0;
-    content: "";
-    transform: skewY(45deg)
-}
+    .panel-l::after {
+        position: absolute;
+        top: -8px;
+        right: 0;
+        bottom: -8px;
+        left: 0;
+        content: "";
+        transform: skewY(45deg)
+    }
 
 .panel-b-r {
     position: absolute;
@@ -292,15 +303,15 @@ kbd {
     transform: skewX(45deg)
 }
 
-.panel-b-r::after {
-    position: absolute;
-    top: 0;
-    right: -20px;
-    bottom: 0;
-    left: -8px;
-    content: "";
-    transform: skewX(-45deg)
-}
+    .panel-b-r::after {
+        position: absolute;
+        top: 0;
+        right: -20px;
+        bottom: 0;
+        left: -8px;
+        content: "";
+        transform: skewX(-45deg)
+    }
 
 .panel-b-l {
     border-left-width: 8px;
@@ -321,16 +332,16 @@ kbd {
     transform: skewX(-45deg);
 }
 
-.panel-b-l::after {
-    position: absolute;
-    top: 0;
-    right: -8px;
-    bottom: 0;
-    left: -10px;
-    width: calc(100% + 50px);
-    content: "";
-    transform: skewX(45deg)
-}
+    .panel-b-l::after {
+        position: absolute;
+        top: 0;
+        right: -8px;
+        bottom: 0;
+        left: -10px;
+        width: calc(100% + 50px);
+        content: "";
+        transform: skewX(45deg)
+    }
 
 
 .fancybox .panel-b-l::after {
@@ -347,20 +358,20 @@ kbd {
     font-size: 0.825rem;
 }
 
-a.lightnav, .lightnav a:link, .lightnav a:active, .lightnav a:visited {
-    color: pink;
-}
+    a.lightnav, .lightnav a:link, .lightnav a:active, .lightnav a:visited {
+        color: pink;
+    }
 
-.lightnav a:hover {
-    color: lightyellow;
-}
+    .lightnav a:hover {
+        color: lightyellow;
+    }
 
 a.purplink, .purplink a:active, .purplink a:visited {
     color: darkorchid;
     font-size: 0.825rem;
 }
 
-a.graylink, .graylink a:link, .graylink a:active, 
+a.graylink, .graylink a:link, .graylink a:active,
 .graylink a:hover, .graylink a:focus, .graylink a:visited {
     color: lightgray;
     font-size: 0.825rem;
