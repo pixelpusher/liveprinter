@@ -3,7 +3,7 @@
 <head>
     
     <meta charset="utf-8">
-    <title>Home - LivePrinter</title>
+    <title>lib/util.js - LivePrinter</title>
     
     <meta name="description" content="Livecoding for 3D printers and other CNC machines" />
     
@@ -45,134 +45,53 @@
 
 <div id="main">
     
-
-    
-
-
-
-    
-
-
-
-
-
-
-
-
-
-    
-
-
-
-
-
-
-
-
-
-
-<section>
-
-<header>
-    
-        <h2>
-        liveprinter.js
-        </h2>
-        
-    
-</header>
-
-<article>
-    
-        <div class="container-overview">
-        
-            
-
-<dl class="details">
-
-    
-    <dt class="tag-source">Source:</dt>
-    <dd class="tag-source"><ul class="dummy"><li>
-        <a href="liveprinter.js.html">liveprinter.js</a>, <a href="liveprinter.js.html#line1">line 1</a>
-    </li></ul></dd>
-    
-
-    
-    <dt class="tag-version">Version:</dt>
-    <dd class="tag-version"><ul class="dummy"><li>0.8</li></ul></dd>
+    <h1 class="page-title">lib/util.js</h1>
     
 
     
 
-    
 
-    
 
     
-
-    
-
-    
-
-    
-
-    
-    <dt class="tag-author">Author:</dt>
-    <dd class="tag-author">
-        <ul>
-            <li><a href="mailto:evanraskob+nosp4m@gmail.com">Evan Raskob</a></li>
-        </ul>
-    </dd>
-    
-
-    
-
-    
-    <dt class="tag-license">License:</dt>
-    <dd class="tag-license"><ul class="dummy"><li>Copyright (c) 2018 Evan Raskob and othersLicensed under the GNU Affero 3.0 License (the "License"); you maynot use this file except in compliance with the License. You may obtaina copy of the License at    <a href="https://www.gnu.org/licenses/gpl-3.0.en.html">https://www.gnu.org/licenses/gpl-3.0.en.html</a>Unless required by applicable law or agreed to in writing, softwaredistributed under the License is distributed on an "AS IS" BASIS, WITHOUTWARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See theLicense for the specific language governing permissions and limitationsunder the License.</li></ul></dd>
-    
-
-    
-
-    
-
-    
-
-    
-</dl>
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>
+/**
+ * makeMapping :: (Num, Num) -> (Num, Num) -> Num -> Num
+ * Create a map function that converts a number from one range to within another
+ * from http://rosettacode.org/wiki/Map_range#JavaScript
+ * @namespace LivePrinter
+ * @param {Array} a 2-element array range
+ * @param {Array} b 2-element array range
+ * @returns {Function} mapping function
+ * @example const rangeMap = makeMapping([0, 10], [-1, 0]);
+ *          let result = mapping(5);
+ */
+const makeMapping = (a, b) => s => {
+    const [a1, a2] = a;
+    const [b1, b2] = b;
+    // Scaling up an order, and then down, to bypass a potential,
+    // precision issue with negative numbers.
+    return (((((b2 - b1) * (s - a1)) / (a2 - a1)) * 10) + (10 * b1)) / 10;
+};
 
 
-
-
-            
-                <div class="description"><p>Main liveprinter system file for a livecoding system for live CNC manufacturing.</p></div>
-            
-
-            
-        
-        </div>
-    
-
-    
-
-    
-
-    
-
-     
-
-    
-
-    
-
-    
-
-    
-
-    
-</article>
-
-</section>
+/**
+ * numrange: return a range of numbers quickly
+ * based on http://rosettacode.org/wiki/Map_range#JavaScript 
+ * @namespace LivePrinter
+ * @param {Int} m minimum value of range
+ * @param {Int} n maximum value of range
+ * @param {Int} c number to increment each value of range by
+ * @returns {Array} range of numbers
+ */
+const numrange = (m, n, c=1) =>
+    Array.from({
+        length: 1 + Math.floor((n - m)/c)
+    }, (_, i) => m + i*c);
+</code></pre>
+        </article>
+    </section>
 
 
 
