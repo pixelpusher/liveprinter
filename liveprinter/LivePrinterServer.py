@@ -317,9 +317,9 @@ def use_dummy_serial_port(printer:USBPrinter):
         port= printer._serial_port,
         baudrate= printer._baud_rate,
         ds_responses={
-            '.*M105.*': lambda : b'ok T:%a /190.0 B:%a /24.0 @:0 B@:0\n' % (random.uniform(170,195),random.uniform(20,35)),
+            '.*M105.*': lambda : b'ok T:%.2f /190.0 B:%.2f /24.0 @:0 B@:0\n' % (random.uniform(170,195),random.uniform(20,35)),
             '.*M115.*': b'FIRMWARE_NAME:DUMMY\n',
-            '.*M114.*': b'X:0 Y:0 Z:0\n',  # position request
+            '.*M114.*': lambda : b'X:%.2fY:%.2fZ:%.2fE:%.2f Count X: 2.00Y:3.00Z:4.00\n' % (random.uniform(0,200), random.uniform(0,200), random.uniform(0,200), random.uniform(0,200) ),   # position request
             '.*G.*': b'ok\n',
             #'^N.*': b'ok\n',
             '^XXX': b'!!\n'

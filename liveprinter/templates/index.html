@@ -50,9 +50,10 @@
                                 <a id="save-session" class="dropdown-item purplink"><strong>save current</strong></a>
                             </div>
                         </li>
-                        <li class="nav-item">&nbsp;<button id="python-mode-btn" class="btn btn-sm btn-secondary" data-toggle="button">javascript mode</button></li>
+                        <li class="nav-item"><button id="python-mode-btn" type="button" class="btn btn-sm btn-warning" data-toggle="button" aria-pressed="false" autocomplete="off">javascript mode</button></li>
                     </ul>
-                    <div id="tab-messages-pane" class="tab-content">
+
+                    <div id="tab-messages-pane" class="tab-content col-md-12">
                         <div id="printer" class="tab-pane fade show" role="tabpanel" aria-labelledby="pills-info-tab">
                             <div class="row">
                                 <div class="col-md-6">
@@ -78,11 +79,10 @@
                                 </div>
                             </div>
                         </div>
-
                         <!-- session code editor -->
                         <div id="code-editor-area" class="tab-pane fade show active" role="tabpanel" aria-labelledby="pills-editor-tab">
                             <div class="row">
-                                <div class="col-12 cm-contain">
+                                <div class="col-md-12 cm-contain">
                                     <form>
                                         <textarea id="code-editor">
                                     // start coding functions, etc. here or load an example from the dropdown above!
@@ -91,13 +91,14 @@
                                     </form>
                                 </div>
                             </div>
-                            <div class="row buttons">
-                                <div class="col-2"><strong>Errors:</strong></div>
-                                <div class="col-8 code-errors"></div>
+                            <div class="row">
+                                <div class="col-md-2 code-errors-panel"><p class="lead font-weight-bold">Errors:</p></div>
+                                <div class="col-md-10 code-errors"></div>
                             </div>
-                            <div class="row instructions">
-                                <div class="col-12">
-                                    <p>Highlight lines of code and hit <kbd>cmd</kbd> or <kbd>ctrl</kbd>-<kbd>enter</kbd> to <button id="sendCode" class="btn btn-success btn-sm">send</button> them</p>
+                            <div class="row">
+                                <div class="col-md-2 instructions-panel"></div>
+                                <div class="col-md-10 instructions-panel">
+                                    Highlight lines of code and hit <kbd>cmd</kbd> or <kbd>ctrl</kbd>-<kbd>enter</kbd> to <button id="sendCode" class="btn btn-success btn-sm">send</button> them
                                 </div>
                             </div>
                         </div>
@@ -114,23 +115,81 @@
                                     </form>
                                 </div>
                             </div>
-                            <div class="row buttons">
-                                <div class="col-2"><strong>Errors:</strong></div>
-                                <div class="col-8 code-errors"></div>
+                            <div class="row">
+                                <div class="col-md-2 code-errors-panel"><p class="lead font-weight-bold">Errors:</p></div>
+                                <div class="col-md-10 code-errors"></div>
                             </div>
-                            <div class="row instructions">
-                                <div class="col-12">
-                                    <p>Highlight lines of code and hit <kbd>cmd</kbd> or <kbd>ctrl</kbd>-<kbd>enter</kbd> to <button id="sendCode" class="btn btn-success btn-sm">send</button> them</p>
+                            <div class="row">
+                                <div class="col-md-2 instructions-panel"></div>
+                                <div class="col-md-10 instructions-panel">
+                                    Highlight lines of code and hit <kbd>cmd</kbd> or <kbd>ctrl</kbd>-<kbd>enter</kbd> to <button id="sendCode" class="btn btn-success btn-sm">send</button> them
                                 </div>
                             </div>
                         </div>
-                        <div class="panel-l"></div>
-                        <div class="panel-b-l"></div>
-                    </div> <!-- close tab menus -->
 
-                </div> <!-- fullheight box-->
-            </div> <!-- close col -->
-            <!-- end input-->
+                    </div> <!-- close tab menus -->
+                    <!-- printer info panel-->
+                    <div id="printer-info" class="col-md-12">
+                        <form>
+                            <!--<div class="row">
+                                <div class="col-md-12">
+                                    <p class="lead">Printer Information:</p>
+                                </div>
+                            </div>-->
+                            <div class="row">
+                                <div class="col-md-2">
+                                    <div class="input-group input-group-sm mb-3">
+                                        <div class="input-group-prepend">
+                                            <span class="input-group-text" id="basic-addon-x">x</span>
+                                        </div>
+                                        <input name="x" type="text" class="form-control" placeholder="0.00" aria-label="x" aria-describedby="basic-addon-x">
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <div class="input-group input-group-sm mb-3">
+                                        <div class="input-group-prepend">
+                                            <span class="input-group-text" id="basic-addon-y">y</span>
+                                        </div>
+                                        <input name="y" type="text" class="form-control" placeholder="0.00" aria-label="y" aria-describedby="basic-addon-y">
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <div class="input-group input-group-sm mb-3">
+                                        <div class="input-group-prepend">
+                                            <span class="input-group-text" id="basic-addon-z">z</span>
+                                        </div>
+                                        <input name="z" type="text" class="form-control" placeholder="0.00" aria-label="z" aria-describedby="basic-addon-z">
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="input-group input-group-sm mb-3">
+                                        <div class="input-group-prepend">
+                                            <button class="btn btn-secondary" id="basic-addon-retract" type="button">lp.retract</button>
+                                        </div>
+                                        <input name="retract" type="text" class="form-control" placeholder="0.00" aria-label="retract" aria-describedby="basic-addon-retract">
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="input-group input-group-sm mb-3">
+                                        <div class="input-group-prepend">
+                                            <button class="btn btn-secondary" id="basic-addon-angle" type="button">lp.angle</button>
+                                        </div>
+                                        <input name="angle" type="text" class="form-control" placeholder="0.00" aria-label="angle" aria-describedby="basic-addon-angle">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div id="temperature" class="col-md-12">
+                                    <p class='alert alert-danger fade show' role='alert'></p>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                <div class="panel-l"></div>
+                <div class="panel-b-l"></div>
+            </div>
+
             <div class="col-3 col-md-4">
                 <div id="inbox" class="box">
                     <div style="position:relative;height:100%">
@@ -143,6 +202,14 @@
                             </li>
                             <li class="flex-sm-fill text-sm-center nav-item">
                                 <a class="nav-link" id="commands-tab" data-toggle="pill" href="#commands" role="tab" aria-controls="commands" aria-selected="false">commands</a>
+                            </li>
+                            <li class="flex-sm-fill text-sm-center nav-item dropdown">
+                                <a class="nav-link dropdown-toggle" data-toggle="dropdown" href="#" role="button" aria-haspopup="true" aria-expanded="false">Clear:</a>
+                                <div class="dropdown-menu">
+                                    <a class="dropdown-item flex-sm-fill text-sm-left" href="#" onclick="$('#info > ul').empty();">clear info</a>
+                                    <a class="dropdown-item flex-sm-fill text-sm-left" href="#" onclick="$('#errors > ul').empty();">clear errors</a>
+                                    <a class="dropdown-item flex-sm-fill text-sm-left" href="#" onclick="$('#commands > ul').empty();">clear commands</a>
+                                </div>
                             </li>
                         </ul>
                         <!-- Tab panes -->
@@ -158,15 +225,15 @@
                                 <ul></ul>
                             </div>
                         </div>
-                        <div id="temperature"><p class='alert alert-danger fade show' role='alert'></p></div>
                     </div>
                     <div class="panel-r lines"></div>
                     <div class="panel-b-r"></div>
                 </div>
-            </div>
 
-        </div><!-- end 1st row -->
-    </div>
+            </div> <!-- fullheight box-->
+        </div> <!-- close col -->
+        <!-- end input-->
+    </div><!-- end 1st row -->
     <!-- end main container-->
     <!-- Bootstrap 4 -->
     <!--<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">-->

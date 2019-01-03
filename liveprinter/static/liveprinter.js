@@ -548,7 +548,7 @@ $.when($.ready).then(
                     //sendGCode("G92");
                     //sendGCode("G28");
 
-                    var node = $("<li>PRINTER CONNECTED</li>");
+                    var node = $("<li>SERVER CONNECTED</li>");
                     node.hide();
                     $("#info").prepend(node);
                     node.slideDown();
@@ -641,6 +641,10 @@ $.when($.ready).then(
                 scope.printer.y = parseFloat(params.y);
                 scope.printer.z = parseFloat(params.z);
                 scope.printer.e = parseFloat(params.e);
+
+                $("input[name='x']")[0].value = window.scope.printer.x;
+                $("input[name='y']")[0].value = window.scope.printer.y;
+                $("input[name='z']")[0].value = window.scope.printer.z;
             }
         };
 
@@ -763,6 +767,9 @@ $.when($.ready).then(
                     socketHandler.socket.send(msg);
                 }
                 blinkElem($("#commands-tab"));
+                $("input[name='x']")[0].value = window.scope.printer.x;
+                $("input[name='y']")[0].value = window.scope.printer.y;
+                $("input[name='z']")[0].value = window.scope.printer.z;
             }
         };
 
@@ -781,7 +788,7 @@ $.when($.ready).then(
                 //console.log(event);
                 portsDropdown.empty();
                 if (event.message.length === 0) {
-                    appendLoggingNode($("#info > ul"), (new Date()).getUTCMilliseconds(), "<li>no serial ports found</li > ");
+                    appendLoggingNode($("#info > ul"), Date.now(), "<li>no serial ports found</li > ");
                     window.scope.serialPorts.push("dummy");
                 }
                 else {
@@ -791,7 +798,7 @@ $.when($.ready).then(
                         window.scope.serialPorts.push(p);
                     }
                     msg += "</ul>";
-                    appendLoggingNode($("#info > ul"), (new Date()).getUTCMilliseconds(), msg);
+                    appendLoggingNode($("#info > ul"), Date.now(), msg);
                 }
 
                 window.scope.serialPorts.forEach(function (port) {
@@ -864,9 +871,9 @@ $.when($.ready).then(
         // redirect error to browser GUI
         //
         $(window).on("error", function (evt) {
-            console.log("jQuery error event:", evt);
+            //console.log("jQuery error event:", evt);
             var e = evt.originalEvent; // get the javascript event
-            console.log("original event:", e);
+            //console.log("original event:", e);
             doError(e);
         });
 
@@ -890,8 +897,9 @@ $.when($.ready).then(
             getSerialPorts();
         });
 
-        $("#python-mode-btn").on("click", function () {
-            let me = $(this);
+        $("#python-mode-btn").on("click", function (e) {
+            e.preventDefault();
+            const me = $(this);
             pythonMode = !me.hasClass('active'); // because it becomes active *after* a push
 
             if (pythonMode) {
@@ -899,9 +907,8 @@ $.when($.ready).then(
             }
             else {
                 me.text("javascript mode");
-            }
+            }             
             setLanguageMode(); // update codemirror editor
-            me.button('toggle');
         });
 
         // make sure language mode is set
@@ -1218,6 +1225,11 @@ $.when($.ready).then(
                     document.head.appendChild(script).parentNode.removeChild(script);
                 }
             }
+
+            // update GUI
+            $("input[name='retract']")[0].value = window.scope.printer.currentRetraction;
+            $("input[name='angle']")[0].value = window.scope.printer.getAngle();
+
         } // end globalEval
 
         //brython(10);

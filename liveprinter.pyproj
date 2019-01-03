@@ -153,7 +153,6 @@
     <Content Include="liveprinter\static\scales.js" />
     <Content Include="liveprinter\static\util\svgrenderer.html" />
     <Content Include="liveprinter\templates\index.html" />
-    <Content Include="liveprinter\templates\message.html" />
     <Content Include="liveprinter\testing\gcodegrammar.js" />
     <Content Include="liveprinter\testing\test_gcode.txt" />
   </ItemGroup>

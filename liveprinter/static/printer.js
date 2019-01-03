@@ -420,6 +420,15 @@ class Printer {
     }
 
     /**
+     * Return the current angle of movement
+     * @param {Boolean} radians true if you want it in radians (default is false, in degrees)
+     * @returns {Number} angle of movement in degrees (default) or radians
+     */
+    getAngle(radians = false) {
+        return radians ? this._heading : this.r2d(this._heading);
+    }
+
+    /**
      * Set the direction of movement for the next operation.
      * @param {float} ang Angle of movement (in xy plane)
      * @param {Boolean} radians use radians or not
@@ -432,6 +441,17 @@ class Printer {
         }
         this._heading = a;
         return this;
+    }
+
+    /**
+     * Set the direction of movement for the next operation.
+     * @param {float} ang Angle of movement (in xy plane)
+     * @param {Boolean} radians use radians or not
+     * @returns {Printer} Reference to this object for chaining
+     * @see angle
+     */
+    turnto(ang, radians = false) {
+        return this.angle(ang, radians);
     }
     /**
      * Run a set of commands specified in a grammar (experimental.)

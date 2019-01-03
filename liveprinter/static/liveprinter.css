@@ -64,7 +64,8 @@ body {
 }
 
 body,
-input {
+input,
+.dropdown-menu {
     font-family: sans-serif;
     font-size: 10pt;
     color: black;
@@ -84,15 +85,29 @@ td {
     margin-top: 0.5em;
 }
 
+#printer-info {
+    padding-top: 0.825em;
+    background-color: lightblue;
+}
+
 #printer {
     background-color: white;
     height: 100%;
     padding: 0.875em;
 }
 
+#python-mode-btn {
+    margin: 0.4em;
+    font-size: 0.8rem;
+}
+
 #nav {
     float: right;
     z-index: 99;
+}
+
+#editor-settings-nav {
+    margin-top: 0em;
 }
 
 #inbox {
@@ -101,13 +116,10 @@ td {
     height: calc(100% - 8px);
 }
 
-.buttons > * {
-    text-align: left;
-}
-
 #tab-messages-pane {
-    min-height: 26em;
-    max-height: 40em;
+    /*min-height: 26em;
+    max-height: 40em;*/
+    background-color: whitesmoke;
     /* 30px for heigh of below + 8px border + 8px padding*/
 }
 
@@ -124,11 +136,13 @@ td {
 }
 
 .code-errors {
-    background-color: lawngreen;
+    background-color: darkred;
     padding: 0.4em;
-    color: darkmagenta;
-    margin-top: 0.2em;
-    margin-bottom: 0.2em;
+    color: lightgray;
+    border-left: 0;
+    border-right: 1px solid darkgray;
+    border-top: 1px solid white;
+    border-bottom: 1px solid lightgray;
 }
 
 #info, #info-tab.active {
@@ -146,7 +160,6 @@ td {
 }
 
 #errors {
-    background-color: lightcoral;
     color: darkmagenta;
 }
 
@@ -171,7 +184,7 @@ td {
 
 /* contains all the nav and panes for code editor and printer settings (like serial connect)*/
 #code-editor-area, #global-code-editor-area {
-    color: #FFFF57;
+    color: lightgray;
 }
 
 .cm-contain {
@@ -209,6 +222,16 @@ kbd {
     background-color: rgb(255, 67, 119);
 }
 
+.instructions-panel, .code-errors-panel {
+    background-color: grey;
+    padding-top: 0.25em;
+    padding-bottom: 0.25em;
+}
+
+.code-errors-panel {
+    color: darkred;
+}
+
 .lines {
     height: 200%;
     width: 100%;
@@ -221,7 +244,7 @@ kbd {
 }
 
 .box {
-    padding: 0.4em;
+    /*padding: 0.4em;*/
     min-width: 8em;
     border: 8px solid black;
 }
@@ -375,4 +398,9 @@ a.graylink, .graylink a:link, .graylink a:active,
 .graylink a:hover, .graylink a:focus, .graylink a:visited {
     color: lightgray;
     font-size: 0.825rem;
+}
+
+.nav-tabs .nav-link {
+    border-radius: 0;
+    color: lightgray;
 }
