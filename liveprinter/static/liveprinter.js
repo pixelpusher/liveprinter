@@ -1150,7 +1150,8 @@ $.when($.ready).then(
           */
         function globalEval(code, line, globally = false) {
             clearError();
-            code = jQuery.trim(code);
+            // removed because comments were tripping this up...
+            //code = jQuery.trim(code);
             console.log(code);
             if (code) {
                 if (pythonMode) {
