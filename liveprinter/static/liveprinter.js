@@ -1178,7 +1178,7 @@ $.when($.ready).then(
                 else {
                     if (!globally) {
                         // give quick access to liveprinter API
-                        code = "let cancel = s.clearPrinterCommandQueue;" + code; //alias
+                        code = "let cancel = s.clearPrinterCommandQueue;\n" + code; //alias
                         code = "let lp = window.scope.printer;" + code;
                         code = "let sched = window.scope.Scheduler;" + code;
                         code = "let socket = window.scope.socket;" + code;
@@ -1191,8 +1191,8 @@ $.when($.ready).then(
                         // scope bleed.  For global functions that persist, use lp scope or s
 
                         // error handling
-                        code = 'try {' + code;
-                        code = code + '} catch (e) { e.lineNumber=line;window.doError(e); }';
+                        code = 'try {\n' + code;
+                        code = code + '\n} catch (e) { e.lineNumber=line;window.doError(e); }';
 
                         code = "let line =" + line + ";" + code;
 
