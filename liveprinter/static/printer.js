@@ -470,36 +470,34 @@ class Printer {
 
         //console.log(strings.raw);
         //console.log(strings.raw[0]);
+        //console.log("strings: " + rawstring);
+        let found = strings.match(cmdRegExp);
+        //console.log(found);
+        for (let cmd of found) {
+            //console.log(cmd);
+            let matches = cmd.match(subCmdRegExp);
 
-        for (let rawstring of strings.raw) {
-            //console.log("strings: " + rawstring);
-            let found = rawstring.match(cmdRegExp);
-            //console.log(found);
-            for (let cmd of found) {
-                //console.log(cmd);
-                let matches = cmd.match(subCmdRegExp);
+            if (matches.length !== 3) throw new Error("Error in command string: " + found);
+            let cmdChar = matches[1];
+            let value = parseFloat(matches[2]);
 
-                if (matches.length !== 3) throw new Error("Error in command string: " + found);
-                let cmdChar = matches[1];
-                let value = parseFloat(matches[2]);
+            //console.log(matches);
 
-                //console.log(matches);
+            switch (cmdChar) {
+                case mvChar: this.distance(value).go();
+                    break;
+                case exChar: this.distance(value).go(1);
+                    break;
+                case ltChar: this.turn(value);
+                    break;
+                case rtChar: this.turn(-value);
+                    break;
 
-                switch (cmdChar) {
-                    case mvChar: this.distance(value).go();
-                        break;
-                    case exChar: this.distance(value).go(1);
-                        break;
-                    case ltChar: this.turn(value);
-                        break;
-                    case rtChar: this.turn(-value);
-                        break;
-
-                    default:
-                        throw new Error("Error in command - unknown command char: " + cmdChar);
-                }
+                default:
+                    throw new Error("Error in command - unknown command char: " + cmdChar);
             }
         }
+
         return this;
     }
 
