@@ -274,6 +274,8 @@ class Printer {
             this.send("G1 " + "E" + fixedE + " F" + this.retractSpeed.toFixed(4));
             this.e = parseFloat(fixedE); // make sure e is actually e even with rounding errors!
         } else {
+            this.e -= this.retractLength;
+
             // retract via firmware otherwise
             this.send("G10");
         }   
@@ -320,6 +322,7 @@ class Printer {
             this.send("G1 " + "E" + this.e.toFixed(4) + " F" + this.retractSpeed.toFixed(4));
             this.currentRetraction = 0;
         } else {
+            this.e += this.currentRetraction;
             // unretract via firmware otherwise
             this.send("G11");
             this.currentRetraction = 0;
