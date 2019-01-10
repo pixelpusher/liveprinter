@@ -254,6 +254,7 @@ class Printer {
      */
     retract(len = this.retractLength, speed) {
         if (len < 0) throw new Error("retract length can't be less than 0: " + len);
+        const sendSettings = (len !== this.currentRetraction || speed !== undefined);
         this.retractLength = len;
 
         if (speed !== undefined) {
@@ -265,13 +266,18 @@ class Printer {
             this.sendFirmwareRetractSettings();
         }
         // RETRACT        
-        this.currentRetraction += this.retractLength;
-        this.e -= this.retractLength;
 
-        const fixedE = this.e.toFixed(4);
-        this.send("G1 " + "E" + fixedE + " F" + this.retractSpeed.toFixed(4));
-        this.e = parseFloat(fixedE); // make sure e is actually e even with rounding errors!
-
+        if (!this.firmwareRetract) {
+            this.currentRetraction += this.retractLength;
+            this.e -= this.retractLength;
+            const fixedE = this.e.toFixed(4);
+            this.send("G1 " + "E" + fixedE + " F" + this.retractSpeed.toFixed(4));
+            this.e = parseFloat(fixedE); // make sure e is actually e even with rounding errors!
+        } else {
+            // retract via firmware otherwise
+            this.send("G10");
+        }   
+    
         return this;
     }
 
@@ -293,6 +299,7 @@ class Printer {
      * lp.unretract(8,30); // extract a little more to get it going
      */
     unretract(len = this.currentRetraction, speed) {
+        const sendSettings = (len !== this.currentRetraction || speed !== undefined);
         if (len < 0) throw new Error("retract length can't be less than 0: " + len);
         if (len !== this.currentRetraction) this.retractLength = len; // set new retract length if specified
 
@@ -301,16 +308,22 @@ class Printer {
             // set speed safely!
             if (speed > Printer.maxPrintSpeed["e"]) throw new Error("retract speed to high: " + speed);
             // convert to mm/s
-            this.retractSpeed = speed * 60;
-            this.sendFirmwareRetractSettings();
+            this.retractSpeed = speed * 60;  
         }
+        if (sendSettings) this.sendFirmwareRetractSettings();
         // UNRETRACT
-        this.e += len;
-        const fixedE = this.e.toFixed(4);
-        this.send("G1 " + "E" + fixedE + " F" + this.retractSpeed.toFixed(4));
-        this.e = parseFloat(fixedE); // make sure e is actually e even with rounding errors!
 
-        this.currentRetraction = 0;
+        //unretract manually first if needed
+        if (!this.firmwareRetract) {
+            this.e += this.currentRetraction;
+            // account for previous retraction
+            this.send("G1 " + "E" + this.e.toFixed(4) + " F" + this.retractSpeed.toFixed(4));
+            this.currentRetraction = 0;
+        } else {
+            // unretract via firmware otherwise
+            this.send("G11");
+            this.currentRetraction = 0;
+        }
 
         return this;
     }
