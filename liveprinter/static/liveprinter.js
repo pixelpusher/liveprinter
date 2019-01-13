@@ -48,6 +48,25 @@ $.when($.ready).then(
 
         let pythonMode = false;
 
+        // from stack overflow
+        let downloadFile = function (data, filename, type) {
+            var file = new Blob([data], { type: type });
+            if (window.navigator.msSaveOrOpenBlob) // IE10+
+                window.navigator.msSaveOrOpenBlob(file, filename);
+            else { // Others
+                var a = document.createElement("a"),
+                    url = URL.createObjectURL(file);
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                setTimeout(function () {
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(url);
+                }, 0);
+            }
+        };
+
         /**
          * Handy object for scheduling events at intervals, etc.
          * @class
@@ -439,7 +458,7 @@ $.when($.ready).then(
             console.log(cleanGCode);
 
             // add comment with date and time
-            const dateStr = ' ; ' + (new Date()).toLocaleString('en-US',
+            const dateStr = '; ' + (new Date()).toLocaleString('en-US',
                 {
                     hour12: false,
                     year: 'numeric',
@@ -966,6 +985,32 @@ $.when($.ready).then(
         });
 
         $("#sendCode").on("click", runCode);
+
+        $(".btn-download").on("click", () => {
+            // add comment with date and time
+            const dateStr = '_' + (new Date()).toLocaleString('en-US',
+                {
+                    hour12: false,
+                    year: '2-digit',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit'                }
+            );
+            downloadFile(CodeEditor.getDoc().getValue(), "LivePrinterCode" + dateStr + ".js", 'text/javascript');
+            downloadFile(GCodeEditor.getDoc().getValue(), "LivePrinterGCode" + dateStr + ".js", 'text/javascript');
+            downloadFile(GlobalCodeEditor.getDoc().getValue(), "LivePrinterGlobalCode" + dateStr + ".js", 'text/javascript');
+        });
+
+
+        // temperature buttons
+        $("#basic-addon-tempbed").on("click", () => window.scope.printer.bed(parseFloat($("input[name=tempbed]")[0].value)));
+        $("#basic-addon-temphot").on("click", () => window.scope.printer.temp(parseFloat($("input[name=temphot]")[0].value)));
+
+        $("#basic-addon-angle").on("click", () => window.scope.printer.turnto(parseFloat($("input[name=angle]")[0].value)));
+
+        $("#basic-addon-retract").on("click", () => window.scope.printer.currentRetraction = parseFloat($("input[name=retract]")[0].value));
+
 
         $("#temp-display-btn").on("click", function () {
             let me = $(this);

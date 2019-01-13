@@ -19,7 +19,6 @@
                 <div class="panel-b-l"></div>
             </div>
         </div>
-
         <div class="row">
             <div class="col-9 col-md-8" id="printer-editor-col">
                 <div class="box bg-colorful1 fullheight">
@@ -58,18 +57,13 @@
 
                     <div id="printer-info" class="col-md-12">
                         <form>
-                            <!--<div class="row">
-                                <div class="col-md-12">
-                                    <p class="lead">Printer Information:</p>
-                                </div>
-                            </div>-->
                             <div class="row">
                                 <div class="col-md-2">
                                     <div class="input-group input-group-sm mb-3">
                                         <div class="input-group-prepend">
                                             <span class="input-group-text" id="basic-addon-x">x</span>
                                         </div>
-                                        <input name="x" type="text" class="form-control" placeholder="0.00" aria-label="x" aria-describedby="basic-addon-x">
+                                        <input name="x" type="text" class="form-control form-control-sm" placeholder="0.00" aria-label="x" aria-describedby="basic-addon-x">
                                     </div>
                                 </div>
                                 <div class="col-md-2">
@@ -77,7 +71,7 @@
                                         <div class="input-group-prepend">
                                             <span class="input-group-text" id="basic-addon-y">y</span>
                                         </div>
-                                        <input name="y" type="text" class="form-control" placeholder="0.00" aria-label="y" aria-describedby="basic-addon-y">
+                                        <input name="y" type="text" class="form-control form-control-sm" placeholder="0.00" aria-label="y" aria-describedby="basic-addon-y">
                                     </div>
                                 </div>
                                 <div class="col-md-2">
@@ -85,7 +79,7 @@
                                         <div class="input-group-prepend">
                                             <span class="input-group-text" id="basic-addon-z">z</span>
                                         </div>
-                                        <input name="z" type="text" class="form-control" placeholder="0.00" aria-label="z" aria-describedby="basic-addon-z">
+                                        <input name="z" type="text" class="form-control form-control-sm" placeholder="0.00" aria-label="z" aria-describedby="basic-addon-z">
                                     </div>
                                 </div>
                                 <div class="col-md-3">
@@ -93,7 +87,7 @@
                                         <div class="input-group-prepend">
                                             <button class="btn btn-secondary" id="basic-addon-retract" type="button">lp.retract</button>
                                         </div>
-                                        <input name="retract" type="text" class="form-control" placeholder="0.00" aria-label="retract" aria-describedby="basic-addon-retract">
+                                        <input name="retract" type="text" class="form-control form-control-sm" placeholder="0.00" aria-label="retract" aria-describedby="basic-addon-retract">
                                     </div>
                                 </div>
                                 <div class="col-md-3">
@@ -101,33 +95,32 @@
                                         <div class="input-group-prepend">
                                             <button class="btn btn-secondary" id="basic-addon-angle" type="button">lp.angle</button>
                                         </div>
-                                        <input name="angle" type="text" class="form-control" placeholder="0.00" aria-label="angle" aria-describedby="basic-addon-angle">
+                                        <input name="angle" type="text" class="form-control form-control-sm" placeholder="0.00" aria-label="angle" aria-describedby="basic-addon-angle">
                                     </div>
                                 </div>
-                                <!--</div>
-                                <div class="row" id="temperature">-->
+                            </div>
+                            <div class="row" id="temperature">
                                 <div class="col-md-3">
                                     <div class="input-group input-group-sm mb-3">
                                         <div class="input-group-prepend">
                                             <button class="btn btn-secondary" id="basic-addon-temphot" type="button">head temp</button>
                                         </div>
-                                        <input name="temphot" type="text" class="form-control" placeholder="0.00" aria-label="temphot" aria-describedby="basic-addon-temphot">
+                                        <input name="temphot" type="text" class="form-control form-control-sm" placeholder="0.00" aria-label="temphot" aria-describedby="basic-addon-temphot">
                                     </div>
                                 </div>
                                 <div class="col-md-3">
-                                    <input name="temphot-target" type="text" placeholder="0.00">
+                                    <input type="text" name="temphot-target" readonly class="form-control form-control-sm" value="0.00">
                                 </div>
-
                                 <div class="col-md-3">
                                     <div class="input-group input-group-sm mb-3">
                                         <div class="input-group-prepend">
                                             <button class="btn btn-secondary" id="basic-addon-tempbed" type="button">bed temp</button>
                                         </div>
-                                        <input name="tempbed" type="text" class="form-control" placeholder="0.00" aria-label="tempbed" aria-describedby="basic-addon-tempbed">
+                                        <input name="tempbed" type="text" class="form-control form-control-sm" placeholder="0.00" aria-label="tempbed" aria-describedby="basic-addon-tempbed">
                                     </div>
                                 </div>
                                 <div class="col-md-3">
-                                    <input name="tempbed-target" type="text" placeholder="0.00">
+                                    <input type="text" name="tempbed-target" readonly class="form-control form-control-sm" value="0.00">
                                 </div>
                             </div>
                         </form>
@@ -177,9 +170,10 @@
                             </div>
                             <div class="row">
                                 <div class="col-md-2 instructions-panel"></div>
-                                <div class="col-md-10 instructions-panel">
+                                <div class="col-md-8 instructions-panel">
                                     Highlight lines of code and hit <kbd>cmd</kbd> or <kbd>ctrl</kbd>-<kbd>enter</kbd> to <button id="sendCode" class="btn btn-success btn-sm">send</button> them
                                 </div>
+                                <div class="col-md-2 instructions-panel"><button class="btn btn-success btn-sm btn-download">download</button></div>
                             </div>
                         </div>
 
@@ -201,9 +195,10 @@
                             </div>
                             <div class="row">
                                 <div class="col-md-2 instructions-panel"></div>
-                                <div class="col-md-10 instructions-panel">
+                                <div class="col-md-8 instructions-panel">
                                     Highlight lines of code and hit <kbd>cmd</kbd> or <kbd>ctrl</kbd>-<kbd>enter</kbd> to <button id="sendCode" class="btn btn-success btn-sm">send</button> them
                                 </div>
+                                <div class="col-md-2 instructions-panel"><button class="btn btn-success btn-sm btn-download">download</button></div>
                             </div>
                         </div>
 
@@ -221,9 +216,10 @@
                             </div>
                             <div class="row">
                                 <div class="col-md-2 instructions-panel"></div>
-                                <div class="col-md-10 instructions-panel">
+                                <div class="col-md-8 instructions-panel">
                                     Highlight lines of code and hit <kbd>cmd</kbd> or <kbd>ctrl</kbd>-<kbd>enter</kbd> to <button id="sendCode" class="btn btn-success btn-sm">send</button> them
                                 </div>
+                                <div class="col-md-2 instructions-panel"><button class="btn btn-success btn-sm btn-download">download</button></div>
                             </div>
                         </div>
 
