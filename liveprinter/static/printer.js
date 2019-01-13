@@ -254,6 +254,7 @@ class Printer {
      */
     retract(len = this.retractLength, speed) {
         if (len < 0) throw new Error("retract length can't be less than 0: " + len);
+        const sendSettings = (len !== this.currentRetraction || speed !== undefined);
         this.retractLength = len;
 
         if (speed !== undefined) {
@@ -265,13 +266,20 @@ class Printer {
             this.sendFirmwareRetractSettings();
         }
         // RETRACT        
-        this.currentRetraction += this.retractLength;
-        this.e -= this.retractLength;
 
-        const fixedE = this.e.toFixed(4);
-        this.send("G1 " + "E" + fixedE + " F" + this.retractSpeed.toFixed(4));
-        this.e = parseFloat(fixedE); // make sure e is actually e even with rounding errors!
+        if (!this.firmwareRetract) {
+            this.currentRetraction += this.retractLength;
+            this.e -= this.retractLength;
+            const fixedE = this.e.toFixed(4);
+            this.send("G1 " + "E" + fixedE + " F" + this.retractSpeed.toFixed(4));
+            this.e = parseFloat(fixedE); // make sure e is actually e even with rounding errors!
+        } else {
+            this.e -= this.retractLength;
 
+            // retract via firmware otherwise
+            this.send("G10");
+        }   
+    
         return this;
     }
 
@@ -293,6 +301,7 @@ class Printer {
      * lp.unretract(8,30); // extract a little more to get it going
      */
     unretract(len = this.currentRetraction, speed) {
+        const sendSettings = (len !== this.currentRetraction || speed !== undefined);
         if (len < 0) throw new Error("retract length can't be less than 0: " + len);
         if (len !== this.currentRetraction) this.retractLength = len; // set new retract length if specified
 
@@ -301,16 +310,23 @@ class Printer {
             // set speed safely!
             if (speed > Printer.maxPrintSpeed["e"]) throw new Error("retract speed to high: " + speed);
             // convert to mm/s
-            this.retractSpeed = speed * 60;
-            this.sendFirmwareRetractSettings();
+            this.retractSpeed = speed * 60;  
         }
+        if (sendSettings) this.sendFirmwareRetractSettings();
         // UNRETRACT
-        this.e += len;
-        const fixedE = this.e.toFixed(4);
-        this.send("G1 " + "E" + fixedE + " F" + this.retractSpeed.toFixed(4));
-        this.e = parseFloat(fixedE); // make sure e is actually e even with rounding errors!
 
-        this.currentRetraction = 0;
+        //unretract manually first if needed
+        if (!this.firmwareRetract) {
+            this.e += this.currentRetraction;
+            // account for previous retraction
+            this.send("G1 " + "E" + this.e.toFixed(4) + " F" + this.retractSpeed.toFixed(4));
+            this.currentRetraction = 0;
+        } else {
+            this.e += this.currentRetraction;
+            // unretract via firmware otherwise
+            this.send("G11");
+            this.currentRetraction = 0;
+        }
 
         return this;
     }
@@ -485,36 +501,34 @@ class Printer {
 
         //console.log(strings.raw);
         //console.log(strings.raw[0]);
+        //console.log("strings: " + rawstring);
+        let found = strings.match(cmdRegExp);
+        //console.log(found);
+        for (let cmd of found) {
+            //console.log(cmd);
+            let matches = cmd.match(subCmdRegExp);
 
-        for (let rawstring of strings.raw) {
-            //console.log("strings: " + rawstring);
-            let found = rawstring.match(cmdRegExp);
-            //console.log(found);
-            for (let cmd of found) {
-                //console.log(cmd);
-                let matches = cmd.match(subCmdRegExp);
+            if (matches.length !== 3) throw new Error("Error in command string: " + found);
+            let cmdChar = matches[1];
+            let value = parseFloat(matches[2]);
 
-                if (matches.length !== 3) throw new Error("Error in command string: " + found);
-                let cmdChar = matches[1];
-                let value = parseFloat(matches[2]);
+            //console.log(matches);
 
-                //console.log(matches);
+            switch (cmdChar) {
+                case mvChar: this.distance(value).go();
+                    break;
+                case exChar: this.distance(value).go(1);
+                    break;
+                case ltChar: this.turn(value);
+                    break;
+                case rtChar: this.turn(-value);
+                    break;
 
-                switch (cmdChar) {
-                    case mvChar: this.distance(value).go();
-                        break;
-                    case exChar: this.distance(value).go(1);
-                        break;
-                    case ltChar: this.turn(value);
-                        break;
-                    case rtChar: this.turn(-value);
-                        break;
-
-                    default:
-                        throw new Error("Error in command - unknown command char: " + cmdChar);
-                }
+                default:
+                    throw new Error("Error in command - unknown command char: " + cmdChar);
             }
         }
+
         return this;
     }
 
