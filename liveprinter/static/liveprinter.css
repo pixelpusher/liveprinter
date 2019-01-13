@@ -87,7 +87,8 @@ td {
 
 #printer-info {
     padding-top: 0.825em;
-    background-color: lightblue;
+    background-color: rgb(226, 26, 82);
+    border-bottom: 3px solid gray;
 }
 
 #printer {
@@ -136,7 +137,7 @@ td {
 }
 
 .code-errors {
-    background-color: darkred;
+    background-color: rgb(226, 26, 82);
     padding: 0.4em;
     color: lightgray;
     border-left: 0;
@@ -160,7 +161,7 @@ td {
 }
 
 #errors {
-    color: darkmagenta;
+    color: orange;
 }
 
 
@@ -223,13 +224,14 @@ kbd {
 }
 
 .instructions-panel, .code-errors-panel {
-    background-color: grey;
+    background-color: #181818;
     padding-top: 0.25em;
     padding-bottom: 0.25em;
+    color: lightgoldenrodyellow;
 }
 
 .code-errors-panel {
-    color: darkred;
+    color: rgb(255, 67, 119);
 }
 
 .lines {

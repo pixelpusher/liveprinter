@@ -30,6 +30,9 @@
                         <li class="nav-item">
                             <a id="global-editor-tab" class="flex-sm-fill text-sm-center nav-link lightnav" data-toggle="pill" href="#global-code-editor-area" role="tab" aria-controls="global-code-editor-area" aria-selected="false">global code editor</a>
                         </li>
+                        <li class="nav-item">
+                            <a id="gcode-editor-tab" class="flex-sm-fill text-sm-center nav-link lightnav" data-toggle="pill" href="#gcode-editor-area" role="tab" aria-controls="gcode-editor-area" aria-selected="false">gcode editor</a>
+                        </li>
                         <li class="nav-item btn-group">
                             <a id="editor-tab" class="flex-sm-fill text-sm-center nav-link active lightnav" data-toggle="pill" href="#code-editor-area" role="tab" aria-controls="code-editor-area" aria-selected="true">code editor</a>
                             <a id="examples-dropdown" class="flex-sm-fill text-sm-center nav-link lightnav active dropdown-toggle dropdown-toggle-split" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" role="tab">
@@ -52,6 +55,83 @@
                         </li>
                         <li class="nav-item"><button id="python-mode-btn" type="button" class="btn btn-sm btn-warning" data-toggle="button" aria-pressed="false" autocomplete="off">javascript mode</button></li>
                     </ul>
+
+                    <div id="printer-info" class="col-md-12">
+                        <form>
+                            <!--<div class="row">
+                                <div class="col-md-12">
+                                    <p class="lead">Printer Information:</p>
+                                </div>
+                            </div>-->
+                            <div class="row">
+                                <div class="col-md-2">
+                                    <div class="input-group input-group-sm mb-3">
+                                        <div class="input-group-prepend">
+                                            <span class="input-group-text" id="basic-addon-x">x</span>
+                                        </div>
+                                        <input name="x" type="text" class="form-control" placeholder="0.00" aria-label="x" aria-describedby="basic-addon-x">
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <div class="input-group input-group-sm mb-3">
+                                        <div class="input-group-prepend">
+                                            <span class="input-group-text" id="basic-addon-y">y</span>
+                                        </div>
+                                        <input name="y" type="text" class="form-control" placeholder="0.00" aria-label="y" aria-describedby="basic-addon-y">
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <div class="input-group input-group-sm mb-3">
+                                        <div class="input-group-prepend">
+                                            <span class="input-group-text" id="basic-addon-z">z</span>
+                                        </div>
+                                        <input name="z" type="text" class="form-control" placeholder="0.00" aria-label="z" aria-describedby="basic-addon-z">
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="input-group input-group-sm mb-3">
+                                        <div class="input-group-prepend">
+                                            <button class="btn btn-secondary" id="basic-addon-retract" type="button">lp.retract</button>
+                                        </div>
+                                        <input name="retract" type="text" class="form-control" placeholder="0.00" aria-label="retract" aria-describedby="basic-addon-retract">
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="input-group input-group-sm mb-3">
+                                        <div class="input-group-prepend">
+                                            <button class="btn btn-secondary" id="basic-addon-angle" type="button">lp.angle</button>
+                                        </div>
+                                        <input name="angle" type="text" class="form-control" placeholder="0.00" aria-label="angle" aria-describedby="basic-addon-angle">
+                                    </div>
+                                </div>
+                                <!--</div>
+                                <div class="row" id="temperature">-->
+                                <div class="col-md-3">
+                                    <div class="input-group input-group-sm mb-3">
+                                        <div class="input-group-prepend">
+                                            <button class="btn btn-secondary" id="basic-addon-temphot" type="button">head temp</button>
+                                        </div>
+                                        <input name="temphot" type="text" class="form-control" placeholder="0.00" aria-label="temphot" aria-describedby="basic-addon-temphot">
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <input name="temphot-target" type="text" placeholder="0.00">
+                                </div>
+
+                                <div class="col-md-3">
+                                    <div class="input-group input-group-sm mb-3">
+                                        <div class="input-group-prepend">
+                                            <button class="btn btn-secondary" id="basic-addon-tempbed" type="button">bed temp</button>
+                                        </div>
+                                        <input name="tempbed" type="text" class="form-control" placeholder="0.00" aria-label="tempbed" aria-describedby="basic-addon-tempbed">
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <input name="tempbed-target" type="text" placeholder="0.00">
+                                </div>
+                            </div>
+                        </form>
+                    </div>
 
                     <div id="tab-messages-pane" class="tab-content col-md-12">
                         <div id="printer" class="tab-pane fade show" role="tabpanel" aria-labelledby="pills-info-tab">
@@ -127,64 +207,29 @@
                             </div>
                         </div>
 
+                        <!-- gcode code editor-->
+                        <div id="gcode-editor-area" class="tab-pane fade show active hideAfterLoad" role="tabpanel" aria-labelledby="pills-gcode-editor-tab">
+                            <div class="row">
+                                <div class="col-12 cm-contain">
+                                    <form>
+                                        <textarea id="gcode-editor">
+                                        ; GCode lines go here.  They are automatically added when code is compiled, too.
+
+                                        </textarea>
+                                    </form>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-2 instructions-panel"></div>
+                                <div class="col-md-10 instructions-panel">
+                                    Highlight lines of code and hit <kbd>cmd</kbd> or <kbd>ctrl</kbd>-<kbd>enter</kbd> to <button id="sendCode" class="btn btn-success btn-sm">send</button> them
+                                </div>
+                            </div>
+                        </div>
+
                     </div> <!-- close tab menus -->
                     <!-- printer info panel-->
-                    <div id="printer-info" class="col-md-12">
-                        <form>
-                            <!--<div class="row">
-                                <div class="col-md-12">
-                                    <p class="lead">Printer Information:</p>
-                                </div>
-                            </div>-->
-                            <div class="row">
-                                <div class="col-md-2">
-                                    <div class="input-group input-group-sm mb-3">
-                                        <div class="input-group-prepend">
-                                            <span class="input-group-text" id="basic-addon-x">x</span>
-                                        </div>
-                                        <input name="x" type="text" class="form-control" placeholder="0.00" aria-label="x" aria-describedby="basic-addon-x">
-                                    </div>
-                                </div>
-                                <div class="col-md-2">
-                                    <div class="input-group input-group-sm mb-3">
-                                        <div class="input-group-prepend">
-                                            <span class="input-group-text" id="basic-addon-y">y</span>
-                                        </div>
-                                        <input name="y" type="text" class="form-control" placeholder="0.00" aria-label="y" aria-describedby="basic-addon-y">
-                                    </div>
-                                </div>
-                                <div class="col-md-2">
-                                    <div class="input-group input-group-sm mb-3">
-                                        <div class="input-group-prepend">
-                                            <span class="input-group-text" id="basic-addon-z">z</span>
-                                        </div>
-                                        <input name="z" type="text" class="form-control" placeholder="0.00" aria-label="z" aria-describedby="basic-addon-z">
-                                    </div>
-                                </div>
-                                <div class="col-md-3">
-                                    <div class="input-group input-group-sm mb-3">
-                                        <div class="input-group-prepend">
-                                            <button class="btn btn-secondary" id="basic-addon-retract" type="button">lp.retract</button>
-                                        </div>
-                                        <input name="retract" type="text" class="form-control" placeholder="0.00" aria-label="retract" aria-describedby="basic-addon-retract">
-                                    </div>
-                                </div>
-                                <div class="col-md-3">
-                                    <div class="input-group input-group-sm mb-3">
-                                        <div class="input-group-prepend">
-                                            <button class="btn btn-secondary" id="basic-addon-angle" type="button">lp.angle</button>
-                                        </div>
-                                        <input name="angle" type="text" class="form-control" placeholder="0.00" aria-label="angle" aria-describedby="basic-addon-angle">
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="row">
-                                <div id="temperature" class="col-md-12">
-                                    <p class='alert alert-danger fade show' role='alert'></p>
-                                </div>
-                            </div>
-                        </form>
-                    </div>
+
                 </div>
                 <div class="panel-l"></div>
                 <div class="panel-b-l"></div>

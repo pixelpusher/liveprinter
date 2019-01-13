@@ -319,27 +319,42 @@ class Printer {
     /**
      * Performs a quick startup by resetting the axes and moving the head
      * to printing position (layerheight).
-     * @param {float} temp is the temperature to start warming up to
+     * @param {float} hotEndTemp is the temperature to start warming hot end up to (only 1 supported)
+     * @param {float} bedTemp is the temperature to start warming bed up to
      * @returns {Printer} reference to this object for chaining
      */
-    start(temp = "190") {
+    start(hotEndTemp = "190", bedTemp = "50") {
         this.send("G28");
-        this.send("M104 S" + temp);
+        this.send("M104 S" + hotEndTemp); //heater 1 temp
+        this.send("M140 S" + bedTemp); // bed temp
         this.sendFirmwareRetractSettings();
-        this.moveto({ x: this.cx, y: this.cy, z: this.layerHeight, speed: Printer.defaultPrintSpeed });
-        this.send("M106 S100"); // set fan to full
+        this.moveto({ x: this.cx, y: this.cy, z: this.maxz, speed: Printer.defaultPrintSpeed });
+        //this.send("M106 S100"); // set fan to full
 
         return this;
     }
 
+
+
     /**
-     * Set temperature, don't block other operation.
+     * Set hot end temperature, don't block other operation.
      * to printing position (layerheight).
      * @param {float} temp is the temperature to start warming up to
      * @returns {Printer} reference to this object for chaining
      */
     temp(temp = "190") {
         this.send("M104 S" + temp);
+        return this;
+    }
+
+    /**
+     * Set bed temperature, don't block other operation.
+     * to printing position (layerheight).
+     * @param {float} temp is the temperature to start warming up to
+     * @returns {Printer} reference to this object for chaining
+     */
+    bed(temp = "190") {
+        this.send("M140 S" + temp);
         return this;
     }
 
@@ -511,6 +526,36 @@ class Printer {
     up(d) {
         return this.move({ 'z': d, 'speed': this.travelSpeed });
     }
+
+    /**
+     * Move up to a specific height quickly! (in mm). It might seem silly to have both, upto and downto,
+     * but conceptually when you're making something it makes sense, even if they do the same thing.
+     * @param {Number} d distance in mm to move up
+     * @returns {Printer} Reference to this object for chaining
+     */
+    upto(d) {
+        return this.moveto({ 'z': d, 'speed': this.travelSpeed });
+    }
+
+    /**
+     * Move up to a specific height quickly! (in mm)
+     * @param {Number} d distance in mm to move up
+     * @returns {Printer} Reference to this object for chaining
+     */
+    downto(d) {
+        return this.moveto({ 'z': d, 'speed': this.travelSpeed });
+    }
+
+    /**
+     * Move down quickly! (in mm)
+     * @param {Number} d distance in mm to move up
+     * @returns {Printer} Reference to this object for chaining
+     */
+    down(d) {
+        return this.move({ 'z': -d, 'speed': this.travelSpeed });
+    }
+
+
 
     /**
      * Set the direction of movement for the next operation.

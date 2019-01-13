@@ -65,7 +65,7 @@ $.when($.ready).then(
              * Clear all scheduled events.
              * */
             clearEvents: function () {
-                window.scope.Scheduler.ScheduledEvents = [];
+                this.ScheduledEvents = [];
             },
 
             /**
@@ -75,7 +75,7 @@ $.when($.ready).then(
             scheduleEvent: function (args) {
                 args.time = Date.now() - window.scope.Scheduler.startTime;
 
-                window.scope.Scheduler.ScheduledEvents.push(args);
+                this.ScheduledEvents.push(args);
             },
 
             /**
@@ -84,7 +84,7 @@ $.when($.ready).then(
              */
             removeEvent: function (func) {
                 // run events 
-                window.scope.Scheduler.ScheduledEvents = window.scope.Scheduler.ScheduledEvents.filter(func);
+                this.ScheduledEvents = window.scope.Scheduler.ScheduledEvents.filter(func);
             },
 
             /**
@@ -93,7 +93,7 @@ $.when($.ready).then(
              */
             removeEventByName: function (name) {
                 // run events 
-                window.scope.Scheduler.ScheduledEvents = window.scope.Scheduler.ScheduledEvents.filter(e => e.name !== name);
+                this.ScheduledEvents = window.scope.Scheduler.ScheduledEvents.filter(e => e.name !== name);
             },
 
             /**
@@ -102,9 +102,10 @@ $.when($.ready).then(
             startScheduler: function () {
 
                 console.log("scheduler starting at time: " + this.startTime);
+                const me = this; //local reference for this closure
 
                 function scheduler(nextTime) {
-                    const time = Date.now() - window.scope.Scheduler.startTime; // in ms
+                    const time = Date.now() - me.startTime; // in ms
 
                     // run events 
                     window.scope.Scheduler.ScheduledEvents.filter(
@@ -131,7 +132,7 @@ $.when($.ready).then(
             }
         };
 
-
+        // start scheduler!
         window.scope.Scheduler.startScheduler();
 
         // Scheduler.scheduleEvent({
@@ -155,7 +156,7 @@ $.when($.ready).then(
             scrollbarStyle: "simple",
             styleActiveLine: true,
             lineWrapping: true,
-            undoDepth: 100,
+            undoDepth: 40,
             //autocomplete: true,
             extraKeys: {
                 "Ctrl-Enter": runCode,
@@ -188,6 +189,26 @@ $.when($.ready).then(
             foldGutter: true,
             autoCloseBrackets: true
         });
+
+        /**
+         * CodeMirror code editor instance (compiled gcode). See {@link https://codemirror.net/doc/manual.html}
+         * @memberOf LivePrinter
+         */
+        const GCodeEditor = CodeMirror.fromTextArea(document.getElementById("gcode-editor"), {
+            lineNumbers: true,
+            scrollbarStyle: "simple",
+            styleActiveLine: true,
+            lineWrapping: true,
+            undoDepth: 20,
+            //autocomplete: true,
+            extraKeys: {
+                "Ctrl-Enter": runGCode,
+                "Cmd-Enter": runGCode,
+                "Ctrl-Space": "autocomplete",
+                "Ctrl-Q": function (cm) { cm.foldCode(cm.getCursor()); }
+            }
+        });
+
 
         //hide tab-panel after codeMirror rendering (by removing the extra 'active' class)
         $('.hideAfterLoad').each(function () {
@@ -365,14 +386,16 @@ $.when($.ready).then(
          * The semi-colon is not treated as the start of a comment when enclosed in parentheses.
          * Borrowed from {@link https://github.com/cncjs/gcode-parser/blob/master/src/index.js} (MIT License)
          * See {@link http://linuxcnc.org/docs/html/gcode/overview.html#gcode:comments}
+         * @param {String} line Line of GCode to strip comments from 
+         * @returns {String} line without comments
          * @memberOf LivePrinter
          */
-        const stripComments = (() => {
+        const stripComments = (line) => {
             const re1 = new RegExp(/\s*\([^\)]*\)/g); // Remove anything inside the parentheses
             const re2 = new RegExp(/\s*;.*/g); // Remove anything after a semi-colon to the end of the line, including preceding spaces
             //const re3 = new RegExp(/\s+/g);
-            return (line => line.replace(re1, '').replace(re2, '')); //.replace(re3, ''));
-        })();
+            return line.replace(re1, '').replace(re2, ''); //.replace(re3, ''));
+        };
 
         /**
          * Convert code to JSON RPC for sending to the server.
@@ -382,7 +405,7 @@ $.when($.ready).then(
          * 
          */
         function codeToJSON(gcode) {
-            if (typeof gcode === 'string') gcode = [stripComments(gcode)];
+            if (typeof gcode === 'string') gcode = [gcode]; // needs to be array
 
             if (typeof gcode === 'object' && Array.isArray(gcode)) {
                 let message = {
@@ -409,8 +432,59 @@ $.when($.ready).then(
          * @memberOf LivePrinter
          */
         function sendGCode(gcode) {
-            let message = codeToJSON(gcode);
+            // remove all comments from lines and reconstruct
+            let gcodeLines = gcode.replace(new RegExp(/\n+/g), '\n').split('\n');
+            let cleanGCode = gcodeLines.map(l => stripComments(l)).filter(l => l !== '\n');
+
+            console.log(cleanGCode);
+
+            // add comment with date and time
+            const dateStr = ' ; ' + (new Date()).toLocaleString('en-US',
+                {
+                    hour12: false,
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                }
+            ) + '\n';
+            const doc = GCodeEditor.getDoc();
+            let line = doc.lastLine();
+            const pos = {
+                "line": line,
+                "ch": doc.getLine(line).length
+            };
+            const gcodeText = '\n' + dateStr +  cleanGCode.join('\n');
+            doc.replaceRange(gcodeText, pos);
+            GCodeEditor.refresh();
+            let newpos = { line: doc.lastLine(), ch: doc.getLine(line).length };
+            GCodeEditor.setSelection(pos, newpos);
+            GCodeEditor.scrollIntoView(newpos);
+
+            let message = codeToJSON(cleanGCode);
             socketHandler.socket.send(message);
+        }
+
+        /**
+         * Run GCode from the editor by sending to the server via websockets.
+         * @memberOf LivePrinter
+         */
+        function runGCode() {
+            let code = GCodeEditor.getSelection();
+            const cursor = GCodeEditor.getCursor();
+
+            // parse first??
+            let validCode = true;
+
+            if (!code) {
+                // info level
+                //console.log("no selections");
+                code = GCodeEditor.getLine(cursor.line);
+                GCodeEditor.setSelection({ line: cursor.line, ch: 0 }, { line: cursor.line, ch: code.length });
+            }
+            sendGCode(code);
         }
 
         /**
@@ -518,13 +592,15 @@ $.when($.ready).then(
         */
         var socketHandler = {
             socket: null, //websocket
-            listeners: [], // listeners for json rpc calls
+            listeners: [], // listeners for json rpc calls,
 
             start: function () {
                 $("#info > ul").empty();
                 $("#errors > ul").empty();
                 $("#commands > ul").empty();
-                var url = "ws://" + location.host + "/json";
+                // convert to websockets port (works for https too)
+                // NOTE: may need to toggle network.websocket.allowInsecureFromHTTPS in FireFox (about:config) to make this work
+                const url = location.href.replace(/http/, "ws") + "json";
                 this.socket = new WebSocket(url);
                 console.log('opening socket');
 
@@ -684,12 +760,22 @@ $.when($.ready).then(
                 //console.log(tempEvent);
                 let tmp = parseFloat(tempEvent.hotend).toFixed(2);
                 let target = parseFloat(tempEvent.hotend_target).toFixed(2);
+                let tmpbed = parseFloat(tempEvent.bed).toFixed(2);
+                let targetbed = parseFloat(tempEvent.bed_target).toFixed(2);
 
+                $("input[name='temphot']")[0].value = tmp;
+                $("input[name='tempbed']")[0].value = tmpbed;
+                $("input[name='temphot-target']")[0].value = target;
+                $("input[name='tempbed-target']")[0].value = targetbed;
+                /*
                 $("#temperature > p").html(
-                    '<strong>hotend temp/target:'
+                    '<strong>TEMPERATURE: hotend/target:'
                     + tmp + " / " + target
-                    + '</strong>');
-
+                    + '::::: bed/target'
+                    + tmpbed + " / " + targetbed
+                    + '</strong>' +
+                    );
+                */
                 // look for 10% diff, it's not very accurate...
                 /*
                 if ((Math.abs(tmp - target) / target) < 0.10) {
@@ -863,8 +949,10 @@ $.when($.ready).then(
                 CodeEditor.refresh();
                 setLanguageMode(); // have to update gutter, etc.
                 clearError();
-            }  
-            //console.log(target);
+            }
+            else if (target === "#gcode-editor-area") {
+                GCodeEditor.refresh();
+            }
         });
 
         //
