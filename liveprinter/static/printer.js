@@ -1116,11 +1116,9 @@ class Printer {
      * of 0 means to use the original paths' width/height.
      * @returns {Printer} reference to this object for chaining
      * @test const p = [
-          [[20,20],
+     *     [20,20],
            [30,30],
-           [50,30]]
-        ];
-
+           [50,30]];
         lp.printPaths({paths:p,minZ:0.2,passes:10});
      */
     printPaths({ paths = [[]], minY = 0, minX = 0, minZ = 0, width = 0, height = 0, useaspect = true, passes = 1, safeZ = 0 }) {
