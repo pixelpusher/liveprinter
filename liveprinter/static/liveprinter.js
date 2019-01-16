@@ -1362,7 +1362,7 @@ $.when($.ready).then(
 
             // update GUI
             $("input[name='retract']")[0].value = window.scope.printer.currentRetraction;
-            $("input[name='angle']")[0].value = window.scope.printer.getAngle();
+            $("input[name='angle']")[0].value = window.scope.printer.angle;
 
         } // end globalEval
 

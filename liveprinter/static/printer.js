@@ -200,6 +200,38 @@ class Printer {
         this.maxPosition.axes.z = v;
     }
 
+    /**
+     * Return internal angle in degrees (because everything is in degrees unless otherwise specified) 
+     */
+    get angle() {
+        return this.r2d(this._heading);
+    }
+
+    /**
+     * Set the internal direction of movement for the next operation in degrees.
+     * @param {float} ang Angle of movement (in xy plane) in degrees
+     */
+    set angle(ang) {
+        this._heading = this.d2r(ang);
+    }
+
+    /**
+     * Return internal angle in radians 
+     */
+    get angler() {
+        return this._heading;
+    }
+
+    /**
+     * Set the internal direction of movement for the next operation in radians.
+     * @param {float} ang Angle of movement (in xy plane) in radians
+     */
+    set angler(ang) {
+        this._heading = ang;
+    }
+
+
+
 
     /**
      * Set the extrusion thickness (in mm)
@@ -207,7 +239,7 @@ class Printer {
      * @returns {Printer} reference to this object for chaining
      */
     thick(val) {
-        this.thickness = val;
+        this.layerHeight = val;
         return this;
     }
 
@@ -247,10 +279,10 @@ class Printer {
      * 
      * // or extrude an angle/distance and then force retract
      * lp.firmwareRetract = false; // turn off automatic retraction in firmware
-     * lp.angle(45).dist(50).go(1).retract(6,30);
+     * lp.turnto(45).dist(50).go(1).retract(6,30);
      * 
      * // retract again with same settings
-     * lp.angle(45).dist(50).go(1).retract();
+     * lp.turnto(45).dist(50).go(1).retract();
      */
     retract(len = this.retractLength, speed) {
         if (len < 0) throw new Error("retract length can't be less than 0: " + len);
@@ -297,7 +329,7 @@ class Printer {
      * 
      * // or extrude an angle/distance and then force retract
      * lp.firmwareRetract = false; // turn off automatic retraction in firmware
-     * lp.angle(45).dist(50).go(1).retract(6,30);
+     * lp.turnto(45).dist(50).go(1).retract(6,30);
      * lp.unretract(8,30); // extract a little more to get it going
      */
     unretract(len = this.currentRetraction, speed) {
@@ -465,24 +497,9 @@ class Printer {
      * @param {Boolean} radians use radians or not
      * @returns {Printer} Reference to this object for chaining
      */
-    angle(ang, radians = false) {
-        let a = ang;
-        if (!radians) {
-            a = this.d2r(ang);
-        }
-        this._heading = a;
-        return this;
-    }
-
-    /**
-     * Set the direction of movement for the next operation.
-     * @param {float} ang Angle of movement (in xy plane)
-     * @param {Boolean} radians use radians or not
-     * @returns {Printer} Reference to this object for chaining
-     * @see angle
-     */
     turnto(ang, radians = false) {
-        return this.angle(ang, radians);
+        this._heading = radians ? ang : this.d2r(ang) ;
+        return this;
     }
     /**
      * Run a set of commands specified in a grammar (experimental.)
