@@ -348,6 +348,24 @@ $.when($.ready).then(
         // expose as global
         window.scope.getSerialPorts = getSerialPorts;
 
+
+        /**
+         * Get the connection state of the printer and display in the GUI (the listener will take care of that)
+         * @memberOf LivePrinter
+         */
+        function getPrinterState() {
+            const message = {
+                'jsonrpc': '2.0',
+                'id': 6,
+                'method': 'get-printer-state',
+                'params': []
+            };
+            socketHandler.sendMessage(message);
+        }
+        // expose as global
+        window.scope.getPrinterState = getPrinterState;
+
+
         /**
          * Toggle the language mode for livecoding scripts between Javascript and Python.
          * @memberOf LivePrinter
@@ -475,7 +493,7 @@ $.when($.ready).then(
                 "line": line,
                 "ch": doc.getLine(line).length
             };
-            const gcodeText = '\n' + dateStr +  cleanGCode.join('\n');
+            const gcodeText = '\n' + dateStr + cleanGCode.join('\n');
             doc.replaceRange(gcodeText, pos);
             GCodeEditor.refresh();
             let newpos = { line: doc.lastLine(), ch: doc.getLine(line).length };
@@ -584,7 +602,7 @@ $.when($.ready).then(
          * @param {Integer} interval time interval between updates
          * @memberOf LivePrinter
          */
-        let updateTemperature = function (state, interval = 5000) {
+        const updateTemperature = function (state, interval = 5000) {
 
             if (state) {
                 // schedule temperature updates every little while
@@ -603,6 +621,35 @@ $.when($.ready).then(
                 window.scope.Scheduler.removeEventByName("tempUpdates");
             }
         };
+
+
+        /**
+         * Function to start or stop polling for printer state updates
+         * @param {Boolean} state true if starting, false if stopping
+         * @param {Integer} interval time interval between updates
+         * @memberOf LivePrinter
+         */
+        const updatePrinterState = function (state, interval = 3000) {
+            const name = "stateUpdates";
+
+            if (state) {
+                // schedule temperature updates every little while
+                window.scope.Scheduler.scheduleEvent({
+                    name: name,
+                    timeOffset: interval,
+                    func: (time) => {
+                        if (socketHandler.socket.readyState === socketHandler.socket.OPEN) {
+                            getPrinterState();
+                        }
+                    },
+                    repeat: true
+                });
+            } else {
+                // stop updates
+                window.scope.Scheduler.removeEventByName(name);
+            }
+        };
+        updatePrinterState(true);
 
         /**
         * Handle websockets communications
@@ -671,7 +718,7 @@ $.when($.ready).then(
             /**
              * Show a message in the GUI 
              * @param {Object} message message to show (should have id and html properties)
-             */ 
+             */
             showMessage: function (message) {
                 var existing = $("#m" + message.id);
                 if (existing.length > 0) return;
@@ -812,6 +859,29 @@ $.when($.ready).then(
 
 
         /**
+         * json-rpc temperature event handler
+         * @memberOf LivePrinter
+         */
+        const printerStateHandler = {
+            'printerstate': function (stateEvent) {
+                console.log(stateEvent);
+                switch (stateEvent.message) {
+                    case "connected":
+                        $("#printer-state").prop("checked", true);
+                        break;
+                    case "closed":
+                        $("#printer-state").prop("checked", false);
+                        break;
+                    case "error":
+                        $("#printer-state").prop("checked", false);
+                        break;
+                }
+            }
+        };
+        socketHandler.registerListener(printerStateHandler);
+
+
+        /**
          * json-rpc error event handler
          * @memberOf LivePrinter
          */
@@ -913,17 +983,37 @@ $.when($.ready).then(
                     newButton.click(function (e) {
                         e.preventDefault();
                         let me = $(this);
+                        let baudrate = $("#baudrates-list .active").data("rate");
+
+                        console.log("baudrate:");
+                        console.log(baudrate);
+
                         let message = {
                             'jsonrpc': '2.0',
                             'id': 6,
                             'method': 'set-serial-port',
-                            'params': [me.data("portName")]
+                            'params': [me.data("portName"), baudrate]
                         };
-                        socketHandler.socket.send(JSON.stringify(message));
-                        $("#serial-ports-list > drop-down-menu > button").removeClass("active");
+                        socketHandler.sendMessage(message);
+                        $("#serial-ports-list > button").removeClass("active");
                         me.addClass("active");
+                        $("#connect-btn").text("disconnect").addClass("active"); // toggle connect button
                     });
                     portsDropdown.append(newButton);
+                });
+
+                // build baud rates selection menu
+
+                const allBaudRates = [115200, 250000, 230400, 57600, 38400, 19200, 9600];
+
+                allBaudRates.forEach(rate => {
+                    //console.log("PORT:" + port);
+                    let newButton = $('<button class="dropdown-item" type="button" data-rate="' + rate + '">' + rate + '</button>');
+                    // default rate
+                    if (rate === 250000) {
+                        newButton.addClass("active");
+                    }
+                    $("#baudrates-list").append(newButton);
                 });
 
                 blinkElem($("#serial-ports-list"));
@@ -932,6 +1022,46 @@ $.when($.ready).then(
         };
 
         socketHandler.registerListener(portsListHandler);
+
+        $("#connect-btn").on("click", function (e) {
+            e.preventDefault();
+            const notCalledFromCode = !(e.namespace !== undefined && e.namespace === "");
+            if (notCalledFromCode) {
+                console.log()
+                const me = $(this);
+                const connected = me.hasClass('active'); // because it becomes active *after* a push
+
+                if (connected) {
+                    let selectedPort = $("#serial-ports-list .active");
+                    if (selectedPort.length > 0) {
+
+                        me.text("connect");
+                        $("#serial-ports-list > button").removeClass("active");
+                        // check for not a code-initiated click
+
+                        const message = {
+                            'jsonrpc': '2.0',
+                            'id': 6,
+                            'method': 'disconnect-serial-port',
+                            'params': ["none"]
+                        };
+                        socketHandler.sendMessage(message);
+                    }
+                }
+
+                else {
+                    let selectedPort = $("#serial-ports-list .active");
+                    if (selectedPort.length < 1) {
+                        me.removeClass('active');
+                    }
+                    else {
+                        me.text("disconnect");
+                        selectedPort.click(); // trigger connection using active port
+                    }
+                }
+            }
+        });
+
 
         /**
          * Append a dismissible, styled text node to one of the side menus, formatted appropriately.
@@ -956,7 +1086,7 @@ $.when($.ready).then(
         ///////////////// GUI SETUP ////////////////////////////
         /////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-        
+
         $('a[data-toggle="pill"]').on('shown.bs.tab', function (e) {
             const target = $(e.target).attr("href") // activated tab
             if (target === "#global-code-editor-area") {
@@ -995,7 +1125,8 @@ $.when($.ready).then(
                     month: '2-digit',
                     day: '2-digit',
                     hour: '2-digit',
-                    minute: '2-digit'                }
+                    minute: '2-digit'
+                }
             );
             downloadFile(CodeEditor.getDoc().getValue(), "LivePrinterCode" + dateStr + ".js", 'text/javascript');
             downloadFile(GCodeEditor.getDoc().getValue(), "LivePrinterGCode" + dateStr + ".js", 'text/javascript');
@@ -1040,7 +1171,7 @@ $.when($.ready).then(
             }
             else {
                 me.text("javascript mode");
-            }             
+            }
             setLanguageMode(); // update codemirror editor
         });
 

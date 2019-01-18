@@ -34,6 +34,7 @@ from UM.Logger import Logger
 # tornado options
 define("http-port", default=8888, help="port to listen on", type=int)
 define('debug', default=True, help='Run in debug mode')
+define('baud_rate', default=250000, help="serial baud rate to for connecting to printer")
 
 def list_ports():
     choice_port = []
@@ -172,39 +173,64 @@ def json_handle_responses(printer:USBPrinter, *argv):
 
 
 #
+# disconnect the serial port of the printer.
+# return the port name if successful, otherwise "error" as the port
+#
+def json_handle_disconnect_serial_port(printer:USBPrinter):
+    port_str = "None"
+    if (printer._serial_port is not None):
+        port_str = printer._serial_port
+
+    port_msg = "port[" + port_str +"] closed"
+
+    json = {
+            'jsonrpc': '2.0',
+            'id': 5, 
+            'method': 'serial-port-disconnected',
+            'params': {
+                'time': time()*1000,
+                'message': [port_msg]
+                }
+            }
+    printer.close()
+    return json
+
+#
 # set the serial port of the printer and connect.
 # return the port name if successful, otherwise "error" as the port
 #
-def json_handle_set_serial_port(printer:USBPrinter, port:str):
-    json = None
-    Logger.log("i", "setting serial port: {}".format(port))
+def json_handle_set_serial_port(printer:USBPrinter, *msg):
+    # printer:USBPrinter, port:str, baud_rate:int
+    if len(msg) is not 2:
+        Logger.log("e", "Error in handle_serial_port: not 3 reauired arguments = {}".format(list(msg)))
+        return
 
-
-    if port.lower().startswith("dummy"):
-         use_dummy_serial_port(printer)
-         json = {
+    port = msg[0].lower()
+    options.baud_rate = int(msg[1])
+    
+    json = {
             'jsonrpc': '2.0',
             'id': 5, 
             'method': 'serial-port-set',
             'params': {
                 'time': time()*1000,
-                'message': port
+                'message': [port, options.baud_rate]
                 }
             }
+
+    Logger.log("i", "setting serial port: {}".format(port))
+
+    if port.startswith("dummy"):
+         use_dummy_serial_port(printer)
     else:
         printer._serial_port = port
 
         try:
+            if (printer.getConnectionState() == ConnectionState.connected):
+                printer.close()
+
+            printer.setBaudRate(options.baud_rate)
             printer.connect()
-            json = {
-                'jsonrpc': '2.0',
-                'id': 5, 
-                'method': 'serial-port-set',
-                'params': {
-                    'time': time()*1000,
-                    'message': port
-                    }
-                }
         except SerialException:
            Logger.log("e", "could not connect to serial port")
            json = {
@@ -213,10 +239,9 @@ def json_handle_set_serial_port(printer:USBPrinter, port:str):
                     'method': 'serial-port-set',
                     'params': {
                         'time': time()*1000,
-                        'message': "error"
+                        'message': ["error"]
                         }
                   }
-
     return json
 
 #
@@ -312,19 +337,20 @@ def json_handle_portslist(*msg):
 
 
 def use_dummy_serial_port(printer:USBPrinter):
-    printer._serial_port ="/dev/null"
-    printer._serial = dummyserial.Serial(
-        port= printer._serial_port,
-        baudrate= printer._baud_rate,
-        ds_responses={
-            '.*M105.*': lambda : b'ok T:%.2f /190.0 B:%.2f /24.0 @:0 B@:0\n' % (random.uniform(170,195),random.uniform(20,35)),
-            '.*M115.*': b'FIRMWARE_NAME:DUMMY\n',
-            '.*M114.*': lambda : b'X:%.2fY:%.2fZ:%.2fE:%.2f Count X: 2.00Y:3.00Z:4.00\n' % (random.uniform(0,200), random.uniform(0,200), random.uniform(0,200), random.uniform(0,200) ),   # position request
-            '.*G.*': b'ok\n',
-            #'^N.*': b'ok\n',
-            '^XXX': b'!!\n'
-                        }
-    )
+    if printer._serial_port is not "/dev/null" and printer._serial is None:
+        printer._serial_port ="/dev/null"
+        printer._serial = dummyserial.Serial(
+            port= printer._serial_port,
+            baudrate= printer._baud_rate,
+            ds_responses={
+                '.*M105.*': lambda : b'ok T:%.2f /190.0 B:%.2f /24.0 @:0 B@:0\n' % (random.uniform(170,195),random.uniform(20,35)),
+                '.*M115.*': b'FIRMWARE_NAME:DUMMY\n',
+                '.*M114.*': lambda : b'X:%.2fY:%.2fZ:%.2fE:%.2f Count X: 2.00Y:3.00Z:4.00\n' % (random.uniform(0,200), random.uniform(0,200), random.uniform(0,200), random.uniform(0,200) ),   # position request
+                '.*G.*': b'ok\n',
+                #'^N.*': b'ok\n',
+                '^XXX': b'!!\n'
+                            }
+        )
     printer.setConnectionState(ConnectionState.connected)
 
 
@@ -346,7 +372,7 @@ if __name__ == '__main__':
     #Logger.addLogger(_logger)
 
     # set up unconnected printer
-    printer = USBPrinter(None, 250000)
+    printer = USBPrinter(None, options.baud_rate)
 
     #use_dummy_serial = True
     #
@@ -364,7 +390,8 @@ if __name__ == '__main__':
     dispatcher.add_dict({"gcode": lambda *msg: json_handle_gcode(printer, *msg)})
     dispatcher.add_dict({"get-printer-state": lambda *msg: json_handle_printerstate(printer, *msg)})
     dispatcher.add_dict({"get-serial-ports": lambda *msg: json_handle_portslist(*msg)})
-    dispatcher.add_dict({"set-serial-port": lambda port: json_handle_set_serial_port(printer, port)})
+    dispatcher.add_dict({"set-serial-port": lambda *msg: json_handle_set_serial_port(printer, *msg)}) # printer, port, baud_rate
+    dispatcher.add_dict({"disconnect-serial-port": lambda *msg: json_handle_disconnect_serial_port(printer)}) # printer, port, baud_rate
     dispatcher.add_dict({"clear-command-queue": lambda *msg: json_handle_clearqueue(printer, *msg)})
     
     # printer API:

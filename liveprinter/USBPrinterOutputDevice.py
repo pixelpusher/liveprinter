@@ -138,6 +138,8 @@ class USBPrinter(OutputDevice):
 
         # Instead of using a timer, we really need the update to be as a thread, as reading from serial can block.
         self._update_thread = Thread(target=self._update, daemon = True)
+        # start main communications thread
+        self._update_thread.start()
 
         ## Set when print is started in order to check running time.
         self._print_start_time = None  # type: Optional[int]
@@ -166,10 +168,6 @@ class USBPrinter(OutputDevice):
         self._model = PrinterModel()
         # TODO: use Quarternions for axis/angle: https://github.com/infusion/Quaternion.js
         # or self.travelSpeed = { "direction": 30, "angle": [0,30,0] }; // in mm/s3
-
-
-        # start main communications thread
-        self._update_thread.start()
 
     #
     # Clear all commands and reset
@@ -205,7 +203,7 @@ class USBPrinter(OutputDevice):
     def connect(self):
         Logger.log("i", "connecting")
 
-        if self.getConnectionState() is ConnectionState.closed:
+        if self.getConnectionState() is ConnectionState.closed or self.getConnectionState() is ConnectionState.error:
             self.setConnectionState(ConnectionState.connecting)
             if self._baud_rate is None:
                 if self._use_auto_detect:
@@ -230,7 +228,6 @@ class USBPrinter(OutputDevice):
             self._serial.close()
         self.setConnectionState(ConnectionState.closed)
         # Re-create the thread so it can be started again later.
-        self._update_thread = Thread(target=self._update, daemon=True)
         self._serial = None
 
     ##  Send a command to printer (put in threaded commands queue).
@@ -541,6 +538,7 @@ class USBPrinter(OutputDevice):
                         # Logger.log('e', "Error from printer: {}".format(response_props["message"]))
                         
                         
+                    #
                     ##### Done parsing, now send waiting commands
                     # now, really not handled
                     else:
