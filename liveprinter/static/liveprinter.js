@@ -666,7 +666,7 @@ $.when($.ready).then(
                 $("#commands > ul").empty();
                 // convert to websockets port (works for https too)
                 // NOTE: may need to toggle network.websocket.allowInsecureFromHTTPS in FireFox (about:config) to make this work
-                const url = location.href.replace(/http/, "ws") + "json";
+                const url = location.href.replace(/http/, "ws").replace("#", "") + "json";
                 this.socket = new WebSocket(url);
                 console.log('opening socket');
 
