@@ -41,9 +41,28 @@
     }
 }
 
+@keyframes greenthrob {
+    0% {
+        background-color: none;
+    }
+
+    50% {
+        background-color: lightgreen;
+    }
+    100% {
+        background-color: none;
+    }
+}
+
 .blinkit {
     animation-duration: 0.3s;
     animation-name: blinkonce;
+}
+
+.blinkgreen {
+    animation-duration: 2s;
+    animation-iteration-count: infinite;
+    animation-name: greenthrob;
 }
 
 .fast {

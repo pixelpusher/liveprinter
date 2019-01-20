@@ -258,14 +258,17 @@ def json_handle_printerstate(printer:USBPrinter, *argv):
 
     try:
         connectionState = printer.getConnectionState()
-
+        serial_port_name = printer._serial_port
+        if printer._serial_port is "/dev/null":
+           serial_port_name = "dummy"
+           
         json = {
                 'jsonrpc': '2.0',
                 'id': 5, 
                 'method': 'printerstate',
                 'params': {
                     'time': time()*1000,
-                    'message': connectionState.name
+                    'message': [connectionState.name, serial_port_name]
                     }
                 }
     except Exception as e:

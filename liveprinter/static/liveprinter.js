@@ -181,11 +181,22 @@ $.when($.ready).then(
                 "Ctrl-Enter": runCode,
                 "Cmd-Enter": runCode,
                 "Ctrl-Space": "autocomplete",
-                "Ctrl-Q": function (cm) { cm.foldCode(cm.getCursor()); }
+                "Ctrl-Q": function (cm) { cm.foldCode(cm.getCursor()); },
+                "Ctrl-Z": (cm) => {
+                    CodeEditor.off("change");
+                    CodeEditor.swapDoc(
+                        CodeMirror.Doc(
+                            "// Type some code here.  Hit CTRL-Z to clear \n\n\n\n", "javascript"
+                        )
+                    );
+                    CodeEditor.on("change", localChangeFunc);
+                }
             },
             foldGutter: true,
             autoCloseBrackets: true
         });
+
+        window.ce = CodeEditor;
 
         /**
          * Global code CodeMirror editor instance. See {@link https://codemirror.net/doc/manual.html}
@@ -690,7 +701,7 @@ $.when($.ready).then(
                     //sendGCode("G92");
                     //sendGCode("G28");
 
-                    var node = $("<li>SERVER CONNECTED</li>");
+                    let node = $("<li class='server-message'>SERVER CONNECTED</li>");
                     node.hide();
                     $("#info").prepend(node);
                     node.slideDown();
@@ -704,13 +715,25 @@ $.when($.ready).then(
                     let message_json = JSON.stringify(message);
                     this.send(message_json);
                 };
+
+                this.socket.onclose = function (e) {
+                    $(".server-message").remove();
+                    let node = $("<li class='server-message'>SERVER NOT CONNECTED</li>");
+                    node.hide();
+                    $("#info").prepend(node);
+                    node.slideDown();
+                    $("#serial-ports-list").empty(); // clear serial ports
+                    $("#connect-btn").text("connect").removeClass("active"); // toggle connect button
+                    $("#header").removeClass("blinkgreen");
+                };
+
             },
 
             /**
              * Sends a message as a JSON string. Will stringify any object sent. 
              * @param {any} message message to send (should be some sort of JSON format)
              */
-            sendMessage(message) {
+            sendMessage: function (message) {
                 let message_json = JSON.stringify(message);
                 this.socket.send(message_json);
             },
@@ -774,6 +797,12 @@ $.when($.ready).then(
 
         scope.printer = new Printer(sendGCode);
 
+        //////////////////////////////////////////////////////////////////////
+        // Listeners for printer events  /////////////////////////////////////
+        //////////////////////////////////////////////////////////////////////
+        //////////////////////////////////////////////////////////////////////
+
+
         // handler for JSON-RPC calls from server
         const jsonrpcPositionListener = {
             "position": function (params) {
@@ -795,6 +824,8 @@ $.when($.ready).then(
         $("#gcode").select();  // focus on code input
         socketHandler.start(); // start websockets
 
+
+        // message to tell printer to send all responses 
         const responseJSON = JSON.stringify({
             "jsonrpc": "2.0",
             "id": 4,
@@ -859,21 +890,38 @@ $.when($.ready).then(
 
 
         /**
-         * json-rpc temperature event handler
+         * json-rpc printer state (connected/disconnected) event handler
          * @memberOf LivePrinter
          */
         const printerStateHandler = {
             'printerstate': function (stateEvent) {
-                console.log(stateEvent);
-                switch (stateEvent.message) {
+                //console.log(stateEvent);
+                const printerTab = $("#header");
+                const printerState = stateEvent.message[0];
+                const printerPort = stateEvent.message[1];
+
+                switch (printerState) {
                     case "connected":
-                        $("#printer-state").prop("checked", true);
+                        if (!printerTab.hasClass("blinkgreen")) {
+                            printerTab.addClass("blinkgreen");
+                        }
+                        // highlioght connected port
+                        $("#serial-ports-list").children().each((i, elem) => {
+                            let $elem = $(elem);
+                            if (elem.innerText === printerPort) {
+                                if (!$elem.hasClass("active")) {
+                                    $elem.addClass("active");
+                                }
+                            } else {
+                                $elem.removeClass("active");
+                            }
+                        });
                         break;
                     case "closed":
-                        $("#printer-state").prop("checked", false);
+                        printerTab.removeClass("blinkgreen");
                         break;
                     case "error":
-                        $("#printer-state").prop("checked", false);
+
                         break;
                 }
             }
@@ -1027,7 +1075,6 @@ $.when($.ready).then(
             e.preventDefault();
             const notCalledFromCode = !(e.namespace !== undefined && e.namespace === "");
             if (notCalledFromCode) {
-                console.log()
                 const me = $(this);
                 const connected = me.hasClass('active'); // because it becomes active *after* a push
 
@@ -1288,7 +1335,7 @@ $.when($.ready).then(
         */
         function storageAvailable(type) {
             try {
-                var storage = window[type],
+                const storage = window[type],
                     x = '__storage_test__';
                 storage.setItem(x, x);
                 storage.removeItem(x);
