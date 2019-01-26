@@ -48,24 +48,9 @@ $.when($.ready).then(
 
         let pythonMode = false;
 
-        // from stack overflow
-        let downloadFile = function (data, filename, type) {
-            var file = new Blob([data], { type: type });
-            if (window.navigator.msSaveOrOpenBlob) // IE10+
-                window.navigator.msSaveOrOpenBlob(file, filename);
-            else { // Others
-                var a = document.createElement("a"),
-                    url = URL.createObjectURL(file);
-                a.href = url;
-                a.download = filename;
-                document.body.appendChild(a);
-                a.click();
-                setTimeout(function () {
-                    document.body.removeChild(a);
-                    window.URL.revokeObjectURL(url);
-                }, 0);
-            }
-        };
+        if (scope.printer) delete scope.printer;
+
+        scope.printer = new Printer(sendGCode);
 
         /**
          * Handy object for scheduling events at intervals, etc.
@@ -96,6 +81,7 @@ $.when($.ready).then(
 
                 this.ScheduledEvents.push(args);
             },
+
 
             /**
              * Remove an event using a filtering function (like matching a name)
@@ -151,9 +137,6 @@ $.when($.ready).then(
             }
         };
 
-        // start scheduler!
-        window.scope.Scheduler.startScheduler();
-
         // Scheduler.scheduleEvent({
         //     timeOffset: 2000,
         //     func: function() { console.log("EVENT"); } ,
@@ -182,7 +165,7 @@ $.when($.ready).then(
                 "Cmd-Enter": runCode,
                 "Ctrl-Space": "autocomplete",
                 "Ctrl-Q": function (cm) { cm.foldCode(cm.getCursor()); },
-                "Ctrl-Z": (cm) => {
+                "Ctrl-\\": (cm) => {
                     CodeEditor.off("change");
                     CodeEditor.swapDoc(
                         CodeMirror.Doc(
@@ -462,14 +445,8 @@ $.when($.ready).then(
                     'method': 'gcode',
                     'params': gcode
                 };
-
                 let message_json = JSON.stringify(message);
-                // debugging
-                //console.log(message_json);
-
                 return message_json;
-
-                //socketHandler.socket.send(message_json);
             }
             else throw new Error("invalid gcode in sendGCode[" + typeof text + "]:" + text);
         }
@@ -484,7 +461,7 @@ $.when($.ready).then(
             let gcodeLines = gcode.replace(new RegExp(/\n+/g), '\n').split('\n');
             let cleanGCode = gcodeLines.map(l => stripComments(l)).filter(l => l !== '\n');
 
-            console.log(cleanGCode);
+            //console.log(cleanGCode);
 
             // add comment with date and time
             const dateStr = '; ' + (new Date()).toLocaleString('en-US',
@@ -512,7 +489,7 @@ $.when($.ready).then(
             GCodeEditor.scrollIntoView(newpos);
 
             let message = codeToJSON(cleanGCode);
-            socketHandler.socket.send(message);
+            socketHandler.sendMessage(message);
         }
 
         /**
@@ -546,7 +523,7 @@ $.when($.ready).then(
             if (outgoingQueue.length > 0)
                 outgoingQueue.push(message);
             else
-                socketHandler.socket.send(message);
+                socketHandler.sendMessage(message);
         }
 
         /**
@@ -680,6 +657,7 @@ $.when($.ready).then(
                 const url = location.href.replace(/http/, "ws").replace("#", "") + "json";
                 this.socket = new WebSocket(url);
                 console.log('opening socket');
+                console.log('opening socket');
 
                 this.socket.onmessage = function (event) {
                     //console.log(event.data);
@@ -706,6 +684,19 @@ $.when($.ready).then(
                     $("#info").prepend(node);
                     node.slideDown();
 
+                    //
+                    // start listening for server responses
+                    //
+                    window.scope.Scheduler.scheduleEvent({
+                        name: "queryResponses",
+                        timeOffset: 80,
+                        func: function (event) {
+                            socketHandler.sendMessage(responseJSON);
+                        },
+                        repeat: true
+                    });
+
+
                     let message = {
                         'jsonrpc': '2.0',
                         'id': 6,
@@ -714,6 +705,7 @@ $.when($.ready).then(
                     };
                     let message_json = JSON.stringify(message);
                     this.send(message_json);
+
                 };
 
                 this.socket.onclose = function (e) {
@@ -732,10 +724,20 @@ $.when($.ready).then(
             /**
              * Sends a message as a JSON string. Will stringify any object sent. 
              * @param {any} message message to send (should be some sort of JSON format)
+             * @returns {Boolean} true for sent, false for not (connection closed) 
              */
             sendMessage: function (message) {
-                let message_json = JSON.stringify(message);
-                this.socket.send(message_json);
+                if (this.socket.readyState === WebSocket.OPEN) // open
+                {
+
+                    let message_json = typeof message !== "string" ? JSON.stringify(message) : message;
+                    this.socket.send(message_json);
+                    return true;
+                }
+                else {
+                    errorHandler.error({ time: Date.now(), message: "SendMessage: could not send sockets message [ReadyState=" + this.socket.readyState + "]::" + message });
+                    return false;
+                }
             },
 
             /**
@@ -743,9 +745,9 @@ $.when($.ready).then(
              * @param {Object} message message to show (should have id and html properties)
              */
             showMessage: function (message) {
-                var existing = $("#m" + message.id);
+                const existing = $("#m" + message.id);
                 if (existing.length > 0) return;
-                var node = $(message.html);
+                const node = $(message.html);
                 node.hide();
                 $("#inbox").prepend(node);
                 node.slideDown();
@@ -793,9 +795,6 @@ $.when($.ready).then(
         * **************************************
         * 
         */
-        if (scope.printer) delete scope.printer;
-
-        scope.printer = new Printer(sendGCode);
 
         //////////////////////////////////////////////////////////////////////
         // Listeners for printer events  /////////////////////////////////////
@@ -831,20 +830,6 @@ $.when($.ready).then(
             "id": 4,
             "method": "response",
             "params": []
-        });
-
-        let waitingForResponse = false; // only ask for responses if we expect them?
-
-        window.scope.Scheduler.scheduleEvent({
-            name: "queryResponses",
-            timeOffset: 80,
-            func: function (event) {
-                //console.log(message_json);
-                if (socketHandler.socket.readyState === socketHandler.socket.OPEN) {
-                    socketHandler.socket.send(responseJSON);
-                }
-            },
-            repeat: true
         });
 
         /**
@@ -911,6 +896,7 @@ $.when($.ready).then(
                             if (elem.innerText === printerPort) {
                                 if (!$elem.hasClass("active")) {
                                     $elem.addClass("active");
+                                    $("#connect-btn").text("disconnect").addClass("active"); // toggle connect button
                                 }
                             } else {
                                 $elem.removeClass("active");
@@ -987,7 +973,7 @@ $.when($.ready).then(
                 //console.log(event);
                 if (outgoingQueue.length > 0) {
                     let msg = outgoingQueue.pop();
-                    socketHandler.socket.send(msg);
+                    socketHandler.sendMessage(msg);
                 }
                 blinkElem($("#commands-tab"));
                 $("input[name='x']")[0].value = window.scope.printer.x;
@@ -1071,44 +1057,9 @@ $.when($.ready).then(
 
         socketHandler.registerListener(portsListHandler);
 
-        $("#connect-btn").on("click", function (e) {
-            e.preventDefault();
-            const notCalledFromCode = !(e.namespace !== undefined && e.namespace === "");
-            if (notCalledFromCode) {
-                const me = $(this);
-                const connected = me.hasClass('active'); // because it becomes active *after* a push
-
-                if (connected) {
-                    let selectedPort = $("#serial-ports-list .active");
-                    if (selectedPort.length > 0) {
-
-                        me.text("connect");
-                        $("#serial-ports-list > button").removeClass("active");
-                        // check for not a code-initiated click
-
-                        const message = {
-                            'jsonrpc': '2.0',
-                            'id': 6,
-                            'method': 'disconnect-serial-port',
-                            'params': ["none"]
-                        };
-                        socketHandler.sendMessage(message);
-                    }
-                }
-
-                else {
-                    let selectedPort = $("#serial-ports-list .active");
-                    if (selectedPort.length < 1) {
-                        me.removeClass('active');
-                    }
-                    else {
-                        me.text("disconnect");
-                        selectedPort.click(); // trigger connection using active port
-                    }
-                }
-            }
-        });
-
+        ////////////////////////////////////////////////////////////////////////
+        /////////////// Utility functions
+        ///////////////////////////////////////////////////////////////////////
 
         /**
          * Append a dismissible, styled text node to one of the side menus, formatted appropriately.
@@ -1129,10 +1080,86 @@ $.when($.ready).then(
                 + "</li>");
         }
 
+        /**
+        * Log a line of text to the logging panel on the right side
+        * @param {String} text Text to log in the right info panel
+         * @memberOf LivePrinter
+        */
+        function loginfo(text) {
+            infoHandler.info({ time: Date.now(), message: text });
+        }
+
+        // make global
+        window.loginfo = loginfo;
+
+        /**
+         * Download a file. From stack overflow
+         * @param {any} data Data in file
+         * @param {String} filename Name of file to save as
+         * @param {String} type Type of file (e.g. text/javascript)
+         * @memberOf LivePrinter
+         */
+        function downloadFile (data, filename, type) {
+            var file = new Blob([data], { type: type });
+            if (window.navigator.msSaveOrOpenBlob) // IE10+
+                window.navigator.msSaveOrOpenBlob(file, filename);
+            else { // Others
+                var a = document.createElement("a"),
+                    url = URL.createObjectURL(file);
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                setTimeout(function () {
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(url);
+                }, 0);
+            }
+        }
+
         ////////////////////////////////////////////////////////
         ///////////////// GUI SETUP ////////////////////////////
         /////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+        $("#connect-btn").on("click", function (e) {
+            e.preventDefault();
+            const notCalledFromCode = !(e.namespace !== undefined && e.namespace === "");
+            if (notCalledFromCode) {
+                const me = $(this);
+                const connected = me.hasClass('active'); // because it becomes active *after* a push
+
+                if (connected) {
+                    let selectedPort = $("#serial-ports-list .active");
+                    if (selectedPort.length > 0) {         
+                        // check for non-code-initiated click
+                        const message = {
+                            'jsonrpc': '2.0',
+                            'id': 6,
+                            'method': 'disconnect-serial-port',
+                            'params': ["none"]
+                        };
+                        if (socketHandler.sendMessage(message)) {
+                            me.text("connect");
+                            $("#serial-ports-list > button").removeClass("active");
+                        }
+                        else {
+                            errorHandler.error({ time: Date.now(), event: "could not disconnect serial port" });
+                        }
+                    }
+                }
+
+                else {
+                    let selectedPort = $("#serial-ports-list .active");
+                    if (selectedPort.length < 1) {
+                        me.removeClass('active');
+                    }
+                    else {
+                        me.text("disconnect");
+                        selectedPort.click(); // trigger connection using active port
+                    }
+                }
+            }
+        });
 
         $('a[data-toggle="pill"]').on('shown.bs.tab', function (e) {
             const target = $(e.target).attr("href") // activated tab
@@ -1232,7 +1259,7 @@ $.when($.ready).then(
                 'method': 'clear-command-queue',
                 'params': []
             };
-            socketHandler.socket.send(JSON.stringify(message));
+            socketHandler.sendMessage(message);
         };
 
         /*
@@ -1543,6 +1570,9 @@ $.when($.ready).then(
             $("input[name='angle']")[0].value = window.scope.printer.angle;
 
         } // end globalEval
+
+        // start scheduler!
+        window.scope.Scheduler.startScheduler();
 
         //brython(10);
     });

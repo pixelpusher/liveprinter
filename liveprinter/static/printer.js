@@ -45,12 +45,52 @@ class Printer {
         if (this.send === null) {
             this.send = msg => console.log(msg);
         }
+        this.layerHeight = 0.2; // thickness of a 3d printed extrudion, mm by default
+        this.lastSpeed = -1.0;
 
+        ////////////////////////////////////////////
+        // these are used in in the go() function
+        this._heading = 0;   // current angle of movement (xy) in radians
+        this._elevation = 0; // current angle of elevated movement (z) in radians
+        this._distance = 0; // next distance to move
+        this._waitTime = 0;
+        ////////////////////////////////////////////
+
+        this.totalMoveTime = 0; // time spent moving/extruding
+
+        this.maxFilamentPerOperation = 30; // safety check to keep from using all filament, in mm
+        this.maxTimePerOperation = 10; // prevent very long operations, by accident - this is in seconds
+
+        // NOTE: disabled for now to use hardware retraction settings
+        this.currentRetraction = 0; // length currently retracted
+        this.retractLength = 8.5; // in mm - amount to retract after extrusion.  This is high because most moves are slow...
+        this.retractSpeed = 1000; //mm/min
+        this.firmwareRetract = true;    // use Marlin or printer for retraction
+        this.extraUnretract = 0; // extra amount to unretract each time (recovery filament) in mm
+        this.unretractZHop = 2; //little z-direction hop on retracting to avoid blobs, in mm
+
+        /**
+         * What to do when movement or extrusion commands are out of machine bounds.
+         * Can be clip (keep printing inside edges), bounce (bounce off edges), stop
+         */
+        this.boundaryMode = "stop";
+
+        this.maxMovePerCycle = 200; // max mm to move per calculation (see _extrude method)
+
+        this.queuedMessages = []; // messages queued to be sent by this.send(...)
+
+        this.setProperties();
+    }
+
+    /**
+     * Set default properties for the printer based on the printer model, e.g. bed size, speeds
+     * @param {String} model Valid model from Printer class
+     */
+    setProperties(model = Printer.UM2plus) {
         // TODO: not sure about this being valid - maybe check for max speed?
         this._printSpeed = Printer.defaultPrintSpeed;
-        this.travelSpeed = Printer.maxTravelSpeed[this._model];
-        this._model = Printer.UM2plus; // default
-        this.layerHeight = 0.2; // thickness of a 3d printed extrudion, mm by default
+        this._model = model; // default
+        this.travelSpeed = Printer.maxTravelSpeed[this._model].z;
 
         this.minPosition = new Vector({
             x: 0, // x position in mm
@@ -72,39 +112,6 @@ class Printer {
             z: this.minPosition.axes.z, // z position in mm
             e: 0
         });
-
-        this.lastSpeed = -1.0;
-
-        ////////////////////////////////////////////
-        // these are used in in the go() function
-        this._heading = 0;   // current angle of movement (xy) in radians
-        this._elevation = 0; // current angle of elevated movement (z) in radians
-        this._distance = 0; // next distance to move
-        this._waitTime = 0;
-        ////////////////////////////////////////////
-
-        this.totalMoveTime = 0; // time spent moving/extruding
-
-        this.maxFilamentPerOperation = 30; // safety check to keep from using all filament, in mm
-        this.maxTimePerOperation = 10; // prevent very long operations, by accident - this is in seconds
-
-        // NOTE: disabled for now to use hardware retraction settings
-        this.currentRetraction = 0; // length currently retracted
-        this.retractLength = 6.5; // in mm - amount to retract after extrusion.  This is high because most moves are slow...
-        this.retractSpeed = 1000; //mm/min
-        this.firmwareRetract = true;    // use Marlin or printer for retraction
-        this.extraUnretract = 1; // extra amount to unretract each time (recovery filament) in mm
-        this.unretractZHop = 2; //little z-direction hop on retracting to avoid blobs, in mm
-
-        /**
-         * What to do when movement or extrusion commands are out of machine bounds.
-         * Can be clip (keep printing inside edges), bounce (bounce off edges), stop
-         */
-        this.boundaryMode = "stop";
-
-        this.maxMovePerCycle = 200; // max mm to move per calculation (see _extrude method)
-
-        this.queuedMessages = []; // messages queued to be sent by this.send(...)
     }
 
     get x() { return this.position.axes.x; }
@@ -122,12 +129,15 @@ class Printer {
      */
     get time() { return this.totalMoveTime; }
 
-    //
-    // set printer model - should be one definined in this class!
-    //
+    /**
+     * set printer model (See Printer class for valid ones)
+     * @param {String} m Valid model from Printer class
+     * @see setProperties()
+     */
     set model(m) {
         // TODO: check valid model
-        this._model = m;
+        this.setProperties(m);
+
         // if invalid, throw exception
     }
     get model() { return this._model; }
@@ -261,7 +271,7 @@ class Printer {
         // update firmware retract settings
         this.send("M207 S" + this.retractLength + " F" + this.retractSpeed + " Z" + this.unretractZHop);
         //set retract recover
-        this.send("M208 S" + this.extraUnretract + "F" + this.retractSpeed);
+        this.send("M208 S" + (this.retractLength + this.extraUnretract) + "F" + this.retractSpeed);
 
         return this;
     }
@@ -298,20 +308,18 @@ class Printer {
             this.sendFirmwareRetractSettings();
         }
         // RETRACT        
+        this.currentRetraction += this.retractLength + this.extraUnretract;;
+        this.e -= this.currentRetraction;
 
         if (!this.firmwareRetract) {
-            this.currentRetraction += this.retractLength;
-            this.e -= this.retractLength;
             const fixedE = this.e.toFixed(4);
             this.send("G1 " + "E" + fixedE + " F" + this.retractSpeed.toFixed(4));
             this.e = parseFloat(fixedE); // make sure e is actually e even with rounding errors!
         } else {
-            this.e -= this.retractLength;
-
             // retract via firmware otherwise
             this.send("G10");
-        }   
-    
+        }
+
         return this;
     }
 
@@ -342,23 +350,21 @@ class Printer {
             // set speed safely!
             if (speed > Printer.maxPrintSpeed["e"]) throw new Error("retract speed to high: " + speed);
             // convert to mm/s
-            this.retractSpeed = speed * 60;  
+            this.retractSpeed = speed * 60;
         }
         if (sendSettings) this.sendFirmwareRetractSettings();
         // UNRETRACT
+        this.e += this.currentRetraction;
 
         //unretract manually first if needed
         if (!this.firmwareRetract) {
-            this.e += this.currentRetraction;
             // account for previous retraction
             this.send("G1 " + "E" + this.e.toFixed(4) + " F" + this.retractSpeed.toFixed(4));
-            this.currentRetraction = 0;
         } else {
-            this.e += this.currentRetraction;
             // unretract via firmware otherwise
             this.send("G11");
-            this.currentRetraction = 0;
         }
+        this.currentRetraction = 0;
 
         return this;
     }
@@ -376,7 +382,9 @@ class Printer {
         this.send("M104 S" + hotEndTemp); //heater 1 temp
         this.send("M140 S" + bedTemp); // bed temp
         this.sendFirmwareRetractSettings();
-        this.moveto({ x: this.cx, y: this.cy, z: this.maxz, speed: Printer.defaultPrintSpeed });
+        this.send("M114"); // get current position
+        //this.moveto({ x: this.cx, y: this.cy, z: this.maxz, speed: Printer.defaultPrintSpeed });
+
         //this.send("M106 S100"); // set fan to full
 
         return this;
@@ -498,7 +506,7 @@ class Printer {
      * @returns {Printer} Reference to this object for chaining
      */
     turnto(ang, radians = false) {
-        this._heading = radians ? ang : this.d2r(ang) ;
+        this._heading = radians ? ang : this.d2r(ang);
         return this;
     }
     /**
@@ -511,36 +519,42 @@ class Printer {
         const exChar = "E";
         const ltChar = "L";
         const rtChar = "R";
+        const upChar = "U";
+        const dnChar = "D";
+        const rtrChar = "<";
+        const urtrChar = ">";
 
         // Match whole command
-        const cmdRegExp = /([a-zA-Z][0-9]+\.?[0-9]*)/gim;
-        const subCmdRegExp = /([a-zA-Z])([0-9]+\.?[0-9]*)/;
-
-        //console.log(strings.raw);
-        //console.log(strings.raw[0]);
-        //console.log("strings: " + rawstring);
-        let found = strings.match(cmdRegExp);
+        const cmdRegExp = /([a-zA-Z<>][0-9]+\.?[0-9]*)/gim;
+        const subCmdRegExp = /([a-zA-Z<>])([0-9]+\.?[0-9]*)/;
+        const found = strings.match(cmdRegExp);
         //console.log(found);
         for (let cmd of found) {
             //console.log(cmd);
             let matches = cmd.match(subCmdRegExp);
 
             if (matches.length !== 3) throw new Error("Error in command string: " + found);
-            let cmdChar = matches[1];
-            let value = parseFloat(matches[2]);
 
-            //console.log(matches);
+            const cmdChar = matches[1].toUpperCase();
+            const value = parseFloat(matches[2]);
 
             switch (cmdChar) {
                 case mvChar: this.distance(value).go();
                     break;
-                case exChar: this.distance(value).go(1);
+                case exChar: this.distance(value).go(1, false);
                     break;
                 case ltChar: this.turn(value);
                     break;
                 case rtChar: this.turn(-value);
                     break;
-
+                case upChar: this.up(value);
+                    break;
+                case dnChar: this.down(value);
+                    break;
+                case rtrChar: this.retract(value);
+                    break;
+                case urtrChar: this.unretract(value);
+                    break;
                 default:
                     throw new Error("Error in command - unknown command char: " + cmdChar);
             }
@@ -804,14 +818,14 @@ class Printer {
     sendExtrusionGCode(speed, retract = true) {
         if (retract && this.currentRetraction > 0) {
             //unretract manually first if needed
+            this.e += this.currentRetraction;
             if (!this.firmwareRetract) {
-                this.e += this.currentRetraction;
                 // account for previous retraction
                 this.send("G1 " + "E" + this.e.toFixed(4) + " F" + this.retractSpeed.toFixed(4));
-                this.currentRetraction = 0;
-            } else
+            } else {
                 // unretract via firmware otherwise
                 this.send("G11");
+            }
             this.currentRetraction = 0;
         }
 
@@ -826,12 +840,13 @@ class Printer {
 
         // RETRACT
         if (retract && this.retractLength > 0) {
+            this.currentRetraction = this.retractLength + this.extraUnretract;
+            this.e -= this.currentRetraction;
+
             if (this.firmwareRetract) {
                 this.send("G10");
-                this.currentRetraction = this.retractLength; // this is handled in hardware                       
+                ; // this is handled in hardware                       
             } else {
-                this.currentRetraction = this.retractLength;
-                this.e -= this.currentRetraction;
                 this.send("G1 " + "E" + this.e.toFixed(4) + " F" + this.retractSpeed.toFixed(4));
             }
         }
@@ -1121,7 +1136,7 @@ class Printer {
            [50,30]];
         lp.printPaths({paths:p,minZ:0.2,passes:10});
      */
-    printPaths({ paths = [[]], minY = 0, minX = 0, minZ = 0, width = 0, height = 0, useaspect = true, passes = 1, safeZ = 0 }) {
+    printPaths({ paths = [[]], y = 0, x = 0, z = 0, w = 0, h = 0, useaspect = true, passes = 1, safeZ = 0 }) {
         safeZ = safeZ || (this.layerHeight * passes + 10);   // safe z for traveling
 
         // total bounds
@@ -1168,26 +1183,26 @@ class Printer {
         const boundsW = boundsMaxX - boundsMinX;
         const boundsH = boundsMaxY - boundsMinY;
 
-        const useBoth = width && height;
-        const useOne = width || height;
+        const useBoth = w && h;
+        const useOne = w || h;
 
         if (!useBoth) {
             if (useOne) {
-                if (width > 0) {
+                if (w > 0) {
                     const ratio = boundsH / boundsW;
-                    height = width * ratio;
+                    h = w * ratio;
                 } else {
                     const ratio = boundsW / boundsH;
-                    width = height * ratio;
+                    w = h * ratio;
                 }
             } else {
-                width = boundsW;
-                height = boundsH;
+                w = boundsW;
+                h = boundsH;
             }
         }
 
-        const xmapping = makeMapping([boundsMinX, boundsMaxX], [minX, minX + width]);
-        const ymapping = makeMapping([boundsMinY, boundsMaxY], [minY, minY + height]);
+        const xmapping = makeMapping([boundsMinX, boundsMaxX], [x, x + w]);
+        const ymapping = makeMapping([boundsMinY, boundsMaxY], [y, y + h]);
 
         // print the inside parts first
         paths.sort(function (a, b) {
@@ -1203,7 +1218,7 @@ class Printer {
         for (let pathIdx = 0, pathLength = paths.length; pathIdx < pathLength; pathIdx++) {
             const path = paths[pathIdx];
             for (let i = 1; i <= passes; i++) {
-                const currentHeight = i * this.layerHeight + minZ;
+                const currentHeight = i * this.layerHeight + z;
 
                 this.moveto({ 'x': xmapping(path[0][0]), 'y': ymapping(path[0][1]) });
                 this.moveto({ 'z': currentHeight });

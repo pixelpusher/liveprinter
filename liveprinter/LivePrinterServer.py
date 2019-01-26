@@ -205,7 +205,8 @@ def json_handle_set_serial_port(printer:USBPrinter, *msg):
         Logger.log("e", "Error in handle_serial_port: not 3 reauired arguments = {}".format(list(msg)))
         return
 
-    port = msg[0].lower()
+    port = msg[0]
+
     options.baud_rate = int(msg[1])
     
     json = {
@@ -220,7 +221,7 @@ def json_handle_set_serial_port(printer:USBPrinter, *msg):
 
     Logger.log("i", "setting serial port: {}".format(port))
 
-    if port.startswith("dummy"):
+    if port.lower().startswith("dummy"):
          use_dummy_serial_port(printer)
     else:
         printer._serial_port = port

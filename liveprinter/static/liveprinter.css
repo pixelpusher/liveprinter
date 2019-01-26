@@ -43,14 +43,20 @@
 
 @keyframes greenthrob {
     0% {
-        background-color: none;
+        /*background-color: none;*/
+        /*background-image: repeating-radial-gradient(transparent, transparent 0.2em, green, green 0.4em,transparent, transparent 0.6em);*/
+        background-position-x: 0;
     }
 
     50% {
-        background-color: lightgreen;
+        background-position-x: 50%;
+        /*background-color: lightgreen;*/
+        /*background-image: repeating-radial-gradient(transparent, transparent 0.2em, white, white 0.4em,transparent, transparent 0.6em);*/
     }
     100% {
-        background-color: none;
+        /*background-color: none;*/
+        /*background-image: repeating-radial-gradient(transparent, transparent 0.2em, green, green 0.4em,transparent, transparent 0.6em);*/
+        background-position-x: 100%;
     }
 }
 
@@ -98,6 +104,14 @@ table {
 td {
     border: 0;
     padding: 0;
+}
+
+#header {
+    /*background-image: repeating-linear-gradient(transparent, transparent 2em,#eeeeee 2.1px, #ffefef 3em);*/
+    background-size: 1em 100%;
+    background-image: radial-gradient( green, green 0.2em, transparent, transparent 0.35em);
+    background-position-x: 0em;
+    background-repeat: repeat-x;
 }
 
 #printer-editor-col, #inbox {
