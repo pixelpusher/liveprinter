@@ -100,9 +100,9 @@ class Printer {
         });
 
         this.maxPosition = new Vector({
-            x: Printer.bedSize[this.model]["x"], // x position in mm
-            y: Printer.bedSize[this.model]["y"], // y position in mm
-            z: Printer.bedSize[this.model]["z"], // z position in mm
+            x: Printer.bedSize[this._model]["x"], // x position in mm
+            y: Printer.bedSize[this._model]["y"], // y position in mm
+            z: Printer.bedSize[this._model]["z"], // z position in mm
             e: 999999
         });
 
@@ -611,9 +611,9 @@ class Printer {
      */
     elevation(angle, radians = false) {
         if (!radians) {
-            a = this.d2r(angle);
+            angle = this.d2r(angle);
         }
-        this._elevation = a;
+        this._elevation = angle;
         return this;
     }
 
@@ -741,7 +741,7 @@ class Printer {
             distanceMag = Math.sqrt(distanceVec.axes.x * distanceVec.axes.x + distanceVec.axes.y * distanceVec.axes.y + distanceVec.axes.z * distanceVec.axes.z);
 
             // otherwise, calculate filament length needed based on layerheight, etc.
-            const filamentRadius = Printer.filamentDiameter[this.model] / 2;
+            const filamentRadius = Printer.filamentDiameter[this._model] / 2;
 
             // for extrusion into free space
             // apparently, some printers take the filament into account (so this is in mm3)
@@ -754,7 +754,7 @@ class Printer {
             if (filamentLength > this.maxFilamentPerOperation) {
                 throw Error("Too much filament in move:" + filamentLength);
             }
-            if (!Printer.extrusionInmm3[this.model]) {
+            if (!Printer.extrusionInmm3[this._model]) {
                 filamentLength /= (filamentRadius * filamentRadius * Math.PI);
             }
 
@@ -1084,7 +1084,7 @@ class Printer {
      * @returns {object} x,y,z speed scales
      */
     speedScale() {
-        let bs = Printer.speedScale[this.model];
+        let bs = Printer.speedScale[this._model];
         return { "x": bs["x"], "y": bs["y"], "z": bs["z"] };
     }
 
