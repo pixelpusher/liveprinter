@@ -77,7 +77,7 @@ $.when($.ready).then(
             * @param {Object} args Object with timeOffset: ms offset to schedule this for, func: function, repeat: true/false whether to reschedule
             */
             scheduleEvent: function (args) {
-                args.time = Date.now() - window.scope.Scheduler.startTime;
+                args.time = Date.now() - this.startTime;
 
                 this.ScheduledEvents.push(args);
             },
@@ -89,7 +89,7 @@ $.when($.ready).then(
              */
             removeEvent: function (func) {
                 // run events 
-                this.ScheduledEvents = window.scope.Scheduler.ScheduledEvents.filter(func);
+                this.ScheduledEvents = this.ScheduledEvents.filter(func);
             },
 
             /**
@@ -98,7 +98,7 @@ $.when($.ready).then(
              */
             removeEventByName: function (name) {
                 // run events 
-                this.ScheduledEvents = window.scope.Scheduler.ScheduledEvents.filter(e => e.name !== name);
+                this.ScheduledEvents = this.ScheduledEvents.filter(e => e.name !== name);
             },
 
             /**
@@ -598,9 +598,7 @@ $.when($.ready).then(
                     name: "tempUpdates",
                     timeOffset: interval,
                     func: (time) => {
-                        if (socketHandler.socket.readyState === socketHandler.socket.OPEN) {
-                            sendGCode("M105");
-                        }
+                        sendGCode("M105");
                     },
                     repeat: true
                 });
@@ -649,9 +647,17 @@ $.when($.ready).then(
             listeners: [], // listeners for json rpc calls,
 
             start: function () {
-                $("#info > ul").empty();
-                $("#errors > ul").empty();
-                $("#commands > ul").empty();
+
+                let me = this; // for referring back from socket member
+
+                if (this.socket === null) {
+                    $("#info > ul").empty();
+                    $("#errors > ul").empty();
+                    $("#commands > ul").empty();
+                }
+                // remove update function if exists
+                window.scope.Scheduler.removeEventByName("queryResponses");
+
                 // convert to websockets port (works for https too)
                 // NOTE: may need to toggle network.websocket.allowInsecureFromHTTPS in FireFox (about:config) to make this work
                 const url = location.href.replace(/http/, "ws").replace("#", "") + "json";
@@ -696,6 +702,7 @@ $.when($.ready).then(
                         repeat: true
                     });
 
+                    updatePrinterState(true); // start updating printer connection state
 
                     let message = {
                         'jsonrpc': '2.0',
@@ -705,10 +712,13 @@ $.when($.ready).then(
                     };
                     let message_json = JSON.stringify(message);
                     this.send(message_json);
-
                 };
 
                 this.socket.onclose = function (e) {
+                    window.scope.Scheduler.removeEventByName("queryResponses");
+
+                    updatePrinterState(false); // stop updating printer state
+                    updateTemperature(false); // stop updating temperature                    
                     $(".server-message").remove();
                     let node = $("<li class='server-message'>SERVER NOT CONNECTED</li>");
                     node.hide();
@@ -717,6 +727,26 @@ $.when($.ready).then(
                     $("#serial-ports-list").empty(); // clear serial ports
                     $("#connect-btn").text("connect").removeClass("active"); // toggle connect button
                     $("#header").removeClass("blinkgreen");
+
+                    //
+                    // try reconnect
+                    //
+                    const reconnectName = "reconnectWebsocket";
+                    window.scope.Scheduler.scheduleEvent({
+                        name: reconnectName,
+                        timeOffset: 1000,
+                        func: function (event) {
+                            if (me.socket.readyState === WebSocket.OPEN || me.socket.readyState === WebSocket.CONNECTING) {
+                                window.scope.Scheduler.removeEventByName(reconnectName);
+                            }
+                            else {
+                                delete me.socket; // safe??
+                                me.socket = null;
+                                me.start();
+                            }
+                        },
+                        repeat: true
+                    });
                 };
 
             },
@@ -1099,7 +1129,7 @@ $.when($.ready).then(
          * @param {String} type Type of file (e.g. text/javascript)
          * @memberOf LivePrinter
          */
-        function downloadFile (data, filename, type) {
+        function downloadFile(data, filename, type) {
             var file = new Blob([data], { type: type });
             if (window.navigator.msSaveOrOpenBlob) // IE10+
                 window.navigator.msSaveOrOpenBlob(file, filename);
@@ -1130,7 +1160,7 @@ $.when($.ready).then(
 
                 if (connected) {
                     let selectedPort = $("#serial-ports-list .active");
-                    if (selectedPort.length > 0) {         
+                    if (selectedPort.length > 0) {
                         // check for non-code-initiated click
                         const message = {
                             'jsonrpc': '2.0',
