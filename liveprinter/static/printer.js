@@ -942,7 +942,7 @@ class Printer {
     }
 
     /**
-     * Fill a rectagular area.
+     * Fill a rectagular area (lines drawn perpendicular to direction).
      * @param {Number} w width
      * @param {Number} h height
      * @param {Number} gap gap between fills
@@ -950,7 +950,7 @@ class Printer {
      */
     fillDirection(w, h, gap, retract = true) {
         if (gap === undefined) gap = 1.5 * this.layerHeight;
-        this.unretract();
+        if (retract !== undefined && retract) this.unretract();
 
         for (let i = 0; i < h / gap; i++) {
             let m = (i % 2 === 0) ? -1 : 1;
@@ -959,9 +959,45 @@ class Printer {
             this.turn(90 * m); //turn back
             this.dist(gap).go(1, false);
         }
-        if (retract !== undefined && retract) lp.retract();
+        if (retract !== undefined && retract) this.retract();
     }
 
+
+    /**
+     * Fill a rectagular area (lines drawn parallel to direction).
+     * @param {Number} w width
+     * @param {Number} h height
+     * @param {Number} gap gap between fills
+     * @param {Boolean} retract retract when finished
+     */
+    fillDirectionH(w, h, gap, retract = true) {
+        if (gap === undefined) gap = 1.5 * this.layerHeight;
+        if (retract !== undefined && retract) this.unretract();
+        let times = w / gap;
+        if (times < 3) {
+            // just room for one
+            this.dist(h).go(1, false);
+        }
+        else {
+            if (times % 2 !== 0) times += 1; // got to be odd so we return to same place smoothly
+            for (let i = 0; i < times; i++) {
+                let m = (i % 2 === 0) ? -1 : 1;
+                this.dist(h).go(1, false);
+                this.turn(m * 90).dist(gap).go(1, false);
+                this.turn(m * 90); //turn back
+            }
+            this.turn(180);
+        }
+        if (retract !== undefined && retract) this.retract();
+    }
+
+    /**
+     * Synchronise variables like position and temp
+     */
+    sync() {
+        this.send("M115"); // temperature
+        this.send("M114"); // position
+    }
 
     /**
      * Degrees to radians conversion.

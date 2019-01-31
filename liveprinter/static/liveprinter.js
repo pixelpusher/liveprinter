@@ -695,7 +695,7 @@ $.when($.ready).then(
                     //
                     window.scope.Scheduler.scheduleEvent({
                         name: "queryResponses",
-                        timeOffset: 80,
+                        timeOffset: 40,
                         func: function (event) {
                             socketHandler.sendMessage(responseJSON);
                         },
