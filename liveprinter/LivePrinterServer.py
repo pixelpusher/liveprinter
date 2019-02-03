@@ -202,7 +202,7 @@ def json_handle_disconnect_serial_port(printer:USBPrinter):
 def json_handle_set_serial_port(printer:USBPrinter, *msg):
     # printer:USBPrinter, port:str, baud_rate:int
     if len(msg) is not 2:
-        Logger.log("e", "Error in handle_serial_port: not 3 reauired arguments = {}".format(list(msg)))
+        Logger.log("e", "Error in handle_serial_port: not 3 required arguments = {}".format(list(msg)))
         return
 
     port = msg[0]

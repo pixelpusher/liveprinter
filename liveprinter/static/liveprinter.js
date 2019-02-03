@@ -657,7 +657,6 @@ $.when($.ready).then(
                 const url = location.href.replace(/http/, "ws").replace("#", "") + "json";
                 this.socket = new WebSocket(url);
                 console.log('opening socket');
-                console.log('opening socket');
 
                 this.socket.onmessage = function (event) {
                     //console.log(event.data);
