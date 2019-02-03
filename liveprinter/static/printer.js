@@ -308,10 +308,10 @@ class Printer {
             this.sendFirmwareRetractSettings();
         }
         // RETRACT        
-        this.currentRetraction += this.retractLength + this.extraUnretract;;
-        this.e -= this.currentRetraction;
+        this.currentRetraction += this.retractLength + this.extraUnretract;
 
         if (!this.firmwareRetract) {
+            this.e -= this.currentRetraction;
             const fixedE = this.e.toFixed(4);
             this.send("G1 " + "E" + fixedE + " F" + this.retractSpeed.toFixed(4));
             this.e = parseFloat(fixedE); // make sure e is actually e even with rounding errors!
@@ -354,12 +354,13 @@ class Printer {
         }
         if (sendSettings) this.sendFirmwareRetractSettings();
         // UNRETRACT
-        this.e += this.currentRetraction;
-
+        
         //unretract manually first if needed
         if (!this.firmwareRetract) {
+            this.e += this.currentRetraction;
             // account for previous retraction
             this.send("G1 " + "E" + this.e.toFixed(4) + " F" + this.retractSpeed.toFixed(4));
+
         } else {
             // unretract via firmware otherwise
             this.send("G11");
@@ -818,8 +819,10 @@ class Printer {
     sendExtrusionGCode(speed, retract = true) {
         if (retract && this.currentRetraction > 0) {
             //unretract manually first if needed
-            this.e += this.currentRetraction;
+
             if (!this.firmwareRetract) {
+                this.e += this.currentRetraction;
+
                 // account for previous retraction
                 this.send("G1 " + "E" + this.e.toFixed(4) + " F" + this.retractSpeed.toFixed(4));
             } else {
@@ -841,12 +844,12 @@ class Printer {
         // RETRACT
         if (retract && this.retractLength > 0) {
             this.currentRetraction = this.retractLength + this.extraUnretract;
-            this.e -= this.currentRetraction;
 
             if (this.firmwareRetract) {
                 this.send("G10");
-                ; // this is handled in hardware                       
+                // this is handled in hardware                       
             } else {
+                this.e -= this.currentRetraction;
                 this.send("G1 " + "E" + this.e.toFixed(4) + " F" + this.retractSpeed.toFixed(4));
             }
         }

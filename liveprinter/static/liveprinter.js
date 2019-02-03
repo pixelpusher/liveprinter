@@ -457,6 +457,7 @@ $.when($.ready).then(
          * @memberOf LivePrinter
          */
         function sendGCode(gcode) {
+
             // remove all comments from lines and reconstruct
             let gcodeLines = gcode.replace(new RegExp(/\n+/g), '\n').split('\n');
             let cleanGCode = gcodeLines.map(l => stripComments(l)).filter(l => l !== '\n');
@@ -475,19 +476,23 @@ $.when($.ready).then(
                     second: '2-digit'
                 }
             ) + '\n';
-            const doc = GCodeEditor.getDoc();
-            let line = doc.lastLine();
-            const pos = {
-                "line": line,
-                "ch": doc.getLine(line).length
-            };
-            const gcodeText = '\n' + dateStr + cleanGCode.join('\n');
-            doc.replaceRange(gcodeText, pos);
-            GCodeEditor.refresh();
-            let newpos = { line: doc.lastLine(), ch: doc.getLine(line).length };
-            GCodeEditor.setSelection(pos, newpos);
-            GCodeEditor.scrollIntoView(newpos);
 
+            // ignore temperature or other info commands - no need to save these!
+            if (!(/M115|M114|M105/.test(gcode))) {
+
+                const doc = GCodeEditor.getDoc();
+                let line = doc.lastLine();
+                const pos = {
+                    "line": line,
+                    "ch": doc.getLine(line).length
+                };
+                const gcodeText = '\n' + dateStr + cleanGCode.join('\n');
+                doc.replaceRange(gcodeText, pos);
+                GCodeEditor.refresh();
+                let newpos = { line: doc.lastLine(), ch: doc.getLine(line).length };
+                GCodeEditor.setSelection(pos, newpos);
+                GCodeEditor.scrollIntoView(newpos);
+            }
             let message = codeToJSON(cleanGCode);
             socketHandler.sendMessage(message);
         }
@@ -983,10 +988,12 @@ $.when($.ready).then(
          */
         const commandHandler = {
             'gcode': function (event) {
-                //(new Date(parseInt(event.time))).toLocaleDateString('en-US')
-                appendLoggingNode($("#commands > ul"), event.time, event.message);
-                blinkElem($("#commands-tab"));
-                blinkElem($("#inbox"));
+                // ignore info messages
+                if (!(/M115|M114|M105/.test(event.message))) {
+                    appendLoggingNode($("#commands > ul"), event.time, event.message);
+                    blinkElem($("#commands-tab"));
+                    blinkElem($("#inbox"));
+                }
             }
         };
 
@@ -1004,6 +1011,7 @@ $.when($.ready).then(
                     let msg = outgoingQueue.pop();
                     socketHandler.sendMessage(msg);
                 }
+
                 blinkElem($("#commands-tab"));
                 $("input[name='x']")[0].value = window.scope.printer.x;
                 $("input[name='y']")[0].value = window.scope.printer.y;
