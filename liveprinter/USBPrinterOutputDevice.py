@@ -1,7 +1,7 @@
 ##
-# from https://github.com/Ultimaker/Cura/blob/master/plugins/USBPrinting/USBPrinterOutputDevice.py
+# from
+# https://github.com/Ultimaker/Cura/blob/master/plugins/USBPrinting/USBPrinterOutputDevice.py
 #
-
 
 from AutoDetectBaudJob import AutoDetectBaudJob
 
@@ -22,17 +22,21 @@ from enum import IntEnum  # For the connection state tracking.
 from datetime import datetime
 
 ##  Message from the printer, with timestamp
-## Type is yet to be codified... now it is: info, temperature
-## Command is the last GCode command sent to elicit this response form the printer
-## for temperature requests, type = "temperature" and fields are hotend, hotend_target, bed, bed_target
+## Type is yet to be codified...  now it is: info, temperature
+## Command is the last GCode command sent to elicit this response form the
+## printer
+## for temperature requests, type = "temperature" and fields are hotend,
+## hotend_target, bed, bed_target
 ## errors are type error with a message prop containing the message
-## basic ok response (for successfully printed lines) are type "ok" with nothing else
-## firmware info is type firmware with a firmware prop containing firmware string (maybe this should be info)
+## basic ok response (for successfully printed lines) are type "ok" with
+## nothing else
+## firmware info is type firmware with a firmware prop containing firmware
+## string (maybe this should be info)
 ##
-## 
+##
 class PrinterResponse():
     def __init__(self, **fields):
-        self._time = time()*1000 #ms for javascript front end
+        self._time = time() * 1000 #ms for javascript front end
         self._type = fields['type']
         self._command = fields['command']
         self._properties = {}
@@ -107,16 +111,19 @@ class ConnectionState(IntEnum):
 #feedrate: 'G94', // G93: Inverse time mode, G94: Units per minute
 #program: 'M0', // M0, M1, M2, M30
 #spindle: 'M5', // M3: Spindle (cw), M4: Spindle (ccw), M5: Spindle off
-#coolant: 'M9' // M7: Mist coolant, M8: Flood coolant, M9: Coolant off, [M7,M8]: Both on
-
+#coolant: 'M9' // M7: Mist coolant, M8: Flood coolant, M9: Coolant off,
+#[M7,M8]: Both on
 
 class USBPrinter(OutputDevice):
-    def __init__(self, serial_port: str, baud_rate: Optional[int] = None, serial_obj: Optional[Serial] = None):
+    def __init__(self, serial_port: str, baud_rate: Optional[int]=None, serial_obj: Optional[Serial]=None):
         super().__init__(serial_port)
         self.setName("USB printing")
         self.setShortDescription("Print via USB")
         self.setDescription("Print via USB")
         self.setIconName("print")
+
+        self.MAX_COMMANDS_ON_PRINTER = 1 # max commands to queue on printer before sending more - the higher, the
+                                         # faster the print
 
         self._serial = serial_obj  # type: Optional[Serial]
         self._serial_port = serial_port
@@ -124,7 +131,7 @@ class USBPrinter(OutputDevice):
         self._timeout = 3
 
         self._connection_state = ConnectionState.closed
-        self._last_command_time = -3000; # none received yet
+        self._last_command_time = -3000 # none received yet
         self._lock = Lock() # to sync threads around connectionstate
 
         self._last_command = None  # last line sent to the printer
@@ -136,7 +143,8 @@ class USBPrinter(OutputDevice):
 
         self._all_baud_rates = [115200, 250000, 230400, 57600, 38400, 19200, 9600]
 
-        # Instead of using a timer, we really need the update to be as a thread, as reading from serial can block.
+        # Instead of using a timer, we really need the update to be as a
+        # thread, as reading from serial can block.
         self._update_thread = Thread(target=self._update, daemon = True)
         # start main communications thread
         self._update_thread.start()
@@ -146,8 +154,9 @@ class USBPrinter(OutputDevice):
         self._print_estimated_time = None  # type: Optional[int]
         self._commands_on_printer = 0 # commands currently queued on printer
 
-        self._commands_list_start_index = 1 # index of first command in sequence send to the printer (might change if we need to remove commands from queue due to size)
-        self._commands_list = [] # list of all commands sent to the printer where index is added to the above 
+        self._commands_list_start_index = 1 # index of first command in sequence send to the printer (might change if we
+                                            # need to remove commands from queue due to size)
+        self._commands_list = [] # list of all commands sent to the printer where index is added to the above
         self._commands_current_line = 1 # the current line being printed - might be updated when handling a resend
 
         self._accepts_commands = True
@@ -160,14 +169,17 @@ class USBPrinter(OutputDevice):
         # Queue for messages from the printer.
         self._responses_queue = Queue()
 
-        # if we were passed a serial object, assume it it legitimate until an error occurs
+        # if we were passed a serial object, assume it it legitimate until an
+        # error occurs
         if self._serial is not None:
             self.setConnectionState(ConnectionState.connected)
 
         # printer specific data
         self._model = PrinterModel()
-        # TODO: use Quarternions for axis/angle: https://github.com/infusion/Quaternion.js
-        # or self.travelSpeed = { "direction": 30, "angle": [0,30,0] }; // in mm/s3
+        # TODO: use Quarternions for axis/angle:
+        # https://github.com/infusion/Quaternion.js
+        # or self.travelSpeed = { "direction": 30, "angle": [0,30,0] }; // in
+        # mm/s3
 
     #
     # Clear all commands and reset
@@ -198,7 +210,7 @@ class USBPrinter(OutputDevice):
         self._baud_rate = baud_rate
 
     def getQueueSize(self):
-        return  self._command_queue.unfinished_tasks;
+        return  self._command_queue.unfinished_tasks
 
     def connect(self):
         Logger.log("i", "connecting")
@@ -231,9 +243,9 @@ class USBPrinter(OutputDevice):
         self._serial = None
 
     ##  Send a command to printer (put in threaded commands queue).
-    ## Commands are actually sent via serial in the threaded update function.     
+    ## Commands are actually sent via serial in the threaded update function.
     def sendCommand(self, command: Union[str, bytes]):
-        self._last_command_time = time();
+        self._last_command_time = time()
         self._command_queue.put(command, block=True)
  
     ## send a list of GCode to the printer
@@ -243,7 +255,8 @@ class USBPrinter(OutputDevice):
 
     ## get last printer response, and mark as received if second arg is true
     def getLastResponse(self):
-        # Logger.log("i", "gettings tasks {}".format(self._responses_queue.unfinished_tasks))
+        # Logger.log("i", "gettings tasks
+        # {}".format(self._responses_queue.unfinished_tasks))
         
         # Theoretically, this should just throw an Empty error if no tasks
         # but instead it blocks?
@@ -263,7 +276,8 @@ class USBPrinter(OutputDevice):
 
     def lastReponseHandled(self):
         #Logger.log("i", "TASK DONE")
-        #Logger.log("i", "tasks left: {}".format(self._responses_queue.unfinished_tasks))
+        #Logger.log("i", "tasks left:
+        #{}".format(self._responses_queue.unfinished_tasks))
         
         try:
             self._responses_queue.task_done()
@@ -271,8 +285,8 @@ class USBPrinter(OutputDevice):
             Logger.log("i", "unfinished tasks called too many times: {}".format(ve))
 
     ##
-    # Keep a rough count of responses vs. commands sent
-    # probably not working... need to test.  Resends might screw this up.
+    # Keep a rough count of responses vs.  commands sent
+    # probably not working...  need to test.  Resends might screw this up.
     ##
     def _commandHandled(self):
         self._commands_on_printer = max(0,self._commands_on_printer - 1)
@@ -285,7 +299,7 @@ class USBPrinter(OutputDevice):
         return str("N%d%s*%d" % (index, cmd, checksum))
  
     ##
-    # REALLY send a command via the serial port. 
+    # REALLY send a command via the serial port.
     ##
     def _serialSendCommand(self, cmd:Union[str,bytes], index:int):
         # note last command sent
@@ -335,30 +349,35 @@ class USBPrinter(OutputDevice):
             Logger.log("w", "Timeout when sending command to printer via USB.")
 
     ##
-    # get total lines sent and waiting to be sent in the queue (useful for resends)
+    # get total lines sent and waiting to be sent in the queue (useful for
+    # resends)
     ##
     def countAllCommands(self):
-        return len(self._commands_list)+self._commands_list_start_index # starts at 1, not 0
+        return len(self._commands_list) + self._commands_list_start_index # starts at 1, not 0
 
     ##
     # Get a command that was sent before by its index (starts at 1, not 0)
     def getCommand(self, index):
-        return self._commands_list[index-self._commands_list_start_index]
+        return self._commands_list[index - self._commands_list_start_index]
     
     ##
     # Get a command that was sent before by its index (starts at 1, not 0)
     def setCommand(self, index, cmd):
-        self._commands_list[index-self._commands_list_start_index] = cmd
+        self._commands_list[index - self._commands_list_start_index] = cmd
 
 
     ## threaded update function.
-    ## Each time this is run, read from serial port and handle the response from the printer.
-    ## A PrinterResponse object goes on the responses queue containing the result.
+    ## Each time this is run, read from serial port and handle the response
+    ## from the printer.
+    ## A PrinterResponse object goes on the responses queue containing the
+    ## result.
     ## If a resend is requested, send the last command again
     ## At the end, if not paused, send the next command in the queue
-    # 
+    #
     def _update(self):
-        
+        # time we started the last move command
+        lastMoveStartTime = time()
+
         while True:
             # this is a locking function
             connected = self.getConnectionState()
@@ -366,7 +385,8 @@ class USBPrinter(OutputDevice):
             if connected == ConnectionState.connected:
                 handled = False
 
-                # properties of the printer response to report back to the server
+                # properties of the printer response to report back to the
+                # server
                 response_props = {'command': self._last_command, 'line': self._commands_current_line }
 
                 ###
@@ -380,7 +400,8 @@ class USBPrinter(OutputDevice):
                     if (self._command_queue.unfinished_tasks > 0):
                         # next_cmd_line = self._commands_current_line
                         # unfinished = self._command_queue.unfinished_tasks
-                        # Logger.log("i", "handling next command line.{} unfininshed.{}".format(next_cmd_line,unfinished))
+                        # Logger.log("i", "handling next command line.{}
+                        # unfininshed.{}".format(next_cmd_line,unfinished))
                         # get a command from the threaded queue
                         command = self._command_queue.get(block=True)
                     
@@ -395,13 +416,24 @@ class USBPrinter(OutputDevice):
                         #else:
                         #    Logger.log("i", "no unfinished tasks")
 
-                    # if we're not at the top of the queue of commands, send the next one
-                    if (self._commands_current_line < self.countAllCommands()) and (self._commands_on_printer < 6):
-                        # Logger.log("i","all commands: {}".format(self.countAllCommands()))
+                    # if we're not at the top of the queue of commands, send
+                    # the next one
+                    if (self._commands_current_line < self.countAllCommands()) and (self._commands_on_printer < self.MAX_COMMANDS_ON_PRINTER):
+                        # Logger.log("i","all commands:
+                        # {}".format(self.countAllCommands()))
                         cmd = self.getCommand(self._commands_current_line)
                         self._serialSendCommand(cmd, self._commands_current_line)
+                        response_props = {
+                            'type': 'queued',
+                            'command': self._last_command, 
+                            'line': self._commands_current_line, 
+                            'cq': self._command_queue.unfinished_tasks, # cq = commands queued
+                            'cp': self._commands_on_printer, # cp = comamnds on printer
+                            'start': time()*1000 
+                            }
                 
-                    # necessary to allow other threads to interact, otherwise events/lines are lost! (locking didn't fix that)
+                    # necessary to allow other threads to interact, otherwise
+                    # events/lines are lost!  (locking didn't fix that)
                     sleep(0.01)
 
                 ###
@@ -424,9 +456,11 @@ class USBPrinter(OutputDevice):
                         # done, don't process anything else
                         
 
-                    # TODO: handle this better - just resend last command! No need for the magic bits
+                    # TODO: handle this better - just resend last command!  No
+                    # need for the magic bits
                     elif b'resend' in line.lower() or line.startswith(b'rs'):
-                        # A resend can be requested either by Resend, resend or rs.
+                        # A resend can be requested either by Resend, resend or
+                        # rs.
                         Logger.log('e', "Printer signals resend. {}".format(line))
                         response_props["type"] = "resend"
                         response_props["message"] = "Printer signals resend. {}".format(line.decode('utf-8'))
@@ -438,7 +472,8 @@ class USBPrinter(OutputDevice):
                             self._commands_current_line = int(line.replace(b"N:", b" ").replace(b"N", b" ").replace(b":", b" ").split()[-1])
                         except:
                             if b"rs" in line:
-                                # In some cases of the RS command it needs to be handled differently.
+                                # In some cases of the RS command it needs to
+                                # be handled differently.
                                 self._commands_current_line = int(line.split()[1])
 
                     elif line.startswith(b"echo:"):
@@ -461,18 +496,20 @@ class USBPrinter(OutputDevice):
                         response_props['message'] = line.decode('utf-8')
                         # handled = self._commandHandled()
                         
-                    elif b"ok T:" in line or line.startswith(b"T:") or b"ok B:" in line or line.startswith(b"B:"):  # Temperature message. 'T:' for extruder and 'B:' for bed
+                    elif b"ok T:" in line or line.startswith(b"T:") or b"ok B:" in line or line.startswith(b"B:"):  # Temperature message.  'T:' for extruder and 'B:' for bed
                         response_props["type"] = "temperature"
                         lineString = line.decode('utf-8')
                         #Logger.log("d", "temp response: {}".format(line))
                         extruder_temperature_matches = re.findall("T(\d*): ?([\d\.]+) ?\/?([\d\.]+)?", lineString)
                         # Update all temperature values
-                        # line looks like:  b'ok T:24.7 /0.0 B:23.4 /0.0 @:0 B@:0\n'
+                        # line looks like: b'ok T:24.7 /0.0 B:23.4 /0.0 @:0
+                        # B@:0\n'
                         # OR b'T:176.1 E:0 W:?\n'
                         if len(extruder_temperature_matches) > 0:
                             match = extruder_temperature_matches[0]
-                            ### NOTE: hot end (tool number) is the first match (0)                   
-                            response_props["hotend"]=match[1]
+                            ### NOTE: hot end (tool number) is the first match
+                            ### (0)
+                            response_props["hotend"] = match[1]
                     
                             if match[2]:                         
                                 response_props["hotend_target"] = match[2]
@@ -487,13 +524,16 @@ class USBPrinter(OutputDevice):
                         handled = self._commandHandled()
 
                         # LEGACY CODE, FOR FUTURE REFERENCE...
-                        #for match, extruder in zip(extruder_temperature_matches, self._printers[0].extruders):
+                        #for match, extruder in
+                        #zip(extruder_temperature_matches,
+                        #self._printers[0].extruders):
                         #    if match[1]:
                         #        hotendTemperature(float(match[1]))
                         #    if match[2]:
                         #        extruder.updateTargetHotendTemperature(float(match[2]))
 
-                        #bed_temperature_matches = re.findall(b"B: ?([\d\.]+) ?\/?([\d\.]+)?", line)
+                        #bed_temperature_matches = re.findall(b"B: ?([\d\.]+)
+                        #?\/?([\d\.]+)?", line)
                         #if bed_temperature_matches:
                         #    match = bed_temperature_matches[0]
                         #    if match[0]:
@@ -502,7 +542,8 @@ class USBPrinter(OutputDevice):
                         #        self._printers[0].updateTargetBedTemperature(float(match[1]))
 
                     elif b"FIRMWARE_NAME:" in line:
-                        # TODO: possibly pre-parse this instead of sending whole line
+                        # TODO: possibly pre-parse this instead of sending
+                        # whole line
                         response_props["type"] = "firmware"
                         response_props["message"] = line.decode('utf-8')
                         handled = self._commandHandled()
@@ -513,8 +554,8 @@ class USBPrinter(OutputDevice):
                         stringline = line.decode('utf-8')
                         matches = re.findall('([x|y|z|e]):([0-9\.\-]+)+', stringline.lower())
                         # Match 1
-                        # 1. X
-                        # 2. 0.00
+                        # 1.  X
+                        # 2.  0.00
                         # parse it properly
                         
                         response_props["type"] = "position"
@@ -529,13 +570,14 @@ class USBPrinter(OutputDevice):
                         response_props["type"] = "ok"
                         response_props["message"] = "ok"
                         handled = self._commandHandled()
-                        #Logger.log('i', "ok received: {}".format(line)) 
+                        #Logger.log('i', "ok received: {}".format(line))
 
-                    # ERROR! BAD.
+                    # ERROR!  BAD.
                     elif line.lower().startswith(b'error'):
                         response_props["type"] = "error"
                         response_props["message"] = line.decode('utf-8')
-                        # Logger.log('e', "Error from printer: {}".format(response_props["message"]))
+                        # Logger.log('e', "Error from printer:
+                        # {}".format(response_props["message"]))
                         
                         
                     #
@@ -554,7 +596,7 @@ class USBPrinter(OutputDevice):
                     # Logger.log("d","response: {}".format(response))
                     self._responses_queue.put(response, block=True)
 
-            sleep( 0.01 ) # yield to others
+            sleep(0.01) # yield to others
 
     
     ## these are thread-safe because the update thread uses them
