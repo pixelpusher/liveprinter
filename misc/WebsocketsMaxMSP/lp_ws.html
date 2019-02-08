@@ -1,0 +1,238 @@
+﻿<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="utf-8" />
+    <title>simple test</title>
+    <script type="text/javascript">
+
+        var loaded = false;
+
+        window.addEventListener("load", function () {
+            //document.addEventListener("DOMContentLoaded", function () {
+
+            if (!loaded) {
+
+                var x = 0, y = 0, z = 0, e = 0;
+                var speed = 0;
+
+                loaded = true;
+
+                //
+                // get the data out!
+                //
+                function calculateAndOutput() {
+                    var d = Math.sqrt(x * x + y * y + z * z); // distance of movement
+                    var t = speed != 0 ? d / speed : 0; // time of movement
+                    var angle = Math.atan2(y, x); // angle of movement (0 is full right, 90 is back of printer, 270 is towards user)
+
+                    if ('max' in window) {
+                        // output a list
+                        window.max.outlet('printer', x, y, z, e, speed);
+                        window.max.outlet('move', angle, d, t);
+                    }
+
+                    document.querySelector("textarea[name=display]").value = "x: " + x + "\ny: " + y + "\nz: " + z + "\nspeed: " + speed
+                        + "\nangle: " + angle + "\ndist: " + d + "\ntime: " + t;
+                }
+
+
+                if (socketHandler != null) delete socketHandler; // could be undefined too
+
+                var logger = logger || function (txt) {
+                    if ('max' in window) {
+                        window.max.outlet(txt);
+                    } else console.log(txt);
+                };
+
+                var socketHandler = {
+                    socket: null, //websocket
+                    test: function (e) { logger(e); },
+                    listeners: [], // listeners for json rpc calls,
+
+                    handleJSONRPC: function (jsonRPC) {
+                        if ('method' in jsonRPC) {
+                            // call all listeners
+                            this.listeners.map(function (listener) {
+                                if (listener[jsonRPC.method]) { listener[jsonRPC.method](jsonRPC.params); }
+                            });
+                        }
+                    },
+
+                    start: function () {
+                        if ('WebSocket' in window) {
+
+                            var me = this; // for passing to children
+
+                            // convert to websockets port (works for https too)
+                            // NOTE: may need to toggle network.websocket.allowInsecureFromHTTPS in FireFox (about:config) to make this work
+                            this.socket = new WebSocket("ws://localhost:8888/json");
+                            logger('opening socket');
+
+                            this.socket.onmessage = function (event) {
+                                // logger('message');
+                                var jsonRPC = JSON.parse(event.data);
+                                me.handleJSONRPC(jsonRPC);
+                                if ('method' in jsonRPC) {
+                                    //logger(jsonRPC.method);
+                                    switch (jsonRPC.method) {
+                                        case 'ok': {
+                                            if (('command' in jsonRPC.params) && (jsonRPC.params.command === 'G28')) {
+                                                x = y = z = e = 0;
+                                            }
+                                        }
+                                            break;
+                                        case 'gcode': {
+                                            
+                                        }
+                                            break;
+                                    } // end switch
+                                } // end method check
+                            };
+
+                            // runs when printer connection is established via websockets
+                            this.socket.onopen = function () {
+                                document.querySelector("input[name=display]").value = "socket connected";
+                                logger("connected");
+                            };
+
+                            this.socket.onclose = function (e) {
+                                document.querySelector("input[name=display]").value = "socket disconnected";
+                                logger("disconnected");
+                            };
+                        }
+                        else {
+                            logger('No websockets support!');
+                            document.querySelector("input[name=display]").value = "no websockets support!";
+                        }
+                    },
+
+                    //
+                    // add a listener to the queue of jsonrpc event listeners
+                    // must have a function for jsonrpc event method name which takes appropriate params json object
+                    registerListener: function (listener) {
+                        this.listeners.push(listener);
+                    },
+
+                    removeListener: function (listener) {
+                        this.listeners = this.listeners.filter(function (l) { l !== listener });
+                    }
+                };
+
+                // handler for JSON-RPC calls from server
+                var jsonrpcPositionListener = {
+                    "position": function (params) {
+                        logger("position:");
+                        x = parseFloat(params.x);
+                        y = parseFloat(params.y);
+                        z = parseFloat(params.z);
+                        e = parseFloat(params.e);
+                    }
+                };
+                socketHandler.registerListener(jsonrpcPositionListener);
+
+                /**
+                * json-rpc gcode event handler
+                * @memberOf LivePrinter
+                */
+                var commandHandler = {
+                    'gcode': function (event) {
+
+                        if ('message' in event) {
+                            //'G1 X0.0000 Y0.0000 Z0.9000 E0.0000 F4800.0000'
+                            for (var l = 0; l < event.message.length; l++) {
+                                var line = event.message[l];
+                                logger(line);
+
+                                if (line.search("G28") > -1) {
+                                    // look for reset axes command
+                                    x = y = z = e = 0;
+                                    calculateAndOutput();
+
+                                }
+                                else if (line.search("G1") > -1) { // look for only extrude/move commands
+                                    logger("G1");
+
+                                    var cmdRegExp = new RegExp("([a-zA-Z][0-9]+\.?[0-9]*)", "gim");
+                                    var subCmdRegExp = new RegExp("([a-zA-Z])([0-9]+\.?[0-9]*)");
+                                    var found = line.match(cmdRegExp);
+                                    logger("found:");
+                                    logger(found);
+                                    for (var i = 0; i < found.length; i++) {
+                                        var cmd = found[i];
+                                        logger(cmd);
+                                        var matches = cmd.match(subCmdRegExp);
+
+                                        if (matches.length !== 3) throw new Error("Error in command string: " + found);
+
+                                        var cmdChar = matches[1].toUpperCase();
+                                        var value = parseFloat(matches[2]);
+
+                                        switch (cmdChar) {
+                                            case "X": x = value; break;
+                                            case "Y": y = value; break;
+                                            case "Z": z = value; break;
+                                            case "E": e = value; break;
+                                            case "F": speed = value; break;
+                                        }
+
+                                        calculateAndOutput();
+
+                                        //logger("x: " + x);
+                                        //logger("y: " + y);
+                                        //logger("z: " + z);
+                                        //logger("e: " + e);
+                                        //logger("speed: " + speed);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                };
+                socketHandler.registerListener(commandHandler);
+
+                /**
+                * json-rpc ok event handler
+                * @memberOf LivePrinter
+                */
+                var okHandler = {
+                    'ok': function (event) {
+
+                    }
+                };
+                socketHandler.registerListener(okHandler);
+
+                //
+                // for console debugging...
+                window.socketHandler = socketHandler;
+
+                if ('max' in window) {
+                    window.max.bindInlet('connect', function () {
+
+                        socketHandler.start();
+
+                        /*
+                         * if a fixed set of parameters doesn't meet
+                         * your needs you can use the array-like arguments
+                         * objects in order to gain access to the
+                         * incoming parameters
+                         *
+                         * message: doSomethingWithArgs 1 2
+                         */
+                    });
+                }
+
+                logger("loaded");
+
+                document.querySelector("input[name=display]").value = "loaded!\n";
+                document.querySelector("textarea[name=display]").value = "...\n";
+            }
+        });
+
+    </script>
+</head>
+<body>
+    <div>Content</div>
+    <div><input type="text" value="" name="display" /></div>
+    <div><textarea name="display" rows="20" cols="40">LOADING...</textarea></div>
+</body>
+</html>
