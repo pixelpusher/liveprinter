@@ -240,7 +240,13 @@ class Printer {
         this._heading = ang;
     }
 
+    set d(_d) {
+        this._distance = d;
+    }
 
+    get d() {
+        return this._distance;
+    }
 
 
     /**
@@ -295,6 +301,8 @@ class Printer {
      * lp.turnto(45).dist(50).go(1).retract();
      */
     retract(len = this.retractLength, speed) {
+        if (this.currentRetraction > 0) return; // don't retract twice!
+
         if (len < 0) throw new Error("retract length can't be less than 0: " + len);
         const sendSettings = (len !== this.currentRetraction || speed !== undefined);
         this.retractLength = len;
@@ -309,9 +317,10 @@ class Printer {
         }
         // RETRACT        
         this.currentRetraction += this.retractLength + this.extraUnretract;
+        this.e -= this.currentRetraction;
+
 
         if (!this.firmwareRetract) {
-            this.e -= this.currentRetraction;
             const fixedE = this.e.toFixed(4);
             this.send("G1 " + "E" + fixedE + " F" + this.retractSpeed.toFixed(4));
             this.e = parseFloat(fixedE); // make sure e is actually e even with rounding errors!
@@ -341,6 +350,8 @@ class Printer {
      * lp.unretract(8,30); // extract a little more to get it going
      */
     unretract(len = this.currentRetraction, speed) {
+        if (this.currentRetraction < 0.01) return; // don't unretract if we don't have to!
+
         const sendSettings = (len !== this.currentRetraction || speed !== undefined);
         if (len < 0) throw new Error("retract length can't be less than 0: " + len);
         if (len !== this.currentRetraction) this.retractLength = len; // set new retract length if specified
@@ -354,10 +365,11 @@ class Printer {
         }
         if (sendSettings) this.sendFirmwareRetractSettings();
         // UNRETRACT
+
+        this.e += this.currentRetraction;
         
         //unretract manually first if needed
         if (!this.firmwareRetract) {
-            this.e += this.currentRetraction;
             // account for previous retraction
             this.send("G1 " + "E" + this.e.toFixed(4) + " F" + this.retractSpeed.toFixed(4));
 
@@ -817,12 +829,11 @@ class Printer {
      * @param {boolean} retract if true (default) add GCode for retraction/unretraction. Will use either hardware or software retraction if set in Printer object
      * */
     sendExtrusionGCode(speed, retract = true) {
-        if (retract && this.currentRetraction > 0) {
+        if (retract && this.currentRetraction > 0.01) {
             //unretract manually first if needed
+            this.e += this.currentRetraction;
 
             if (!this.firmwareRetract) {
-                this.e += this.currentRetraction;
-
                 // account for previous retraction
                 this.send("G1 " + "E" + this.e.toFixed(4) + " F" + this.retractSpeed.toFixed(4));
             } else {
@@ -842,14 +853,14 @@ class Printer {
         this.send(moveCode.join(" "));
 
         // RETRACT
-        if (retract && this.retractLength > 0) {
+        if (retract && this.retractLength > 0 && this.currentRetraction < 0.01) {
             this.currentRetraction = this.retractLength + this.extraUnretract;
+            this.e -= this.currentRetraction;
 
             if (this.firmwareRetract) {
                 this.send("G10");
                 // this is handled in hardware                       
             } else {
-                this.e -= this.currentRetraction;
                 this.send("G1 " + "E" + this.e.toFixed(4) + " F" + this.retractSpeed.toFixed(4));
             }
         }
@@ -1058,8 +1069,8 @@ class Printer {
                     else yangle = -90;
                 }
                 else if (axis === "z") {
-                    if (this._elevation > 0) zangle = 90;
-                    else zangle = -90;
+                    if (this._elevation > 0) zangle = Math.PI/2;
+                    else zangle = -Math.PI/2;
                 }
             }
         }
@@ -1071,6 +1082,17 @@ class Printer {
 
         return this;
     }
+
+    /**
+     * Set the movement distance based on a target amount of time to move. (Uses current print speed to calculate)
+     * @param {Number} time Time to move in milliseconds
+     * @returns {Printer} reference to this object for chaining
+     */
+    t2d(time, speed = this.travelSpeed) {
+        this._distance = speed * time / 1000; // time in ms
+        return this;
+    }
+
 
     /**
      * Fills an area based on layerHeight (as thickness of each line)
