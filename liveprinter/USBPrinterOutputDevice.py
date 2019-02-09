@@ -429,12 +429,16 @@ class USBPrinter(OutputDevice):
                             'line': self._commands_current_line, 
                             'cq': self._command_queue.unfinished_tasks, # cq = commands queued
                             'cp': self._commands_on_printer, # cp = comamnds on printer
-                            'start': time()*1000 
-                            }
-                
-                    # necessary to allow other threads to interact, otherwise
-                    # events/lines are lost!  (locking didn't fix that)
-                    sleep(0.01)
+                            'start': time()*1000 }
+                        # send response to queue so GUI can pick it up later
+                        response = PrinterResponse(**response_props)
+                        # Logger.log("d","response: {}".format(response))
+                        self._responses_queue.put(response, block=True)
+                        # necessary to allow other threads to interact, otherwise
+                        # events/lines are lost!  (locking didn't fix that)
+                        # reset response object:
+                        response_props = {'command': self._last_command, 'line': self._commands_current_line }
+                        sleep(0.001)
 
                 ###
                 ### Process printer responses
@@ -596,7 +600,7 @@ class USBPrinter(OutputDevice):
                     # Logger.log("d","response: {}".format(response))
                     self._responses_queue.put(response, block=True)
 
-            sleep(0.01) # yield to others
+            sleep(0.001) # yield to others
 
     
     ## these are thread-safe because the update thread uses them

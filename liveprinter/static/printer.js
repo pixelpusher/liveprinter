@@ -392,12 +392,12 @@ class Printer {
      */
     start(hotEndTemp = "190", bedTemp = "50") {
         this.send("G28");
+        this.send("M114"); // get current position
+        this.send("M106 S0"); // set fan to full
         this.send("M104 S" + hotEndTemp); //heater 1 temp
         this.send("M140 S" + bedTemp); // bed temp
         this.sendFirmwareRetractSettings();
-        this.send("M114"); // get current position
         //this.moveto({ x: this.cx, y: this.cy, z: this.maxz, speed: Printer.defaultPrintSpeed });
-
         //this.send("M106 S100"); // set fan to full
 
         return this;
