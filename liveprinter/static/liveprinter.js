@@ -640,7 +640,6 @@ $.when($.ready).then(
                 window.scope.Scheduler.removeEventByName(name);
             }
         };
-        updatePrinterState(true);
 
         /**
         * Handle websockets communications
@@ -846,9 +845,10 @@ $.when($.ready).then(
                 scope.printer.z = parseFloat(params.z);
                 scope.printer.e = parseFloat(params.e);
 
-                $("input[name='x']")[0].value = window.scope.printer.x;
-                $("input[name='y']")[0].value = window.scope.printer.y;
-                $("input[name='z']")[0].value = window.scope.printer.z;
+                $("input[name='x']").val(window.scope.printer.x);
+                $("input[name='y']").val(window.scope.printer.y);
+                $("input[name='z']").val(window.scope.printer.z);
+                $("input[name='e']").val(window.scope.printer.e);
             }
         };
 
@@ -879,10 +879,10 @@ $.when($.ready).then(
                 let tmpbed = parseFloat(tempEvent.bed).toFixed(2);
                 let targetbed = parseFloat(tempEvent.bed_target).toFixed(2);
 
-                $("input[name='temphot']")[0].value = tmp;
-                $("input[name='tempbed']")[0].value = tmpbed;
-                $("input[name='temphot-target']")[0].value = target;
-                $("input[name='tempbed-target']")[0].value = targetbed;
+                $("input[name='temphot']").val(target);
+                $("input[name='tempbed']").val(targetbed);
+                $("input[name='temphot-target']").val(tmp);
+                $("input[name='tempbed-target']").val(tmpbed);
                 /*
                 $("#temperature > p").html(
                     '<strong>TEMPERATURE: hotend/target:'
@@ -996,8 +996,75 @@ $.when($.ready).then(
                 }
             }
         };
+        // NOTE -------------------------------------------------------------
+        // NOW: DISABLED (queued are more interesting)
+        // CAN ENABLE FOR DEBUGGING by uncommenting below
+        //socketHandler.registerListener(commandHandler);
 
-        socketHandler.registerListener(commandHandler);
+        /**
+         * json-rpc queued commands event handler - called when commands are actually queued on printer
+         * @memberOf LivePrinter
+         */
+        var commandQueuedHandler = {
+            'queued': function (event) {
+
+                /*
+                 * 'command': self._last_command,
+                 *   'line': self._commands_current_line,
+                 *   'cq': self._command_queue.unfinished_tasks, # cq = commands queued
+                 *   'cp': self._commands_on_printer, # cp = comamnds on printer
+                 *   'start': time()*1000
+                 */
+
+
+                $("input[name='cq']").val(event.cq);
+                $("input[name='cp']").val(event.cp);
+
+                const cmdline = event.command;
+
+                if (!(/M115|M114|M105/.test(cmdline))) {
+                    appendLoggingNode($("#commands > ul"), event.time, cmdline);
+                    blinkElem($("#commands-tab"));
+                    blinkElem($("#inbox"));
+                }
+
+                /*
+                if (cmdline.search("G1") > -1) { // look for only extrude/move commands
+                    logger("G1");
+
+                    const cmdRegExp = new RegExp("([a-zA-Z][0-9]+\.?[0-9]*)", "gim");
+                    const subCmdRegExp = new RegExp("([a-zA-Z])([0-9]+\.?[0-9]*)");
+                    const found = line.match(cmdRegExp);
+                    for (let cmd of found) {
+                        const matches = cmd.match(subCmdRegExp);
+
+                        if (matches.length !== 3) throw new Error("Error in command string: " + found);
+
+                        const cmdChar = matches[1].toUpperCase();
+                        const value = parseFloat(matches[2]);
+
+                        switch (cmdChar) {
+                            case "X": x = value; break;
+                            case "Y": y = value; break;
+                            case "Z": z = value; break;
+                            case "E": e = value; break;
+                            case "F": speed = value; break;
+                        }
+
+                        calculateAndOutput();
+
+                        //logger("x: " + x);
+                        //logger("y: " + y);
+                        //logger("z: " + z);
+                        //logger("e: " + e);
+                        //logger("speed: " + speed);
+                    }
+                    */
+
+            }
+        };
+        socketHandler.registerListener(commandQueuedHandler);
+
 
         /**
          * json-rpc ok event handler
@@ -1011,11 +1078,38 @@ $.when($.ready).then(
                     let msg = outgoingQueue.pop();
                     socketHandler.sendMessage(msg);
                 }
+                const cmdline = event.command;
 
-                blinkElem($("#commands-tab"));
-                $("input[name='x']")[0].value = window.scope.printer.x;
-                $("input[name='y']")[0].value = window.scope.printer.y;
-                $("input[name='z']")[0].value = window.scope.printer.z;
+                if (cmdline.search("G1") > -1) { // look for only extrude/move commands
+                    //logger("G1");
+
+                    const cmdRegExp = new RegExp("([a-zA-Z][0-9]+\.?[0-9]*)", "gim");
+                    const subCmdRegExp = new RegExp("([a-zA-Z])([0-9]+\.?[0-9]*)");
+                    const found = line.match(cmdRegExp);
+                    for (let cmd of found) {
+                        const matches = cmd.match(subCmdRegExp);
+
+                        if (matches.length !== 3) throw new Error("Error in command string: " + found);
+
+                        const cmdChar = matches[1].toUpperCase();
+                        const value = parseFloat(matches[2]);
+
+                        switch (cmdChar) {
+                            case "X": $("input[name='x']").val(value); break;
+                            case "Y": $("input[name='y']").val(value); break;
+                            case "Z": $("input[name='z']").val(value); break;
+                            case "E": $("input[name='e']").val(value); break;
+                            case "F": $("input[name='speed']").val(value/60); break;
+                        }
+                    }
+                }
+                
+                /*
+                $("input[name='x']").val(window.scope.printer.x);
+                $("input[name='y']").val(window.scope.printer.y);
+                $("input[name='z']").val(window.scope.printer.z);
+                $("input[name='e']").val(window.scope.printer.e);
+                */
             }
         };
 
@@ -1098,6 +1192,8 @@ $.when($.ready).then(
         /////////////// Utility functions
         ///////////////////////////////////////////////////////////////////////
 
+        const maxLogPopups = 80;
+
         /**
          * Append a dismissible, styled text node to one of the side menus, formatted appropriately.
          * @param {jQuery} elem JQuery element to append this to
@@ -1107,6 +1203,10 @@ $.when($.ready).then(
          */
         function appendLoggingNode(elem, time, message) {
             const dateStr = (new Date(time)).toLocaleString('en-US', { year: '2-digit', month: '2-digit', day: '2-digit', hours: '2-digit', minutes: '2-digit', seconds: '2-digit' });
+            //if (elem.children().length > maxLogPopups) {
+            //    elem.children().
+           // }
+
             elem.prepend("<li class='alert alert-primary alert-dismissible fade show' role='alert'>"
                 + dateStr
                 + '<strong>'
@@ -1199,7 +1299,7 @@ $.when($.ready).then(
         });
 
         $('a[data-toggle="pill"]').on('shown.bs.tab', function (e) {
-            const target = $(e.target).attr("href") // activated tab
+            const target = $(e.target).attr("href"); // activated tab
             if (target === "#global-code-editor-area") {
                 GlobalCodeEditor.refresh();
                 setLanguageMode(); // have to update gutter, etc.
@@ -1341,7 +1441,7 @@ $.when($.ready).then(
          * Example in use:
          * s.mousemove( function(e) {
          *     console.log(e);
-	     *     console.log((e.x-e.px) + "," + (e.y-e.py));
+         *     console.log((e.x-e.px) + "," + (e.y-e.py));
          *   }, 20);
          * @memberOf LivePrinter
          */
@@ -1589,12 +1689,12 @@ $.when($.ready).then(
                         node.printer = printer;
                         node.scheduler = Scheduler;
                         node.socket = socketHandler;
-    
+         
                         node.parentNode.removeChild(script);
                         node = null;
                     };
                     script.onerror = function (e) { console.log("script error:" + e) };
-    
+         
                     node = document.head.appendChild(script);
                     */
                     // run and remove
