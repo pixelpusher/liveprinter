@@ -1131,13 +1131,14 @@ class Printer {
     }
 
     /**
-     * Calculate the tool speed in mm/s based on midi note
+     * Calculate and set both the travel and print speed in mm/s based on midi note
      * @param {float} note midi note
      * @param {string} axis axis (x,y,z,e) of movement 
-     * @returns {float} tool speed in mm/s
+     * @returns {Printer} reference to this object for chaining
      */
-    m2s(note, axis) {
-        return this.midi2speed(note, axis);
+    m2s(note, axis='x') {
+        this.travelSpeed = this.printSpeed = this.midi2speed(note, axis);
+        return this;
     }
 
     /**
