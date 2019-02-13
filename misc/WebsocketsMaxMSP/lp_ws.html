@@ -82,7 +82,7 @@
                                         }
                                             break;
                                         case 'gcode': {
-                                            
+
                                         }
                                             break;
                                     } // end switch
@@ -135,57 +135,57 @@
                 * @memberOf LivePrinter
                 */
                 var commandHandler = {
-                    'gcode': function (event) {
+                    'queued': function (event) {
 
-                        if ('message' in event) {
+                        if ('command' in event) {
                             //'G1 X0.0000 Y0.0000 Z0.9000 E0.0000 F4800.0000'
-                            for (var l = 0; l < event.message.length; l++) {
-                                var line = event.message[l];
-                                logger(line);
 
-                                if (line.search("G28") > -1) {
-                                    // look for reset axes command
-                                    x = y = z = e = 0;
+                            var line = event.command;
+                            logger(line);
+
+                            if (line.search("G28") > -1) {
+                                // look for reset axes command
+                                x = y = z = e = 0;
+                                calculateAndOutput();
+
+                            }
+                            else if (line.search("G1") > -1) { // look for only extrude/move commands
+                                logger("G1");
+
+                                var cmdRegExp = new RegExp("([a-zA-Z][0-9]+\.?[0-9]*)", "gim");
+                                var subCmdRegExp = new RegExp("([a-zA-Z])([0-9]+\.?[0-9]*)");
+                                var found = line.match(cmdRegExp);
+                                logger("found:");
+                                logger(found);
+                                for (var i = 0; i < found.length; i++) {
+                                    var cmd = found[i];
+                                    logger(cmd);
+                                    var matches = cmd.match(subCmdRegExp);
+
+                                    if (matches.length !== 3) throw new Error("Error in command string: " + found);
+
+                                    var cmdChar = matches[1].toUpperCase();
+                                    var value = parseFloat(matches[2]);
+
+                                    switch (cmdChar) {
+                                        case "X": x = value; break;
+                                        case "Y": y = value; break;
+                                        case "Z": z = value; break;
+                                        case "E": e = value; break;
+                                        case "F": speed = value; break;
+                                    }
+
                                     calculateAndOutput();
 
-                                }
-                                else if (line.search("G1") > -1) { // look for only extrude/move commands
-                                    logger("G1");
-
-                                    var cmdRegExp = new RegExp("([a-zA-Z][0-9]+\.?[0-9]*)", "gim");
-                                    var subCmdRegExp = new RegExp("([a-zA-Z])([0-9]+\.?[0-9]*)");
-                                    var found = line.match(cmdRegExp);
-                                    logger("found:");
-                                    logger(found);
-                                    for (var i = 0; i < found.length; i++) {
-                                        var cmd = found[i];
-                                        logger(cmd);
-                                        var matches = cmd.match(subCmdRegExp);
-
-                                        if (matches.length !== 3) throw new Error("Error in command string: " + found);
-
-                                        var cmdChar = matches[1].toUpperCase();
-                                        var value = parseFloat(matches[2]);
-
-                                        switch (cmdChar) {
-                                            case "X": x = value; break;
-                                            case "Y": y = value; break;
-                                            case "Z": z = value; break;
-                                            case "E": e = value; break;
-                                            case "F": speed = value; break;
-                                        }
-
-                                        calculateAndOutput();
-
-                                        //logger("x: " + x);
-                                        //logger("y: " + y);
-                                        //logger("z: " + z);
-                                        //logger("e: " + e);
-                                        //logger("speed: " + speed);
-                                    }
+                                    //logger("x: " + x);
+                                    //logger("y: " + y);
+                                    //logger("z: " + z);
+                                    //logger("e: " + e);
+                                    //logger("speed: " + speed);
                                 }
                             }
                         }
+
                     }
                 };
                 socketHandler.registerListener(commandHandler);

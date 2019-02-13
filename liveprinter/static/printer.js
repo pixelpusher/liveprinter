@@ -864,6 +864,7 @@ class Printer {
                 this.send("G1 " + "E" + this.e.toFixed(4) + " F" + this.retractSpeed.toFixed(4));
             }
         }
+        this.send("M400"); // finish all moves
     } // end sendExtrusionGCode
 
 

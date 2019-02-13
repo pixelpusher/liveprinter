@@ -1085,7 +1085,7 @@ $.when($.ready).then(
 
                     const cmdRegExp = new RegExp("([a-zA-Z][0-9]+\.?[0-9]*)", "gim");
                     const subCmdRegExp = new RegExp("([a-zA-Z])([0-9]+\.?[0-9]*)");
-                    const found = line.match(cmdRegExp);
+                    const found = cmdline.match(cmdRegExp);
                     for (let cmd of found) {
                         const matches = cmd.match(subCmdRegExp);
 
