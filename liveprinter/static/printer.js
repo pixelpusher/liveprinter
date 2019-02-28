@@ -51,8 +51,9 @@ class Printer {
         ////////////////////////////////////////////
         // these are used in in the go() function
         this._heading = 0;   // current angle of movement (xy) in radians
-        this._elevation = 0; // current angle of elevated movement (z) in radians
-        this._distance = 0; // next distance to move
+        this._elevation = Math.PI / 2; // current angle of elevated movement (z) in radians, starts up
+        this._distance = 0; // next L/R distance to move
+        this._zdistance = 0; // next up/down distance to move
         this._waitTime = 0;
         ////////////////////////////////////////////
 
@@ -64,7 +65,7 @@ class Printer {
         // NOTE: disabled for now to use hardware retraction settings
         this.currentRetraction = 0; // length currently retracted
         this.retractLength = 8.5; // in mm - amount to retract after extrusion.  This is high because most moves are slow...
-        this.retractSpeed = 1000; //mm/min
+        this._retractSpeed = 30*60; //mm/min, see getter/setter
         this.firmwareRetract = true;    // use Marlin or printer for retraction
         this.extraUnretract = 0; // extra amount to unretract each time (recovery filament) in mm
         this.unretractZHop = 2; //little z-direction hop on retracting to avoid blobs, in mm
@@ -248,6 +249,21 @@ class Printer {
         return this._distance;
     }
 
+    /**
+     * Retraction speed - updates firmware on printer too
+     * @param {Number} s Speed in mm/s
+     */
+    set retractSpeed(s) {
+        this._retractSpeed = s*60;
+        this.sendFirmwareRetractSettings();
+    }
+
+    /**
+     * @returns {Number} Retraction speed in mm/s
+     */ 
+    get retractSpeed() {
+        return this._retractSpeed / 60;
+    }
 
     /**
      * Set the extrusion thickness (in mm)
@@ -275,9 +291,9 @@ class Printer {
     */
     sendFirmwareRetractSettings() {
         // update firmware retract settings
-        this.send("M207 S" + this.retractLength + " F" + this.retractSpeed + " Z" + this.unretractZHop);
+        this.send("M207 S" + this.retractLength + " F" + this._retractSpeed + " Z" + this.unretractZHop);
         //set retract recover
-        this.send("M208 S" + (this.retractLength + this.extraUnretract) + "F" + this.retractSpeed);
+        this.send("M208 S" + (this.retractLength + this.extraUnretract) + "F" + this._retractSpeed);
 
         return this;
     }
@@ -311,8 +327,7 @@ class Printer {
             if (speed <= 0) throw new Error("retract speed can't be 0 or less: " + speed);
             // set speed safely!
             if (speed > Printer.maxPrintSpeed["e"]) throw new Error("retract speed to high: " + speed);
-            // convert to mm/s
-            this.retractSpeed = speed * 60;
+            this.retractSpeed = speed;
             this.sendFirmwareRetractSettings();
         }
         // RETRACT        
@@ -322,7 +337,7 @@ class Printer {
 
         if (!this.firmwareRetract) {
             const fixedE = this.e.toFixed(4);
-            this.send("G1 " + "E" + fixedE + " F" + this.retractSpeed.toFixed(4));
+            this.send("G1 " + "E" + fixedE + " F" + this._retractSpeed.toFixed(4));
             this.e = parseFloat(fixedE); // make sure e is actually e even with rounding errors!
         } else {
             // retract via firmware otherwise
@@ -360,18 +375,17 @@ class Printer {
             if (speed <= 0) throw new Error("retract speed can't be 0 or less: " + speed);
             // set speed safely!
             if (speed > Printer.maxPrintSpeed["e"]) throw new Error("retract speed to high: " + speed);
-            // convert to mm/s
-            this.retractSpeed = speed * 60;
+            this.retractSpeed = speed;
         }
         if (sendSettings) this.sendFirmwareRetractSettings();
         // UNRETRACT
 
         this.e += this.currentRetraction;
-        
+
         //unretract manually first if needed
         if (!this.firmwareRetract) {
             // account for previous retraction
-            this.send("G1 " + "E" + this.e.toFixed(4) + " F" + this.retractSpeed.toFixed(4));
+            this.send("G1 " + "E" + this.e.toFixed(4) + " F" + this._retractSpeed.toFixed(4));
 
         } else {
             // unretract via firmware otherwise
@@ -467,15 +481,26 @@ class Printer {
             return this.wait();
         }
         else {
-            const _x = this._distance * Math.cos(this._heading);
-            const _y = this._distance * Math.sin(this._heading);
-            const _z = this._distance * Math.sin(this._elevation);
+            let horizDist = this._distance;
+            // add projection of vertical distance into horizontal plane.
+            // vertical distances are specified absolutely, so we need to find corresponding
+            // horizontal distance using the tangent
+            if (Math.abs(this._zdistance) > Number.EPSILON) {
+                let horizProjection = this._zdistance / Math.tan(this._elevation);
+                if (Math.abs(horizProjection) > Number.EPSILON)
+                    horizDist += horizProjection;
+            }
+            const vertDist = this._zdistance;
+
+            const _x = horizDist * Math.cos(this._heading);
+            const _y = horizDist * Math.sin(this._heading);
+            const _z = vertDist; // this is set separately in tiltup
             const _e = extruding ? undefined : 0; // no filament extrusion
 
             // debugging
-            let _div = Math.sqrt(_x * _x + _y * _y);
-            let _normx = _x / _div;
-            let _normy = _y / _div;
+            //let _div = Math.sqrt(_x * _x + _y * _y);
+            //let _normx = _x / _div;
+            //let _normy = _y / _div;
 
             /* for debugging -- test if start and end are same
             console.log("[go] end position:" + (this.x + _x) + "," + (this.y + _y) + "," + (this.z + _z) + "," + _e);
@@ -484,6 +509,8 @@ class Printer {
 
             // reset distance to 0 because we've traveled
             this._distance = 0;
+            this._zdistance = 0;
+            this._elevation = 0;
 
             return this.extrude({ x: _x, y: _y, z: _z, e: _e, 'retract': (retract && extruding) }); // don't retract if not extruding!
         }
@@ -560,9 +587,9 @@ class Printer {
                     break;
                 case rtChar: this.turn(-value);
                     break;
-                case upChar: this.up(value);
+                case upChar: this.up(value).go();
                     break;
-                case dnChar: this.down(value);
+                case dnChar: this.down(value).go();
                     break;
                 case rtrChar: this.retract(value);
                     break;
@@ -582,7 +609,10 @@ class Printer {
      * @returns {Printer} Reference to this object for chaining
      */
     up(d) {
-        return this.move({ 'z': d, 'speed': this.travelSpeed });
+        if (Math.abs(this._elevation) < Number.EPSILON) this._elevation = Math.PI / 2;
+
+        this._zdistance += d;
+        return this;
     }
 
     /**
@@ -592,7 +622,9 @@ class Printer {
      * @returns {Printer} Reference to this object for chaining
      */
     upto(d) {
-        return this.moveto({ 'z': d, 'speed': this.travelSpeed });
+        this._elevation = Math.PI / 2;
+        this._zdistance = d - this.z;
+        return this;
     }
 
     /**
@@ -601,7 +633,7 @@ class Printer {
      * @returns {Printer} Reference to this object for chaining
      */
     downto(d) {
-        return this.moveto({ 'z': d, 'speed': this.travelSpeed });
+        return this.upto(d);
     }
 
     /**
@@ -610,10 +642,11 @@ class Printer {
      * @returns {Printer} Reference to this object for chaining
      */
     down(d) {
-        return this.move({ 'z': -d, 'speed': this.travelSpeed });
+        if (Math.abs(this._elevation) < Number.EPSILON) this._elevation = -Math.PI / 2;
+
+        this._zdistance += -d;
+        return this;
     }
-
-
 
     /**
      * Set the direction of movement for the next operation.
@@ -630,6 +663,7 @@ class Printer {
         return this;
     }
 
+
     /**
      * Shortcut for elevation.
      * @see elevation
@@ -639,6 +673,17 @@ class Printer {
     elev(_elev) {
         return this.elevation(_elev);
     }
+
+    /**
+     * Shortcut for elevation.
+     * @see elevation
+     * @param {any} _elev elevation angle to tilt (degrees). 90 is up, -90 is down
+     * @returns {Printer} reference to this object for chaining
+     */
+    tilt(_elev) {
+        return this.elevation(_elev);
+    }
+    
 
     /**
      * Set the distance of movement for the next operation.
@@ -681,22 +726,22 @@ class Printer {
     }
 
     /**
-     * Extrude a circle starting at the current point on the curve
+     * Extrude a polygon starting at the current point on the curve (without retraction)
      * @param {any} r radius
      * @param {any} segs segments (more means more perfect circle)
      */
-    circle(r, segs = 10) {
+    polygon(r, segs = 10) {
         // law of cosines
         const r2x2 = r * r * 2;
         const segAngle = Math.PI * 2 / segs;
         const arc = Math.sqrt(r2x2 - r2x2 * Math.cos(segAngle));
 
-        this.turn(Math.PI / 2);
+        //this.turn(Math.PI / 2, true); // use radians
         // we're in the middle of segment
-        this.turn(-segAngle / 2);
+        //this.turn(-segAngle / 2, true); // use radians
 
         for (let i = 0; i < segs; i++) {
-            this.turn(segAngle);
+            this.turn(segAngle, true); // use radians
             // print without retraction
             this.dist(arc).go(1, false);
         }
@@ -835,7 +880,7 @@ class Printer {
 
             if (!this.firmwareRetract) {
                 // account for previous retraction
-                this.send("G1 " + "E" + this.e.toFixed(4) + " F" + this.retractSpeed.toFixed(4));
+                this.send("G1 " + "E" + this.e.toFixed(4) + " F" + this._retractSpeed.toFixed(4));
             } else {
                 // unretract via firmware otherwise
                 this.send("G11");
@@ -861,7 +906,7 @@ class Printer {
                 this.send("G10");
                 // this is handled in hardware                       
             } else {
-                this.send("G1 " + "E" + this.e.toFixed(4) + " F" + this.retractSpeed.toFixed(4));
+                this.send("G1 " + "E" + this.e.toFixed(4) + " F" + this._retractSpeed.toFixed(4));
             }
         }
         this.send("M400"); // finish all moves
@@ -1070,8 +1115,8 @@ class Printer {
                     else yangle = -90;
                 }
                 else if (axis === "z") {
-                    if (this._elevation > 0) zangle = Math.PI/2;
-                    else zangle = -Math.PI/2;
+                    if (this._elevation > 0) zangle = Math.PI / 2;
+                    else zangle = -Math.PI / 2;
                 }
             }
         }
@@ -1137,7 +1182,7 @@ class Printer {
      * @param {string} axis axis (x,y,z,e) of movement 
      * @returns {Printer} reference to this object for chaining
      */
-    m2s(note, axis='x') {
+    m2s(note, axis = 'x') {
         this.travelSpeed = this.printSpeed = this.midi2speed(note, axis);
         return this;
     }
