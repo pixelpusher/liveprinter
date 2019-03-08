@@ -10,6 +10,23 @@ Evan is on Twitter at @evanraskob and can answer questions, etc.
 
 We can create a Reddit forum or YouTube channel if there is demand for it.
 
+## Installing and Running
+
+[A quickstart document can be found here](https://www.odrive.com/s/80d3d8b4-096c-4c67-a71a-3e0c29273701-5c826d80)
+
+The server runs on Python 3 (3.6 and 3.7 tested) so you will need that installed.  Then, use pip (the Python package manager) to install:
+
+* pyserial (tested with 3.4)
+* tornado (tested with 5.0.2)
+* json-rpc (tested with 1.11.0)
+
+Here is a short video demonstrating the python installation on Windows (on OS X it's the same, just use Terminal instead of Command Prompt):
+https://youtu.be/ejlaQhOCUHw
+
+
+Run the server using your Python environment of choice - it's in the liveprinter folder, called LivePrinterServer.py.  By default, the server runs on port 8888 so open a web browser to http://localhost:8888 (or [change it](https://github.com/pixelpusher/liveprinter/blob/master/liveprinter/LivePrinterServer.py#L28)).  It can run without a printer using a "fake" serial port.
+
+
 ## About
 
 *Livecoding meets 3D printing: experiments in live computational sculpting*
@@ -36,16 +53,6 @@ LivePrinter is designed to be:
  
  This is an overview of the system:
 ![liveprinter architecture](https://pixelpusher.github.io/liveprinter/docs/diagrams/LivePrinter-Architecture.png "liveprinter system overview diagram").
-
-## Installing and Running
-
-The server runs on Python 3 (3.6 tested) so you will need that installed.  then, use pip3 (the Python package manager) to install:
-
-* pyserial (tested with 3.4)
-* tornado (tested with 5.0.2)
-* json-rpc (tested with 1.11.0)
-
-Run the server using your Python environment of choice - it's in the liveprinter folder, called LivePrinterServer.py.  By default, the server runs on port 8888 so open a web browser to http://localhost:8888 (or [change it](https://github.com/pixelpusher/liveprinter/blob/master/liveprinter/LivePrinterServer.py#L28)).  It can run without a printer using a "fake" serial port.
 
 ### An aside on Python Virtual Environments
 
