@@ -7,7 +7,7 @@
  * @param {Array} a 2-element array range
  * @param {Array} b 2-element array range
  * @returns {Function} mapping function
- * @example const rangeMap = makeMapping([0, 10], [-1, 0]);
+ * @example const mapping = makeMapping([0, 10], [-1, 0]);
  *          let result = mapping(5);
  */
 const makeMapping = (a, b) => s => {

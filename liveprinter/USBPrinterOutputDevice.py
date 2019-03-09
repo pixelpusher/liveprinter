@@ -190,6 +190,7 @@ class USBPrinter(OutputDevice):
         while not self._command_queue.empty():
             self._command_queue.get_nowait()
             self._command_queue.task_done()
+        self._commands_list_start_index = self._commands_current_line -1
         # if we're not at the top of the queue of commands, send the next one
         self._commands_list.clear()
         self.resumePrint()
@@ -328,7 +329,7 @@ class USBPrinter(OutputDevice):
             self._commands_on_printer -= 1
             self._commands_current_line -=  1
             Logger.log("w", "Timeout when sending command to printer via USB.")
-
+        
     ##
     # Immediately send a command with no line number
     ##
