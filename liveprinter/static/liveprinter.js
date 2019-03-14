@@ -881,7 +881,9 @@ $.when($.ready).then(
 
                 $("input[name='temphot']").val(target);
                 $("input[name='tempbed']").val(targetbed);
-                $("input[name='temphot-target']").val(tmp);
+                let $tt = $("input[name='temphot-target']")[0];
+                if ($tt !== $(document.activeElement)) $tt.value = tmp;
+                //$("input[name='temphot-target']").val(tmp);
                 $("input[name='tempbed-target']").val(tmpbed);
                 /*
                 $("#temperature > p").html(
