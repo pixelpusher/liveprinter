@@ -1230,6 +1230,24 @@ $.when($.ready).then(
         window.loginfo = loginfo;
 
         /**
+         * Attach an external script (and remove it quickly). Useful for adding outside libraries.
+         * @param {String} url Url of script (or name, if in the static/misc folder)
+         */
+        function attachScript(url) {
+            let realUrl = url;
+
+            if (!url.startsWith('http')) {
+                // look in misc folder
+                realUrl = "/static/misc/" + url;
+            }
+            let script = document.createElement("script");
+            script.src = realUrl;
+            // run and remove
+            document.head.appendChild(script).parentNode.removeChild(script);
+        }
+        window.attachScript = attachScript;
+
+        /**
          * Download a file. From stack overflow
          * @param {any} data Data in file
          * @param {String} filename Name of file to save as
