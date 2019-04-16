@@ -81,10 +81,10 @@ def process_printer_reponses(printer:USBPrinter):
     #while True:
     response = printer.getLastResponse()  # PrinterReponse object
     if response:
-        Logger.log("i", "RESPONSE: {}".format(response))   
+        # Logger.log("i", "RESPONSE: {}".format(response))   
         printer.lastReponseHandled()
         broadcast_message(response.toJSONRPC())
-        Logger.log("i", "TEST")
+        # Logger.log("i", "TEST")
 
 ## 
 # get json gcode (as a list of strings) from json-rpc dispatcher and 
@@ -164,7 +164,7 @@ def json_handle_responses(printer:USBPrinter, *argv):
        response = None
 
     if response is not None:
-        Logger.log("i", "RESPONSE: {}".format(response))
+        # Logger.log("i", "RESPONSE: {}".format(response))
         printer.lastReponseHandled()
         return response.toJSONRPC()
         

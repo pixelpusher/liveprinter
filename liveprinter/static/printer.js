@@ -1324,17 +1324,17 @@ class Printer {
         });
         */
         for (let pathIdx = 0, pathLength = paths.length; pathIdx < pathLength; pathIdx++) {
-            const path = paths[pathIdx];
+            let pathCopy = paths[pathIdx].slice();
             for (let i = 1; i <= passes; i++) {
                 const currentHeight = i * this.layerHeight + z;
 
-                this.moveto({ 'x': xmapping(path[0][0]), 'y': ymapping(path[0][1]) });
+                this.moveto({ 'x': xmapping(pathCopy[0][0]), 'y': ymapping(pathCopy[0][1]) });
                 this.moveto({ 'z': currentHeight });
                 this.unretract(); // makes sense to do this every time
 
                 // print each segment, one by one
-                for (let segmentIdx = 0, segmentLength = path.length; segmentIdx < segmentLength; segmentIdx++) {
-                    const segment = path[segmentIdx];
+                for (let segmentIdx = 0, segmentLength = pathCopy.length; segmentIdx < segmentLength; segmentIdx++) {
+                    const segment = pathCopy[segmentIdx];
                     this.extrudeto({
                         'x': xmapping(segment[0]),
                         'y': ymapping(segment[1]),
@@ -1343,7 +1343,7 @@ class Printer {
                 }
 
                 if (i < passes) {
-                    paths[pathIdx].reverse(); //save time, do it backwards
+                    pathCopy.reverse(); //save time, do it backwards
                 }
                 else {
                     // path finished, retract and raise up head

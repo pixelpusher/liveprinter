@@ -193,6 +193,11 @@ class USBPrinter(OutputDevice):
         self._commands_list_start_index = self._commands_current_line -1
         # if we're not at the top of the queue of commands, send the next one
         self._commands_list.clear()
+
+        # as docs say: Remove and return an item from the queue.
+        while not self._responses_queue.empty():
+            self._responses_queue.get_nowait()
+            self._responses_queue.task_done()
         self.resumePrint()
 
 
