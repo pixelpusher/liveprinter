@@ -67,7 +67,7 @@ class Printer {
         this.retractLength = 8.5; // in mm - amount to retract after extrusion.  This is high because most moves are slow...
         this._retractSpeed = 30*60; //mm/min, see getter/setter
         this.firmwareRetract = true;    // use Marlin or printer for retraction
-        this.extraUnretract = 0; // extra amount to unretract each time (recovery filament) in mm
+        this.extraUnretract = 0.1; // extra amount to unretract each time (recovery filament) in mm
         this.unretractZHop = 2; //little z-direction hop on retracting to avoid blobs, in mm
 
         /**
@@ -160,13 +160,13 @@ class Printer {
      * Get the center horizontal (x) position on the bed
      */
     get cx() {
-        return (this.maxPosition.axes.x - this.minPosition.axes.x) / 2;
+        return this.minx + (this.maxPosition.axes.x - this.minPosition.axes.x) / 2;
     }
     /**
      * Get the center vertical (y) position on the bed,
      */
     get cy() {
-        return (this.maxPosition.axes.y - this.minPosition.axes.y) / 2;
+        return this.miny + (this.maxPosition.axes.y - this.minPosition.axes.y) / 2;
     }
     /// maximum values
     get minx() {
@@ -331,7 +331,7 @@ class Printer {
             this.sendFirmwareRetractSettings();
         }
         // RETRACT        
-        this.currentRetraction += this.retractLength + this.extraUnretract;
+        this.currentRetraction += this.retractLength;
         this.e -= this.currentRetraction;
 
 
@@ -380,7 +380,7 @@ class Printer {
         if (sendSettings) this.sendFirmwareRetractSettings();
         // UNRETRACT
 
-        this.e += this.currentRetraction;
+        this.e += this.currentRetraction + this.extraUnretract;
 
         //unretract manually first if needed
         if (!this.firmwareRetract) {
@@ -391,6 +391,7 @@ class Printer {
             // unretract via firmware otherwise
             this.send("G11");
         }
+        this.e = parseFloat(this.e.toFixed(4));
         this.currentRetraction = 0;
 
         return this;
@@ -711,6 +712,13 @@ class Printer {
      */
     fwretract(state) {
         this.firmwareRetract = state;
+        // tell firmware we're handling it, or not
+        if (this.fwretract) {
+            this.send("M209 S" + 0);
+        }
+        else {
+            this.send("M209 S" + 1);
+        }
         return this;
     }
 
@@ -876,15 +884,16 @@ class Printer {
     sendExtrusionGCode(speed, retract = true) {
         if (retract && this.currentRetraction > 0.01) {
             //unretract manually first if needed
-            this.e += this.currentRetraction;
-
+            this.e += this.currentRetraction + this.extraUnretract;
+            let newE = this.e.toFixed(4);
             if (!this.firmwareRetract) {
                 // account for previous retraction
-                this.send("G1 " + "E" + this.e.toFixed(4) + " F" + this._retractSpeed.toFixed(4));
+                this.send("G1 " + "E" + newE + " F" + this._retractSpeed.toFixed(4));
             } else {
                 // unretract via firmware otherwise
                 this.send("G11");
             }
+            this.e = parseFloat(newE);
             this.currentRetraction = 0;
         }
 
@@ -899,7 +908,7 @@ class Printer {
 
         // RETRACT
         if (retract && this.retractLength > 0 && this.currentRetraction < 0.01) {
-            this.currentRetraction = this.retractLength + this.extraUnretract;
+            this.currentRetraction = this.retractLength;
             this.e -= this.currentRetraction;
 
             if (this.firmwareRetract) {
@@ -909,6 +918,12 @@ class Printer {
                 this.send("G1 " + "E" + this.e.toFixed(4) + " F" + this._retractSpeed.toFixed(4));
             }
         }
+        // account for errors in decimal precision
+        this.e = parseFloat(this.e.toFixed(4));
+        this.x = parseFloat(this.x.toFixed(4));
+        this.y = parseFloat(this.y.toFixed(4));
+        this.z = parseFloat(this.z.toFixed(4));
+
         this.send("M400"); // finish all moves
     } // end sendExtrusionGCode
 
@@ -1315,7 +1330,9 @@ class Printer {
         // print the inside parts first
         paths.sort(function (a, b) {
             // sort by area
-            return (a.bounds.area < b.bounds.area) ? -1 : 1;
+            //return (a.bounds.area < b.bounds.area) ? -1 : 1;
+            return (a.bounds.x < b.bounds.x) ? -1 : 1;
+
         });
         /*
         paths.sort(function (a, b) {
