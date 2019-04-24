@@ -1,4 +1,4 @@
-; The CyberAntHill
+; The CyberAntHill -- smaller 3x version printed on acrylic
 ; By Evan Raskob <info@pixelist.info>
 ; <e.raskob@gold.ac.uk>
 ; Copyright 2019, all rights reserved
