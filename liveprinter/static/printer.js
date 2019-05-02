@@ -65,9 +65,9 @@ class Printer {
         // NOTE: disabled for now to use hardware retraction settings
         this.currentRetraction = 0; // length currently retracted
         this.retractLength = 8.5; // in mm - amount to retract after extrusion.  This is high because most moves are slow...
-        this._retractSpeed = 30*60; //mm/min, see getter/setter
+        this._retractSpeed = 30 * 60; //mm/min, see getter/setter
         this.firmwareRetract = true;    // use Marlin or printer for retraction
-        this.extraUnretract = 0; // extra amount to unretract each time (recovery filament) in mm
+        this.extraUnretract = 0.1; // extra amount to unretract each time (recovery filament) in mm
         this.unretractZHop = 2; //little z-direction hop on retracting to avoid blobs, in mm
 
         /**
@@ -160,13 +160,13 @@ class Printer {
      * Get the center horizontal (x) position on the bed
      */
     get cx() {
-        return (this.maxPosition.axes.x - this.minPosition.axes.x) / 2;
+        return this.minx + (this.maxx - this.minx) / 2;
     }
     /**
      * Get the center vertical (y) position on the bed,
      */
     get cy() {
-        return (this.maxPosition.axes.y - this.minPosition.axes.y) / 2;
+        return this.miny + (this.maxy - this.miny) / 2;
     }
     /// maximum values
     get minx() {
@@ -254,13 +254,13 @@ class Printer {
      * @param {Number} s Speed in mm/s
      */
     set retractSpeed(s) {
-        this._retractSpeed = s*60;
+        this._retractSpeed = s * 60;
         this.sendFirmwareRetractSettings();
     }
 
     /**
      * @returns {Number} Retraction speed in mm/s
-     */ 
+     */
     get retractSpeed() {
         return this._retractSpeed / 60;
     }
@@ -331,7 +331,7 @@ class Printer {
             this.sendFirmwareRetractSettings();
         }
         // RETRACT        
-        this.currentRetraction += this.retractLength + this.extraUnretract;
+        this.currentRetraction += this.retractLength;
         this.e -= this.currentRetraction;
 
 
@@ -380,7 +380,7 @@ class Printer {
         if (sendSettings) this.sendFirmwareRetractSettings();
         // UNRETRACT
 
-        this.e += this.currentRetraction;
+        this.e += this.currentRetraction + this.extraUnretract;
 
         //unretract manually first if needed
         if (!this.firmwareRetract) {
@@ -391,6 +391,7 @@ class Printer {
             // unretract via firmware otherwise
             this.send("G11");
         }
+        this.e = parseFloat(this.e.toFixed(4));
         this.currentRetraction = 0;
 
         return this;
@@ -683,7 +684,7 @@ class Printer {
     tilt(_elev) {
         return this.elevation(_elev);
     }
-    
+
 
     /**
      * Set the distance of movement for the next operation.
@@ -711,6 +712,13 @@ class Printer {
      */
     fwretract(state) {
         this.firmwareRetract = state;
+        // tell firmware we're handling it, or not
+        if (this.fwretract) {
+            this.send("M209 S" + 0);
+        }
+        else {
+            this.send("M209 S" + 1);
+        }
         return this;
     }
 
@@ -876,15 +884,16 @@ class Printer {
     sendExtrusionGCode(speed, retract = true) {
         if (retract && this.currentRetraction > 0.01) {
             //unretract manually first if needed
-            this.e += this.currentRetraction;
-
+            this.e += this.currentRetraction + this.extraUnretract;
+            let newE = this.e.toFixed(4);
             if (!this.firmwareRetract) {
                 // account for previous retraction
-                this.send("G1 " + "E" + this.e.toFixed(4) + " F" + this._retractSpeed.toFixed(4));
+                this.send("G1 " + "E" + newE + " F" + this._retractSpeed.toFixed(4));
             } else {
                 // unretract via firmware otherwise
                 this.send("G11");
             }
+            this.e = parseFloat(newE);
             this.currentRetraction = 0;
         }
 
@@ -899,7 +908,7 @@ class Printer {
 
         // RETRACT
         if (retract && this.retractLength > 0 && this.currentRetraction < 0.01) {
-            this.currentRetraction = this.retractLength + this.extraUnretract;
+            this.currentRetraction = this.retractLength;
             this.e -= this.currentRetraction;
 
             if (this.firmwareRetract) {
@@ -909,6 +918,12 @@ class Printer {
                 this.send("G1 " + "E" + this.e.toFixed(4) + " F" + this._retractSpeed.toFixed(4));
             }
         }
+        // account for errors in decimal precision
+        this.e = parseFloat(this.e.toFixed(4));
+        this.x = parseFloat(this.x.toFixed(4));
+        this.y = parseFloat(this.y.toFixed(4));
+        this.z = parseFloat(this.z.toFixed(4));
+
         this.send("M400"); // finish all moves
     } // end sendExtrusionGCode
 
@@ -1315,7 +1330,9 @@ class Printer {
         // print the inside parts first
         paths.sort(function (a, b) {
             // sort by area
-            return (a.bounds.area < b.bounds.area) ? -1 : 1;
+            //return (a.bounds.area < b.bounds.area) ? -1 : 1;
+            return (a.bounds.x < b.bounds.x) ? -1 : 1;
+
         });
         /*
         paths.sort(function (a, b) {
@@ -1324,17 +1341,17 @@ class Printer {
         });
         */
         for (let pathIdx = 0, pathLength = paths.length; pathIdx < pathLength; pathIdx++) {
-            const path = paths[pathIdx];
+            let pathCopy = paths[pathIdx].slice();
             for (let i = 1; i <= passes; i++) {
                 const currentHeight = i * this.layerHeight + z;
 
-                this.moveto({ 'x': xmapping(path[0][0]), 'y': ymapping(path[0][1]) });
+                this.moveto({ 'x': xmapping(pathCopy[0][0]), 'y': ymapping(pathCopy[0][1]) });
                 this.moveto({ 'z': currentHeight });
                 this.unretract(); // makes sense to do this every time
 
                 // print each segment, one by one
-                for (let segmentIdx = 0, segmentLength = path.length; segmentIdx < segmentLength; segmentIdx++) {
-                    const segment = path[segmentIdx];
+                for (let segmentIdx = 0, segmentLength = pathCopy.length; segmentIdx < segmentLength; segmentIdx++) {
+                    const segment = pathCopy[segmentIdx];
                     this.extrudeto({
                         'x': xmapping(segment[0]),
                         'y': ymapping(segment[1]),
@@ -1343,7 +1360,7 @@ class Printer {
                 }
 
                 if (i < passes) {
-                    paths[pathIdx].reverse(); //save time, do it backwards
+                    pathCopy.reverse(); //save time, do it backwards
                 }
                 else {
                     // path finished, retract and raise up head
@@ -1354,8 +1371,150 @@ class Printer {
         }
         return this;
     }
-    // end Printer class
+
+
+    /**
+         * Print paths 
+         * @param {Array} paths List of paths (lists of coordinates in x,y) to print
+         * @param {Object} settings Settings for the scaling, etc. of this object. useaspect means respect aspect ratio (width/height). A width or height
+         * of 0 means to use the original paths' width/height.
+         * @returns {Printer} reference to this object for chaining
+         * @test const p = [
+         *     [20,20],
+               [30,30],
+               [50,30]];
+            lp.printPaths({paths:p,minZ:0.2,passes:10});
+         */
+    printPathsThick({ paths = [[]], y = 0, x = 0, z = 0, w = 0, h = 0, t = 1, useaspect = true, passes = 1, safeZ = 0 }) {
+        safeZ = safeZ || (this.layerHeight * passes + 10);   // safe z for traveling
+
+        t = this.layerHeight * 2.5 * t;
+
+        // total bounds
+        let boundsMinX = Infinity,
+            boundsMinY = Infinity,
+            boundsMaxX = -Infinity,
+            boundsMaxY = -Infinity;
+
+        let idx = paths.length;
+        while (idx--) {
+            let subidx = paths[idx].length;
+            let bounds = { x: Infinity, y: Infinity, x2: -Infinity, y2: -Infinity, area: 0 };
+
+            // find lower and upper bounds
+            while (subidx--) {
+                boundsMinX = Math.min(paths[idx][subidx][0], boundsMinX);
+                boundsMinY = Math.min(paths[idx][subidx][1], boundsMinY);
+                boundsMaxX = Math.max(paths[idx][subidx][0], boundsMaxX);
+                boundsMaxY = Math.max(paths[idx][subidx][1], boundsMaxY);
+
+                if (paths[idx][subidx][0] < bounds.x) {
+                    bounds.x = paths[idx][subidx][0];
+                }
+
+                if (paths[idx][subidx][1] < bounds.y) {
+                    bounds.y = paths[idx][subidx][0];
+                }
+
+                if (paths[idx][subidx][0] > bounds.x2) {
+                    bounds.x2 = paths[idx][subidx][0];
+                }
+                if (paths[idx][subidx][1] > bounds.y2) {
+                    bounds.y2 = paths[idx][subidx][0];
+                }
+            }
+            paths[idx].bounds = bounds;
+        }
+
+
+        // make range mapping functions for scaling - see util.js
+        const boundsW = boundsMaxX - boundsMinX;
+        const boundsH = boundsMaxY - boundsMinY;
+
+        const useBoth = w && h;
+        const useOne = w || h;
+
+        if (!useBoth) {
+            if (useOne) {
+                if (w > 0) {
+                    const ratio = boundsH / boundsW;
+                    h = w * ratio;
+                } else {
+                    const ratio = boundsW / boundsH;
+                    w = h * ratio;
+                }
+            } else {
+                w = boundsW;
+                h = boundsH;
+            }
+        }
+
+        const xmapping = makeMapping([boundsMinX, boundsMaxX], [x, x + w]);
+        const ymapping = makeMapping([boundsMinY, boundsMaxY], [y, y + h]);
+
+        // print the inside parts first
+        paths.sort(function (a, b) {
+            // sort by area
+            //return (a.bounds.area < b.bounds.area) ? -1 : 1;
+            return (a.bounds.x < b.bounds.x) ? -1 : 1;
+        });
+
+        // only fill if changed direction
+        for (let i = 1; i <= passes; i++) {
+            for (let pathIdx = 0, pathLength = paths.length; pathIdx < pathLength; pathIdx++) {
+
+                let pathCopy = paths[pathIdx].slice();
+                const currentHeight = i * this.layerHeight + z;
+
+                this.moveto({ 'x': xmapping(pathCopy[0][0]), 'y': ymapping(pathCopy[0][1]) });
+                this.moveto({ 'z': currentHeight });
+                // this.unretract(); // makes sense to do this every time
+
+                if (pathCopy.length > 1) {
+
+                    let currentW = 0;
+                    let currentH = 0;
+                    let prevX = xmapping(pathCopy[0][0]);
+                    let prevY = ymapping(pathCopy[0][1]);
+
+                    let currentAngle = Math.atan2(ymapping(pathCopy[1][1]) - prevY, xmapping(pathCopy[1][0]) - prevX);
+
+                    // print each segment, one by one
+                    for (let segmentIdx = 1, segmentLength = pathCopy.length; segmentIdx < segmentLength; segmentIdx++) {
+                        const segment = pathCopy[segmentIdx];
+                        const currentX = xmapping(segment[0]);
+                        const currentY = ymapping(segment[1]);
+                        const xDiff = currentX - prevX;
+                        const yDiff = currentY - prevY;
+                        const newAngle = Math.atan2(yDiff, xDiff);
+
+                        if (newAngle !== currentAngle) {
+                            // print current path and make new w/h
+                            this.fillDirectionH(currentW || 2, currentH || 2, t);
+                            currentW = currentH = 0;
+                            this.turn(newAngle);
+                            currentAngle = newAngle;
+                        }
+                        else {
+                            currentW += xDiff;
+                            currentH += yDiff;
+                        }
+                    }
+                }
+                if (i < passes) {
+                    pathCopy.reverse(); //save time, do it backwards
+                }
+                else {
+                    // path finished, retract and raise up head
+                    this.moveto({ 'z': safeZ });
+                }
+            }
+        }
+        return this;
+    }
 }
+// end Printer class
+
 
 
 // defined outside class because we have to

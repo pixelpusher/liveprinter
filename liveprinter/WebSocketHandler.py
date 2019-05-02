@@ -39,7 +39,7 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
 
     @classmethod
     def send_updates(cls, msg):
-        Logger.log("i","sending message to %d clients", len(cls.clients))
+        #Logger.log("i","sending message to %d clients", len(cls.clients))
         for client in cls.clients:
             try:
                 client.write_message(msg)
@@ -109,4 +109,4 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         # update all clients but result might be None
         if result:
             WebSocketHandler.send_updates(result)
-            Logger.log('d', 'JSON RPC response to {} sent: {}'.format(self.request.remote_ip,result))
+            #Logger.log('d', 'JSON RPC response to {} sent: {}'.format(self.request.remote_ip,result))
