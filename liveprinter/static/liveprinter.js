@@ -75,11 +75,14 @@ $.when($.ready).then(
             /**
             * Schedule a function to run (and optionally repeat).
             * @param {Object} args Object with timeOffset: ms offset to schedule this for, func: function, repeat: true/false whether to reschedule
+            * @return {Object} event that was added for future use
             */
             scheduleEvent: function (args) {
                 args.time = Date.now() - this.startTime;
 
                 this.ScheduledEvents.push(args);
+                return args; // return event for further usage
+
             },
 
 
@@ -267,6 +270,7 @@ $.when($.ready).then(
          */
         function clearError() {
             $(".code-errors").html("<p>[no errors]</p>");
+            $("#modal-errors").empty();
         }
 
         /**
@@ -276,9 +280,21 @@ $.when($.ready).then(
          * @memberOf LivePrinter
          */
         function doError(e) {
+            let err = e;
+            if (e.error !== undefined) err = e.error;
+            const lineNumber = err.lineNumber == null ? -1 : e.lineNumber;
+
             // report to user
-            $(".code-errors").html("<p>" + e.name + ": " + e.message + "(line:" + e.lineNumber + ")</p>");
-            console.log(e);
+            $(".code-errors").html("<p>" + err.name + ": " + err.message + " (line:" + lineNumber + ")</p>");
+
+            $("#modal-errors").prepend("<div class='alert alert-warning alert-dismissible fade show' role='alert'>"
+                + err.name + ": " + err.message + " (line:" + lineNumber + ")"
+                + '<button type="button" class="close" data-dismiss="alert" aria-label="Close">'
+                + '<span aria-hidden="true">&times;</span></button>'
+                + "</div>");
+
+            console.log(err);
+
             /*
             console.log("SyntaxError? " + (e instanceof SyntaxError)); // true
             console.log(e); // true
@@ -539,9 +555,6 @@ $.when($.ready).then(
             let code = CodeEditor.getSelection();
             const cursor = CodeEditor.getCursor();
 
-            // parse first??
-            let validCode = true;
-
             if (!code) {
                 // info level
                 //console.log("no selections");
@@ -552,14 +565,8 @@ $.when($.ready).then(
             blinkElem($("form"));
 
             // run code
-            //if (validCode) {
-            try {
-                globalEval(code, cursor.line + 1);
-            } catch (e) {
-                doError(e);
-            }
+            globalEval(code, cursor.line + 1);
         }
-
 
         /**
          * This function takes the highlighted "global" code from the editor and runs the compiling and error-checking functions.
@@ -567,9 +574,6 @@ $.when($.ready).then(
         function runGlobalCode() {
             let code = GlobalCodeEditor.getSelection();
             const cursor = GlobalCodeEditor.getCursor();
-
-            // parse first??
-            let validCode = true;
 
             if (!code) {
                 // info level
@@ -581,12 +585,7 @@ $.when($.ready).then(
             blinkElem($("form"));
 
             // run code
-            //if (validCode) {
-            try {
-                globalEval(code, cursor.line + 1, true);
-            } catch (e) {
-                doError(e);
-            }
+            globalEval(code, cursor.line + 1, true);
         }
 
         /**
@@ -1033,18 +1032,18 @@ $.when($.ready).then(
                 /*
                 if (cmdline.search("G1") > -1) { // look for only extrude/move commands
                     logger("G1");
-
+        
                     const cmdRegExp = new RegExp("([a-zA-Z][0-9]+\.?[0-9]*)", "gim");
                     const subCmdRegExp = new RegExp("([a-zA-Z])([0-9]+\.?[0-9]*)");
                     const found = line.match(cmdRegExp);
                     for (let cmd of found) {
                         const matches = cmd.match(subCmdRegExp);
-
+        
                         if (matches.length !== 3) throw new Error("Error in command string: " + found);
-
+        
                         const cmdChar = matches[1].toUpperCase();
                         const value = parseFloat(matches[2]);
-
+        
                         switch (cmdChar) {
                             case "X": x = value; break;
                             case "Y": y = value; break;
@@ -1052,9 +1051,9 @@ $.when($.ready).then(
                             case "E": e = value; break;
                             case "F": speed = value; break;
                         }
-
+        
                         calculateAndOutput();
-
+        
                         //logger("x: " + x);
                         //logger("y: " + y);
                         //logger("z: " + z);
@@ -1101,11 +1100,11 @@ $.when($.ready).then(
                             case "Y": $("input[name='y']").val(value); break;
                             case "Z": $("input[name='z']").val(value); break;
                             case "E": $("input[name='e']").val(value); break;
-                            case "F": $("input[name='speed']").val(value/60); break;
+                            case "F": $("input[name='speed']").val(value / 60); break;
                         }
                     }
                 }
-                
+
                 /*
                 $("input[name='x']").val(window.scope.printer.x);
                 $("input[name='y']").val(window.scope.printer.y);
@@ -1207,7 +1206,7 @@ $.when($.ready).then(
             const dateStr = (new Date(time)).toLocaleString('en-US', { year: '2-digit', month: '2-digit', day: '2-digit', hours: '2-digit', minutes: '2-digit', seconds: '2-digit' });
             //if (elem.children().length > maxLogPopups) {
             //    elem.children().
-           // }
+            // }
 
             elem.prepend("<li class='alert alert-primary alert-dismissible fade show' role='alert'>"
                 + dateStr
@@ -1339,8 +1338,10 @@ $.when($.ready).then(
         // redirect error to browser GUI
         //
         $(window).on("error", function (evt) {
-            //console.log("jQuery error event:", evt);
-            var e = evt.originalEvent; // get the javascript event
+            //console.log("jQuery error event:");
+            //console.log(evt);
+
+            const e = evt.originalEvent.error; // get the javascript event
             //console.log("original event:", e);
             doError(e);
         });
@@ -1679,20 +1680,16 @@ $.when($.ready).then(
                         code = "let socket = window.scope.socket;" + code;
                         code = "let gcode = window.scope.sendGCode;" + code;
                         code = "let s = window.scope;" + code;
-                        code = "let None = function() {};" + code;
-
 
                         // wrap code in anonymous function to avoid redeclaring scope variables and
                         // scope bleed.  For global functions that persist, use lp scope or s
 
-                        // error handling
+                        // error handling -- wrap in try block
                         code = 'try {\n' + code;
-                        code = code + '\n} catch (e) { e.lineNumber=line;window.doError(e); }';
 
-                        code = "let line =" + line + ";" + code;
+                        code = code + '\n} catch (e) { e.lineNumber=' + line + ';console.log(e);window.doError(e); }';
 
-
-                        // function wrapping
+                        // function wrapping - run in closure
                         code = '(function(){"use strict";' + code;
                         code = code + "})();";
                     }
