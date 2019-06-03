@@ -118,8 +118,8 @@ class USBPrinter(OutputDevice):
     def __init__(self, serial_port: str, baud_rate: Optional[int]=None, serial_obj: Optional[Serial]=None):
         super().__init__(serial_port)
         self.setName("USB printing")
-        self.setShortDescription("Print via USB")
-        self.setDescription("Print via USB")
+        self.setShortDescription("Print via US")
+        self.setDescription("Print via US")
         self.setIconName("print")
 
         self.MAX_COMMANDS_ON_PRINTER = 1 # max commands to queue on printer before sending more - the higher, the
@@ -223,6 +223,8 @@ class USBPrinter(OutputDevice):
 
         if self.getConnectionState() is ConnectionState.closed or self.getConnectionState() is ConnectionState.error:
             self.setConnectionState(ConnectionState.connecting)
+            Logger.log("w", "OPENING: baudrate to {baud_rate}".format(baud_rate=self._baud_rate))
+
             if self._baud_rate is None:
                 if self._use_auto_detect:
                     auto_detect_job = AutoDetectBaudJob(self._serial_port)
@@ -231,6 +233,7 @@ class USBPrinter(OutputDevice):
                 return
             if self._serial is None:
                 try:
+                    # self._baud_rate = 115200
                     self._serial = Serial(str(self._serial_port), self._baud_rate, timeout=self._timeout, writeTimeout=self._timeout)
                     self.setConnectionState(ConnectionState.connected)
                 except SerialException:
@@ -457,8 +460,9 @@ class USBPrinter(OutputDevice):
                 # only process if there's something to process
                 if line:                        
                     # process (parse) response from printer
+                    line = line.decode('cp437')
 
-                    if line.startswith(b'!!'):
+                    if line.startswith('!!'):
                         response_props["type"] = "error"
                         response_props["message"] = "Printer signals fatal error!"
                         Logger.log('e', "Printer signals fatal error. Pausing print. {}".format(line))
@@ -468,47 +472,47 @@ class USBPrinter(OutputDevice):
 
                     # TODO: handle this better - just resend last command!  No
                     # need for the magic bits
-                    elif b'resend' in line.lower() or line.startswith(b'rs'):
+                    elif 'resend' in line.lower() or line.startswith('rs'):
                         # A resend can be requested either by Resend, resend or
                         # rs.
                         Logger.log('e', "Printer signals resend. {}".format(line))
                         response_props["type"] = "resend"
-                        response_props["message"] = "Printer signals resend. {}".format(line.decode('utf-8'))
+                        response_props["message"] = "Printer signals resend. {}".format(line)
                         
                         # command was never received - mark as not on printer
                         self._commands_on_printer = max(0,self._commands_on_printer - 1)
 
                         try:
-                            self._commands_current_line = int(line.replace(b"N:", b" ").replace(b"N", b" ").replace(b":", b" ").split()[-1])
+                            self._commands_current_line = int(line.replace("N:", " ").replace("N", " ").replace(":", " ").split()[-1])
                         except:
-                            if b"rs" in line:
+                            if "rs" in line:
                                 # In some cases of the RS command it needs to
                                 # be handled differently.
                                 self._commands_current_line = int(line.split()[1])
 
-                    elif line.startswith(b"echo:"):
+                    elif line.startswith("echo:"):
                         # Not handled because this is just if it's turned on
                         response_props['type'] = 'info'
-                        printer_info = re.findall("echo\:(.+)?", line.decode('utf-8'))
+                        printer_info = re.findall("echo\:(.+)?", line)
                         for info in printer_info:
                             response_props['message'] = info
                         # handled = self._commandHandled()
 
-                    elif line.startswith(b"Compiled:"):
+                    elif line.startswith("Compiled:"):
                         # Not handled because this is just if it's turned on
                         response_props['type'] = 'info'
-                        response_props['message'] = line.decode('utf-8')
+                        response_props['message'] = line
                         # handled = self._commandHandled()
 
-                    elif line.startswith(b"start"):
+                    elif line.startswith("start"):
                         # Not handled because this is just if it's turned on
                         response_props['type'] = 'start'
-                        response_props['message'] = line.decode('utf-8')
+                        response_props['message'] = line
                         # handled = self._commandHandled()
                         
-                    elif b"ok T:" in line or line.startswith(b"T:") or b"ok B:" in line or line.startswith(b"B:"):  # Temperature message.  'T:' for extruder and 'B:' for bed
+                    elif "ok T:" in line or line.startswith("T:") or "ok B:" in line or line.startswith("B:"):  # Temperature message.  'T:' for extruder and 'B:' for bed
                         response_props["type"] = "temperature"
-                        lineString = line.decode('utf-8')
+                        lineString = line
                         #Logger.log("d", "temp response: {}".format(line))
                         extruder_temperature_matches = re.findall("T(\d*): ?([\d\.]+) ?\/?([\d\.]+)?", lineString)
                         # Update all temperature values
@@ -542,7 +546,7 @@ class USBPrinter(OutputDevice):
                         #    if match[2]:
                         #        extruder.updateTargetHotendTemperature(float(match[2]))
 
-                        #bed_temperature_matches = re.findall(b"B: ?([\d\.]+)
+                        #bed_temperature_matches = re.findall("B: ?([\d\.]+)
                         #?\/?([\d\.]+)?", line)
                         #if bed_temperature_matches:
                         #    match = bed_temperature_matches[0]
@@ -551,17 +555,17 @@ class USBPrinter(OutputDevice):
                         #    if match[1]:
                         #        self._printers[0].updateTargetBedTemperature(float(match[1]))
 
-                    elif b"FIRMWARE_NAME:" in line:
+                    elif "FIRMWARE_NAME:" in line:
                         # TODO: possibly pre-parse this instead of sending
                         # whole line
                         response_props["type"] = "firmware"
-                        response_props["message"] = line.decode('utf-8')
+                        response_props["message"] = line
                         handled = self._commandHandled()
 
                     # position response for position update
                     # b'X:0.00Y:0.00Z:0.00E:0.00 Count X: 0.00Y:0.00Z:0.00\n'
-                    elif line.startswith(b'X:'):
-                        stringline = line.decode('utf-8')
+                    elif line.startswith('X:'):
+                        stringline = line
                         matches = re.findall('([x|y|z|e]):([0-9\.\-]+)+', stringline.lower())
                         # Match 1
                         # 1.  X
@@ -576,16 +580,16 @@ class USBPrinter(OutputDevice):
                         handled = self._commandHandled()
                         
                     # handle any basic ok's
-                    elif line.lower().startswith(b'ok'):
+                    elif line.lower().startswith('ok'):
                         response_props["type"] = "ok"
                         response_props["message"] = "ok"
                         handled = self._commandHandled()
                         #Logger.log('i', "ok received: {}".format(line))
 
                     # ERROR!  BAD.
-                    elif line.lower().startswith(b'error'):
+                    elif line.lower().startswith('error'):
                         response_props["type"] = "error"
-                        response_props["message"] = line.decode('utf-8')
+                        response_props["message"] = line
                         # Logger.log('e', "Error from printer:
                         # {}".format(response_props["message"]))
                         
@@ -594,9 +598,9 @@ class USBPrinter(OutputDevice):
                     ##### Done parsing, now send waiting commands
                     # now, really not handled
                     else:
-                        Logger.log('w', "WARN: Printer response not handled: {}".format(line))
                         response_props["type"] = "info"
-                        response_props["message"] = line.decode('utf-8')
+                        response_props["message"] = line
+                        Logger.log('w', "WARN: Printer response not handled: {}".format(response_props["message"]))
                         # self.pausePrint() # pause for error
                         # TODO: do something else here??
 
