@@ -61,15 +61,35 @@ $.when($.ready).then(
          */
         window.scope.Scheduler = {
             ScheduledEvents: [],
-            schedulerInterval: 40,
+            schedulerInterval: 25,
             timerID: null,
             startTime: Date.now(),
+            eventsToRemove: [], // list to be handed on update cycle
+            eventsToAdd: [], // list to be handed on update cycle
+            eventsListeners: [], // subscribed listeners for add/remove events
+
+            /**
+             * Events: EventsCleared, EventAdded(event), EventRemoved(event)
+             * @param {Object} listener Listener object with implemented listener methods to be called
+             */
+            addEventsListener: function (listener) {
+                if (!this.eventsListeners.includes(listener))
+                    this.eventsListeners.push(listener);
+            },
+
+            removeEventsListener: function (listener) {
+                this.eventsListeners = this.eventsListeners.filter(e => e !== listener);
+            },
+
+            clearEventsListeners: function () { this.eventsListeners = []; },
 
             /**
              * Clear all scheduled events.
              * */
             clearEvents: function () {
                 this.ScheduledEvents = [];
+
+                this.eventsListeners.map(listener => { if (listener.EventsCleared !== undefined) listener.EventsCleared(); });
             },
 
             /**
@@ -79,20 +99,8 @@ $.when($.ready).then(
             */
             scheduleEvent: function (args) {
                 args.time = Date.now() - this.startTime;
-
-                this.ScheduledEvents.push(args);
+                this.eventsToAdd.push(args);
                 return args; // return event for further usage
-
-            },
-
-
-            /**
-             * Remove an event using a filtering function (like matching a name)
-             * @param {Function} func - filtering function  
-             */
-            removeEvent: function (func) {
-                // run events 
-                this.ScheduledEvents = this.ScheduledEvents.filter(func);
             },
 
             /**
@@ -100,8 +108,7 @@ $.when($.ready).then(
              * @param {string} name of the event to remove
              */
             removeEventByName: function (name) {
-                // run events 
-                this.ScheduledEvents = this.ScheduledEvents.filter(e => e.name !== name);
+                this.eventsToRemove.push(name);
             },
 
             /**
@@ -115,21 +122,47 @@ $.when($.ready).then(
                 function scheduler(nextTime) {
                     const time = Date.now() - me.startTime; // in ms
 
+                    // remove old events
+                    me.eventsToRemove.map(name => {
+                        let event = me.ScheduledEvents.find(e => e.name === name);
+                        if (event) {
+                            me.ScheduledEvents = me.ScheduledEvents.filter(e => e !== event);
+                            me.eventsListeners.map(listener => { if (listener.EventRemoved !== undefined) listener.EventRemoved(event); });
+                        }
+                    });
+                    me.eventsToRemove = [];
+                    
+                    // add any new events
+                    me.eventsToAdd.map(event => {
+                        if (!me.ScheduledEvents.includes(event)) {
+                            me.ScheduledEvents.push(event);
+                            me.eventsListeners.map(listener => { if (listener.EventAdded !== undefined) listener.EventAdded(event); });
+                        }
+                    });
+                    me.eventsToAdd = [];
+
                     // run events 
-                    window.scope.Scheduler.ScheduledEvents.filter(
-                        function (event) {
+                    me.ScheduledEvents.filter(
+                         event => {
                             let keep = true;
+                            let tdiff = event.time - time;
+                            if (tdiff < 1) {
 
-                            if (event.time < time) {
-                                //console.log("running event at time:" + time);
-                                event.func(time);
-
+                               //if (!event.system) console.log("running event at time:" + time);
+                                // if we're behind, don't run this one...
+                               //if (!event.ignorable && tdiff > -event.timeOffset * 2) {
+                               //if (!event.ignorable) {
+                                    event.func(event.time);
+                                    if (!event.system) me.eventsListeners.map(listener => { if (listener.EventRun !== undefined) listener.EventRun(event); });
+                                //}
                                 if (event.repeat) {
-                                    event.time = time + event.timeOffset;
+                                    // try to keep to original time
+                                    event.time = event.time + event.timeOffset;
                                     keep = true;
                                 }
                                 else {
                                     keep = false;
+                                    me.eventsListeners.map(listener => { if (listener.EventRemoved !== undefined) listener.EventRemoved(event); });
                                 }
                             }
                             return keep;
@@ -145,6 +178,24 @@ $.when($.ready).then(
         //     func: function() { console.log("EVENT"); } ,
         //     repeat: true,
         // });
+
+        // For debugging scheduler:
+        //
+        window.scope.Scheduler.addEventsListener({
+            EventRemoved: function (e) {
+                console.log("event removed:");
+                console.log(e);
+            },
+            EventAdded: function (e) {
+                console.log("event added:");
+                console.log(e);
+            },
+            EventsCleared: function (e) {
+                console.log("events cleared:");
+                console.log(e);
+            }
+
+        });
 
 
         //////////////////////////////////////////////////////////////////////////////////////////
@@ -604,7 +655,8 @@ $.when($.ready).then(
                     func: (time) => {
                         sendGCode("M105");
                     },
-                    repeat: true
+                    repeat: true,
+                    ignorable: true
                 });
             } else {
                 // stop updates
@@ -619,11 +671,11 @@ $.when($.ready).then(
          * @param {Integer} interval time interval between updates
          * @memberOf LivePrinter
          */
-        const updatePrinterState = function (state, interval = 3000) {
+        const updatePrinterState = function (state, interval = 2000) {
             const name = "stateUpdates";
 
             if (state) {
-                // schedule temperature updates every little while
+                // schedule state updates every little while
                 window.scope.Scheduler.scheduleEvent({
                     name: name,
                     timeOffset: interval,
@@ -632,7 +684,8 @@ $.when($.ready).then(
                             getPrinterState();
                         }
                     },
-                    repeat: true
+                    repeat: true,
+                    system: true // system event, non-cancellable by user
                 });
             } else {
                 // stop updates
@@ -647,6 +700,7 @@ $.when($.ready).then(
         */
         var socketHandler = {
             socket: null, //websocket
+            reconnecting: false, // when disconnected
             listeners: [], // listeners for json rpc calls,
 
             start: function () {
@@ -687,7 +741,9 @@ $.when($.ready).then(
                     //sendGCode("G92");
                     //sendGCode("G28");
 
-                    let node = $("<li class='server-message'>SERVER CONNECTED</li>");
+                    this.reconnecting = false;
+
+                    let node = $("<p class='server-message'>SERVER CONNECTED</p>");
                     node.hide();
                     $("#info").prepend(node);
                     node.slideDown();
@@ -701,7 +757,9 @@ $.when($.ready).then(
                         func: function (event) {
                             socketHandler.sendMessage(responseJSON);
                         },
-                        repeat: true
+                        repeat: true,
+                        ignorable: true,
+                        system: true // system event, non-cancellable by user
                     });
 
                     updatePrinterState(true); // start updating printer connection state
@@ -717,38 +775,45 @@ $.when($.ready).then(
                 };
 
                 this.socket.onclose = function (e) {
-                    window.scope.Scheduler.removeEventByName("queryResponses");
-
-                    updatePrinterState(false); // stop updating printer state
-                    updateTemperature(false); // stop updating temperature                    
-                    $(".server-message").remove();
-                    let node = $("<li class='server-message'>SERVER NOT CONNECTED</li>");
-                    node.hide();
-                    $("#info").prepend(node);
-                    node.slideDown();
-                    $("#serial-ports-list").empty(); // clear serial ports
-                    $("#connect-btn").text("connect").removeClass("active"); // toggle connect button
-                    $("#header").removeClass("blinkgreen");
-
                     //
                     // try reconnect
                     //
-                    const reconnectName = "reconnectWebsocket";
-                    window.scope.Scheduler.scheduleEvent({
-                        name: reconnectName,
-                        timeOffset: 1000,
-                        func: function (event) {
-                            if (me.socket.readyState === WebSocket.OPEN || me.socket.readyState === WebSocket.CONNECTING) {
-                                window.scope.Scheduler.removeEventByName(reconnectName);
-                            }
-                            else {
-                                delete me.socket; // safe??
-                                me.socket = null;
-                                me.start();
-                            }
-                        },
-                        repeat: true
-                    });
+                    if (!this.reconnecting) {
+
+                        const reconnectName = "reconnectWebsocket";
+
+                        window.scope.Scheduler.removeEventByName("queryResponses");
+
+                        updatePrinterState(false); // stop updating printer state
+                        updateTemperature(false); // stop updating temperature                    
+                        $(".server-message").remove();
+                        let node = $("<li class='server-message'>SERVER NOT CONNECTED</li>");
+                        node.hide();
+                        $("#info").prepend(node);
+                        node.slideDown();
+                        $("#serial-ports-list").empty(); // clear serial ports
+                        $("#connect-btn").text("connect").removeClass("active"); // toggle connect button
+                        $("#header").removeClass("blinkgreen");
+
+                        window.scope.Scheduler.scheduleEvent({
+                            name: reconnectName,
+                            timeOffset: 2000,
+                            func: function (event) {
+                                if (me.socket !== null && (me.socket.readyState === WebSocket.OPEN || me.socket.readyState === WebSocket.CONNECTING)) {
+                                    window.scope.Scheduler.removeEventByName(reconnectName);
+                                }
+                                else {
+                                    delete me.socket; // safe??
+                                    me.socket = null;
+                                    me.start();
+                                }
+                            },
+                            repeat: false,
+                            system: true
+                        });
+
+                        this.reconnecting = true;
+                    }
                 };
 
             },
@@ -970,6 +1035,7 @@ $.when($.ready).then(
          */
         const infoHandler = {
             'info': function (event) {
+                appendLoggingNode($("#info > ul"), event.time, event.message);
                 appendLoggingNode($("#info > ul"), event.time, event.message);
                 blinkElem($("#info-tab"));
             },
@@ -1217,6 +1283,53 @@ $.when($.ready).then(
                 + '<span aria-hidden="true">&times;</span></button>'
                 + "</li>");
         }
+
+        var taskListener =
+        {
+            EventRemoved: function (task) {
+                console.log("event removed:");
+                console.log(task);
+                if (task != null) $('#task-' + task.name).remove();
+            },
+            EventAdded: function (task) {
+                console.log("event added:");
+                console.log(task);
+                
+                $("#tasks > ul").prepend("<li id='task-" + task.name + "' class='alert alert-success alert-dismissible fade show' role='alert'>"
+                    + task.name
+                    + '<strong>'
+                    + ": " + task.timeOffset
+                    + '</strong>'
+                    + (!task.system ? '<button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>' : '')
+                    + "</li>");
+
+                $('#task-' + task.name).on('close.bs.alert',
+                    () => window.scope.Scheduler.removeEventByName(task.name)
+                );
+            },
+
+            EventsCleared: function (task) {
+                console.log("events cleared:");
+                console.log(task);
+                $("#tasks > ul").empty();
+            },
+
+            EventRun: function (task) {
+                blinkElem($('#task-' + task.name));
+            }
+        };
+
+        window.scope.Scheduler.addEventsListener(taskListener);
+
+        /**
+         * Add a cancellable task to the scheduler and also the GUI 
+         * @param {Object} task scheduled task object
+         * @memberOf LivePrinter
+         */
+        function addTask(task) {
+            window.scope.Scheduler.scheduleEvent(task);
+        }
+        window.addTask = addTask;
 
         /**
         * Log a line of text to the logging panel on the right side
