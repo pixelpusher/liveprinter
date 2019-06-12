@@ -24,6 +24,23 @@
 // import vector functions - doesn't work in chrome ?
 //import { Vector } from './lib/Vector.prototype.js';
 
+/**
+ * Class for Scheduler tasks
+ * @memberof LivePrinter
+ * @see #window.scope.Scheduler
+ */
+function Task() { }
+Task.prototype = {
+    name: "task",
+    data: {},
+    delay: 0,
+    run: () => { },
+    repeat: true,
+    system: false
+};
+
+
+
 $.when($.ready).then(
     function () {
         "use strict";
@@ -94,7 +111,7 @@ $.when($.ready).then(
 
             /**
             * Schedule a function to run (and optionally repeat).
-            * @param {Object} args Object with timeOffset: ms offset to schedule this for, func: function, repeat: true/false whether to reschedule
+            * @param {Object} args Object with delay: ms offset to schedule this for, run: function, repeat: true/false whether to reschedule
             * @return {Object} event that was added for future use
             */
             scheduleEvent: function (args) {
@@ -124,10 +141,12 @@ $.when($.ready).then(
 
                     // remove old events
                     me.eventsToRemove.map(name => {
-                        let event = me.ScheduledEvents.find(e => e.name === name);
-                        if (event) {
-                            me.ScheduledEvents = me.ScheduledEvents.filter(e => e !== event);
-                            me.eventsListeners.map(listener => { if (listener.EventRemoved !== undefined) listener.EventRemoved(event); });
+                        let event = null;
+                        while (event = me.ScheduledEvents.find(e => e.name === name)) {
+                            if (event) {
+                                me.ScheduledEvents = me.ScheduledEvents.filter(e => e !== event);
+                                me.eventsListeners.map(listener => { if (listener.EventRemoved !== undefined) listener.EventRemoved(event); });
+                            }
                         }
                     });
                     me.eventsToRemove = [];
@@ -150,14 +169,14 @@ $.when($.ready).then(
 
                                //if (!event.system) console.log("running event at time:" + time);
                                 // if we're behind, don't run this one...
-                               //if (!event.ignorable && tdiff > -event.timeOffset * 2) {
+                               //if (!event.ignorable && tdiff > -event.delay * 2) {
                                //if (!event.ignorable) {
-                                    event.func(event.time);
+                                    event.run(event.time);
                                     if (!event.system) me.eventsListeners.map(listener => { if (listener.EventRun !== undefined) listener.EventRun(event); });
                                 //}
                                 if (event.repeat) {
                                     // try to keep to original time
-                                    event.time = event.time + event.timeOffset;
+                                    event.time = event.time + event.delay;
                                     keep = true;
                                 }
                                 else {
@@ -174,28 +193,28 @@ $.when($.ready).then(
         };
 
         // Scheduler.scheduleEvent({
-        //     timeOffset: 2000,
-        //     func: function() { console.log("EVENT"); } ,
+        //     delay: 2000,
+        //     run: function() { console.log("EVENT"); } ,
         //     repeat: true,
         // });
 
         // For debugging scheduler:
         //
-        window.scope.Scheduler.addEventsListener({
-            EventRemoved: function (e) {
-                console.log("event removed:");
-                console.log(e);
-            },
-            EventAdded: function (e) {
-                console.log("event added:");
-                console.log(e);
-            },
-            EventsCleared: function (e) {
-                console.log("events cleared:");
-                console.log(e);
-            }
+        //window.scope.Scheduler.addEventsListener({
+        //    EventRemoved: function (e) {
+        //        console.log("event removed:");
+        //        console.log(e);
+        //    },
+        //    EventAdded: function (e) {
+        //        console.log("event added:");
+        //        console.log(e);
+        //    },
+        //    EventsCleared: function (e) {
+        //        console.log("events cleared:");
+        //        console.log(e);
+        //    }
 
-        });
+        //});
 
 
         //////////////////////////////////////////////////////////////////////////////////////////
@@ -335,16 +354,20 @@ $.when($.ready).then(
             if (e.error !== undefined) err = e.error;
             const lineNumber = err.lineNumber == null ? -1 : e.lineNumber;
 
-            // report to user
-            $(".code-errors").html("<p>" + err.name + ": " + err.message + " (line:" + lineNumber + ")</p>");
+            // avoid repeated errors!!!
+            if (scope.lastErrorMessage !== undefined && err.message !== scope.lastErrorMessage) {
+                scope.lastErrorMessage = err.message;
+                // report to user
+                $(".code-errors").html("<p>" + err.name + ": " + err.message + " (line:" + lineNumber + ")</p>");
 
-            $("#modal-errors").prepend("<div class='alert alert-warning alert-dismissible fade show' role='alert'>"
-                + err.name + ": " + err.message + " (line:" + lineNumber + ")"
-                + '<button type="button" class="close" data-dismiss="alert" aria-label="Close">'
-                + '<span aria-hidden="true">&times;</span></button>'
-                + "</div>");
+                $("#modal-errors").prepend("<div class='alert alert-warning alert-dismissible fade show' role='alert'>"
+                    + err.name + ": " + err.message + " (line:" + lineNumber + ")"
+                    + '<button type="button" class="close" data-dismiss="alert" aria-label="Close">'
+                    + '<span aria-hidden="true">&times;</span></button>'
+                    + "</div>");
 
-            console.log(err);
+                console.log(err);
+            }
 
             /*
             console.log("SyntaxError? " + (e instanceof SyntaxError)); // true
@@ -651,8 +674,8 @@ $.when($.ready).then(
                 // schedule temperature updates every little while
                 window.scope.Scheduler.scheduleEvent({
                     name: "tempUpdates",
-                    timeOffset: interval,
-                    func: (time) => {
+                    delay: interval,
+                    run: (time) => {
                         sendGCode("M105");
                     },
                     repeat: true,
@@ -678,8 +701,8 @@ $.when($.ready).then(
                 // schedule state updates every little while
                 window.scope.Scheduler.scheduleEvent({
                     name: name,
-                    timeOffset: interval,
-                    func: (time) => {
+                    delay: interval,
+                    run: (time) => {
                         if (socketHandler.socket.readyState === socketHandler.socket.OPEN) {
                             getPrinterState();
                         }
@@ -753,8 +776,8 @@ $.when($.ready).then(
                     //
                     window.scope.Scheduler.scheduleEvent({
                         name: "queryResponses",
-                        timeOffset: 40,
-                        func: function (event) {
+                        delay: 40,
+                        run: function (event) {
                             socketHandler.sendMessage(responseJSON);
                         },
                         repeat: true,
@@ -797,8 +820,8 @@ $.when($.ready).then(
 
                         window.scope.Scheduler.scheduleEvent({
                             name: reconnectName,
-                            timeOffset: 2000,
-                            func: function (event) {
+                            delay: 2000,
+                            run: function (event) {
                                 if (me.socket !== null && (me.socket.readyState === WebSocket.OPEN || me.socket.readyState === WebSocket.CONNECTING)) {
                                     window.scope.Scheduler.removeEventByName(reconnectName);
                                 }
@@ -1291,6 +1314,7 @@ $.when($.ready).then(
                 console.log(task);
                 if (task != null) $('#task-' + task.name).remove();
             },
+
             EventAdded: function (task) {
                 console.log("event added:");
                 console.log(task);
@@ -1298,7 +1322,7 @@ $.when($.ready).then(
                 $("#tasks > ul").prepend("<li id='task-" + task.name + "' class='alert alert-success alert-dismissible fade show' role='alert'>"
                     + task.name
                     + '<strong>'
-                    + ": " + task.timeOffset
+                    + ": " + task.delay
                     + '</strong>'
                     + (!task.system ? '<button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>' : '')
                     + "</li>");
@@ -1800,7 +1824,7 @@ $.when($.ready).then(
                         // error handling -- wrap in try block
                         code = 'try {\n' + code;
 
-                        code = code + '\n} catch (e) { e.lineNumber=' + line + ';console.log(e);window.doError(e); }';
+                        code = code + '\n} catch (e) { window.scope.lastErrorMessage = null;e.lineNumber=' + line + ';console.log(e);window.doError(e); }';
 
                         // function wrapping - run in closure
                         code = '(function(){"use strict";' + code;
