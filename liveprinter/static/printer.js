@@ -36,6 +36,19 @@ class Printer {
      */
     constructor(_messageSendFunc = null) {
 
+        /////---------------------------------------------
+        // Shortcuts --------------------------------------
+        this.ext = this.extrude;
+        this.ext2 = this.extrudeto;
+        this.mov = this.move;
+        this.mov2 = this.moveto;
+        this.tur = this.turn;
+        this.tur2 = this.turnto;
+        // this.psp => set/get printSpeed
+        // this.rsp => set/get move speed
+        // this.lh => set layerhight (NOTE: also thick(val) does this)
+
+
         /**
          *  the function (Websockets or other) that this object will use to send gcode to the printer
          *  @type {Function}
@@ -45,7 +58,7 @@ class Printer {
         if (this.send === null) {
             this.send = msg => console.log(msg);
         }
-        this.layerHeight = 0.2; // thickness of a 3d printed extrudion, mm by default
+        this._layerHeight = 0.2; // thickness of a 3d printed extrudion, mm by default
         this.lastSpeed = -1.0;
 
         ////////////////////////////////////////////
@@ -147,10 +160,17 @@ class Printer {
         let maxs = Printer.maxPrintSpeed[this._model];
         this._printSpeed = Math.min(parseFloat(s), parseFloat(maxs.x)); // pick in x direction...
     }
+    // shortcut
+    set psp(s) {
+        let maxs = Printer.maxPrintSpeed[this._model];
+        this._printSpeed = Math.min(parseFloat(s), parseFloat(maxs.x)); // pick in x direction...
+    }
 
     get maxSpeed() { return Printer.maxPrintSpeed[this._model]; } // in mm/s
 
     get printSpeed() { return this._printSpeed; }
+    // shortcut
+    get psp() { return this._printSpeed; }
 
     get extents() {
         return this.maxPosition.axes;
@@ -257,11 +277,19 @@ class Printer {
         this._retractSpeed = s * 60;
         this.sendFirmwareRetractSettings();
     }
+    // shortcut
+    set rsp(s) {
+        this._retractSpeed = s * 60;
+        this.sendFirmwareRetractSettings();
+    }
 
     /**
      * @returns {Number} Retraction speed in mm/s
      */
     get retractSpeed() {
+        return this._retractSpeed / 60;
+    }
+    get rsp() {
         return this._retractSpeed / 60;
     }
 
@@ -526,9 +554,19 @@ class Printer {
      * @param {float} height layer height in mm
      * @returns {Printer} Reference to this object for chaining
      */
-    lh(height) {
-        this.layerHeight = Math.max(Printer.MinLayerHeight, height);
-        return this;
+    set layerHeight (height){
+        this._layerHeight = Math.max(Printer.MinLayerHeight, height);
+    }
+    //shortcut
+    set lh(height) {
+        this._layerHeight = Math.max(Printer.MinLayerHeight, height);
+    }
+    get layerHeight() {
+        return this._layerHeight;
+    }
+    //shortcut
+    get lh() {
+        return this._layerHeight;
     }
 
     /**
@@ -1512,7 +1550,10 @@ class Printer {
         }
         return this;
     }
+
 }
+
+
 // end Printer class
 
 

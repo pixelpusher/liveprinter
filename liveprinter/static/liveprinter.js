@@ -1798,27 +1798,69 @@ $.when($.ready).then(
 
             // in code, find blocks inside ## ## and feed to grammar
 
-            const grammarFinderRegex = /\#\#\s*([^\#][\w\d\s\(\)\{\}\.\,\|\:]+)\s*\#\#/gm;
-            try {
-                //code = code.replace(/([\r\n]+)/gm, "|").substring(/^(\|)/, "").replace(grammarFinderRegex, (match, p1) => {
-                // TODO: fix multiline (split?)
-                code = code.replace(grammarFinderRegex, (match, p1) => {
-                    console.log("Match: " + p1);
-                    let result = "";
+            const grammarBlockRegex = /\#\#\s*([^\#][\w\d\s\(\)\{\}\.\,\|\:]+)\s*\#\#/gm;
 
-                    try {
-                        parser.feed(p1);
-                        result += parser.results[0];
+            const grammarOneLineRegex = /^\#\s*([^\#][\w\d\s\(\)\{\}\.\,\|\:]+)[\r\n]*/;
+            //
+            // try one liner grammar replacement
+            //
+            code = code.replace(grammarOneLineRegex, (match, p1) => {
+                let result = "";
+                let fail = false; // if not successful
+                try {
+                    parser.feed(p1);
+                } catch (e) { // SyntaxError on parse
+                    doError(e);
+                    console.log(e);
+                    fail = e.message;
+                }
 
-                    } catch (e) { console.log(e); }
+                if (fail !== false)
+                    result += "/*ERROR IN PARSE: " + fail + "*/\n";
+                else
+                    result += parser.results[0] + "\n";
 
-                    return result;
-                });
+                return result;
+            });
 
-            } catch (e) {
-                console.log(e);
-                doError(e);
-            }
+            //
+            // try block element grammar replacement
+            //
+            //code = code.replace(/([\r\n]+)/gm, "|").substring(^\s*(\|), "").replace(grammarFinderRegex, (match, p1) => {
+            // TODO: fix multiline (split?)
+            code = code.replace(grammarBlockRegex, (match, p1) => {
+                console.log("Match: " + p1);
+
+                let result = "";
+                let fail = false; // if not successful
+                let lines = p1.split(/[\r\n]/);
+
+                lines.map((line) => {
+                    // get ride of remaining line breaks and leading spaces
+                    line = line.replace(/([\r\n]+)/gm, "").replace(/(^[\s]+)/, "");
+                    if (line.length === 0) {
+                        return;
+                    }
+                  
+                    else {
+                        try {
+                            parser.feed(line + '\n'); // EOL terminates command
+                        } catch (e) { // SyntaxError on parse
+                            doError(e);
+                            console.log(e);
+                            fail = e.message;
+                        }
+
+                        if (fail !== false)
+                            result += "/*ERROR IN PARSE: " + fail + "*/\n";
+                        //else
+                            //result += parser.results[0] + "\n";
+                    }
+                }); // end compiling line by line
+                result += parser.results[0] + "\n";
+
+                return result;
+            });
 
             console.log("code AFTER pre-processing -------------------------------");
             console.log(code);

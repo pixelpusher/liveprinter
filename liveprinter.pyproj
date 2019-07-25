@@ -55,6 +55,8 @@
     <Content Include="liveprinter\anthill\ants-for-expressive-larger.js" />
     <Content Include="liveprinter\anthill\ants-for-expressive.gcode" />
     <Content Include="liveprinter\anthill\ants-for-expressive.js" />
+    <Content Include="liveprinter\language\liveprinter.ne" />
+    <Content Include="liveprinter\language\lpgrammar.js" />
     <Content Include="liveprinter\static\examples\airprinting.js" />
     <Content Include="liveprinter\static\examples\algorave.js" />
     <Content Include="liveprinter\static\examples\circle.js" />
@@ -176,6 +178,7 @@
     <Folder Include="liveprinter\avr_isp" />
     <Folder Include="liveprinter\dummyserial" />
     <Folder Include="liveprinter\anthill\" />
+    <Folder Include="liveprinter\language\" />
     <Folder Include="liveprinter\static" />
     <Folder Include="liveprinter\static\examples\" />
     <Folder Include="liveprinter\static\imgs\" />

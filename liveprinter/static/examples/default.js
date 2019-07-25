@@ -65,8 +65,22 @@ lp.dist(40).go(1);
 lp.turn(10).dist(10).thick(0.3).go(1);
 
 
+// Shortcuts! ----------------------------------
+// You can use shorter versions for brevity (at the loss of readability)
+lp.ext => extrude;
+lp.ext2 => extrudeto;
+lp.mov => move;
+lp.mov2 => moveto;
+lp.tur => turn;
+lp.tur2 => turnto;
+lp.psp => set/get printSpeed
+lp.rsp => set/get move speed
+lp.lh => set layerhight (NOTE: also thick(val) does this)
+
+
 // pause printing - turn off heater, etc.
 lp.pause();
 
 // turn it all back on again
 lp.resume(190);
+
