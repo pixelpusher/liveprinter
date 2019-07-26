@@ -63,6 +63,7 @@
     <Content Include="liveprinter\static\examples\cyber-ants.js" />
     <Content Include="liveprinter\static\examples\default.js" />
     <Content Include="liveprinter\static\examples\maryhadalittlelamb.js" />
+    <Content Include="liveprinter\static\examples\minigrammar.js" />
     <Content Include="liveprinter\static\examples\sending-gcode.js" />
     <Content Include="liveprinter\static\examples\using-functions.js" />
     <Content Include="liveprinter\static\imgs\diskette.svg" />
