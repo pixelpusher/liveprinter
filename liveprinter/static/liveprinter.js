@@ -159,7 +159,7 @@ $.when($.ready).then(
                         }
                     });
                     me.eventsToRemove = [];
-                    
+
                     // add any new events
                     me.eventsToAdd.map(event => {
                         if (!me.ScheduledEvents.includes(event)) {
@@ -171,17 +171,17 @@ $.when($.ready).then(
 
                     // run events 
                     me.ScheduledEvents.filter(
-                         event => {
+                        event => {
                             let keep = true;
                             let tdiff = event.time - time;
                             if (tdiff < 1) {
 
-                               //if (!event.system) console.log("running event at time:" + time);
+                                //if (!event.system) console.log("running event at time:" + time);
                                 // if we're behind, don't run this one...
-                               //if (!event.ignorable && tdiff > -event.delay * 2) {
-                               //if (!event.ignorable) {
-                                    event.run(event.time);
-                                    if (!event.system) me.eventsListeners.map(listener => { if (listener.EventRun !== undefined) listener.EventRun(event); });
+                                //if (!event.ignorable && tdiff > -event.delay * 2) {
+                                //if (!event.ignorable) {
+                                event.run(event.time);
+                                if (!event.system) me.eventsListeners.map(listener => { if (listener.EventRun !== undefined) listener.EventRun(event); });
                                 //}
                                 if (event.repeat) {
                                     // try to keep to original time
@@ -1326,7 +1326,7 @@ $.when($.ready).then(
             EventAdded: function (task) {
                 console.log("event added:");
                 console.log(task);
-                
+
                 $("#tasks > ul").prepend("<li id='task-" + task.name + "' class='alert alert-success alert-dismissible fade show' role='alert'>"
                     + task.name
                     + '<strong>'
@@ -1814,7 +1814,86 @@ $.when($.ready).then(
             clearError();
             // removed because comments were tripping this up...
             //code = jQuery.trim(code);
+            console.log("code before pre-processing-------------------------------");
             console.log(code);
+
+            // compile in minigrammar
+
+            // Create a Parser object from our grammar.
+            // global var grammar created by /static/lib/nearley/lpgrammar.js
+            // global var nearley created by /static/lib/nearley/nearley.js
+
+            const parser = new nearley.Parser(nearley.Grammar.fromCompiled(grammar));
+
+            // in code, find blocks inside ## ## and feed to grammar
+
+            const grammarBlockRegex = /\#\#\s*([^\#][\w\d\s\(\)\{\}\.\,\|\:]+)\s*\#\#/gm;
+
+            const grammarOneLineRegex = /^\#\s*([^\#][\w\d\s\(\)\{\}\.\,\|\:]+)[\r\n]*/;
+            //
+            // try one liner grammar replacement
+            //
+            code = code.replace(grammarOneLineRegex, (match, p1) => {
+                let result = "";
+                let fail = false; // if not successful
+                try {
+                    parser.feed(p1);
+                } catch (e) { // SyntaxError on parse
+                    doError(e);
+                    console.log(e);
+                    fail = e.message;
+                }
+
+                if (fail !== false)
+                    result += "/*ERROR IN PARSE: " + fail + "*/\n";
+                else
+                    result += parser.results[0] + "\n";
+
+                return result;
+            });
+
+            //
+            // try block element grammar replacement
+            //
+            //code = code.replace(/([\r\n]+)/gm, "|").substring(^\s*(\|), "").replace(grammarFinderRegex, (match, p1) => {
+            // TODO: fix multiline (split?)
+            code = code.replace(grammarBlockRegex, (match, p1) => {
+                console.log("Match: " + p1);
+
+                let result = "";
+                let fail = false; // if not successful
+                let lines = p1.split(/[\r\n]/);
+
+                lines.map((line) => {
+                    // get ride of remaining line breaks and leading spaces
+                    line = line.replace(/([\r\n]+)/gm, "").replace(/(^[\s]+)/, "");
+                    if (line.length === 0) {
+                        return;
+                    }
+                  
+                    else {
+                        try {
+                            parser.feed(line + '\n'); // EOL terminates command
+                        } catch (e) { // SyntaxError on parse
+                            doError(e);
+                            console.log(e);
+                            fail = e.message;
+                        }
+
+                        if (fail !== false)
+                            result += "/*ERROR IN PARSE: " + fail + "*/\n";
+                        //else
+                            //result += parser.results[0] + "\n";
+                    }
+                }); // end compiling line by line
+                result += parser.results[0] + "\n";
+
+                return result;
+            });
+
+            console.log("code AFTER pre-processing -------------------------------");
+            console.log(code);
+
             if (code) {
                 if (pythonMode) {
 

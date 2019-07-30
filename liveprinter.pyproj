@@ -50,8 +50,19 @@
     <Compile Include="liveprinter\WebSocketHandler.py" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="liveprinter\anthill\anthill-2-layer.gcode" />
+    <Content Include="liveprinter\anthill\ants-for-expressive-larger.gcode" />
+    <Content Include="liveprinter\anthill\ants-for-expressive-larger.js" />
+    <Content Include="liveprinter\anthill\ants-for-expressive.gcode" />
+    <Content Include="liveprinter\anthill\ants-for-expressive.js" />
+    <Content Include="liveprinter\language\liveprinter.ne" />
+    <Content Include="liveprinter\language\lpgrammar.js" />
+    <Content Include="liveprinter\static\examples\airprinting.js" />
+    <Content Include="liveprinter\static\examples\algorave.js" />
     <Content Include="liveprinter\static\examples\circle.js" />
+    <Content Include="liveprinter\static\examples\cyber-ants.js" />
     <Content Include="liveprinter\static\examples\default.js" />
+    <Content Include="liveprinter\static\examples\maryhadalittlelamb.js" />
     <Content Include="liveprinter\static\examples\musicalevents.js" />
     <Content Include="liveprinter\static\examples\sending-gcode.js" />
     <Content Include="liveprinter\static\examples\using-functions.js" />
@@ -144,12 +155,17 @@
     <Content Include="liveprinter\static\lib\codemirror\codemirror.css" />
     <Content Include="liveprinter\static\lib\codemirror\codemirror.js" />
     <Content Include="liveprinter\static\lib\fext.js" />
+    <Content Include="liveprinter\static\lib\nearley\lpgrammar.js" />
+    <Content Include="liveprinter\static\lib\nearley\nearley.js" />
     <Content Include="liveprinter\static\lib\svg\svg2gcode.js" />
     <Content Include="liveprinter\static\lib\svg\SVGReader.js" />
     <Content Include="liveprinter\static\lib\util.js" />
     <Content Include="liveprinter\static\lib\vector.js" />
     <Content Include="liveprinter\static\liveprinter.css" />
     <Content Include="liveprinter\static\liveprinter.js" />
+    <Content Include="liveprinter\static\misc\lp_ws.html" />
+    <Content Include="liveprinter\static\misc\printerSpatialized.maxpat" />
+    <Content Include="liveprinter\static\misc\websockets.maxpat" />
     <Content Include="liveprinter\static\printer.js" />
     <Content Include="liveprinter\static\scales.js" />
     <Content Include="liveprinter\static\util\svgrenderer.html" />
@@ -158,9 +174,12 @@
     <Content Include="liveprinter\testing\test_gcode.txt" />
   </ItemGroup>
   <ItemGroup>
+    <Folder Include="anthill\" />
     <Folder Include="liveprinter" />
     <Folder Include="liveprinter\avr_isp" />
     <Folder Include="liveprinter\dummyserial" />
+    <Folder Include="liveprinter\anthill\" />
+    <Folder Include="liveprinter\language\" />
     <Folder Include="liveprinter\static" />
     <Folder Include="liveprinter\static\examples\" />
     <Folder Include="liveprinter\static\imgs\" />
@@ -184,6 +203,7 @@
     <Folder Include="liveprinter\static\lib\cached\" />
     <Folder Include="liveprinter\static\lib\codemirror\" />
     <Folder Include="liveprinter\static\lib\brython\" />
+    <Folder Include="liveprinter\static\lib\nearley\" />
     <Folder Include="liveprinter\static\lib\svg\" />
     <Folder Include="liveprinter\static\misc\" />
     <Folder Include="liveprinter\static\util\" />
