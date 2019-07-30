@@ -78,7 +78,7 @@ $.when($.ready).then(
          */
         window.scope.Scheduler = {
             ScheduledEvents: [],
-            schedulerInterval: 25,
+            schedulerInterval: 5,
             timerID: null,
             startTime: Date.now(),
             eventsToRemove: [], // list to be handed on update cycle
@@ -126,6 +126,15 @@ $.when($.ready).then(
              */
             removeEventByName: function (name) {
                 this.eventsToRemove.push(name);
+            },
+
+            /**
+             * Get first event with matching name field
+             * @param {String} name Name of this event
+             * @returns {Task} event object
+             */
+            getEventByName: function (name) {
+                return this.ScheduledEvents.find(e => e.name === name);
             },
 
             /**
@@ -776,7 +785,7 @@ $.when($.ready).then(
                     //
                     window.scope.Scheduler.scheduleEvent({
                         name: "queryResponses",
-                        delay: 40,
+                        delay: 10,
                         run: function (event) {
                             socketHandler.sendMessage(responseJSON);
                         },
@@ -1059,8 +1068,7 @@ $.when($.ready).then(
         const infoHandler = {
             'info': function (event) {
                 appendLoggingNode($("#info > ul"), event.time, event.message);
-                appendLoggingNode($("#info > ul"), event.time, event.message);
-                blinkElem($("#info-tab"));
+                //blinkElem($("#info-tab"));
             },
             'resend': function (event) {
                 appendLoggingNode($("#info > ul"), event.time, event.message);
@@ -1081,8 +1089,8 @@ $.when($.ready).then(
                 // ignore info messages
                 if (!(/M115|M114|M105/.test(event.message))) {
                     appendLoggingNode($("#commands > ul"), event.time, event.message);
-                    blinkElem($("#commands-tab"));
-                    blinkElem($("#inbox"));
+                    //blinkElem($("#commands-tab"));
+                    //blinkElem($("#inbox"));
                 }
             }
         };
@@ -1114,8 +1122,8 @@ $.when($.ready).then(
 
                 if (!(/M115|M114|M105/.test(cmdline))) {
                     appendLoggingNode($("#commands > ul"), event.time, cmdline);
-                    blinkElem($("#commands-tab"));
-                    blinkElem($("#inbox"));
+                    //blinkElem($("#commands-tab"));
+                    //blinkElem($("#inbox"));
                 }
 
                 /*
@@ -1355,6 +1363,19 @@ $.when($.ready).then(
         }
         window.addTask = addTask;
 
+        function getTask(name) {
+            return window.scope.Scheduler.getEventByName(name);
+        }
+
+        window.getTask = getTask;
+
+        function removeTask(name) {
+            return window.scope.Scheduler.removeEventByName(name);
+        }
+
+        window.removeTask = removeTask;
+
+
         /**
         * Log a line of text to the logging panel on the right side
         * @param {String} text Text to log in the right info panel
@@ -1374,6 +1395,10 @@ $.when($.ready).then(
         function attachScript(url) {
             let realUrl = url;
 
+            if (url.startsWith('/')) { // local
+                realUrl = url;
+            }
+            else
             if (!url.startsWith('http')) {
                 // look in misc folder
                 realUrl = "/static/misc/" + url;
@@ -1381,7 +1406,11 @@ $.when($.ready).then(
             let script = document.createElement("script");
             script.src = realUrl;
             // run and remove
-            document.head.appendChild(script).parentNode.removeChild(script);
+            try {
+                document.head.appendChild(script).parentNode.removeChild(script);
+            } catch (err) {
+                doError(err);
+            }
         }
         window.attachScript = attachScript;
 
