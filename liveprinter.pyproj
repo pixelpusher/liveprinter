@@ -52,6 +52,7 @@
   <ItemGroup>
     <Content Include="liveprinter\static\examples\circle.js" />
     <Content Include="liveprinter\static\examples\default.js" />
+    <Content Include="liveprinter\static\examples\musicalevents.js" />
     <Content Include="liveprinter\static\examples\sending-gcode.js" />
     <Content Include="liveprinter\static\examples\using-functions.js" />
     <Content Include="liveprinter\static\imgs\diskette.svg" />
