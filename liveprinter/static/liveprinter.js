@@ -1830,6 +1830,7 @@ $.when($.ready).then(
             const grammarBlockRegex = /\#\#\s*([^\#][\w\d\s\(\)\{\}\.\,\|\:]+)\s*\#\#/gm;
 
             const grammarOneLineRegex = /^\#\s*([^\#][\w\d\s\(\)\{\}\.\,\|\:]+)[\r\n]*/;
+
             //
             // try one liner grammar replacement
             //
@@ -1890,6 +1891,10 @@ $.when($.ready).then(
 
                 return result;
             });
+
+
+            // replace globals in js
+            code = code.replace(/^[ ]*global[ ]+/gm, "window.");
 
             console.log("code AFTER pre-processing -------------------------------");
             console.log(code);

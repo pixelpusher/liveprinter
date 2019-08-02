@@ -155,6 +155,9 @@
     <Content Include="liveprinter\static\lib\codemirror\codemirror.css" />
     <Content Include="liveprinter\static\lib\codemirror\codemirror.js" />
     <Content Include="liveprinter\static\lib\fext.js" />
+    <Content Include="liveprinter\static\lib\linden\linden.js" />
+    <Content Include="liveprinter\static\lib\misc\printerSpatialized.maxpat" />
+    <Content Include="liveprinter\static\lib\misc\websockets.maxpat" />
     <Content Include="liveprinter\static\lib\nearley\lpgrammar.js" />
     <Content Include="liveprinter\static\lib\nearley\nearley.js" />
     <Content Include="liveprinter\static\lib\svg\svg2gcode.js" />
@@ -203,6 +206,9 @@
     <Folder Include="liveprinter\static\lib\cached\" />
     <Folder Include="liveprinter\static\lib\codemirror\" />
     <Folder Include="liveprinter\static\lib\brython\" />
+    <Folder Include="liveprinter\static\lib\linden\" />
+    <Folder Include="liveprinter\static\lib\misc\" />
+    <Folder Include="liveprinter\static\lib\misc\the-cyber-anthill\" />
     <Folder Include="liveprinter\static\lib\nearley\" />
     <Folder Include="liveprinter\static\lib\svg\" />
     <Folder Include="liveprinter\static\misc\" />
