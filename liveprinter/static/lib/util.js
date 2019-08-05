@@ -5,7 +5,7 @@
  */
 
 function makeIterator(iterable) {
-    let iter = iterable[Symbol.iterator]();
+    const iter = iterable[Symbol.iterator]();
 
     return () => {
         const result = iter.next();
