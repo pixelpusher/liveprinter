@@ -1,4 +1,4 @@
-// Generated automatically by nearley, version 2.16.0
+// Generated automatically by nearley, version 2.18.0
 // http://github.com/Hardmath123/nearley
 (function () {
 function id(x) { return x[0]; }
@@ -11,19 +11,14 @@ var grammar = {
     {"name": "Main$ebnf$2", "symbols": ["EOL"], "postprocess": id},
     {"name": "Main$ebnf$2", "symbols": [], "postprocess": function(d) {return null;}},
     {"name": "Main", "symbols": ["Chain", "Space", "Main$ebnf$2"], "postprocess": d => d[0] + ';'},
-    {"name": "Chain", "symbols": ["Statement", "Space", "PIPE", "Space", "Chain"], "postprocess": d => [d[0]].concat(d[4]).join(".")},
+    {"name": "Chain", "symbols": ["FunctionStatement", "Space", "PIPE", "Space", "Chain"], "postprocess": d => [d[0]].concat(d[4]).join(".")},
     {"name": "Chain$ebnf$1", "symbols": ["PIPE"], "postprocess": id},
     {"name": "Chain$ebnf$1", "symbols": [], "postprocess": function(d) {return null;}},
-    {"name": "Chain", "symbols": ["Statement", "Space", "Chain$ebnf$1"], "postprocess": d => d[0]},
-    {"name": "Statement$subexpression$1", "symbols": ["Number"], "postprocess": id},
-    {"name": "Statement$subexpression$1", "symbols": ["ObjArg"], "postprocess": id},
-    {"name": "Statement$subexpression$1", "symbols": ["FunctionName"], "postprocess": id},
-    {"name": "Statement$subexpression$1", "symbols": ["FunctionStatement"], "postprocess": id},
-    {"name": "Statement", "symbols": ["Statement$subexpression$1"], "postprocess": id},
-    {"name": "FunctionStatement$subexpression$1", "symbols": ["FunctionName", "_"], "postprocess": d => d[0]},
+    {"name": "Chain", "symbols": ["FunctionStatement", "Space", "Chain$ebnf$1"], "postprocess": d => d[0]},
+    {"name": "FunctionStatement$subexpression$1", "symbols": ["FunctionName", "Spaces"], "postprocess": d => d[0] + "("},
     {"name": "FunctionStatement$subexpression$2", "symbols": ["ObjArgs"], "postprocess":  
         function ([args]) {
-        	let fstr = name + "({";
+        	let fstr = "{";
         	if (typeof args !== "string" ) {				
         		for (let i=0; i<args.length; i++) {
         			let vname = args[i];
@@ -32,40 +27,50 @@ var grammar = {
         		}
         	}
         	else fstr += args;
-        	fstr += "})";
+        	fstr += "}";
         	return fstr;
         }
         },
-    {"name": "FunctionStatement$subexpression$2", "symbols": ["Numbers"], "postprocess":  
-        function (args) {
-        	let fstr = name + "(";
+    {"name": "FunctionStatement$subexpression$2$subexpression$1", "symbols": ["AnyArgs"], "postprocess":  
+        function ([args]) {
+        	let fstr = "";
         	if (args.length) {
         		for (let i=0; i<args.length; i++) {
         			let vname = args[i];
         			fstr += vname;
         			if (i - (args.length-1)) fstr += ",";
         		}
-        		fstr += ")"
         	}
         	return fstr;
         }
         },
-    {"name": "FunctionStatement", "symbols": ["FunctionStatement$subexpression$1", "FunctionStatement$subexpression$2"], "postprocess": ([name, args]) => name + args},
-    {"name": "FunctionName$ebnf$1", "symbols": []},
-    {"name": "FunctionName$ebnf$1", "symbols": ["FunctionName$ebnf$1", "AnyValidCharacter"], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
-    {"name": "FunctionName", "symbols": ["Letter", "FunctionName$ebnf$1"], "postprocess": ([first, second]) => first + second.join('')},
-    {"name": "Numbers", "symbols": ["Number", "Spaces", "Numbers"], "postprocess": ([num, ws, numbers]) => [num].concat(numbers)},
-    {"name": "Numbers", "symbols": ["Number"], "postprocess": id},
+    {"name": "FunctionStatement$subexpression$2", "symbols": ["FunctionStatement$subexpression$2$subexpression$1"]},
+    {"name": "FunctionStatement", "symbols": ["FunctionStatement$subexpression$1", "FunctionStatement$subexpression$2"], "postprocess": d => d.join('') + ")"},
+    {"name": "FunctionName$subexpression$1$ebnf$1", "symbols": []},
+    {"name": "FunctionName$subexpression$1$ebnf$1", "symbols": ["FunctionName$subexpression$1$ebnf$1", "AnyValidCharacter"], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
+    {"name": "FunctionName$subexpression$1$ebnf$2", "symbols": []},
+    {"name": "FunctionName$subexpression$1$ebnf$2", "symbols": ["FunctionName$subexpression$1$ebnf$2", "AnyValidCharacter"], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
+    {"name": "FunctionName$subexpression$1", "symbols": ["FunctionName$subexpression$1$ebnf$1", "Letter", "FunctionName$subexpression$1$ebnf$2"], "postprocess": ([first, second, third]) => first.join('') + second + third.join('')},
+    {"name": "FunctionName", "symbols": ["FunctionName$subexpression$1"]},
+    {"name": "FunctionName", "symbols": ["ObjectVariable"], "postprocess": id},
+    {"name": "AnyArgs", "symbols": ["AnyArg", "Spaces", "AnyArgs"], "postprocess": ([arg, ws, args]) => [arg].concat(args)},
+    {"name": "AnyArgs", "symbols": ["AnyArg"], "postprocess": id},
+    {"name": "ObjectVariable$ebnf$1", "symbols": []},
+    {"name": "ObjectVariable$ebnf$1", "symbols": ["ObjectVariable$ebnf$1", "AnyValidCharacter"], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
+    {"name": "ObjectVariable$ebnf$2", "symbols": []},
+    {"name": "ObjectVariable$ebnf$2", "symbols": ["ObjectVariable$ebnf$2", "AnyValidCharacter"], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
+    {"name": "ObjectVariable", "symbols": ["Letter", "ObjectVariable$ebnf$1", "DOT", "Letter", "ObjectVariable$ebnf$2"], "postprocess": d=> d[0] + d[1].join('') + d[2] + d[3] + d[4].join('')},
     {"name": "ObjArgs", "symbols": ["ObjArg", "Spaces", "ObjArgs"], "postprocess": ([arg, ws, args]) => [arg].concat(args)},
     {"name": "ObjArgs", "symbols": ["ObjArg"], "postprocess": id},
     {"name": "ObjArg$ebnf$1", "symbols": ["Letter"]},
     {"name": "ObjArg$ebnf$1", "symbols": ["ObjArg$ebnf$1", "Letter"], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
-    {"name": "ObjArg", "symbols": ["ObjArg$ebnf$1", "Space", "ArgSeparator", "Space", "ArgValue"], "postprocess": ([argname, ws1, separator, ws2, argVal]) => argname.join('') + separator + argVal},
-    {"name": "ArgValue$subexpression$1$ebnf$1", "symbols": ["Letter"]},
-    {"name": "ArgValue$subexpression$1$ebnf$1", "symbols": ["ArgValue$subexpression$1$ebnf$1", "Letter"], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
-    {"name": "ArgValue$subexpression$1", "symbols": ["ArgValue$subexpression$1$ebnf$1"], "postprocess": d=> d.join('')},
-    {"name": "ArgValue$subexpression$1", "symbols": ["Number"], "postprocess": id},
-    {"name": "ArgValue", "symbols": ["ArgValue$subexpression$1"]},
+    {"name": "ObjArg", "symbols": ["ObjArg$ebnf$1", "Space", "ArgSeparator", "Space", "AnyArg"], "postprocess": ([argname, ws1, separator, ws2, argVal]) => argname.join('') + separator + argVal},
+    {"name": "AnyArg", "symbols": ["Number"]},
+    {"name": "AnyArg", "symbols": ["PlainVariable"]},
+    {"name": "AnyArg", "symbols": ["ObjectVariable"]},
+    {"name": "PlainVariable$ebnf$1", "symbols": ["CharOrLetter"]},
+    {"name": "PlainVariable$ebnf$1", "symbols": ["PlainVariable$ebnf$1", "CharOrLetter"], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
+    {"name": "PlainVariable", "symbols": ["PlainVariable$ebnf$1"], "postprocess": d=> d[0].join('')},
     {"name": "Number", "symbols": ["Integer"], "postprocess": id},
     {"name": "Number", "symbols": ["Float"], "postprocess": id},
     {"name": "Float$subexpression$1", "symbols": ["Zero"]},
@@ -82,7 +87,9 @@ var grammar = {
     {"name": "AnyValidCharacter", "symbols": ["Letter"]},
     {"name": "AnyValidCharacter", "symbols": ["UsableCharacter"]},
     {"name": "AnyValidCharacter", "symbols": ["Digit"]},
-    {"name": "UsableCharacter", "symbols": [/[\$\£\&\^\*\`\.]/]},
+    {"name": "CharOrLetter", "symbols": ["UsableCharacter"]},
+    {"name": "CharOrLetter", "symbols": ["Letter"]},
+    {"name": "UsableCharacter", "symbols": [/[\$\£\&\^\*]/]},
     {"name": "Letter", "symbols": [/[a-zA-Z]/]},
     {"name": "Digit", "symbols": [/[0-9]/]},
     {"name": "NonzeroNumber", "symbols": [/[1-9]/]},
@@ -91,6 +98,8 @@ var grammar = {
     {"name": "EOLPIPE", "symbols": ["EOL"]},
     {"name": "EOLPIPE", "symbols": ["PIPE"], "postprocess": function(d) {return null }},
     {"name": "PIPE", "symbols": [{"literal":"|"}]},
+    {"name": "DOT", "symbols": [{"literal":"."}]},
+    {"name": "QUOTE", "symbols": [{"literal":"\""}]},
     {"name": "_$ebnf$1", "symbols": []},
     {"name": "_$ebnf$1", "symbols": ["_$ebnf$1", /[\s]/], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
     {"name": "_", "symbols": ["_$ebnf$1"], "postprocess": function(d) {return null }},
