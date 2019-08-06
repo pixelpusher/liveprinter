@@ -66,12 +66,13 @@ AnyArg -> Number # int or float
 	| PlainVariable # named variable
 	| ObjectVariable # something.something
 	| ParenthesisStatement # these are for passing js directly in brackets
+	| StringLiteral
 
 ObjectVariable -> PlainVariable DOT PlainVariable {% ([pv1, dot, pv2])=> pv1 + dot + pv2 %} 
 
 PlainVariable -> CharOrLetter AnyValidCharacter:* {% ([first, second])=> first + second.join('') %}
 
-#StringLiteral -> QUOTE (AnyValidCharacter | Space):+ QUOTE {% d => d[1].join('') %}
+StringLiteral -> QUOTE (AnyValidCharacter | DOT | [()\s]):+ QUOTE {% ([lquote, statement, rquote]) => lquote + statement.join('') + rquote %}
 
 Number -> Integer 	{% id %}
 	| Float 		{% id %}
