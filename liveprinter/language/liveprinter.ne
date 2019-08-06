@@ -49,24 +49,27 @@ FunctionStatement -> (FunctionName Spaces {% d => d[0] + "(" %})
 		}
 		%})
 		) {% d => d.join('') + ")" %}
-
-FunctionName -> (AnyValidCharacter:* Letter AnyValidCharacter:* {% ([first, second, third]) => first.join('') + second + third.join('') %}) | ObjectVariable {% id %}
+# 
+FunctionName -> PlainVariable | ObjectVariable {% id %}
 
 AnyArgs -> AnyArg Spaces AnyArgs {% ([arg, ws, args]) => [arg].concat(args) %} 
 | AnyArg {% id %}
 
-ObjectVariable -> Letter AnyValidCharacter:* DOT Letter AnyValidCharacter:* {% d=> d[0] + d[1].join('') + d[2] + d[3] + d[4].join('') %}  
-	
 ObjArgs -> ObjArg Spaces ObjArgs {% ([arg, ws, args]) => [arg].concat(args) %} 
 | ObjArg {% id %}
 
+# object arguments inside the curly braces, like { x:32 }
 ObjArg	-> Letter:+ Space ArgSeparator Space AnyArg {% ([argname, ws1, separator, ws2, argVal]) => argname.join('') + separator + argVal %}
 
-AnyArg -> Number 
-	| PlainVariable 
-	| ObjectVariable 
+# valid arguments for functions
+AnyArg -> Number # int or float
+	| PlainVariable # named variable
+	| ObjectVariable # something.something
+	| ParenthesisStatement # these are for passing js directly in brackets
 
-PlainVariable -> CharOrLetter:+ {% d=> d[0].join('') %}
+ObjectVariable -> PlainVariable DOT PlainVariable {% ([pv1, dot, pv2])=> pv1 + dot + pv2 %} 
+
+PlainVariable -> CharOrLetter AnyValidCharacter:* {% ([first, second])=> first + second.join('') %}
 
 #StringLiteral -> QUOTE (AnyValidCharacter | Space):+ QUOTE {% d => d[1].join('') %}
 
@@ -78,6 +81,8 @@ Float -> (Zero | Integer) "." [0-9]:+		{% ([num1, dot, num2]) => num1 + dot + nu
 Integer -> Zero |
 		NonzeroNumber Digit:*   {% ([num1, num2]) => num1 + num2.join('') %}
 		#{% d => ({ d:d[0] + d[1].join(''), v: parseInt(d[0] + d[1].join('')) }) %}
+
+ParenthesisStatement -> "(" (AnyValidCharacter | DOT | [()\s]):+ ")" {% ([lparen, statement, rparen]) => statement.join('') %}
 
 ArgSeparator -> ":"
 
