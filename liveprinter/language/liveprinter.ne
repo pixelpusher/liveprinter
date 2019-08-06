@@ -83,7 +83,9 @@ Integer -> Zero |
 		NonzeroNumber Digit:*   {% ([num1, num2]) => num1 + num2.join('') %}
 		#{% d => ({ d:d[0] + d[1].join(''), v: parseInt(d[0] + d[1].join('')) }) %}
 
-ParenthesisStatement -> "(" (AnyValidCharacter | DOT | [()\s]):+ ")" {% ([lparen, statement, rparen]) => statement.join('') %}
+ParenthesisStatement -> "(" (AnyValidCharacter | DOT | MathOps | [()\s]):+ ")" {% ([lparen, statement, rparen]) => statement.join('') %}
+
+MathOps -> [*+-/]
 
 ArgSeparator -> ":"
 
