@@ -479,7 +479,7 @@
 
         // get iterable list of functions -- runs the function and returns index / total
         *run(args) {
-            const funcsList = this.getFuncs(args); // array
+            const funcsList = this.getFuncs(); // array
             const totalFuncs = funcsList.length - 1;
 
             yield* function* () {
