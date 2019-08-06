@@ -4,10 +4,10 @@
  * @returns {Function} Iterator function that iterates iterable, returns resulting value or false when run
  */
 
-function makeIterator(iterable) {
+const makeIterator = (iterable) => {
     const iter = iterable[Symbol.iterator]();
 
-    return () => {
+    return function*() {
         const result = iter.next();
         let retVal = result.value;
 
@@ -17,7 +17,35 @@ function makeIterator(iterable) {
         }
         return retVal;
     };
+}
+
+/**
+ * Make an infinite Array iterator from an iterable - return a function that takes step size as arg 
+ * @param {Array} array to iterate
+ * @returns {Function} Iterator function that iterates iterable, returns resulting value in infinite loop
+ */
+
+const infIter = (iterableArray) => {
+    if (!Array.isArray(iterableArray)) {
+        throw new TypeError("infstep: needs type array, got type " + (typeof iterableArray));
+    }
+
+    const iter = function* (_step = 1) {
+        const len = iterableArray.length;
+        let pos = -1;
+
+        while (true) {
+            pos = (pos + _step) % len;
+            yield iterableArray[pos];
+        }
+    };
+
+    return function* (step=1) {
+        let result = iter(step).next().value;
+        return result;
+    };
 };
+
 
 
 
@@ -50,10 +78,10 @@ const makeMapping = (a, b) => s => {
  * @param {Int} c number to increment each value of range by
  * @returns {Array} range of numbers
  */
-const numrange = (m, n, c=1) =>
+const numrange = (m, n, c = 1) =>
     Array.from({
-        length: 1 + Math.floor((n - m)/c)
-    }, (_, i) => m + i*c);
+        length: 1 + Math.floor((n - m) / c)
+    }, (_, i) => m + i * c);
 
 
 // string reversal in javascript - adapted from https://github.com/mathiasbynens/esrever/blob/master/esrever.js
@@ -74,7 +102,7 @@ String.prototype.reverse = function () {
         .replace(regexSurrogatePair, '$2$1');
     // Step 2: reverse the code units in the string
     let result = '';
-    let  index = string.length;
+    let index = string.length;
     while (index--) {
         result += string.charAt(index);
     }
