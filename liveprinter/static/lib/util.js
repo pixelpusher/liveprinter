@@ -23,27 +23,32 @@ const makeIterator = (iterable) => {
  * Make an infinite Array iterator from an iterable - return a function that takes step size as arg 
  * @param {Array} array to iterate
  * @returns {Function} Iterator function that iterates iterable, returns resulting value in infinite loop
+ * @example 
+ * global notes = Array.from({length:12}, (_,n) => majScale(n,0));
+ * global note = infiter(notes);
+ * loginfo(note());
  */
 
-const infIter = (iterableArray) => {
+const infiter = (iterableArray, step=1) => {
     if (!Array.isArray(iterableArray)) {
         throw new TypeError("infstep: needs type array, got type " + (typeof iterableArray));
     }
 
-    const iter = function* (_step = 1) {
-        const len = iterableArray.length;
+    const iter = (function* (_step) {
         let pos = -1;
 
         while (true) {
-            pos = (pos + _step) % len;
-            yield iterableArray[pos];
+            pos = (pos + _step) % iterableArray.length;
+            let reset = yield iterableArray[pos];
+            if (reset) pos = -1;
         }
-    };
+    })(step);
+    
+    function getIt(v) {
+        return iter.next(v).value;
+    }
 
-    return function* (step=1) {
-        let result = iter(step).next().value;
-        return result;
-    };
+    return getIt;
 };
 
 
