@@ -1192,6 +1192,14 @@ class Printer {
         return this;
     }
 
+    /**
+     * Calculate the movement distance based on a target amount of time to move. (Uses current print speed to calculate)
+     * @param {Number} time Time to move in milliseconds
+     * @returns {Float} distance in mm
+     */
+    t2mm(time, speed = this.travelSpeed) {
+        return speed * time / 1000; // time in ms
+    }
 
     /**
      * Fills an area based on layerHeight (as thickness of each line)

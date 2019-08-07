@@ -97,7 +97,7 @@ const countto = (num) => numrange(1, num);
  */
 const repeat = (num, func) => {
     for (let i of numrange(1, num)) {
-        func();
+        func(i-0); // pass the comp sci way
     }
 };
 

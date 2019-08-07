@@ -151,7 +151,7 @@ $.when($.ready).then(
                     // remove old events
                     me.eventsToRemove.map(name => {
                         let event = null;
-                        while (event = me.ScheduledEvents.find(e => e.name === name)) {
+                        while (event = me.ScheduledEvents.find(e => e.name == name)) {
                             if (event) {
                                 me.ScheduledEvents = me.ScheduledEvents.filter(e => e !== event);
                                 me.eventsListeners.map(listener => { if (listener.EventRemoved !== undefined) listener.EventRemoved(event); });
@@ -240,7 +240,7 @@ $.when($.ready).then(
             scrollbarStyle: "simple",
             styleActiveLine: true,
             lineWrapping: true,
-            undoDepth: 40,
+            undoDepth: 20,
             //autocomplete: true,
             extraKeys: {
                 "Ctrl-Enter": runCode,
@@ -262,9 +262,9 @@ $.when($.ready).then(
             autoCloseBrackets: true,
             // VIM MODE!
             //keyMap: "vim",
-            matchBrackets: true,
-            showCursorWhenSelecting: true,
-            inputStyle: "contenteditable"
+            //matchBrackets: true,
+            //showCursorWhenSelecting: true,
+            //inputStyle: "contenteditable"
         });
 
         window.ce = CodeEditor;
@@ -1388,11 +1388,27 @@ $.when($.ready).then(
 
         /**
          * Add a cancellable task to the scheduler and also the GUI 
-         * @param {Object} task scheduled task object
+         * @param {Any} task either scheduled task object or name of task plus a function for next arg
+         * @param {Function} func Function, if name was passed as 1st arg
          * @memberOf LivePrinter
          */
-        function addTask(task) {
-            window.scope.Scheduler.scheduleEvent(task);
+        function addTask(task, interval, func) {
+
+            if (func === undefined) {
+                //try remove first
+                window.scope.Scheduler.removeEventByName(task.name);
+                window.scope.Scheduler.scheduleEvent(task);
+            }
+            else {
+                if (func === undefined) throw new Error("AddTask: no function passed!");
+                //try remove first
+                window.scope.Scheduler.removeEventByName(task);
+                const t = new Task;
+                t.name = task;
+                t.delay = interval;
+                t.run = func;
+                window.scope.Scheduler.scheduleEvent(t);
+            }
         }
         window.addTask = addTask;
 

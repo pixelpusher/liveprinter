@@ -24,12 +24,13 @@ var global, exports;
 
     global.scales.majPattern = majPattern;
 
-    function majScale(offset=0, index = 0) {
-        const note = index % 12;
-        const oct = Math.round(index / 12) + 1
-
-
-            ;
+    function majScale(start = 0, offset = 0) {
+        if (start < 0 || offset < 0) {
+            throw new Error("note index can't me less than 0!");
+        }
+        const note = start % majPattern.length;
+        const extra = Math.floor(start / majPattern.length);
+        const oct = extra + Math.floor(offset / majPattern.length) + 1;
         return majPattern[note] * oct + offset + global.c0;
     }
 
