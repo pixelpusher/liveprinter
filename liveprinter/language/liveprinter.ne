@@ -18,7 +18,7 @@ Chain -> FunctionStatement Space PIPE Space Chain {% d => [d[0]].concat(d[4]).jo
 #				| FunctionStatement {% id %}
 #				) {% id %} 
 
-FunctionStatement -> (FunctionName Spaces {% d => d[0] + "(" %}) 
+FunctionStatement -> (FunctionName {% ([name]) => name + "(" %})  ( Spaces
 		( ObjArgs 
 		{% 
 		function ([args]) {
@@ -35,7 +35,7 @@ FunctionStatement -> (FunctionName Spaces {% d => d[0] + "(" %})
 			return fstr;
 		}
 		%}
-		| (AnyArgs {% 
+		| AnyArgs {% 
 		function ([args]) {
 			let fstr = "";
 			if (args.length) {
@@ -47,8 +47,9 @@ FunctionStatement -> (FunctionName Spaces {% d => d[0] + "(" %})
 			}
 			return fstr;
 		}
-		%})
-		) {% d => d.join('') + ")" %}
+		%}
+		) 
+	{% d => { let str=""; for (let dd of d) { if (dd) str+=dd}; return str; } %}):? {% d => d.join('') + ")" %}
 # 
 FunctionName -> PlainVariable | ObjectVariable {% id %}
 
@@ -62,11 +63,18 @@ ObjArgs -> ObjArg Spaces ObjArgs {% ([arg, ws, args]) => [arg].concat(args) %}
 ObjArg	-> Letter:+ Space ArgSeparator Space AnyArg {% ([argname, ws1, separator, ws2, argVal]) => argname.join('') + separator + argVal %}
 
 # valid arguments for functions
-AnyArg -> Number # int or float
-	| PlainVariable # named variable
-	| ObjectVariable # something.something
+AnyArg -> AnyVar
 	| ParenthesisStatement # these are for passing js directly in brackets
 	| StringLiteral
+	| MathFunc
+
+# math functions
+MathFunc -> AnyVar Space MathOps Space AnyVar {% ([var1,sp1,op,sp2,var2]) => ("" + var1 + op + var2) %}
+
+# valid variable types for math ops etc
+AnyVar -> Number # int or float
+	| PlainVariable # named variable
+	| ObjectVariable # something.something
 
 ObjectVariable -> PlainVariable DOT PlainVariable {% ([pv1, dot, pv2])=> pv1 + dot + pv2 %} 
 
@@ -80,7 +88,7 @@ Number -> Integer 	{% id %}
 Float -> (Zero | Integer) "." [0-9]:+		{% ([num1, dot, num2]) => num1 + dot + num2.join('') %}
 
 Integer -> Zero |
-		NonzeroNumber Digit:*   {% ([num1, num2]) => num1 + num2.join('') %}
+		"-":? NonzeroNumber Digit:*   {% ([sign, num1, num2]) => (sign ? "-" : "") + num1 + num2.join('') %}
 		#{% d => ({ d:d[0] + d[1].join(''), v: parseInt(d[0] + d[1].join('')) }) %}
 
 ParenthesisStatement -> "(" (AnyValidCharacter | DOT | MathOps | [()\s]):+ ")" {% ([lparen, statement, rparen]) => statement.join('') %}

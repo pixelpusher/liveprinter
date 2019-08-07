@@ -83,6 +83,23 @@ const numrange = (m, n, c = 1) =>
         length: 1 + Math.floor((n - m) / c)
     }, (_, i) => m + i * c);
 
+/**
+ * Quick shorthand for counting from 1 to a number
+ * @param {Int} num Number to count from 1 to
+ * @returns {Array} an array of numbers from 1..num
+ */
+const countto = (num) => numrange(1, num);
+
+/**
+ * Do something a few times (shorthand)
+ * @param {Int} num Number of times to repeat
+ * @param {Function} func Funtion to repeat
+ */
+const repeat = (num, func) => {
+    for (let i of numrange(1, num)) {
+        func();
+    }
+};
 
 // string reversal in javascript - adapted from https://github.com/mathiasbynens/esrever/blob/master/esrever.js
 

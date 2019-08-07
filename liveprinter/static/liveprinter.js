@@ -244,6 +244,7 @@ $.when($.ready).then(
             //autocomplete: true,
             extraKeys: {
                 "Ctrl-Enter": runCode,
+                "Shift-Enter": runCode,
                 "Cmd-Enter": runCode,
                 "Ctrl-Space": "autocomplete",
                 "Ctrl-Q": function (cm) { cm.foldCode(cm.getCursor()); },
@@ -255,13 +256,32 @@ $.when($.ready).then(
                         )
                     );
                     CodeEditor.on("change", localChangeFunc);
-                }
+                },
             },
             foldGutter: true,
-            autoCloseBrackets: true
+            autoCloseBrackets: true,
+            // VIM MODE!
+            //keyMap: "vim",
+            matchBrackets: true,
+            showCursorWhenSelecting: true,
+            inputStyle: "contenteditable"
         });
 
         window.ce = CodeEditor;
+
+        var commandDisplay = document.querySelectorAll('[id|=command-display]');
+        var keys = '';
+        CodeMirror.on(CodeEditor, 'vim-keypress', function (key) {
+            keys = keys + key;
+            for (let cd of commandDisplay)
+                cd.innerHTML = keys;
+        });
+        CodeMirror.on(CodeEditor, 'vim-command-done', function (e) {
+            keys = '';
+            for (let cd of commandDisplay)
+                cd.innerHTML = keys;
+        });
+
 
         /**
          * Global code CodeMirror editor instance. See {@link https://codemirror.net/doc/manual.html}
@@ -359,6 +379,7 @@ $.when($.ready).then(
          * @memberOf LivePrinter
          */
         function doError(e) {
+
             let err = e;
             if (e.error !== undefined) err = e.error;
             const lineNumber = err.lineNumber == null ? -1 : e.lineNumber;
@@ -635,20 +656,32 @@ $.when($.ready).then(
          * @memberOf LivePrinter
          */
         function runCode() {
-            let code = CodeEditor.getSelection();
-            const cursor = CodeEditor.getCursor();
 
-            if (!code) {
-                // info level
-                //console.log("no selections");
-                code = CodeEditor.getLine(cursor.line);
-                CodeEditor.setSelection({ line: cursor.line, ch: 0 }, { line: cursor.line, ch: code.length });
+            // if printer isn't connected, we shouldn't run!
+            let printerConnected = $("#header").hasClass("blinkgreen");
+            if (!printerConnected) {
+                clearError();
+                const err = new Error("Printer not connected! Please connect first using the printer settings tab.");
+                doError(err);
+                throw err;
             }
-            // blink the form
-            blinkElem($("form"));
+            else {
 
-            // run code
-            globalEval(code, cursor.line + 1);
+                let code = CodeEditor.getSelection();
+                const cursor = CodeEditor.getCursor();
+
+                if (!code) {
+                    // info level
+                    //console.log("no selections");
+                    code = CodeEditor.getLine(cursor.line);
+                    CodeEditor.setSelection({ line: cursor.line, ch: 0 }, { line: cursor.line, ch: code.length });
+                }
+                // blink the form
+                blinkElem($("form"));
+
+                // run code
+                globalEval(code, cursor.line + 1);
+            }
         }
 
         /**
@@ -1022,7 +1055,7 @@ $.when($.ready).then(
                         if (!printerTab.hasClass("blinkgreen")) {
                             printerTab.addClass("blinkgreen");
                         }
-                        // highlioght connected port
+                        // highlight connected port
                         $("#serial-ports-list").children().each((i, elem) => {
                             let $elem = $(elem);
                             if (elem.innerText === printerPort) {
@@ -1399,10 +1432,10 @@ $.when($.ready).then(
                 realUrl = url;
             }
             else
-            if (!url.startsWith('http')) {
-                // look in misc folder
-                realUrl = "/static/misc/" + url;
-            }
+                if (!url.startsWith('http')) {
+                    // look in misc folder
+                    realUrl = "/static/misc/" + url;
+                }
             let script = document.createElement("script");
             script.src = realUrl;
             // run and remove
@@ -1816,6 +1849,7 @@ $.when($.ready).then(
             //code = jQuery.trim(code);
             console.log("code before pre-processing-------------------------------");
             console.log(code);
+            console.log("========================= -------------------------------");
 
             // compile in minigrammar
 
@@ -1827,13 +1861,14 @@ $.when($.ready).then(
 
             // in code, find blocks inside ## ## and feed to grammar
 
-            const grammarBlockRegex = /\#\#\s*([^\#][\w\d\s\(\)\{\}\.\,\|\:]+)\s*\#\#/gm;
+            const grammarBlockRegex = /\#\#\s*([^\#][\w\d\s\(\)\{\}\.\,\|\:\"\'\+\-\/\*]+)\s*\#\#/gm;
 
-            const grammarOneLineRegex = /^\#\s*([^\#][\w\d\s\(\)\{\}\.\,\|\:]+)[\r\n]*/;
+            const grammarOneLineRegex = /^\#\s*([^\#][\w\d\s\(\)\{\}\.\,\|\:\"\'\+\-\/\*]+)[\r\n]*/;
 
             //
             // try one liner grammar replacement
             //
+
             code = code.replace(grammarOneLineRegex, (match, p1) => {
                 let result = "";
                 let fail = false; // if not successful
@@ -1853,13 +1888,17 @@ $.when($.ready).then(
                 return result;
             });
 
+            console.log("code AFTER pre-processing -------------------------------");
+            console.log(code);
+            console.log("========================= -------------------------------");
+
             //
             // try block element grammar replacement
             //
             //code = code.replace(/([\r\n]+)/gm, "|").substring(^\s*(\|), "").replace(grammarFinderRegex, (match, p1) => {
             // TODO: fix multiline (split?)
             code = code.replace(grammarBlockRegex, (match, p1) => {
-                console.log("Match: " + p1);
+                //console.log("Match: " + p1);
 
                 let result = "";
                 let fail = false; // if not successful
@@ -1871,7 +1910,7 @@ $.when($.ready).then(
                     if (line.length === 0) {
                         return;
                     }
-                  
+
                     else {
                         try {
                             parser.feed(line + '\n'); // EOL terminates command
@@ -1884,7 +1923,7 @@ $.when($.ready).then(
                         if (fail !== false)
                             result += "/*ERROR IN PARSE: " + fail + "*/\n";
                         //else
-                            //result += parser.results[0] + "\n";
+                        //result += parser.results[0] + "\n";
                     }
                 }); // end compiling line by line
                 result += parser.results[0] + "\n";
@@ -1896,8 +1935,9 @@ $.when($.ready).then(
             // replace globals in js
             code = code.replace(/^[ ]*global[ ]+/gm, "window.");
 
-            console.log("code AFTER pre-processing -------------------------------");
+            console.log("code AFTER grammar processing -------------------------------");
             console.log(code);
+            console.log("========================= -------------------------------");
 
             if (code) {
                 if (pythonMode) {
@@ -1918,7 +1958,7 @@ $.when($.ready).then(
                     brython(); // re-run brython
 
                     //code = __BRYTHON__.py2js(code + "", "newcode", "newcode").to_js();
-                    console.log(code);
+                    // console.log(code);
                     // eval(code);
                 }
                 else {
@@ -1944,7 +1984,7 @@ $.when($.ready).then(
                         code = code + "})();";
                     }
 
-                    console.log("adding code:" + code);
+                    //console.log("adding code:" + code);
                     let script = document.createElement("script");
                     script.text = code;
                     /*

@@ -216,7 +216,7 @@
                         <div id="code-editor-area" class="tab-pane fade show" role="tabpanel" aria-labelledby="pills-editor-tab">
                             <div class="row">
                                 <div class="col-md-12 cm-contain">
-                                <div id="modal-errors" position="relative"></div>
+                                    <div id="modal-errors" position="relative"></div>
                                     <form>
                                         <textarea id="code-editor">
                                     // start coding functions, etc. here or load an example from the dropdown above!
@@ -224,6 +224,9 @@
                                         </textarea>
                                     </form>
                                 </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-12">Key buffer: <span id="command-display-default"></span></div>
                             </div>
                             <div class="row">
                                 <div class="col-md-2 code-errors-panel"><p class="lead font-weight-bold">Errors:</p></div>
@@ -251,6 +254,9 @@
                                 </div>
                             </div>
                             <div class="row">
+                                <div class="col-md-12">Key buffer: <span id="command-display-global"></span></div>
+                            </div>
+                            <div class="row">
                                 <div class="col-md-2 code-errors-panel"><p class="lead font-weight-bold">Errors:</p></div>
                                 <div class="col-md-10 code-errors"></div>
                             </div>
@@ -274,6 +280,9 @@
                                         </textarea>
                                     </form>
                                 </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-12">Key buffer: <span id="command-display-gcode"></span></div>
                             </div>
                             <div class="row">
                                 <div class="col-md-2 instructions-panel"></div>
@@ -364,6 +373,11 @@
     <script src="{{ static_url("lib/addon/fold/comment-fold.js") }}"></script>
     <script src="{{ static_url("lib/addon/fold/brace-fold.js") }}"></script>
     <script src="{{ static_url("lib/codemirror/mode/javascript/javascript.js") }}"></script>
+    <script src="{{ static_url("lib/addon/edit/matchbrackets.js") }}"></script>
+    <script src="{{ static_url("lib/addon/dialog/dialog.js") }}"></script>
+    <script src="{{ static_url("lib/addon/search/searchcursor.js") }}"></script>
+    <script src="{{ static_url("lib/codemirror/keymap/vim.js") }}"></script>
+
     <!--<script src="https://cdnjs.cloudflare.com/ajax/libs/jshint/2.9.5/jshint.min.js"></script>
     <script src="https://rawgithub.com/zaach/jsonlint/79b553fb65c192add9066da64043458981b3972b/lib/jsonlint.js"></script>
     <script src="https://unpkg.com/csslint@1.0.5/dist/csslint.js"></script>-->

@@ -15,8 +15,8 @@ var grammar = {
     {"name": "Chain$ebnf$1", "symbols": ["PIPE"], "postprocess": id},
     {"name": "Chain$ebnf$1", "symbols": [], "postprocess": function(d) {return null;}},
     {"name": "Chain", "symbols": ["FunctionStatement", "Space", "Chain$ebnf$1"], "postprocess": d => d[0]},
-    {"name": "FunctionStatement$subexpression$1", "symbols": ["FunctionName", "Spaces"], "postprocess": d => d[0] + "("},
-    {"name": "FunctionStatement$subexpression$2", "symbols": ["ObjArgs"], "postprocess":  
+    {"name": "FunctionStatement$subexpression$1", "symbols": ["FunctionName"], "postprocess": ([name]) => name + "("},
+    {"name": "FunctionStatement$ebnf$1$subexpression$1$subexpression$1", "symbols": ["ObjArgs"], "postprocess":  
         function ([args]) {
         	let fstr = "{";
         	if (typeof args !== "string" ) {				
@@ -31,7 +31,7 @@ var grammar = {
         	return fstr;
         }
         },
-    {"name": "FunctionStatement$subexpression$2$subexpression$1", "symbols": ["AnyArgs"], "postprocess":  
+    {"name": "FunctionStatement$ebnf$1$subexpression$1$subexpression$1", "symbols": ["AnyArgs"], "postprocess":  
         function ([args]) {
         	let fstr = "";
         	if (args.length) {
@@ -44,8 +44,10 @@ var grammar = {
         	return fstr;
         }
         },
-    {"name": "FunctionStatement$subexpression$2", "symbols": ["FunctionStatement$subexpression$2$subexpression$1"]},
-    {"name": "FunctionStatement", "symbols": ["FunctionStatement$subexpression$1", "FunctionStatement$subexpression$2"], "postprocess": d => d.join('') + ")"},
+    {"name": "FunctionStatement$ebnf$1$subexpression$1", "symbols": ["Spaces", "FunctionStatement$ebnf$1$subexpression$1$subexpression$1"], "postprocess": d => { let str=""; for (let dd of d) { if (dd) str+=dd}; return str; }},
+    {"name": "FunctionStatement$ebnf$1", "symbols": ["FunctionStatement$ebnf$1$subexpression$1"], "postprocess": id},
+    {"name": "FunctionStatement$ebnf$1", "symbols": [], "postprocess": function(d) {return null;}},
+    {"name": "FunctionStatement", "symbols": ["FunctionStatement$subexpression$1", "FunctionStatement$ebnf$1"], "postprocess": d => d.join('') + ")"},
     {"name": "FunctionName", "symbols": ["PlainVariable"]},
     {"name": "FunctionName", "symbols": ["ObjectVariable"], "postprocess": id},
     {"name": "AnyArgs", "symbols": ["AnyArg", "Spaces", "AnyArgs"], "postprocess": ([arg, ws, args]) => [arg].concat(args)},
@@ -55,11 +57,14 @@ var grammar = {
     {"name": "ObjArg$ebnf$1", "symbols": ["Letter"]},
     {"name": "ObjArg$ebnf$1", "symbols": ["ObjArg$ebnf$1", "Letter"], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
     {"name": "ObjArg", "symbols": ["ObjArg$ebnf$1", "Space", "ArgSeparator", "Space", "AnyArg"], "postprocess": ([argname, ws1, separator, ws2, argVal]) => argname.join('') + separator + argVal},
-    {"name": "AnyArg", "symbols": ["Number"]},
-    {"name": "AnyArg", "symbols": ["PlainVariable"]},
-    {"name": "AnyArg", "symbols": ["ObjectVariable"]},
+    {"name": "AnyArg", "symbols": ["AnyVar"]},
     {"name": "AnyArg", "symbols": ["ParenthesisStatement"]},
     {"name": "AnyArg", "symbols": ["StringLiteral"]},
+    {"name": "AnyArg", "symbols": ["MathFunc"]},
+    {"name": "MathFunc", "symbols": ["AnyVar", "Space", "MathOps", "Space", "AnyVar"], "postprocess": ([var1,sp1,op,sp2,var2]) => ("" + var1 + op + var2)},
+    {"name": "AnyVar", "symbols": ["Number"]},
+    {"name": "AnyVar", "symbols": ["PlainVariable"]},
+    {"name": "AnyVar", "symbols": ["ObjectVariable"]},
     {"name": "ObjectVariable", "symbols": ["PlainVariable", "DOT", "PlainVariable"], "postprocess": ([pv1, dot, pv2])=> pv1 + dot + pv2},
     {"name": "PlainVariable$ebnf$1", "symbols": []},
     {"name": "PlainVariable$ebnf$1", "symbols": ["PlainVariable$ebnf$1", "AnyValidCharacter"], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
@@ -81,9 +86,11 @@ var grammar = {
     {"name": "Float$ebnf$1", "symbols": ["Float$ebnf$1", /[0-9]/], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
     {"name": "Float", "symbols": ["Float$subexpression$1", {"literal":"."}, "Float$ebnf$1"], "postprocess": ([num1, dot, num2]) => num1 + dot + num2.join('')},
     {"name": "Integer", "symbols": ["Zero"]},
-    {"name": "Integer$ebnf$1", "symbols": []},
-    {"name": "Integer$ebnf$1", "symbols": ["Integer$ebnf$1", "Digit"], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
-    {"name": "Integer", "symbols": ["NonzeroNumber", "Integer$ebnf$1"], "postprocess": ([num1, num2]) => num1 + num2.join('')},
+    {"name": "Integer$ebnf$1", "symbols": [{"literal":"-"}], "postprocess": id},
+    {"name": "Integer$ebnf$1", "symbols": [], "postprocess": function(d) {return null;}},
+    {"name": "Integer$ebnf$2", "symbols": []},
+    {"name": "Integer$ebnf$2", "symbols": ["Integer$ebnf$2", "Digit"], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
+    {"name": "Integer", "symbols": ["Integer$ebnf$1", "NonzeroNumber", "Integer$ebnf$2"], "postprocess": ([sign, num1, num2]) => (sign ? "-" : "") + num1 + num2.join('')},
     {"name": "ParenthesisStatement$ebnf$1$subexpression$1", "symbols": ["AnyValidCharacter"]},
     {"name": "ParenthesisStatement$ebnf$1$subexpression$1", "symbols": ["DOT"]},
     {"name": "ParenthesisStatement$ebnf$1$subexpression$1", "symbols": ["MathOps"]},
