@@ -488,7 +488,7 @@
                     const index = f[1];
                     const part = f[2];
                     func({ index, part }, args); // see above function: 
-                    yield { 'index': index, 'total': totalFuncs };
+                    yield { 'index': index, 'part': part, 'total': totalFuncs };
                 }
             }();
         }

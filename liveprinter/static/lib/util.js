@@ -21,8 +21,8 @@ const makeIterator = (iterable) => {
 
 /**
  * Make an infinite Array iterator from an iterable - return a function that takes step size as arg 
- * @param {Array} array to iterate
- * @returns {Function} Iterator function that iterates iterable, returns resulting value in infinite loop
+
+  * @returns {Function} Iterator function that iterates iterable, returns resulting value in infinite loop
  * @example 
  * global notes = Array.from({length:12}, (_,n) => majScale(n,0));
  * global note = infiter(notes);
