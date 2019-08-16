@@ -31,6 +31,7 @@
     <Compile Include="liveprinter\dummyserial\__init__.py" />
     <Compile Include="liveprinter\LivePrinterServer.py" />
     <Compile Include="liveprinter\PrinterModel.py" />
+    <Compile Include="liveprinter\printerreponse.py" />
     <Compile Include="liveprinter\static\examples\circle.py" />
     <Compile Include="liveprinter\static\examples\maryhadalittlelamb.py" />
     <Compile Include="liveprinter\static\examples\pythontest.py" />
@@ -174,6 +175,7 @@
     <Content Include="liveprinter\static\scales.js" />
     <Content Include="liveprinter\static\util\svgrenderer.html" />
     <Content Include="liveprinter\templates\index.html" />
+    <Content Include="liveprinter\templates\test.html" />
     <Content Include="liveprinter\testing\gcodegrammar.js" />
     <Content Include="liveprinter\testing\test_gcode.txt" />
   </ItemGroup>

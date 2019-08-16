@@ -19,6 +19,8 @@
 # pySerial includes a small console based terminal program called serial.tools.miniterm. It ca be started with python -m serial.tools.miniterm <port_name> 
 # (use option -h to get a listing of all options).
 
+import os
+import random
 import tornado.httpserver
 import tornado.ioloop
 import tornado.options
@@ -32,6 +34,8 @@ from tornado_jsonrpc2.handler import JSONRPCHandler
 from tornado_jsonrpc2.exceptions import MethodNotFound
 import time
 from enum import IntEnum
+from typing import Union, Optional, List
+from printerreponse import PrinterResponse
 
 
 
@@ -47,13 +51,26 @@ curl --insecure --data '{ "jsonrpc": "2.0", "id": 6, "method": "get-serial-ports
 define("port", default=8888, help="run on the given port", type=int)
 
 
-class MainHandler(tornado.web.RequestHandler):
+class TestHandler(tornado.web.RequestHandler):
     def initialize(self, **kwargs):
         self.printer = kwargs["printer"]
 
     async def get(self):
         result = await self.printer.async_connect()
         self.write("Hello, world: {}".format(repr(result)))
+
+        
+class JsonTestHandler(tornado.web.RequestHandler):
+    def check_xsrf_cookie(self):
+        pass
+
+    def get(self):
+        print("TEMPLATE PATH: {}".format(self.get_template_path()))
+        try:
+            self.render("test.html")
+        except Exception as e:
+            print("ERROR in GET: {}".format(repr(e)))
+
 
 # won't work!
 #class JSONHandler(tornado.web.RequestHandler):
@@ -99,9 +116,10 @@ class USBSerial():
         self._serial = None
         self._serial_port = None
         self._baud_rate = 250000
-        self._timeout = 2
+        self._timeout = 1.5
         self._event_loop = loop
         self.connection_state = ConnectionState.closed
+        self.commands_sent = 0 # needed for keeping track of them
 
     #
     # async connect - returns a future
@@ -126,6 +144,65 @@ class USBSerial():
                     self.connection_state = ConnectionState.closed
         return result
 
+    #
+    # send a command and get result
+    #
+    async def send_command(self, cmd:Union[str,bytes]):
+        index = ++self.commands_sent
+        if self._serial_port is "/dev/null":
+            cmd_to_send = str(cmd).encode()
+        else:
+            checksum = functools.reduce(lambda x, y: x ^ y, map(ord, "N%d%s" % (index, cmd)))
+            cmd_to_send = str("N%d%s*%d" % (index, cmd, checksum)).encode()
+        if not cmd_to_send.endswith(b"\n"):
+            cmd_to_send += b"\n"
+        try:
+            self._serial.write(cmd_to_send)    
+            self._serial.flush() # do it now!
+        except SerialTimeoutException:
+            print("Timeout when sending command to printer via USB.")
+
+            response = PrinterResponse(**{"type":"error", 
+                                            "message":"Timeout when sending command to printer via USB.",
+                                            'command': cmd_to_send,
+                                            'index': index})
+            return response.toDict()
+        except Exception as e:
+            Print("Error in write: {}".format(repr(e)))
+
+        
+        finally:
+            # read line -- async, sleeping if waiting
+            # response = ...
+            result = await self.read_response()
+            # TODO: important!!! Handle resend here. Loop a few times and sleep until sent...
+            
+            #response = PrinterResponse(**{"type":"result", 
+            #                                "message":result,
+            #                                "command":cmd_to_send,
+            #                                "index":index})
+            #response = {"type":"result", 
+            #           "message":str(result),
+            #           "command":cmd_to_send,
+            #           "index":index}
+            return str(result)
+
+
+    async def read_response(self):
+        try:
+            line = self._serial.readline()
+        except portNotOpenError:
+            line="PORT NOT OPEN"
+            print("PORT NOT OPEN?")
+        except:
+            line = ""
+            print("ERROR readling line")
+
+        # only process if there's something to process
+        if line:              
+            # this format seems to work best for cross-platform Marlin printers
+            line = line.decode('cp437')
+        return line
 
 def use_dummy_serial_port(printer:USBSerial):
     if printer._serial_port is not "/dev/null" and printer._serial is None:
@@ -145,6 +222,19 @@ def use_dummy_serial_port(printer:USBSerial):
     printer.connection_state = ConnectionState.connected
 
 
+    
+#
+# set the serial port of the printer and connect.
+# return the port name if successful, otherwise "error" as the port
+#
+async def json_handle_gcode(printer, *args):  
+    for i in args:
+        print("{}".format(i))
+
+    gcode = args[0]
+
+    result = await printer.send_command(gcode)
+    return result
 
 #
 # set the serial port of the printer and connect.
@@ -232,14 +322,26 @@ def main():
         elif request.method == "get-serial-ports":
             result = await json_handle_portslist()
             return result
+        elif request.method == "send-gcode":
+            result = await json_handle_gcode(printer, *params)
+            return result
+
         else:
             raise MethodNotFound("{}".format(request.method))
 
-    application = tornado.web.Application([
-        (r"/", MainHandler, dict(printer=printer)),
+    settings = dict(
+            cookie_secret="__TODO:_GENERATE_YOUR_OWN_RANDOM_VALUE_HERE__",
+            template_path=os.path.join(os.path.dirname(__file__), "templates"),
+            static_path=os.path.join(os.path.dirname(__file__), "static"),
+            xsrf_cookies=False,
+        )
+    handlers = [
+        (r"/test", TestHandler, dict(printer=printer)),
+        (r"/jsontest", JsonTestHandler),
         # (r"/jsonrpc", JSONHandler),
         (r"/jsonrpc", JSONRPCHandler, dict(response_creator=r_creator)),
-    ])
+        ]
+    application = tornado.web.Application(handlers=handlers, debug=True, **settings)
     http_server = tornado.httpserver.HTTPServer(application)
     http_server.listen(options.port)
 

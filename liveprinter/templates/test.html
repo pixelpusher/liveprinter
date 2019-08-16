@@ -1,0 +1,86 @@
+﻿<!DOCTYPE html>
+
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="utf-8">
+    <!-- Required meta tags -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>LivePrinter async API test</title>
+</head>
+<body>
+    <div class="container" id="body">
+        <h1>Async Backend JSON-RPC Tester</h1>
+        <div class="row">
+            <div class="col-md-12">
+                <h2>Send:</h2>
+                <textarea cols="80" wrap="soft" rows="3" id="send-txt">
+{ "jsonrpc": "2.0", "id": 5, "method": "set-serial-port","params": [ "dummy", 125000]}
+                </textarea>
+                <p>Also try: { "jsonrpc": "2.0", "id": 6, "method": "get-serial-ports","params": []}</p>
+                <p>Also try: { "jsonrpc": "2.0", "id": 5, "method": "set-serial-port","params": [ "dummy", 125000]}</p>
+                <p>Also try: { "jsonrpc": "2.0", "id": 4, "method": "send-gcode","params": ["G28"]}</p>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-12">
+                <button id="send-btn" class="btn btn-lg btn-warning">send</button>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-12">
+                <h2>Result:</h2>
+                <textarea cols="80" wrap="soft" rows="3" id="result-txt">
+{ "jsonrpc": "2.0", "id": 5, "method": "set-serial-port","params": [ "dummy", 125000]}
+                </textarea>
+            </div>
+        </div>
+    </div>
+
+    <link rel="stylesheet" href="{{ static_url("lib/cached/bootstrap.min.css") }}" type="text/css">
+    <script src="{{ static_url("lib/cached/jquery-3.3.1.min.js") }}"></script>
+    <script src="{{ static_url("lib/cached/popper.min.js") }}"></script>
+    <script src="{{ static_url("lib/cached/bootstrap.min.js") }}"></script>
+
+    <script type="text/javascript">
+
+        $.when($.ready).then(
+            function () {
+                "use strict;"
+
+                function getCookie(name) {
+                    var r = document.cookie.match("\\b" + name + "=([^;]*)\\b");
+                    return r ? r[1] : undefined;
+                }
+
+                async function sendJSON() {
+                    let result;
+                    console.log($("#send-txt").val())
+                    let args = JSON.parse($("#send-txt").val())
+                    args._xsrf = getCookie("_xsrf");
+                    console.log(args);
+                    try {
+                        result = await $.ajax({
+                            url: "http://localhost:8888/jsonrpc",
+                            type: "POST",
+                            data: JSON.stringify(args)
+                        });
+                    }
+                    catch (error) {
+                        console.log(error);
+                        $("#result-txt").val(error)
+                    }
+                    finally {
+                        console.log(result);
+                        $("#result-txt").val(JSON.stringify(result))
+                    }
+                    return result;
+                }
+
+                $("#send-btn").on("click", async (e) => { e.preventDefault(); await sendJSON() });
+
+            });
+    </script>
+</body>
+</html>
