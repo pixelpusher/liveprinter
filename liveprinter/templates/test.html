@@ -44,6 +44,22 @@
                 </textarea>
             </div>
         </div>
+
+        <div class="row">
+            <div class="col-md-12">
+                <h2>batch gcode</h2>
+                <textarea cols="80" wrap="soft" rows="3" id="gcode">
+                    G1 X100.0 Y0 Z0
+                    M400
+                </textarea>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-12">
+                <button id="send-gcode-btn" class="btn btn-lg btn-warning">send</button>
+            </div>
+        </div>
+
     </div>
 
     <link rel="stylesheet" href="{{ static_url("lib/cached/bootstrap.min.css") }}" type="text/css">
@@ -64,10 +80,10 @@
 
                 async function sendJSON(request) {
                     let result;
-                    console.log(request)
+                    //console.log(request)
                     let args = JSON.parse(request)
                     args._xsrf = getCookie("_xsrf");
-                    console.log(args);
+                    //console.log(args);
                     try {
                         result = await $.ajax({
                             url: "http://localhost:8888/jsonrpc",
@@ -80,7 +96,7 @@
                         $("#result-txt").val(error)
                     }
                     finally {
-                        console.log(result);
+                        //console.log(result);
                         $("#result-txt").val(JSON.stringify(result))
                     }
                     return result;
@@ -101,6 +117,33 @@
                     }, delay);
 
                 }
+
+                /**
+                 * Run a list of gcode asynchronously in a sequence and return list fo responses when finished
+                 * @param list
+                 */
+                async function sendCodeList(list) {
+                    let gcodeObj = { "jsonrpc": "2.0", "id": 4, "method": "send-gcode", "params": [] };
+                    
+                    let result = await Promise.all(list.map(async (gcode) => {
+                        gcodeObj.params = [gcode];
+                        console.log(gcodeObj);
+                        return sendJSON(JSON.stringify(gcodeObj));
+                    }));
+                    return result;
+                }
+
+                $("#send-gcode-btn").on("click", async (e) => {
+                    e.preventDefault();
+                    let txt = $("#gcode").val().split("\n").filter(x => x != "");
+                    console.log(txt);
+                    let result = await sendCodeList(txt);
+                    console.log(result);
+                    // we're interested in the last one:
+                    console.log(result[result.length-1]);
+                    return;
+                });
+
 
                 $("#send-btn").on("click", async (e) => { e.preventDefault(); await sendJSON($("#send-txt").val()); });
                 $("#run-btn").on("click", async (e) => {
