@@ -137,6 +137,16 @@ class Serial(object):
                     self._waiting_data = val
                 break
 
+
+    def flush(self):
+        """\
+        Flush of file like objects. In this case, wait until all data
+        is written.
+        """
+        #while self.out_waiting:
+        #    time.sleep(0.05)
+        pass
+
     def read(self, size=1):
         """
         Read size bytes from the Dummy Serial Responses.
