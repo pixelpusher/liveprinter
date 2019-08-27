@@ -88,16 +88,19 @@
                         result = await $.ajax({
                             url: "http://localhost:8888/jsonrpc",
                             type: "POST",
-                            data: JSON.stringify(args)
+                            data: JSON.stringify(args),
+                            timeout: 1000 // short!
                         });
+                        result = JSON.stringify(result);
                     }
                     catch (error) {
-                        console.log(error);
-                        $("#result-txt").val(error)
+                        // statusText field has error ("timeout" in this case)
+                        result = JSON.stringify(error, null, 2);
+                        console.log(result);
                     }
                     finally {
                         //console.log(result);
-                        $("#result-txt").val(JSON.stringify(result))
+                        $("#result-txt").val(result);
                     }
                     return result;
                 }
