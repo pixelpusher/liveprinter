@@ -16,15 +16,23 @@
                 <textarea cols="80" wrap="soft" rows="3" id="send-txt">
 { "jsonrpc": "2.0", "id": 5, "method": "set-serial-port","params": [ "dummy", 125000]}
                 </textarea>
-                <p>Also try: { "jsonrpc": "2.0", "id": 6, "method": "get-serial-ports","params": []}</p>
-                <p>Also try: { "jsonrpc": "2.0", "id": 5, "method": "set-serial-port","params": [ "dummy", 125000]}</p>
-                <p>Also try: { "jsonrpc": "2.0", "id": 4, "method": "send-gcode","params": ["G28"]}</p>
+                <p class="jsonrpc">{ "jsonrpc": "2.0", "id": 6, "method": "get-serial-ports","params": []}</p>
+                <p class="jsonrpc">{ "jsonrpc": "2.0", "id": 5, "method": "set-serial-port","params": [ "dummy", 125000]}</p>
+                <p class="jsonrpc">{ "jsonrpc": "2.0", "id": 4, "method": "send-gcode","params": ["G28"]}</p>
+                <p class="jsonrpc">{ "jsonrpc": "2.0", "id": 3, "method": "get-printer-state","params": []}</p>
+
             </div>
         </div>
 
         <div class="row">
             <div class="col-md-12">
                 <button id="send-btn" class="btn btn-lg btn-warning">send</button>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-12">
+                <button id="run-btn" class="btn btn-lg btn-warning" data-toggle="button" aria-pressed="false" autocomplete="off">run</button>
             </div>
         </div>
 
@@ -54,10 +62,10 @@
                     return r ? r[1] : undefined;
                 }
 
-                async function sendJSON() {
+                async function sendJSON(request) {
                     let result;
-                    console.log($("#send-txt").val())
-                    let args = JSON.parse($("#send-txt").val())
+                    console.log(request)
+                    let args = JSON.parse(request)
                     args._xsrf = getCookie("_xsrf");
                     console.log(args);
                     try {
@@ -78,7 +86,43 @@
                     return result;
                 }
 
-                $("#send-btn").on("click", async (e) => { e.preventDefault(); await sendJSON() });
+                let iii = 0;
+                async function runagain(elem, delay)
+                {
+                    await sendJSON(`{ "jsonrpc": "2.0", "id": 6, "method": "get-serial-ports", "params": [${iii}] }`);
+                    const running = elem.hasClass("active");
+                    iii++;
+                    console.log(iii);
+                    setTimeout(async () => {
+                        if (!running) return;
+                        else {
+                            await runagain(elem, delay);
+                        }
+                    }, delay);
+
+                }
+
+                $("#send-btn").on("click", async (e) => { e.preventDefault(); await sendJSON($("#send-txt").val()); });
+                $("#run-btn").on("click", async (e) => {
+
+                    e.preventDefault();
+                    console.log("click");
+                    if (!$(e.currentTarget).hasClass("active")) {
+                        // run
+                        runagain($("#run-btn"), 4);
+                    }
+                    else {
+                        //stop
+                    }
+                });
+
+                $(".jsonrpc").on("click", async (e) => {
+                    e.preventDefault();
+                    $("#result-txt").val("");
+                    const request = e.currentTarget.innerHTML;
+                    $("#send-txt").val(request);
+                    await sendJSON(request);
+                });
 
             });
     </script>

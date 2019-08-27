@@ -112,12 +112,11 @@ async def list_ports():
 
 
 class USBSerial():
-    def __init__(self, loop):
+    def __init__(self):
         self._serial = None
         self._serial_port = None
         self._baud_rate = 250000
         self._timeout = 1.5
-        self._event_loop = loop
         self.connection_state = ConnectionState.closed
         self.commands_sent = 0 # needed for keeping track of them
 
@@ -142,12 +141,20 @@ class USBSerial():
                     print("An exception occured while trying to create serial connection: {}".format(repr(e)))
                     result = "nope"
                     self.connection_state = ConnectionState.closed
+                    raise
         return result
+
+    async def disconnect():
+        self._serial.close()
+
 
     #
     # send a command and get result
     #
     async def send_command(self, cmd:Union[str,bytes]):
+        if self._serial is None:
+            raise ValueError("Serial port not open")
+
         index = ++self.commands_sent
         if self._serial_port is "/dev/null":
             cmd_to_send = str(cmd).encode()
@@ -160,18 +167,10 @@ class USBSerial():
             self._serial.write(cmd_to_send)    
             self._serial.flush() # do it now!
         except SerialTimeoutException:
-            print("Timeout when sending command to printer via USB.")
-
-            response = PrinterResponse(**{"type":"error", 
-                                            "message":"Timeout when sending command to printer via USB.",
-                                            'command': cmd_to_send,
-                                            'index': index})
-            return response.toDict()
-        except Exception as e:
-            Print("Error in write: {}".format(repr(e)))
-
-        
-        finally:
+            raise ValueError("Serial communication timed out whilst sending command")
+        except SerialException:
+            raise            
+        else:
             # read line -- async, sleeping if waiting
             # response = ...
             result = await self.read_response()
@@ -191,12 +190,10 @@ class USBSerial():
     async def read_response(self):
         try:
             line = self._serial.readline()
-        except portNotOpenError:
-            line="PORT NOT OPEN"
-            print("PORT NOT OPEN?")
-        except:
-            line = ""
-            print("ERROR readling line")
+        except SerialException as se:
+            line = repr(se)
+            print("line")
+            raise
 
         # only process if there's something to process
         if line:              
@@ -206,6 +203,13 @@ class USBSerial():
 
 def use_dummy_serial_port(printer:USBSerial):
     if printer._serial_port is not "/dev/null" and printer._serial is None:
+
+        def delayed_string(result:Union[str,bytes]):
+            # print ("delayed string {}".format(time.time()))
+            time.sleep(random.uniform(0.05,0.5))
+            # print ("delayed string {}".format(time.time()))
+            return result
+
         printer._serial_port ="/dev/null"
         printer._serial = dummyserial.Serial(
             port= printer._serial_port,
@@ -214,7 +218,8 @@ def use_dummy_serial_port(printer:USBSerial):
                 '.*M105.*': lambda : b'ok T:%.2f /190.0 B:%.2f /24.0 @:0 B@:0\n' % (random.uniform(170,195),random.uniform(20,35)),
                 '.*M115.*': b'FIRMWARE_NAME:DUMMY\n',
                 '.*M114.*': lambda : b'X:%.2fY:%.2fZ:%.2fE:%.2f Count X: 2.00Y:3.00Z:4.00\n' % (random.uniform(0,200), random.uniform(0,200), random.uniform(0,200), random.uniform(0,200) ),   # position request
-                '.*G.*': b'ok\n',
+                '.*G.*': lambda : delayed_string(b'ok\n'),
+                '.*M400.*': lambda : delayed_string(b'ok\n'),
                 #'^N.*': b'ok\n',
                 '^XXX': b'!!\n'
                             }
@@ -232,8 +237,10 @@ async def json_handle_gcode(printer, *args):
         print("{}".format(i))
 
     gcode = args[0]
-
-    result = await printer.send_command(gcode)
+    try:
+        result = await printer.send_command(gcode)
+    except:
+        raise
     return result
 
 #
@@ -275,8 +282,9 @@ async def json_handle_set_serial_port(printer, *args):
             await printer.async_connect()
 
         except SerialException:
-            print("ERROR: could not connect to serial port")
             reponse = "ERROR: could not connect to serial port {}".format(port)
+            print(response)
+            raise Exception(response)
 
     return response
 
@@ -298,12 +306,38 @@ async def json_handle_portslist():
     return {'ports': ports, 'time': time.time()*1000 }
 
 
+async def json_handle_printer_state(printer):
+    
+    json = None
+
+    try:
+        connectionState = printer.connection_state
+        serial_port_name = printer._serial_port
+        if printer._serial_port is "/dev/null":
+           serial_port_name = "dummy"
+           
+        json = {
+                'jsonrpc': '2.0',
+                'id': 3, 
+                'method': 'printerstate',
+                'params': {
+                    'time': time.time()*1000,
+                    'message': [connectionState.name, serial_port_name]
+                    }
+                }
+    except Exception as e:
+        # TODO: fix this to be a real error type so it gets sent to the clients properly
+       print("could not get printer state: {}".format(repr(e)))
+       raise ValueError("could not get printer state: {}".format(str(e)))
+    
+    return json
+
 
 def main():
     tornado.options.parse_command_line()
 
     loop = tornado.ioloop.IOLoop.current()
-    printer = USBSerial(loop)
+    printer = USBSerial()
 
     serial_port_func = functools.partial(json_handle_set_serial_port, printer)
 
@@ -324,6 +358,9 @@ def main():
             return result
         elif request.method == "send-gcode":
             result = await json_handle_gcode(printer, *params)
+            return result
+        elif request.method == "get-printer-state":
+            result = await json_handle_printer_state(printer)
             return result
 
         else:
