@@ -25,7 +25,7 @@ import tornado.httpserver
 import tornado.ioloop
 import tornado.options
 import tornado.web
-from serial import Serial, SerialException, SerialTimeoutException
+from serial import Serial, SerialException, SerialTimeoutException, portNotOpenError, writeTimeoutError
 import serial.tools.list_ports
 import dummyserial
 from tornado.options import define, options
@@ -42,6 +42,11 @@ from printerreponse import PrinterResponse
 
 '''
 to test:
+
+open http://localhost:8888/jsontest for web interface
+
+or directly test json API by:
+
 curl --insecure --data '{ "jsonrpc": "2.0", "id": 5, "method": "set-serial-port","params": [ "dummy", 125000]}' http://localhost:8888/jsonrpc
 curl --insecure --data '{ "jsonrpc": "2.0", "id": 6, "method": "get-serial-ports","params": []}' http://localhost:8888/jsonrpc
 '''
@@ -116,7 +121,7 @@ class USBSerial():
         self._serial = None
         self._serial_port = None
         self._baud_rate = 250000
-        self._timeout = 1.5
+        self._timeout = 0.020 # 0.20 ms
         self.connection_state = ConnectionState.closed
         self.commands_sent = 0 # needed for keeping track of them
 
@@ -124,28 +129,49 @@ class USBSerial():
     # async connect - returns a future
     #
     async def async_connect(self):
-        result = None
-
-        if self._serial is None:
-                try:
-                    self._serial = Serial(str(self._serial_port), self._baud_rate, timeout=self._timeout, writeTimeout=self._timeout)
-                    if self._serial.is_open:
-                        print ("SERIAL OPEN")
-                        printer.connection_state = ConnectionState.connected
-                        result = "open"
+        result = ""
+        try:
+            self._serial = Serial(str(self._serial_port), self._baud_rate, timeout=self._timeout, writeTimeout=self._timeout)
+            if self._serial.is_open:
+                print ("SERIAL OPEN")
+                self.connection_state = ConnectionState.connected
+                result = "open"
+            else:
+                print("SERIAL NOT OPEN")
+                self.connection_state = ConnectionState.closed
+                result = "closed"
+        except SerialException as e:
+            print("An exception occured while trying to create serial connection: {}".format(repr(e)))
+            result = "nope"
+            self.connection_state = ConnectionState.closed
+            raise
+        else:
+            # the printer is quite chatty on startup, but takes a second or so to reboot when connected
+            result = []
+            newline = ""
+            timeout = 5 # max time to wait in seconds
+            start_time = time.time()
+            got_something = False
+           
+            while time.time() - start_time < timeout:
+                new_line = await self.read_response()
+                new_line = str(new_line).rstrip('\n\r')
+                print("got::{}::".format(new_line))
+                if new_line is not "":
+                    result.append(new_line)
+                    got_something = True
+                else:
+                    if got_something:
+                        break # we're done, already got everything!
                     else:
-                        print("SERIAL NOT OPEN")
-                        self.connection_state = ConnectionState.closed
-                        result = "closed"
-                except SerialException as e:
-                    print("An exception occured while trying to create serial connection: {}".format(repr(e)))
-                    result = "nope"
-                    self.connection_state = ConnectionState.closed
-                    raise
+                        # just chill for a bit
+                        time.sleep(0.25)
         return result
 
-    async def disconnect():
+    async def disconnect(self):
         self._serial.close()
+        self.connection_state = ConnectionState.closed
+        return True
 
 
     #
@@ -154,15 +180,16 @@ class USBSerial():
     async def send_command(self, cmd:Union[str,bytes]):
         if self._serial is None:
             raise ValueError("Serial port not open")
-
-        index = ++self.commands_sent
+        self.commands_sent += 1
+        
         if self._serial_port is "/dev/null":
             cmd_to_send = str(cmd).encode()
         else:
-            checksum = functools.reduce(lambda x, y: x ^ y, map(ord, "N%d%s" % (index, cmd)))
-            cmd_to_send = str("N%d%s*%d" % (index, cmd, checksum)).encode()
+            checksum = functools.reduce(lambda x, y: x ^ y, map(ord, "N%d%s" % (self.commands_sent, cmd)))
+            cmd_to_send = str("N%d%s*%d" % (self.commands_sent, cmd, checksum)).encode()
         if not cmd_to_send.endswith(b"\n"):
             cmd_to_send += b"\n"
+        print("sending: {}".format(cmd_to_send))
         try:
             self._serial.write(cmd_to_send)    
             self._serial.flush() # do it now!
@@ -173,7 +200,16 @@ class USBSerial():
         else:
             # read line -- async, sleeping if waiting
             # response = ...
-            result = await self.read_response()
+            result = []
+            newline = ""
+            while True:
+                new_line = await self.read_response()
+                if new_line is not "":
+                    result.append(str(new_line).rstrip('\n\r'))
+                else:
+                    #if ()
+                    break;
+
             # TODO: important!!! Handle resend here. Loop a few times and sleep until sent...
             
             #response = PrinterResponse(**{"type":"result", 
@@ -184,19 +220,21 @@ class USBSerial():
             #           "message":str(result),
             #           "command":cmd_to_send,
             #           "index":index}
-            return str(result)
+            return result
 
 
     async def read_response(self):
+        line = ""
         try:
             line = self._serial.readline()
+            print("line: {}".format(line))
         except SerialException as se:
             line = repr(se)
-            print("line")
+            print("[except] line: {}".format(line))
             raise
 
         # only process if there's something to process
-        if line:              
+        if line is not "":              
             # this format seems to work best for cross-platform Marlin printers
             line = line.decode('cp437')
         return line
@@ -248,6 +286,7 @@ async def json_handle_gcode(printer, *args):
 # return the port name if successful, otherwise "error" as the port
 #
 async def json_handle_set_serial_port(printer, *args):  
+    response = ""
     for i in args:
         print("{}".format(i))
     port = args[0]
@@ -255,37 +294,31 @@ async def json_handle_set_serial_port(printer, *args):
     if baud_rate < 1: 
         baud_rate = options.baud_rate
 
-    reponse = {
-            'jsonrpc': '2.0',
-            'id': 5, 
-            'method': 'serial-port-set',
-            'params': {
-                'time': time.time()*1000,
-                'message': [port, baud_rate]
-                }
-            }
-
     print("setting serial port: {}".format(port))
-    response = [port, baud_rate]
 
     if port.lower().startswith("dummy"):
         use_dummy_serial_port(printer)
     else:        
         # TODO: check if printer serial ports are different!!
-        #if (printer.getConnectionState() == ConnectionState.connected):
-        #    printer.close()
+        if (printer.connection_state is ConnectionState.connected):
+            await printer.disconnect()
         
         printer._serial_port = port
-        printer.setBaudRate(baud_rate)
+        printer._baud_rate = baud_rate
 
         try:
-            await printer.async_connect()
+            received = await printer.async_connect()
 
         except SerialException:
-            reponse = "ERROR: could not connect to serial port {}".format(port)
+            response = "ERROR: could not connect to serial port {}".format(port)
             print(response)
             raise Exception(response)
-
+        else:
+            response = [{
+                    'time': time.time()*1000,
+                    'port': [port, baud_rate],
+                    'messages': received
+                    }]
     return response
 
 

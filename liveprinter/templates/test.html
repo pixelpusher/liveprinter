@@ -49,7 +49,7 @@
             <div class="col-md-12">
                 <h2>batch gcode</h2>
                 <textarea cols="80" wrap="soft" rows="3" id="gcode">
-                    G1 X100.0 Y0 Z0
+                    G1 X100.0 Y0 Z10 F3800
                     M400
                 </textarea>
             </div>
@@ -89,7 +89,7 @@
                             url: "http://localhost:8888/jsonrpc",
                             type: "POST",
                             data: JSON.stringify(args),
-                            timeout: 1000 // short!
+                            timeout: 3000 // might be a long wait on startup... printer takes time to start up and dump messages
                         });
                         result = JSON.stringify(result);
                     }

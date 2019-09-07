@@ -15,7 +15,7 @@ import dummyserial.constants
 
 __author__ = 'Greg Albrecht <gba@orionlabs.io> then Evan Raskob <http://pixelist.info>'
 __license__ = 'Apache License, Version 2.0'
-__copyright__ = 'Copyright 2016 Orion Labs, Inc. and 2018 Evan Raskob'
+__copyright__ = 'Copyright 2016 Orion Labs, Inc. and 2019 Evan Raskob'
 
 
 class Serial(object):
