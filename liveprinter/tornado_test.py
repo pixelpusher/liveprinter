@@ -25,6 +25,7 @@ import tornado.httpserver
 import tornado.ioloop
 import tornado.options
 import tornado.web
+from tornado import gen
 from serial import Serial, SerialException, SerialTimeoutException, portNotOpenError, writeTimeoutError
 import serial.tools.list_ports
 import dummyserial
@@ -206,9 +207,11 @@ class USBSerial():
                 new_line = await self.read_response()
                 if new_line is not "":
                     result.append(str(new_line).rstrip('\n\r'))
-                else:
+                elif len(result) is not 0:
                     #if ()
                     break;
+                else:
+                    await gen.sleep(0.05)
 
             # TODO: important!!! Handle resend here. Loop a few times and sleep until sent...
             

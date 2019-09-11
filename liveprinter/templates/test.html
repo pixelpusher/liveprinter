@@ -89,7 +89,7 @@
                             url: "http://localhost:8888/jsonrpc",
                             type: "POST",
                             data: JSON.stringify(args),
-                            timeout: 3000 // might be a long wait on startup... printer takes time to start up and dump messages
+                            timeout: 60000 // might be a long wait on startup... printer takes time to start up and dump messages
                         });
                         result = JSON.stringify(result);
                     }
