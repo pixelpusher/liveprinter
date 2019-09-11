@@ -34,6 +34,7 @@ import functools
 from tornado_jsonrpc2.handler import JSONRPCHandler
 from tornado_jsonrpc2.exceptions import MethodNotFound
 import time
+import re
 from enum import IntEnum
 from typing import Union, Optional, List
 from printerreponse import PrinterResponse
@@ -65,6 +66,12 @@ class TestHandler(tornado.web.RequestHandler):
         result = await self.printer.async_connect()
         self.write("Hello, world: {}".format(repr(result)))
 
+class MainHandler(tornado.web.RequestHandler):
+    def get(self):
+        try:
+            self.render("index.html")
+        except Exception as e:
+            print("ERROR in GET: {}".format(repr(e)))
         
 class JsonTestHandler(tornado.web.RequestHandler):
     def check_xsrf_cookie(self):
@@ -131,6 +138,7 @@ class USBSerial():
     #
     async def async_connect(self):
         result = ""
+        self.commands_sent = 0 # reset on each connection
         try:
             self._serial = Serial(str(self._serial_port), self._baud_rate, timeout=self._timeout, writeTimeout=self._timeout)
             if self._serial.is_open:
@@ -206,23 +214,62 @@ class USBSerial():
             while True:
                 new_line = await self.read_response()
                 if new_line is not "":
-                    result.append(str(new_line).rstrip('\n\r'))
+                    line = str(new_line)
+                    lowerline = line.lower()
+
+                    # PARSE RESPONSES BY MARLIN/FIRMWARE VERSION
+
+                    # TODO: handle this better - just resend last command!  No
+                    # need for the magic bits
+                    # Loop a few times and sleep until sent...
+
+                    if 'resend' in lowerline or lowerline.startswith('rs'):
+                        # A resend can be requested either by Resend, resend or
+                        # rs.
+                        error_msg = "Printer signals resend. {}".format(line)
+                        result.append(error_msg)
+                        print(error_msg)
+
+                    # TEMPERATURE
+                    elif "ok T:" in line or line.startswith("T:") or "ok B:" in line or line.startswith("B:"):  # Temperature message.  'T:' for extruder and 'B:' for bed
+                        
+                        response_props = dict();
+
+                        print("temp response: {}".format(line))
+                        extruder_temperature_matches = re.findall("T(\d*): ?([\d\.]+) ?\/?([\d\.]+)?", line)
+                        # Update all temperature values
+                        # line looks like: b'ok T:24.7 /0.0 B:23.4 /0.0 @:0
+                        # B@:0\n'
+                        # OR b'T:176.1 E:0 W:?\n'
+                        if len(extruder_temperature_matches) > 0:
+                            match = extruder_temperature_matches[0]
+                            ### NOTE: hot end (tool number) is the first match
+                            ### (0)
+                            response_props["hotend"] = match[1]
+                    
+                            if match[2]:                         
+                                response_props["hotend_target"] = match[2]
+                
+                        bed_temperature_matches = re.findall("B: ?([\d\.]+) ?\/?([\d\.]+)?", line)
+
+                        if len(bed_temperature_matches) > 0:
+                            match = bed_temperature_matches[0]
+                            response_props["bed"] = match[0]
+                            response_props["bed_target"] = match[1]
+                        result.append(response_props)
+                    # END TEMP PARSING
+
+
+                    # DEFAULT RESPONSE - JUST SEND BACK TO FRONT END
+                    else:
+                        result.append(line.rstrip('\n\r'))
+
+                # nothing received via serial - timeout
                 elif len(result) is not 0:
-                    #if ()
-                    break;
+                    break; # if we have something, break out of here!
                 else:
                     await gen.sleep(0.05)
 
-            # TODO: important!!! Handle resend here. Loop a few times and sleep until sent...
-            
-            #response = PrinterResponse(**{"type":"result", 
-            #                                "message":result,
-            #                                "command":cmd_to_send,
-            #                                "index":index})
-            #response = {"type":"result", 
-            #           "message":str(result),
-            #           "command":cmd_to_send,
-            #           "index":index}
             return result
 
 
@@ -409,6 +456,7 @@ def main():
             xsrf_cookies=False,
         )
     handlers = [
+        (r"/", MainHandler),
         (r"/test", TestHandler, dict(printer=printer)),
         (r"/jsontest", JsonTestHandler),
         # (r"/jsonrpc", JSONHandler),

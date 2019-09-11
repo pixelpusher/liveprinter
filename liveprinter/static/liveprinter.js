@@ -225,11 +225,14 @@ $.when($.ready).then(
 
         //});
 
-
-        //////////////////////////////////////////////////////////////////////////////////////////
+        /////////////////////////////////////////////////////////////////////////////////////////////////////////
+        /////////////////////////////////////////////////////////////////////////////////////////////////////////
+        /////////////////////////////////////////////////////////////////////////////////////////////////////////
         // Codemirror:
         // https://codemirror.net/doc/manual.html
-        //////////////////////////////////////////////////////////////////////////////////////////
+        /////////////////////////////////////////////////////////////////////////////////////////////////////////
+        /////////////////////////////////////////////////////////////////////////////////////////////////////////
+        /////////////////////////////////////////////////////////////////////////////////////////////////////////
 
         /**
          * CodeMirror code editor instance (local code). See {@link https://codemirror.net/doc/manual.html}
@@ -422,115 +425,129 @@ $.when($.ready).then(
         }
         window.doError = doError;
 
-        /**
-         * blink an element using css animation class
-         * @param {JQuery} $elem element to blink
-         * @param {String} speed "fast" or "slow" 
-         * @param {Function} callback function to run at end
-         * @memberOf LivePrinter
-         */
+        //-------------------------------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------------------------------------------------------
+        //----------- LIVEPRINTER BACKEND JSON-RPC API ----------------------------------------------------------------------------
+        //-------------------------------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------------------------------------------------------
 
-        function blinkElem($elem, speed, callback) {
-            $elem.removeClass("blinkit fast slow"); // remove to make sure it's not there
-            $elem.on("animationend", function () {
-                if (callback !== undefined && typeof callback === "function") callback();
-                $(this).removeClass("blinkit fast slow");
-            });
-            if (speed === "fast") {
-                $elem.addClass("blinkit fast");
+        /**
+         * Send a JSON-RPC request to the backend, get a response back. See below implementations for details.
+         * @param {Object} request JSON-RPC formatted request object
+         * @returns {Object} response JSON-RPC response object
+         */
+        async function sendJSONRPC(request) {
+            let result;
+            //console.log(request)
+            let args = typeof request === "string" ? JSON.parse(request) : request;
+            //args._xsrf = getCookie("_xsrf");
+            //console.log(args);
+            try {
+                result = await $.ajax({
+                    url: "http://localhost:8888/jsonrpc",
+                    type: "POST",
+                    data: JSON.stringify(args),
+                    timeout: 60000 // might be a long wait on startup... printer takes time to start up and dump messages
+                });
+                result = JSON.stringify(result);
             }
-            else if (speed === "slow") {
-                $elem.addClass("blinkit slow");
-            } else {
-                $elem.addClass("blinkit");
+            catch (error) {
+                // statusText field has error ("timeout" in this case)
+                result = JSON.stringify(error, null, 2);
+                console.log(result);
             }
+            finally {
+                // DEBUGGING
+                console.log("JSON-RPC");
+                console.log(result);
+                //$("#result-txt").val(result);
+            }
+            return JSON.parse(result);
         }
+        window.scope.sendJSONRPC = sendJSONRPC;
+
+
+        /**
+         * Run a list of gcode asynchronously in a sequence and return list fo responses when finished
+         * @param {Array} list List of GCode lines to run
+         * @returns {Object} JSON-RPC object with result
+         */
+        async function sendGCodeList(list) {
+            let gcodeObj = { "jsonrpc": "2.0", "id": 4, "method": "send-gcode", "params": [] };
+
+            let result = await Promise.all(list.map(async (gcode) => {
+                gcodeObj.params = [gcode];
+                //console.log(gcodeObj);
+                return sendJSONRPC(JSON.stringify(gcodeObj));
+            }));
+            return result;
+        }
+        window.scope.sendGCodeList = sendGCodeList;
 
         /**
          * Get the list of serial ports from the server (or refresh it) and display in the GUI (the listener will take care of that)
          * @memberOf LivePrinter
+         * @returns {Object} result Returns json object containing result
          */
-        function getSerialPorts() {
+        async function getSerialPorts() {
             const message = {
                 'jsonrpc': '2.0',
                 'id': 6,
                 'method': 'get-serial-ports',
                 'params': []
             };
-            socketHandler.sendMessage(message);
+            const result = await sendJSONRPC(JSON.stringify(message));
+            return result;
         }
         // expose as global
         window.scope.getSerialPorts = getSerialPorts;
 
+        /**
+         * Set the serial port from the server (or refresh it) and display in the GUI (the listener will take care of that)
+         * @memberOf LivePrinter
+         * @param {String} port Name of the port (machine)
+         * @returns {Object} result Returns json object containing result
+         */
+        async function setSerialPort({ port, baudRate }) {
+            const message = {
+                'jsonrpc': '2.0',
+                'id': 5,
+                'method': 'set-serial-port',
+                'params': [port, baudRate]
+            };
+            const result = await sendJSONRPC(JSON.stringify(message));
+            return result;
+        }
+        // expose as global
+        window.scope.setSerialPort = setSerialPort;
 
         /**
          * Get the connection state of the printer and display in the GUI (the listener will take care of that)
          * @memberOf LivePrinter
+         * @returns {Object} result Returns json object containing result
          */
-        function getPrinterState() {
+        async function getPrinterState() {
             const message = {
                 'jsonrpc': '2.0',
-                'id': 6,
+                'id': 3,
                 'method': 'get-printer-state',
                 'params': []
             };
-            socketHandler.sendMessage(message);
+            const result = await sendJSONRPC(JSON.stringify(message));
+            return result;
         }
         // expose as global
         window.scope.getPrinterState = getPrinterState;
 
 
-        /**
-         * Toggle the language mode for livecoding scripts between Javascript and Python.
-         * @memberOf LivePrinter
-         */
-        function setLanguageMode() {
-            if (pythonMode) {
-                CodeEditor.setOption("gutters", ["CodeMirror-linenumbers", "CodeMirror-foldgutter"]);
-                CodeEditor.setOption("mode", "text/x-python");
-                CodeEditor.setOption("lint", true);
+        //-------------------------------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------------------------------------------------------
+        //----------- GCODE PREPARING/SENDING -------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------------------------------------------------------
 
-                GlobalCodeEditor.setOption("gutters", ["CodeMirror-linenumbers", "CodeMirror-foldgutter"]);
-                GlobalCodeEditor.setOption("mode", "text/x-python");
-                GlobalCodeEditor.setOption("lint", true);
-
-            } else {
-                CodeEditor.setOption("gutters", ["CodeMirror-lint-markers", "CodeMirror-linenumbers", "CodeMirror-foldgutter"]);
-                CodeEditor.setOption("mode", "javascript");
-                CodeEditor.setOption("lint", {
-                    globalstrict: true,
-                    strict: false,
-                    esversion: 6
-                });
-
-                GlobalCodeEditor.setOption("gutters", ["CodeMirror-lint-markers", "CodeMirror-linenumbers", "CodeMirror-foldgutter"]);
-                GlobalCodeEditor.setOption("mode", "javascript");
-                GlobalCodeEditor.setOption("lint", {
-                    globalstrict: true,
-                    strict: false,
-                    esversion: 6
-                });
-            }
-        }
-
-        /**
-         * build examples loader links for dynamically loading example files
-         * @memberOf LivePrinter
-         */
-        let exList = $("#examples-list > .dropdown-item").not("[id*='session']");
-        exList.on("click", function () {
-            let me = $(this);
-            let filename = me.data("link");
-            clearError(); // clear loading errors
-            var jqxhr = $.ajax({ url: filename, dataType: "text" })
-                .done(function (content) {
-                    let newDoc = CodeMirror.Doc(content, "javascript");
-                    blinkElem($(".CodeMirror"), "slow", () => CodeEditor.swapDoc(newDoc));
-                })
-                .fail(function () {
-                    doError({ name: "error", message: "file load error:" + filename });
-                });
-        });
 
         /**
          * Strip GCode comments from text. Comments can be embedded in a line using parentheses () or for the remainder of a lineusing a semi-colon.
@@ -548,35 +565,14 @@ $.when($.ready).then(
             return line.replace(re1, '').replace(re2, ''); //.replace(re3, ''));
         };
 
-        /**
-         * Convert code to JSON RPC for sending to the server.
-         * @param {string} gcode to convert
-         * @returns {string} json message
-         * @memberOf LivePrinter
-         * 
-         */
-        function codeToJSON(gcode) {
-            if (typeof gcode === 'string') gcode = [gcode]; // needs to be array
-
-            if (typeof gcode === 'object' && Array.isArray(gcode)) {
-                let message = {
-                    'jsonrpc': '2.0',
-                    'id': 1,
-                    'method': 'gcode',
-                    'params': gcode
-                };
-                let message_json = JSON.stringify(message);
-                return message_json;
-            }
-            else throw new Error("invalid gcode in sendGCode[" + typeof text + "]:" + text);
-        }
 
         /**
          * Send GCode to the server via websockets.
          * @param {string} gcode gcode to send
          * @memberOf LivePrinter
+         * @returns {Object} result Returns json object containing result
          */
-        function sendGCode(gcode) {
+        async function sendGCode(gcode) {
 
             // remove all comments from lines and reconstruct
             let gcodeLines = gcode.replace(new RegExp(/\n+/g), '\n').split('\n');
@@ -613,15 +609,16 @@ $.when($.ready).then(
                 GCodeEditor.setSelection(pos, newpos);
                 GCodeEditor.scrollIntoView(newpos);
             }
-            let message = codeToJSON(cleanGCode);
-            socketHandler.sendMessage(message);
+            const result = await sendGCodeList(cleanGCode);
+            return result;
         }
 
         /**
-         * Run GCode from the editor by sending to the server via websockets.
+         * Run GCode from the editor by sending to the server.
          * @memberOf LivePrinter
+         * @returns {Object} result Returns json object containing result
          */
-        function runGCode() {
+        async function runGCode() {
             let code = GCodeEditor.getSelection();
             const cursor = GCodeEditor.getCursor();
 
@@ -634,23 +631,10 @@ $.when($.ready).then(
                 code = GCodeEditor.getLine(cursor.line);
                 GCodeEditor.setSelection({ line: cursor.line, ch: 0 }, { line: cursor.line, ch: code.length });
             }
-            sendGCode(code);
+            let result = await sendGCode(code);
+            return result;
         }
-
-        /**
-         * queue to be run after OK -- for movements, etc.
-         * only if necessary... send if nothing is already in the queue
-         * @param {string} gcode to send
-         * @memberOf LivePrinter
-         */
-        function queueGCode(gcode) {
-            let message = codeToJSON(gcode);
-            if (outgoingQueue.length > 0)
-                outgoingQueue.push(message);
-            else
-                socketHandler.sendMessage(message);
-        }
-
+        
         /**
          * This function takes the highlighted "local" code from the editor and runs the compiling and error-checking functions.
          * @memberOf LivePrinter
@@ -705,29 +689,73 @@ $.when($.ready).then(
         }
 
         /**
-         * Function to start or stop polling for temperature updates
-         * @param {Boolean} state true if starting, false if stopping
-         * @param {Integer} interval time interval between updates
+         * RequestRepeat:
+         * Utility to send a JSON-RPC request repeatedly whilst a "button" is pressed (it has an "active" CSS class)
+         * @param {Object} jsonObject
+         * @param {JQuery} activeElem JQuery element to check for active class
+         * @param {Integer} delay Delay between repeated successful calls in millis
+         * @param {Function} func Callback to run on result
+         * @returns {Object} JsonRPC response object
+         */
+        async function requestRepeat(jsonObject, activeElem, delay, func) {
+            const result = await sendJSONRPC(jsonObject);
+            func(result);
+
+            const running = activeElem.hasClass("active");
+            
+            setTimeout(async () => {
+                if (!running) return;
+                else {
+                    await requestRepeat(jsonObject, activeElem, delay, func);
+                }
+            }, delay);
+
+            return true;
+        }
+
+
+        /**
+         * json-rpc temperature event handler
          * @memberOf LivePrinter
          */
-        const updateTemperature = function (state, interval = 5000) {
+        const tempHandler = (tempEvent) => {
+            console.log("temp event:");
+            console.log(tempEvent);
 
-            if (state) {
-                // schedule temperature updates every little while
-                window.scope.Scheduler.scheduleEvent({
-                    name: "tempUpdates",
-                    delay: interval,
-                    run: (time) => {
-                        sendGCode("M105");
-                    },
-                    repeat: true,
-                    ignorable: true
-                });
-            } else {
-                // stop updates
-                window.scope.Scheduler.removeEventByName("tempUpdates");
-            }
+            const data = tempEvent.result[0]; // first object in results array
+            let tmp = parseFloat(data.hotend).toFixed(2);
+            let target = parseFloat(data.hotend_target).toFixed(2);
+            let tmpbed = parseFloat(data.bed).toFixed(2);
+            let targetbed = parseFloat(data.bed_target).toFixed(2);
+
+            $("input[name='temphot']").val(target);
+            $("input[name='tempbed']").val(targetbed);
+            let $tt = $("input[name='temphot-target']")[0];
+            if ($tt !== $(document.activeElement)) $tt.value = tmp;
+            //$("input[name='temphot-target']").val(tmp);
+            $("input[name='tempbed-target']").val(tmpbed);
         };
+
+        async function updateTemperature(interval = 5000) {
+            return requestRepeat({ "jsonrpc": "2.0", "id": 4, "method": "send-gcode", "params": ["M105"] }, //get temp
+                $("#temp-display-btn"), // temp button
+                interval,
+                tempHandler);
+        }
+        
+
+        $("#temp-display-btn").on("click", function () {
+            let me = $(this);
+            let doUpdates = !me.hasClass('active'); // because it becomes active *after* a push
+            if (doUpdates) {
+                me.text("stop polling temperature");
+                updateTemperature();
+            }
+            else {
+                me.text("start polling Temperature");
+            }
+            me.button('toggle');
+        });
 
 
         /**
@@ -984,7 +1012,7 @@ $.when($.ready).then(
         socketHandler.registerListener(jsonrpcPositionListener);
 
         $("#gcode").select();  // focus on code input
-        socketHandler.start(); // start websockets
+        // socketHandler.start(); // start websockets
 
 
         // message to tell printer to send all responses 
@@ -994,50 +1022,6 @@ $.when($.ready).then(
             "method": "response",
             "params": []
         });
-
-        /**
-         * json-rpc temperature event handler
-         * @memberOf LivePrinter
-         */
-        const tempHandler = {
-            'temperature': function (tempEvent) {
-                //console.log("temp event:");
-                //console.log(tempEvent);
-                let tmp = parseFloat(tempEvent.hotend).toFixed(2);
-                let target = parseFloat(tempEvent.hotend_target).toFixed(2);
-                let tmpbed = parseFloat(tempEvent.bed).toFixed(2);
-                let targetbed = parseFloat(tempEvent.bed_target).toFixed(2);
-
-                $("input[name='temphot']").val(target);
-                $("input[name='tempbed']").val(targetbed);
-                let $tt = $("input[name='temphot-target']")[0];
-                if ($tt !== $(document.activeElement)) $tt.value = tmp;
-                //$("input[name='temphot-target']").val(tmp);
-                $("input[name='tempbed-target']").val(tmpbed);
-                /*
-                $("#temperature > p").html(
-                    '<strong>TEMPERATURE: hotend/target:'
-                    + tmp + " / " + target
-                    + '::::: bed/target'
-                    + tmpbed + " / " + targetbed
-                    + '</strong>' +
-                    );
-                */
-                // look for 10% diff, it's not very accurate...
-                /*
-                if ((Math.abs(tmp - target) / target) < 0.10) {
-                    let gcodeString = "";
-                    for (var i=1; i<5; i++)
-                    {
-                            gcodeString +='M300 P200 S' + i*220+'\n';
-                    }
-                    sendGCode(gcodeString);
-                }
-                */
-            }
-        };
-        socketHandler.registerListener(tempHandler);
-
 
         /**
          * json-rpc printer state (connected/disconnected) event handler
@@ -1488,9 +1472,89 @@ $.when($.ready).then(
             }
         }
 
-        ////////////////////////////////////////////////////////
-        ///////////////// GUI SETUP ////////////////////////////
         /////////////////////////////////////////////////////////////////////////////////////////////////////////
+        /////////////////////////////////////////////////////////////////////////////////////////////////////////
+        /////////////////////////////////////////////////////////////////////////////////////////////////////////
+        ///////////////// GUI SETUP /////////////////////////////////////////////////////////////////////////////
+        /////////////////////////////////////////////////////////////////////////////////////////////////////////
+        /////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+        /**
+         * blink an element using css animation class
+         * @param {JQuery} $elem element to blink
+         * @param {String} speed "fast" or "slow" 
+         * @param {Function} callback function to run at end
+         * @memberOf LivePrinter
+         */
+
+        function blinkElem($elem, speed, callback) {
+            $elem.removeClass("blinkit fast slow"); // remove to make sure it's not there
+            $elem.on("animationend", function () {
+                if (callback !== undefined && typeof callback === "function") callback();
+                $(this).removeClass("blinkit fast slow");
+            });
+            if (speed === "fast") {
+                $elem.addClass("blinkit fast");
+            }
+            else if (speed === "slow") {
+                $elem.addClass("blinkit slow");
+            } else {
+                $elem.addClass("blinkit");
+            }
+        }
+
+        /**
+         * Toggle the language mode for livecoding scripts between Javascript and Python.
+         * @memberOf LivePrinter
+         */
+        function setLanguageMode() {
+            if (pythonMode) {
+                CodeEditor.setOption("gutters", ["CodeMirror-linenumbers", "CodeMirror-foldgutter"]);
+                CodeEditor.setOption("mode", "text/x-python");
+                CodeEditor.setOption("lint", true);
+
+                GlobalCodeEditor.setOption("gutters", ["CodeMirror-linenumbers", "CodeMirror-foldgutter"]);
+                GlobalCodeEditor.setOption("mode", "text/x-python");
+                GlobalCodeEditor.setOption("lint", true);
+
+            } else {
+                CodeEditor.setOption("gutters", ["CodeMirror-lint-markers", "CodeMirror-linenumbers", "CodeMirror-foldgutter"]);
+                CodeEditor.setOption("mode", "javascript");
+                CodeEditor.setOption("lint", {
+                    globalstrict: true,
+                    strict: false,
+                    esversion: 6
+                });
+
+                GlobalCodeEditor.setOption("gutters", ["CodeMirror-lint-markers", "CodeMirror-linenumbers", "CodeMirror-foldgutter"]);
+                GlobalCodeEditor.setOption("mode", "javascript");
+                GlobalCodeEditor.setOption("lint", {
+                    globalstrict: true,
+                    strict: false,
+                    esversion: 6
+                });
+            }
+        }
+
+        /**
+         * build examples loader links for dynamically loading example files
+         * @memberOf LivePrinter
+         */
+        let exList = $("#examples-list > .dropdown-item").not("[id*='session']");
+        exList.on("click", function () {
+            let me = $(this);
+            let filename = me.data("link");
+            clearError(); // clear loading errors
+            var jqxhr = $.ajax({ url: filename, dataType: "text" })
+                .done(function (content) {
+                    let newDoc = CodeMirror.Doc(content, "javascript");
+                    blinkElem($(".CodeMirror"), "slow", () => CodeEditor.swapDoc(newDoc));
+                })
+                .fail(function () {
+                    doError({ name: "error", message: "file load error:" + filename });
+                });
+        });
 
         $("#connect-btn").on("click", function (e) {
             e.preventDefault();
@@ -1589,19 +1653,6 @@ $.when($.ready).then(
 
         $("#basic-addon-retract").on("click", () => window.scope.printer.currentRetraction = parseFloat($("input[name=retract]")[0].value));
 
-
-        $("#temp-display-btn").on("click", function () {
-            let me = $(this);
-            let doUpdates = !me.hasClass('active'); // because it becomes active *after* a push
-            updateTemperature(doUpdates);
-            if (doUpdates) {
-                me.text("stop polling temperature");
-            }
-            else {
-                me.text("start polling Temperature");
-            }
-            me.button('toggle');
-        });
 
         $("#refresh-serial-ports-btn").on("click", function () {
             let me = $(this);
