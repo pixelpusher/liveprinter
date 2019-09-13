@@ -6,6 +6,16 @@
     <!-- Required meta tags -->
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <title>LivePrinter async API test</title>
+    <style type="text/css">
+        .response {
+            color: dimgrey;
+            font-style:italic;
+        }
+        .jsonrpc {
+            color: darkred;
+            font-weight: bold;
+        }
+    </style>
 </head>
 <body>
     <div class="container" id="body">
@@ -17,9 +27,13 @@
 { "jsonrpc": "2.0", "id": 5, "method": "set-serial-port","params": [ "dummy", 125000]}
                 </textarea>
                 <p class="jsonrpc">{ "jsonrpc": "2.0", "id": 6, "method": "get-serial-ports","params": []}</p>
+                <p class="response">{"jsonrpc":"2.0","id":6,"result":{"ports":["COM3","dummy"],"time":1568371926204.6528}}</p>
                 <p class="jsonrpc">{ "jsonrpc": "2.0", "id": 5, "method": "set-serial-port","params": [ "dummy", 125000]}</p>
+                <p class="response">{"jsonrpc":"2.0","id":5,"result":[{"time":1568375167280.751,"port":["COM3",250000],"messages":["start","echo:Marlin 1.0.0","echo: Last Updated: Dec  8 2018 13:25:37 | Author: Version DEV","Compiled: Dec  8 2018","echo: Free Memory: 2123  PlannerBufferBytes: 1232","echo:Stored settings retrieved","echo:Steps per unit:","echo:  M92 X80.00 Y80.00 Z200.00 E282.00","echo:Maximum feedrates (mm/s):","echo:  M203 X300.00 Y300.00 Z40.00 E45.00","echo:Maximum Acceleration (mm/s2):","echo:  M201 X9000 Y9000 Z100 E10000","echo:Acceleration: S=acceleration, T=retract acceleration","echo:  M204 S3000.00 T3000.00","echo:Advanced variables: S=Min feedrate (mm/s), T=Min travel feedrate (mm/s), B=minimum segment time (ms), X=maximum XY jerk (mm/s),  Z=maximum Z jerk (mm/s),  E=maximum E jerk (mm/s)","echo:  M205 S0.00 T0.00 B20000 X20.00 Z0.40 E5.00","echo:Home offset (mm):","echo:  M206 X0.00 Y0.00 Z-12.15","echo:PID settings:","echo:   M301 P10.00 I2.50 D100.00"]}]}</p>
                 <p class="jsonrpc">{ "jsonrpc": "2.0", "id": 4, "method": "send-gcode","params": ["G28"]}</p>
                 <p class="jsonrpc">{ "jsonrpc": "2.0", "id": 3, "method": "get-printer-state","params": []}</p>
+                <p class="response">{"jsonrpc":"2.0","id":3,"result":[{"time":1568371930335.6362,"port":null,"state":"closed"}]}</p>
+                <p class="jsonrpc">{ "jsonrpc": "2.0", "id": 2, "method": "close-serial-port","params": []}</p>
 
             </div>
         </div>
@@ -63,15 +77,41 @@
     </div>
 
     <link rel="stylesheet" href="{{ static_url("lib/cached/bootstrap.min.css") }}" type="text/css">
-    <script src="{{ static_url("lib/cached/jquery-3.3.1.min.js") }}"></script>
-    <script src="{{ static_url("lib/cached/popper.min.js") }}"></script>
-    <script src="{{ static_url("lib/cached/bootstrap.min.js") }}"></script>
+    <script type="text/javascript" src="{{ static_url("lib/cached/jquery-3.3.1.min.js") }}"></script>
+    <script type="text/javascript" src="{{ static_url("lib/cached/popper.min.js") }}"></script>
+    <script type="text/javascript" src="{{ static_url("lib/cached/bootstrap.min.js") }}"></script>
+    <script type="text/javascript" src="{{ static_url("lib/bottleneck-light.js") }}"></script>
 
     <script type="text/javascript">
 
         $.when($.ready).then(
             function () {
                 "use strict;"
+
+                // Bottlneck rate limiter package: https://www.npmjs.com/package/bottleneck
+                // prevent more than 1 request from running at a time
+                const limiter = new Bottleneck({
+                    maxConcurrent: 1,
+                    minTime: 10,
+                    highWater: 10000, // max jobs
+                    strategy: Bottleneck.strategy.OVERFLOW, // don't accpt new jobs over highwater
+                });
+
+                // const result = await limiter.schedule(({priority: 1, id:"something"}) => myFunction(arg1, arg2));
+                //
+                // or
+                //const wrapped = limiter.wrap(myFunction);
+                //
+                //const result = await wrapped(arg1, arg2);
+
+                // Make sure the function you pass to schedule() or wrap() only returns once all the work it does has completed.
+
+                limiter.on("dropped", function (dropped) {
+                    console.log("dropped:");
+                    console.log(dropped);
+                //   This will be called when a strategy was triggered.
+                //   The dropped request is passed to this event listener.
+                 });
 
                 function getCookie(name) {
                     var r = document.cookie.match("\\b" + name + "=([^;]*)\\b");
