@@ -40,10 +40,11 @@ Task.prototype = {
 };
 
 
+(async function() {
+    "use strict";
 
-$.when($.ready).then(
-    function () {
-        "use strict";
+    await $.ready();
+
 
         if (!window.console) window.console = {};
         if (!window.console.log) window.console.log = function () { };
@@ -78,7 +79,7 @@ $.when($.ready).then(
          */
         window.scope.Scheduler = {
             ScheduledEvents: [],
-            schedulerInterval: 5,
+            schedulerInterval: 10,
             timerID: null,
             startTime: Date.now(),
             eventsToRemove: [], // list to be handed on update cycle
@@ -171,7 +172,7 @@ $.when($.ready).then(
 
                     // run events 
                     me.ScheduledEvents.filter(
-                        event => {
+                        async event => {
                             let keep = true;
                             let tdiff = event.time - time;
                             if (tdiff < 1) {
@@ -180,11 +181,12 @@ $.when($.ready).then(
                                 // if we're behind, don't run this one...
                                 //if (!event.ignorable && tdiff > -event.delay * 2) {
                                 //if (!event.ignorable) {
-                                event.run(event.time);
+                                await event.run(event.time);
                                 if (!event.system) me.eventsListeners.map(listener => { if (listener.EventRun !== undefined) listener.EventRun(event); });
                                 //}
                                 if (event.repeat) {
                                     // try to keep to original time
+                                    // TODO: might be an issue if events run over in time!!
                                     event.time = event.time + event.delay;
                                     keep = true;
                                 }
@@ -485,6 +487,112 @@ $.when($.ready).then(
         }
         window.scope.sendGCodeList = sendGCodeList;
 
+
+    /**
+    * json-rpc printer state (connected/disconnected) event handler
+    * @memberOf LivePrinter
+    */
+    const printerStateHandler = function (stateEvent) {
+        //console.log(stateEvent);
+        const printerTab = $("#header");
+        const printerState = stateEvent.result[0].state;
+        const printerPort = stateEvent.result[0].port;
+
+        switch (printerState) {
+            case "connected":
+                if (!printerTab.hasClass("blinkgreen")) {
+                    printerTab.addClass("blinkgreen");
+                }
+                // highlight connected port
+                $("#serial-ports-list").children().each((i, elem) => {
+                    let $elem = $(elem);
+                    if (elem.innerText === printerPort) {
+                        if (!$elem.hasClass("active")) {
+                            $elem.addClass("active");
+                            $("#connect-btn").text("disconnect").addClass("active"); // toggle connect button
+                        }
+                    } else {
+                        $elem.removeClass("active");
+                    }
+                });
+                break;
+            case "closed":
+                printerTab.removeClass("blinkgreen");
+                break;
+            case "error":
+
+                break;
+        }
+    };
+
+
+
+    /**
+     * json-rpc serial ports list event handler
+     * @memberOf LivePrinter
+     */
+    const portsListHandler = function (event) {
+        const ports = event.result[0].ports;
+        window.scope.serialPorts = []; // reset serial ports list
+        let portsDropdown = $("#serial-ports-list");
+        //console.log("list of serial ports:");
+        //console.log(event);
+        portsDropdown.empty();
+        if (ports.length === 0) {
+            appendLoggingNode($("#info > ul"), Date.now(), "<li>no serial ports found</li > ");
+            window.scope.serialPorts.push("dummy");
+        }
+        else {
+            let msg = "<ul>Serial ports found:";
+            for (let p of ports) {
+                msg += "<li>" + p + "</li>";
+                window.scope.serialPorts.push(p);
+            }
+            msg += "</ul>";
+            appendLoggingNode($("#info > ul"), Date.now(), msg);
+        }
+
+        window.scope.serialPorts.forEach(function (port) {
+            //console.log("PORT:" + port);
+            let newButton = $('<button class="dropdown-item" type="button" data-port-name="' + port + '">' + port + '</button>');
+            //newButton.data("portName", port);
+            newButton.click(async function (e) {
+                e.preventDefault();
+                const me = $(this);
+                const baudRate = $("#baudrates-list .active").data("rate");
+
+                console.log("baudRate:");
+                console.log(baudRate);
+                await setSerialPort({ port, baudRate });
+
+                await getPrinterState(); // check if we are conncected truly
+                $("#serial-ports-list > button").removeClass("active");
+                me.addClass("active");
+                $("#connect-btn").text("disconnect").addClass("active"); // toggle connect button
+                return;
+            });
+            portsDropdown.append(newButton);
+        });
+
+        // build baud rates selection menu
+
+        const allBaudRates = [115200, 250000, 230400, 57600, 38400, 19200, 9600];
+
+        allBaudRates.forEach(rate => {
+            //console.log("PORT:" + port);
+            let newButton = $('<button class="dropdown-item" type="button" data-rate="' + rate + '">' + rate + '</button>');
+            // default rate
+            if (rate === 250000) {
+                newButton.addClass("active");
+            }
+            $("#baudrates-list").append(newButton);
+        });
+
+        blinkElem($("#serial-ports-list"));
+        blinkElem($("#info-tab"));
+    };
+
+
         /**
          * Get the list of serial ports from the server (or refresh it) and display in the GUI (the listener will take care of that)
          * @memberOf LivePrinter
@@ -498,6 +606,8 @@ $.when($.ready).then(
                 'params': []
             };
             const result = await sendJSONRPC(JSON.stringify(message));
+
+            portsListHandler(result);
             return result;
         }
         // expose as global
@@ -516,7 +626,20 @@ $.when($.ready).then(
                 'method': 'set-serial-port',
                 'params': [port, baudRate]
             };
-            const result = await sendJSONRPC(JSON.stringify(message));
+            const response = await sendJSONRPC(JSON.stringify(message));
+            if (response.result.length > 0) {
+                if (!response.result[0].messages) {
+                    loginfo(response.result[0]);
+                }
+                else {
+                    loginfo("connected to port " + response.result[0].port[0] + " at baud rate " + response.result[0].port[1]);
+                    loginfo("startup messages:");
+                    for (const msg of response.result[0].messages) {
+                        loginfo(msg);
+                    }
+                }
+            }
+            
             return result;
         }
         // expose as global
@@ -535,6 +658,7 @@ $.when($.ready).then(
                 'params': []
             };
             const result = await sendJSONRPC(JSON.stringify(message));
+            printerStateHandler(result);
             return result;
         }
         // expose as global
@@ -744,7 +868,7 @@ $.when($.ready).then(
         }
         
 
-        $("#temp-display-btn").on("click", function () {
+        $("#temp-display-btn").on("click", async function (e) {
             let me = $(this);
             let doUpdates = !me.hasClass('active'); // because it becomes active *after* a push
             if (doUpdates) {
@@ -764,7 +888,7 @@ $.when($.ready).then(
          * @param {Integer} interval time interval between updates
          * @memberOf LivePrinter
          */
-        const updatePrinterState = function (state, interval = 2000) {
+        const updatePrinterState = function (state, interval = 10000) {
             const name = "stateUpdates";
 
             if (state) {
@@ -772,10 +896,10 @@ $.when($.ready).then(
                 window.scope.Scheduler.scheduleEvent({
                     name: name,
                     delay: interval,
-                    run: (time) => {
-                        if (socketHandler.socket.readyState === socketHandler.socket.OPEN) {
-                            getPrinterState();
-                        }
+                    run: async (time) => {
+                        //if (socketHandler.socket.readyState === socketHandler.socket.OPEN) {
+                            await getPrinterState();
+                        //}
                     },
                     repeat: true,
                     system: true // system event, non-cancellable by user
@@ -840,31 +964,6 @@ $.when($.ready).then(
                     node.hide();
                     $("#info").prepend(node);
                     node.slideDown();
-
-                    //
-                    // start listening for server responses
-                    //
-                    window.scope.Scheduler.scheduleEvent({
-                        name: "queryResponses",
-                        delay: 10,
-                        run: function (event) {
-                            socketHandler.sendMessage(responseJSON);
-                        },
-                        repeat: true,
-                        ignorable: true,
-                        system: true // system event, non-cancellable by user
-                    });
-
-                    updatePrinterState(true); // start updating printer connection state
-
-                    let message = {
-                        'jsonrpc': '2.0',
-                        'id': 6,
-                        'method': 'get-serial-ports',
-                        'params': []
-                    };
-                    let message_json = JSON.stringify(message);
-                    this.send(message_json);
                 };
 
                 this.socket.onclose = function (e) {
@@ -1023,47 +1122,7 @@ $.when($.ready).then(
             "params": []
         });
 
-        /**
-         * json-rpc printer state (connected/disconnected) event handler
-         * @memberOf LivePrinter
-         */
-        const printerStateHandler = {
-            'printerstate': function (stateEvent) {
-                //console.log(stateEvent);
-                const printerTab = $("#header");
-                const printerState = stateEvent.message[0];
-                const printerPort = stateEvent.message[1];
-
-                switch (printerState) {
-                    case "connected":
-                        if (!printerTab.hasClass("blinkgreen")) {
-                            printerTab.addClass("blinkgreen");
-                        }
-                        // highlight connected port
-                        $("#serial-ports-list").children().each((i, elem) => {
-                            let $elem = $(elem);
-                            if (elem.innerText === printerPort) {
-                                if (!$elem.hasClass("active")) {
-                                    $elem.addClass("active");
-                                    $("#connect-btn").text("disconnect").addClass("active"); // toggle connect button
-                                }
-                            } else {
-                                $elem.removeClass("active");
-                            }
-                        });
-                        break;
-                    case "closed":
-                        printerTab.removeClass("blinkgreen");
-                        break;
-                    case "error":
-
-                        break;
-                }
-            }
-        };
-        socketHandler.registerListener(printerStateHandler);
-
-
+        
         /**
          * json-rpc error event handler
          * @memberOf LivePrinter
@@ -1230,79 +1289,7 @@ $.when($.ready).then(
 
         socketHandler.registerListener(okHandler);
 
-
-        /**
-         * json-rpc serial ports list event handler
-         * @memberOf LivePrinter
-         */
-        const portsListHandler = {
-            'serial-ports-list': function (event) {
-                window.scope.serialPorts = []; // reset serial ports list
-                let portsDropdown = $("#serial-ports-list");
-                //console.log("list of serial ports:");
-                //console.log(event);
-                portsDropdown.empty();
-                if (event.message.length === 0) {
-                    appendLoggingNode($("#info > ul"), Date.now(), "<li>no serial ports found</li > ");
-                    window.scope.serialPorts.push("dummy");
-                }
-                else {
-                    let msg = "<ul>Serial ports found:";
-                    for (let p of event.message) {
-                        msg += "<li>" + p + "</li>";
-                        window.scope.serialPorts.push(p);
-                    }
-                    msg += "</ul>";
-                    appendLoggingNode($("#info > ul"), Date.now(), msg);
-                }
-
-                window.scope.serialPorts.forEach(function (port) {
-                    //console.log("PORT:" + port);
-                    let newButton = $('<button class="dropdown-item" type="button" data-port-name="' + port + '">' + port + '</button>');
-                    //newButton.data("portName", port);
-                    newButton.click(function (e) {
-                        e.preventDefault();
-                        let me = $(this);
-                        let baudrate = $("#baudrates-list .active").data("rate");
-
-                        console.log("baudrate:");
-                        console.log(baudrate);
-
-                        let message = {
-                            'jsonrpc': '2.0',
-                            'id': 6,
-                            'method': 'set-serial-port',
-                            'params': [me.data("portName"), baudrate]
-                        };
-                        socketHandler.sendMessage(message);
-                        $("#serial-ports-list > button").removeClass("active");
-                        me.addClass("active");
-                        $("#connect-btn").text("disconnect").addClass("active"); // toggle connect button
-                    });
-                    portsDropdown.append(newButton);
-                });
-
-                // build baud rates selection menu
-
-                const allBaudRates = [115200, 250000, 230400, 57600, 38400, 19200, 9600];
-
-                allBaudRates.forEach(rate => {
-                    //console.log("PORT:" + port);
-                    let newButton = $('<button class="dropdown-item" type="button" data-rate="' + rate + '">' + rate + '</button>');
-                    // default rate
-                    if (rate === 250000) {
-                        newButton.addClass("active");
-                    }
-                    $("#baudrates-list").append(newButton);
-                });
-
-                blinkElem($("#serial-ports-list"));
-                blinkElem($("#info-tab"));
-            }
-        };
-
-        socketHandler.registerListener(portsListHandler);
-
+    
         ////////////////////////////////////////////////////////////////////////
         /////////////// Utility functions
         ///////////////////////////////////////////////////////////////////////
@@ -1556,7 +1543,7 @@ $.when($.ready).then(
                 });
         });
 
-        $("#connect-btn").on("click", function (e) {
+        $("#connect-btn").on("click", async function (e) {
             e.preventDefault();
             const notCalledFromCode = !(e.namespace !== undefined && e.namespace === "");
             if (notCalledFromCode) {
@@ -1569,11 +1556,13 @@ $.when($.ready).then(
                         // check for non-code-initiated click
                         const message = {
                             'jsonrpc': '2.0',
-                            'id': 6,
-                            'method': 'disconnect-serial-port',
-                            'params': ["none"]
+                            'id': 2,
+                            'method': 'close-serial-port',
+                            'params': []
                         };
-                        if (socketHandler.sendMessage(message)) {
+                        let response = await sendJSONRPC(message);
+
+                        if (response.result.length > 0 && response.result[0] === "closed") {
                             me.text("connect");
                             $("#serial-ports-list > button").removeClass("active");
                         }
@@ -1654,9 +1643,17 @@ $.when($.ready).then(
         $("#basic-addon-retract").on("click", () => window.scope.printer.currentRetraction = parseFloat($("input[name=retract]")[0].value));
 
 
-        $("#refresh-serial-ports-btn").on("click", function () {
-            let me = $(this);
-            getSerialPorts();
+        $("#refresh-serial-ports-btn").on("click", async function (e) {
+            e.preventDefault();
+
+            if (!this.working) {
+                this.working = true;
+            }
+            else {
+                await getSerialPorts();
+                this.working = false;
+            }
+            return true;
         });
 
         $("#python-mode-btn").on("click", function (e) {
@@ -2035,7 +2032,7 @@ $.when($.ready).then(
                         code = "let lp = window.scope.printer;" + code;
                         code = "let sched = window.scope.Scheduler;" + code;
                         code = "let socket = window.scope.socket;" + code;
-                        code = "let gcode = window.scope.sendGCode;" + code;
+                        code = "let gcode = (gc) => ( window.scope.sendGCode(gc).catch(err => doError(err)) );" + code;
                         code = "let s = window.scope;" + code;
 
                         // wrap code in anonymous function to avoid redeclaring scope variables and
@@ -2085,5 +2082,10 @@ $.when($.ready).then(
         // start scheduler!
         window.scope.Scheduler.startScheduler();
 
+        await getSerialPorts();
+        updatePrinterState(true); // start updating printer connection state
+
         //brython(10);
-    });
+})().catch(err => {
+    console.error(err);
+});

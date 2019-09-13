@@ -129,7 +129,7 @@ class USBSerial():
         self._serial = None
         self._serial_port = None
         self._baud_rate = 250000
-        self._timeout = 0.020 # 0.20 ms
+        self._timeout = 0.1 # 100 ms
         self.connection_state = ConnectionState.closed
         self.commands_sent = 0 # needed for keeping track of them
 
@@ -161,6 +161,7 @@ class USBSerial():
             timeout = 5 # max time to wait in seconds
             start_time = time.time()
             got_something = False
+
            
             while time.time() - start_time < timeout:
                 new_line = await self.read_response()
@@ -180,7 +181,7 @@ class USBSerial():
     async def disconnect(self):
         self._serial.close()
         self.connection_state = ConnectionState.closed
-        return True
+        return self.connection_state
 
 
     #
@@ -371,6 +372,15 @@ async def json_handle_set_serial_port(printer, *args):
                     }]
     return response
 
+#
+# Disconnect current serial port
+# return the conenction state name (closed, open, etc.)
+#
+async def json_handle_close_serial(printer, *args):  
+    response = ""
+    result = await printer.disconnect() # connection_state
+    response = result.name
+    return [response]
 
 #
 # Handle request for serial ports from front end
@@ -386,34 +396,27 @@ async def json_handle_portslist():
 
     ports.append("dummy")
     
-    return {'ports': ports, 'time': time.time()*1000 }
+    return [{'ports': ports, 'time': time.time()*1000 }]
 
 
+#
+# return the name of the serial port and connection state
+#
 async def json_handle_printer_state(printer):
     
-    json = None
+    response = []
 
-    try:
-        connectionState = printer.connection_state
-        serial_port_name = printer._serial_port
-        if printer._serial_port is "/dev/null":
-           serial_port_name = "dummy"
-           
-        json = {
-                'jsonrpc': '2.0',
-                'id': 3, 
-                'method': 'printerstate',
-                'params': {
-                    'time': time.time()*1000,
-                    'message': [connectionState.name, serial_port_name]
-                    }
-                }
-    except Exception as e:
-        # TODO: fix this to be a real error type so it gets sent to the clients properly
-       print("could not get printer state: {}".format(repr(e)))
-       raise ValueError("could not get printer state: {}".format(str(e)))
-    
-    return json
+    connectionState = printer.connection_state
+    serial_port_name = printer._serial_port
+
+    if printer._serial_port is "/dev/null":
+        serial_port_name = "dummy"
+    response.append({
+        'time': time.time()*1000,
+        'port': serial_port_name,
+        'state': connectionState.name
+        })
+    return response
 
 
 def main():
@@ -444,6 +447,9 @@ def main():
             return result
         elif request.method == "get-printer-state":
             result = await json_handle_printer_state(printer)
+            return result
+        elif request.method == "close-serial-port":
+            result = await json_handle_close_serial(printer)
             return result
 
         else:
