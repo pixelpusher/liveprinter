@@ -478,19 +478,16 @@
         }
 
         // get iterable list of functions -- runs the function and returns index / total
-        *run(args) {
-            const funcsList = this.getFuncs(); // array
-            const totalFuncs = funcsList.length - 1;
+        async run(args) {
+            let funcsList = this.getFuncs(); // array
 
-            yield* function* () {
-                for (let f of funcsList) {
-                    const func = f[0];
-                    const index = f[1];
-                    const part = f[2];
-                    func({ index, part }, args); // see above function: 
-                    yield { 'index': index, 'part': part, 'total': totalFuncs };
-                }
-            }();
+            for await (let f of funcsList) {
+                const func = f[0];
+                const index = f[1];
+                const part = f[2];
+                await func({ index, part }, args); // see above function: ))
+            }
+            return true;
         }
 
 

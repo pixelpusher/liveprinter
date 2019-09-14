@@ -34,7 +34,7 @@ class Printer {
      * @constructor
      * @param {Function} _messageSendFunc function to pass in that will send messages to the server/physical printer
      */
-    constructor(_messageSendFunc = null) {
+    constructor(_messageSendFunc = null, _errorFunc = console.log) {
 
         /////---------------------------------------------
         // Shortcuts --------------------------------------
@@ -51,12 +51,15 @@ class Printer {
 
         /**
          *  the function (Websockets or other) that this object will use to send gcode to the printer
-         *  @type {Function}
+         *  @type {Function} An asynchronous function... run immediately. This looks odd, but otherwise 
+         *  everything would have to be asynchronous in the editor, which makes the syntax much more difficult.
          */
         this.send = _messageSendFunc;
 
         if (this.send === null) {
-            this.send = msg => console.log(msg);
+            this.send = async msg => {
+                console.log(msg); return true;
+            };
         }
         this._layerHeight = 0.2; // thickness of a 3d printed extrudion, mm by default
         this.lastSpeed = -1.0;
@@ -273,14 +276,9 @@ class Printer {
      * Retraction speed - updates firmware on printer too
      * @param {Number} s Speed in mm/s
      */
-    set retractSpeed(s) {
+    async setRetractSpeed(s) {
         this._retractSpeed = s * 60;
-        this.sendFirmwareRetractSettings();
-    }
-    // shortcut
-    set rsp(s) {
-        this._retractSpeed = s * 60;
-        this.sendFirmwareRetractSettings();
+        await this.sendFirmwareRetractSettings();
     }
 
     /**
@@ -317,11 +315,11 @@ class Printer {
      * Send the current retract settings to the printer (useful when updating the retraction settings locally)
      * @returns {Printer} reference to this object for chaining
     */
-    sendFirmwareRetractSettings() {
+    async sendFirmwareRetractSettings() {
         // update firmware retract settings
-        this.send("M207 S" + this.retractLength + " F" + this._retractSpeed + " Z" + this.unretractZHop);
+        await this.send("M207 S" + this.retractLength + " F" + this._retractSpeed + " Z" + this.unretractZHop);
         //set retract recover
-        this.send("M208 S" + (this.retractLength + this.extraUnretract) + "F" + this._retractSpeed);
+        await this.send("M208 S" + (this.retractLength + this.extraUnretract) + "F" + this._retractSpeed);
 
         return this;
     }
@@ -344,7 +342,7 @@ class Printer {
      * // retract again with same settings
      * lp.turnto(45).dist(50).go(1).retract();
      */
-    retract(len = this.retractLength, speed) {
+    async retract(len = this.retractLength, speed) {
         if (this.currentRetraction > 0) return; // don't retract twice!
 
         if (len < 0) throw new Error("retract length can't be less than 0: " + len);
@@ -355,8 +353,8 @@ class Printer {
             if (speed <= 0) throw new Error("retract speed can't be 0 or less: " + speed);
             // set speed safely!
             if (speed > Printer.maxPrintSpeed["e"]) throw new Error("retract speed to high: " + speed);
-            this.retractSpeed = speed;
-            this.sendFirmwareRetractSettings();
+            this._retractSpeed = speed;
+            await this.sendFirmwareRetractSettings();
         }
         // RETRACT        
         this.currentRetraction += this.retractLength;
@@ -365,11 +363,11 @@ class Printer {
 
         if (!this.firmwareRetract) {
             const fixedE = this.e.toFixed(4);
-            this.send("G1 " + "E" + fixedE + " F" + this._retractSpeed.toFixed(4));
+            await this.send("G1 " + "E" + fixedE + " F" + this._retractSpeed.toFixed(4));
             this.e = parseFloat(fixedE); // make sure e is actually e even with rounding errors!
         } else {
             // retract via firmware otherwise
-            this.send("G10");
+            await this.send("G10");
         }
 
         return this;
@@ -392,7 +390,7 @@ class Printer {
      * lp.turnto(45).dist(50).go(1).retract(6,30);
      * lp.unretract(8,30); // extract a little more to get it going
      */
-    unretract(len = this.currentRetraction, speed) {
+    async unretract(len = this.currentRetraction, speed) {
         if (this.currentRetraction < 0.01) return; // don't unretract if we don't have to!
 
         const sendSettings = (len !== this.currentRetraction || speed !== undefined);
@@ -403,9 +401,9 @@ class Printer {
             if (speed <= 0) throw new Error("retract speed can't be 0 or less: " + speed);
             // set speed safely!
             if (speed > Printer.maxPrintSpeed["e"]) throw new Error("retract speed to high: " + speed);
-            this.retractSpeed = speed;
+            this._retractSpeed = speed;
         }
-        if (sendSettings) this.sendFirmwareRetractSettings();
+        if (sendSettings) await this.sendFirmwareRetractSettings();
         // UNRETRACT
 
         this.e += this.currentRetraction + this.extraUnretract;
@@ -413,11 +411,12 @@ class Printer {
         //unretract manually first if needed
         if (!this.firmwareRetract) {
             // account for previous retraction
-            this.send("G1 " + "E" + this.e.toFixed(4) + " F" + this._retractSpeed.toFixed(4));
+
+            await this.send("G1 " + "E" + this.e.toFixed(4) + " F" + this._retractSpeed.toFixed(4));
 
         } else {
             // unretract via firmware otherwise
-            this.send("G11");
+            await this.send("G11");
         }
         this.e = parseFloat(this.e.toFixed(4));
         this.currentRetraction = 0;
@@ -433,13 +432,13 @@ class Printer {
      * @param {float} bedTemp is the temperature to start warming bed up to
      * @returns {Printer} reference to this object for chaining
      */
-    start(hotEndTemp = "190", bedTemp = "50") {
-        this.send("G28");
-        this.send("M114"); // get current position
-        this.send("M106 S0"); // set fan to full
-        this.send("M104 S" + hotEndTemp); //heater 1 temp
-        this.send("M140 S" + bedTemp); // bed temp
-        this.sendFirmwareRetractSettings();
+    async start(hotEndTemp = "190", bedTemp = "50") {
+        await this.send("G28");
+        await this.send("M114"); // get current position
+        await this.send("M106 S0"); // set fan to full
+        await this.send("M104 S" + hotEndTemp); //heater 1 temp
+        //this.send("M140 S" + bedTemp); // bed temp
+        await this.sendFirmwareRetractSettings();
         //this.moveto({ x: this.cx, y: this.cy, z: this.maxz, speed: Printer.defaultPrintSpeed });
         //this.send("M106 S100"); // set fan to full
 
@@ -454,8 +453,8 @@ class Printer {
      * @param {float} temp is the temperature to start warming up to
      * @returns {Printer} reference to this object for chaining
      */
-    temp(temp = "190") {
-        this.send("M104 S" + temp);
+    async temp(temp = "190") {
+        await this.send("M104 S" + temp);
         return this;
     }
 
@@ -465,8 +464,8 @@ class Printer {
      * @param {float} temp is the temperature to start warming up to
      * @returns {Printer} reference to this object for chaining
      */
-    bed(temp = "190") {
-        this.send("M140 S" + temp);
+    async bed(temp = "190") {
+        await this.send("M140 S" + temp);
         return this;
     }
 
@@ -475,8 +474,8 @@ class Printer {
      * @param {float} speed is the speed from 0-100 
      * @returns {Printer} reference to this object for chaining
      */
-    fan(speed = "100") {
-        this.send("M106 S" + speed);
+    async  fan(speed = "100") {
+        await this.send("M106 S" + speed);
         return this;
     }
 
@@ -504,7 +503,7 @@ class Printer {
      * @param {Boolean} retract Whether to retract at end (usually true). Set to 0 if executing a few moves in a row
      * @returns {Printer} reference to this object for chaining
      */
-    go(extruding = false, retract = true) {
+    async go(extruding = false, retract = true) {
         // wait, if necessary
         if (this._waitTime > 0) {
             return this.wait();
@@ -541,7 +540,7 @@ class Printer {
             this._zdistance = 0;
             this._elevation = 0;
 
-            return this.extrude({ x: _x, y: _y, z: _z, e: _e, 'retract': (retract && extruding) }); // don't retract if not extruding!
+            return await this.extrude({ x: _x, y: _y, z: _z, e: _e, 'retract': (retract && extruding) }); // don't retract if not extruding!
         }
         // never reached
         return this;
@@ -748,14 +747,14 @@ class Printer {
      * @param {Boolean} state True if on, false if off
      * @returns {Printer} this printer object for chaining
      */
-    fwretract(state) {
+    async fwretract(state) {
         this.firmwareRetract = state;
         // tell firmware we're handling it, or not
         if (this.fwretract) {
-            this.send("M209 S" + 0);
+            await this.send("M209 S" + 0);
         }
         else {
-            this.send("M209 S" + 1);
+            await this.send("M209 S" + 1);
         }
         return this;
     }
@@ -776,7 +775,7 @@ class Printer {
      * @param {any} r radius
      * @param {any} segs segments (more means more perfect circle)
      */
-    polygon(r, segs = 10) {
+    async polygon(r, segs = 10) {
         // law of cosines
         const r2x2 = r * r * 2;
         const segAngle = Math.PI * 2 / segs;
@@ -789,7 +788,7 @@ class Printer {
         for (let i = 0; i < segs; i++) {
             this.turn(segAngle, true); // use radians
             // print without retraction
-            this.dist(arc).go(1, false);
+            await this.dist(arc).go(1, false);
         }
     }
 
@@ -799,11 +798,11 @@ class Printer {
      * @param {any} h height
      * @returns {Printer} reference to this object for chaining
      */
-    rect(w, h) {
+    async rect(w, h) {
         for (let i = 0; i < 2; i++) {
-            this.dist(w).go(1, false);
+            await this.dist(w).go(1, false);
             this.turn(90);
-            this.dist(h).go(1, false);
+            await this.dist(h).go(1, false);
             this.turn(90);
         }
         return this;
@@ -815,7 +814,7 @@ class Printer {
     *      Optional bounce (Boolean) key if movement should bounce off sides.
     * @returns {Printer} reference to this object for chaining
     */
-    extrudeto(params) {
+    async extrudeto(params) {
         let extrusionSpecified = (params.e !== undefined);
         let retract = (params.retract === undefined) ? !extrusionSpecified : params.retract; // don't retract if given e value alone, no matter what
 
@@ -909,7 +908,7 @@ class Printer {
         // Handle movements outside printer boundaries if there's a need.
         // Tail recursive.
         //
-        this._extrude(_speed, velocity, distanceMag, retract);
+        await this._extrude(_speed, velocity, distanceMag, retract);
 
         return this;
     } // end extrudeto
@@ -919,20 +918,20 @@ class Printer {
      * @param {Int} speed print speed in mm/s
      * @param {boolean} retract if true (default) add GCode for retraction/unretraction. Will use either hardware or software retraction if set in Printer object
      * */
-    sendExtrusionGCode(speed, retract = true) {
+    async sendExtrusionGCode(speed, retract = true) {
         if (retract && this.currentRetraction > 0.01) {
             //unretract manually first if needed
             this.e += this.currentRetraction + this.extraUnretract;
             let newE = this.e.toFixed(4);
             if (!this.firmwareRetract) {
                 // account for previous retraction
-                this.send("G1 " + "E" + newE + " F" + this._retractSpeed.toFixed(4));
+                await this.send("G1 " + "E" + newE + " F" + this._retractSpeed.toFixed(4));
             } else {
                 // unretract via firmware otherwise
-                this.send("G11");
+                await this.send("G11");
             }
             this.e = parseFloat(newE);
-            this.currentRetraction = 0;
+            this.currentRetraction = 0;;
         }
 
         // G1 - Coordinated Movement X Y Z E
@@ -942,7 +941,7 @@ class Printer {
         moveCode.push("Z" + this.z.toFixed(4));
         moveCode.push("E" + this.e.toFixed(4));
         moveCode.push("F" + (speed * 60).toFixed(4)); // mm/s to mm/min
-        this.send(moveCode.join(" "));
+        await this.send(moveCode.join(" "));
 
         // RETRACT
         if (retract && this.retractLength > 0 && this.currentRetraction < 0.01) {
@@ -950,10 +949,10 @@ class Printer {
             this.e -= this.currentRetraction;
 
             if (this.firmwareRetract) {
-                this.send("G10");
+                await this.send("G10");
                 // this is handled in hardware                       
             } else {
-                this.send("G1 " + "E" + this.e.toFixed(4) + " F" + this._retractSpeed.toFixed(4));
+                await this.send("G1 " + "E" + this.e.toFixed(4) + " F" + this._retractSpeed.toFixed(4));
             }
         }
         // account for errors in decimal precision
@@ -962,7 +961,9 @@ class Printer {
         this.y = parseFloat(this.y.toFixed(4));
         this.z = parseFloat(this.z.toFixed(4));
 
-        this.send("M400"); // finish all moves
+        //await this.send("M400"); // finish all moves
+
+        return this;
     } // end sendExtrusionGCode
 
 
@@ -978,7 +979,7 @@ class Printer {
      * @param {Object} params Parameters dictionary containing either x,y,z keys or direction/angle (radians) keys and retract setting (true/false).
      * @returns {Printer} reference to this object for chaining
      */
-    extrude(params) {
+    async extrude(params) {
         // first, handle distance/angle mode
         if (params.dist !== undefined) {
             params.dist = parseFloat(params.dist);
@@ -1006,7 +1007,7 @@ class Printer {
         }
 
         // extrude using absolute cartesian coords
-        return this.extrudeto(params);
+        return await this.extrudeto(params);
     } // end extrude
 
 
@@ -1015,11 +1016,11 @@ class Printer {
      * @param {any} params Can be specified as x,y,z,e or dist (distance), angle (xy plane), elev (z dir). All in mm.
      * @returns {Printer} reference to this object for chaining
      */
-    move(params) {
+    async move(params) {
         params.e = 0; // no filament extrusion
         params.retract = false;
         params.speed = (params.speed === undefined) ? this.travelSpeed : parseFloat(params.speed);
-        return this.extrude(params);
+        return await this.extrude(params);
     }
 
     /**
@@ -1027,11 +1028,11 @@ class Printer {
      * @param {any} params Can be specified as x,y,z,e. All in mm.
      * @returns {Printer} reference to this object for chaining
      */
-    moveto(params) {
+    async moveto(params) {
         params.e = this.e; // keep filament at current position
         params.retract = false;
         params.speed = (params.speed === undefined) ? this.travelSpeed : parseFloat(params.speed);
-        return this.extrudeto(params);
+        return await this.extrudeto(params);
     }
 
     /**
@@ -1061,18 +1062,21 @@ class Printer {
      * @param {Number} gap gap between fills
      * @param {Boolean} retract retract when finished
      */
-    fillDirection(w, h, gap, retract = true) {
+    async fillDirection(w, h, gap, retract = true) {
         if (gap === undefined) gap = 1.5 * this.layerHeight;
         if (retract !== undefined && retract) this.unretract();
 
         for (let i = 0; i < h / gap; i++) {
             let m = (i % 2 === 0) ? -1 : 1;
             this.turn(-90 * m);
-            this.dist(w).go(1, false);
+            await this.dist(w).go(1, false);
             this.turn(90 * m); //turn back
-            this.dist(gap).go(1, false);
+            await this.dist(gap).go(1, false);
         }
-        if (retract !== undefined && retract) this.retract();
+        if (retract !== undefined && retract)
+            await this.retract();
+
+        return this;
     }
 
 
@@ -1083,33 +1087,36 @@ class Printer {
      * @param {Number} gap gap between fills
      * @param {Boolean} retract retract when finished
      */
-    fillDirectionH(w, h, gap, retract = true) {
+    async fillDirectionH(w, h, gap, retract = true) {
         if (gap === undefined) gap = 1.5 * this.layerHeight;
         if (retract !== undefined && retract) this.unretract();
         let times = w / gap;
         if (times < 3) {
             // just room for one
-            this.dist(h).go(1, false);
+            await this.dist(h).go(1, false);
         }
         else {
             if (times % 2 !== 0) times += 1; // got to be odd so we return to same place smoothly
             for (let i = 0; i < times; i++) {
                 let m = (i % 2 === 0) ? -1 : 1;
-                this.dist(h).go(1, false);
+                await this.dist(h).go(1, false);
                 this.turn(m * 90).dist(gap).go(1, false);
                 this.turn(m * 90); //turn back
             }
             this.turn(180);
         }
-        if (retract !== undefined && retract) this.retract();
+        if (retract !== undefined && retract)
+            await this.retract();
+        return this;
     }
 
     /**
      * Synchronise variables like position and temp
      */
-    sync() {
-        this.send("M115"); // temperature
-        this.send("M114"); // position
+    async sync() {
+        await this.send("M115"); // temperature
+        await this.send("M114"); // position
+        return this;
     }
 
     /**
@@ -1208,12 +1215,12 @@ class Printer {
      * @param {float} lh the layerheight (or gap, if larger)
      * @returns {Printer} reference to this object for chaining
      */
-    fill(w, h, lh = this.layerHeight) {
+    async fill(w, h, lh = this.layerHeight) {
         let inc = lh * Math.PI; // not totally sure why this works, but experimentally it does
         for (var i = 0, y = 0; y < h; i++ , y += inc) {
             let m = (i % 2 === 0) ? 1 : -1;
-            this.move({ y: inc });
-            this.extrude({ x: m * w });
+            await this.move({ y: inc });
+            await this.extrude({ x: m * w });
         }
         return this;
     }
@@ -1262,8 +1269,8 @@ class Printer {
      * @param {float} ms to wait
      * @returns {Printer} reference to this object for chaining
      */
-    wait(ms = this._waitTime) {
-        this.send("G4 P" + ms);
+    async wait(ms = this._waitTime) {
+        await this.send("G4 P" + ms);
         this._waitTime = 0;
         return this;
     }
@@ -1272,12 +1279,12 @@ class Printer {
      * Temporarily pause the printer: move the head up, turn off fan & temp
      * @returns {Printer} reference to this object for chaining
      */
-    pause() {
+    async pause() {
         // retract filament, turn off fan and heater wait
-        this.extrude({ e: -16, speed: 250 });
-        this.move({ z: -3 });
-        this.send("M104 S0"); // turn off temp
-        this.send("M107 S0"); // turn off fan
+        await this.extrude({ e: -16, speed: 250 });
+        await this.move({ z: -3 });
+        await this.send("M104 S0"); // turn off temp
+        await this.send("M107 S0"); // turn off fan
         return this;
     }
 
@@ -1286,10 +1293,10 @@ class Printer {
      * @param {float} temp target temp
      * @returns {Printer} reference to this object for chaining
      */
-    resume(temp = "190") {
-        this.send("M109 S" + temp); // turn on temp, but wait until full temp reached
-        this.send("M106 S100"); // turn on fan
-        this.extrude({ e: 16, speed: 250 });
+    async resume(temp = "190") {
+        await this.send("M109 S" + temp); // turn on temp, but wait until full temp reached
+        await this.send("M106 S100"); // turn on fan
+        await this.extrude({ e: 16, speed: 250 });
         return this;
     }
 
@@ -1305,7 +1312,7 @@ class Printer {
            [50,30]];
         lp.printPaths({paths:p,minZ:0.2,passes:10});
      */
-    printPaths({ paths = [[]], y = 0, x = 0, z = 0, w = 0, h = 0, useaspect = true, passes = 1, safeZ = 0 }) {
+    async printPaths({ paths = [[]], y = 0, x = 0, z = 0, w = 0, h = 0, useaspect = true, passes = 1, safeZ = 0 }) {
         safeZ = safeZ || (this.layerHeight * passes + 10);   // safe z for traveling
 
         // total bounds
@@ -1398,7 +1405,7 @@ class Printer {
                 // print each segment, one by one
                 for (let segmentIdx = 0, segmentLength = pathCopy.length; segmentIdx < segmentLength; segmentIdx++) {
                     const segment = pathCopy[segmentIdx];
-                    this.extrudeto({
+                    await this.extrudeto({
                         'x': xmapping(segment[0]),
                         'y': ymapping(segment[1]),
                         'retract': false
@@ -1410,8 +1417,8 @@ class Printer {
                 }
                 else {
                     // path finished, retract and raise up head
-                    this.retract();
-                    this.moveto({ 'z': safeZ });
+                    await this.retract();
+                    await this.moveto({ 'z': safeZ });
                 }
             }
         }
@@ -1431,7 +1438,7 @@ class Printer {
                [50,30]];
             lp.printPaths({paths:p,minZ:0.2,passes:10});
          */
-    printPathsThick({ paths = [[]], y = 0, x = 0, z = 0, w = 0, h = 0, t = 1, useaspect = true, passes = 1, safeZ = 0 }) {
+    async printPathsThick({ paths = [[]], y = 0, x = 0, z = 0, w = 0, h = 0, t = 1, useaspect = true, passes = 1, safeZ = 0 }) {
         safeZ = safeZ || (this.layerHeight * passes + 10);   // safe z for traveling
 
         t = this.layerHeight * 2.5 * t;
@@ -1536,7 +1543,7 @@ class Printer {
 
                         if (newAngle !== currentAngle) {
                             // print current path and make new w/h
-                            this.fillDirectionH(currentW || 2, currentH || 2, t);
+                            await this.fillDirectionH(currentW || 2, currentH || 2, t);
                             currentW = currentH = 0;
                             this.turn(newAngle);
                             currentAngle = newAngle;
@@ -1552,13 +1559,136 @@ class Printer {
                 }
                 else {
                     // path finished, retract and raise up head
-                    this.moveto({ 'z': safeZ });
+                    await this.moveto({ 'z': safeZ });
                 }
             }
         }
         return this;
     }
 
+    async _extrude (speed, moveVector, leftToMove, retract) {
+        // if there's nowhere to move, return
+        //console.log(that);
+        //console.log("left to move:" + leftToMove);
+        //console.log(moveVector);
+
+        if (isNaN(leftToMove) || leftToMove < 0.01) {
+            //console.log("(extrude) end position:" + that.x + ", " + that.y + ", " + that.z + ", " + that.e);
+            return false;
+        }
+
+        let amountMoved = Math.min(leftToMove, this.maxMovePerCycle);
+
+        // calculate next position
+        let nextPosition = Vector.add(this.position, Vector.mult(moveVector, amountMoved));
+
+        //console.log("VECTOR:");
+        //console.log(moveVector);
+
+        //console.log("CURRENT:");
+        //console.log(that.position);
+
+        //console.log("NEXT:");
+        //console.log(nextPosition);
+
+        if (this.boundaryMode === "bounce") {
+            let moved = new Vector();
+            let outsideBounds = false;
+
+            // calculate movement time per axis, based on printer bounds
+
+            for (const axis in nextPosition.axes) {
+                // TODO:
+                // for each axis, see where it intersects the printer bounds
+                // then, using velocity, get other axes positions at that point
+                // if any of them are over, skip to next axis
+                if (axis !== "e") {
+                    if (nextPosition.axes[axis] > this.maxPosition.axes[axis]) {
+                        // hit - calculate up to min position
+                        moved.axes[axis] = (this.maxPosition.axes[axis] - this.position.axes[axis]) / moveVector.axes[axis];
+                        outsideBounds = true;
+                    } else if (nextPosition.axes[axis] < this.minPosition.axes[axis]) {
+                        // hit - calculate up to min position
+                        moved.axes[axis] = (this.minPosition.axes[axis] - this.position.axes[axis]) / moveVector.axes[axis];
+                        outsideBounds = true;
+                    }
+                }            //else {
+                //    moved.axes[axis] = nextPosition.axes[axis] - that.position.axes[axis];
+                //}
+            }
+            //console.log("moved:");
+            //console.log(moved);
+
+            if (outsideBounds) {
+                //console.log("outside");
+                let shortestAxisTime = 99999;
+                let shortestAxes = [];
+
+                // find shortest time before an axis was hit
+                // if it hits two (or more?) at the same time, mark both
+                for (const axis in moved.axes) {
+                    if (moved.axes[axis] === shortestAxisTime) {
+                        shortestAxes.push(axis);
+                    } else if (moved.axes[axis] < shortestAxisTime) {
+                        shortestAxes = [axis];
+                        shortestAxisTime = moved.axes[axis];
+                    }
+                }
+                //console.log("shortest axis:");
+                //console.log(shortestAxes);
+                //console.log("shortest axis TIME:");
+                //console.log(shortestAxisTime);
+
+
+                const amountMovedVec = Vector.mult(moveVector, shortestAxisTime);
+                amountMoved = amountMovedVec.mag();
+                //console.log("amt moved:" + amountMoved + " / " + leftToMove);
+                //console.log("next:");
+                //console.log(nextPosition);
+                nextPosition.axes = this.clipToPrinterBounds(Vector.add(this.position, amountMovedVec).axes);
+                //console.log(nextPosition);
+
+                // reverse velocity if axis bounds hit, for shortest axis
+                for (const axis of shortestAxes) {
+                    moveVector.axes[axis] = moveVector.axes[axis] * -1;
+                }
+            }
+        } else {
+            this.clipToPrinterBounds(nextPosition.axes);
+        }
+        leftToMove -= amountMoved;
+
+        // update current position
+        //console.log("current pos:")
+        //console.log(that.position);
+
+        // DON'T DO THIS ANYMORE... counter-intuitive!
+        //that._elevation = Math.asin(moveVector.axes.z);
+        this.position.set(nextPosition);
+        //console.log("next pos:");
+        //console.log(nextPosition);
+        //console.log(that.position);
+        //console.log(that);
+
+        await this.sendExtrusionGCode(speed, retract);
+
+        // handle cases where velocity is 0 (might be movement up or down)
+
+        //console.log("prev heading:" + this._heading);
+        //console.log("move vec:" + moveVector.axes.x + ", " + moveVector.axes.y);
+
+        let _test = moveVector.axes.y * moveVector.axes.y + moveVector.axes.x * moveVector.axes.x;
+
+        if (_test > Number.EPSILON) {
+            //console.log("not not going nowhere __" + that._heading);
+            let newHeading = Math.atan2(moveVector.axes.y, moveVector.axes.x);
+            if (!isNaN(newHeading)) this._heading = newHeading;
+            //console.log("new heading:" + that._heading);
+        }
+
+        // Tail recursive, until target x,y,z is hit
+        return await this._extrude(speed, moveVector, leftToMove, retract);
+    } // end _extrude 
 }
 
 
@@ -1577,6 +1707,7 @@ class Printer {
  * @returns {Boolean} false when done
  * @memberof Printer
  */
+/*
 Printer.prototype._extrude = meth("_extrude", function (that, speed, moveVector, leftToMove, retract) {
     // if there's nowhere to move, return
     //console.log(that);
@@ -1703,7 +1834,7 @@ Printer.prototype._extrude = meth("_extrude", function (that, speed, moveVector,
 
 } // end _extrude 
 );
-
+*/
 
 // TODO: this is dumb.  SHould be in another data model class called "printer model"
 
