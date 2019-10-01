@@ -515,7 +515,7 @@ class Printer {
             // horizontal distance using the tangent
             if (Math.abs(this._zdistance) > Number.EPSILON) {
                 let horizProjection = this._zdistance / Math.tan(this._elevation);
-                if (Math.abs(horizProjection) > Number.EPSILON)
+                if (Math.abs(horizProjection) > 0.001) // smallest moveable unit, in mm
                     horizDist += horizProjection;
             }
             const vertDist = this._zdistance;

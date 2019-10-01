@@ -68,7 +68,24 @@ Task.prototype = {
 
     if (scope.printer) delete scope.printer;
 
-    scope.printer = new Printer(sendGCode, doError);
+    /**
+     * Send GCode to the server via ajax and hande response.
+     * @param {string} gcode gcode to send
+     * @memberOf LivePrinter
+     * @returns {Object} result Returns json object containing result
+     */
+    async function sendGCodeAndHandleResponse(gcode) {
+        const result = await sendGCode(gcode);
+        console.log("GOT RESULTS");
+        console.log(result);
+        if (result.result !== undefined)
+            for (const res of result.result) {
+                loginfo(res);
+            }
+        return result;
+    }
+
+    scope.printer = new Printer(sendGCodeAndHandleResponse, doError);
 
     /**
      * Handy object for scheduling events at intervals, etc.
@@ -322,8 +339,8 @@ Task.prototype = {
         undoDepth: 20,
         //autocomplete: true,
         extraKeys: {
-            "Ctrl-Enter": runGCode,
-            "Cmd-Enter": runGCode,
+            "Ctrl-Enter": () =>(runGCode().catch((err)=> doError(err))),
+            "Cmd-Enter": () => (runGCode().catch((err) => doError(err))),
             "Ctrl-Space": "autocomplete",
             "Ctrl-Q": function (cm) { cm.foldCode(cm.getCursor()); }
         }
@@ -461,8 +478,8 @@ Task.prototype = {
         }
         finally {
             // DEBUGGING
-            console.log("JSON-RPC");
-            console.log(result);
+            //console.log("JSON-RPC");
+            //console.log(result);
             //$("#result-txt").val(result);
         }
         return JSON.parse(result);
@@ -761,6 +778,12 @@ Task.prototype = {
             GCodeEditor.setSelection({ line: cursor.line, ch: 0 }, { line: cursor.line, ch: code.length });
         }
         let result = await sendGCode(code);
+        console.log("GOT RESULTS");
+        console.log(result);
+        if (result.result !== undefined)
+            for (const res of result.result) {
+                loginfo(res);
+            }
         return result;
     }
 
@@ -1407,7 +1430,17 @@ Task.prototype = {
      * @memberOf LivePrinter
     */
     function loginfo(text) {
-        infoHandler.info({ time: Date.now(), message: text });
+        if (typeof text === "string")
+            infoHandler.info({ time: Date.now(), message: text });
+        else {
+            console.log("LOGINFO-----------");
+            console.log(text);
+            let msg = "";
+            for (let prop in text) {
+                msg += (prop + ":" + text) + "\n";
+            }
+            infoHandler.info({ time: Date.now(), message: msg });
+        }
     }
 
     // make global
@@ -1471,6 +1504,15 @@ Task.prototype = {
     /////////////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+
+    function updateGUI() {
+        $("input[name='x']").val(window.scope.printer.x);
+        $("input[name='y']").val(window.scope.printer.y);
+        $("input[name='z']").val(window.scope.printer.z);
+        $("input[name='e']").val(window.scope.printer.e);
+        $("input[name='angle']").val(window.scope.printer.angle);
+    }
+    window.scope.updateGUI = updateGUI;
 
     /**
      * blink an element using css animation class
@@ -2040,6 +2082,7 @@ Task.prototype = {
                     code = "let sched = window.scope.Scheduler;" + code;
                     code = "let socket = window.scope.socket;" + code;
                     code = "let gcode = (gc) => ( window.scope.sendGCode(gc).catch(err => doError(err)) );" + code;
+                    code = "let updateGUI = window.scope.updateGUI;" + code;
                     code = "let s = window.scope;" + code;
 
                     // wrap code in anonymous function to avoid redeclaring scope variables and
@@ -2052,7 +2095,7 @@ Task.prototype = {
 
                     // function wrapping - run in closure
                     code = '(async function(){"use strict";' + code;
-                    code = code + "})().catch(err => console.log(err));";
+                    code = code + "})().catch(err => doError(err));";
                 }
 
                 //console.log("adding code:" + code);

@@ -15,3 +15,18 @@ while (i < 22) {
     }
 }
 
+
+await lp.speed(80).up(40).go()
+
+for (let i = 0; i < 10; i++) {
+    let d = i % 2 ? 10 : -10;
+    if (i % 2) lp.turnto(180);
+    else lp.turnto(0);
+    await lp.dist(40).speed(120).go(0);
+    await s.sendGCode("M400");
+
+    updateGUI();
+    await lp.speed(80).up(d).go();
+    await s.sendGCode("M400");
+    updateGUI();
+}
