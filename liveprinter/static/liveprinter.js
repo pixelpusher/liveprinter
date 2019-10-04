@@ -68,6 +68,40 @@ Task.prototype = {
 
     if (scope.printer) delete scope.printer;
 
+    // names of all async functions in API for replacement in minigrammar later on in RunCode
+    const asyncFunctionsInAPI = [
+        "setRetractSpeed",
+        "sendFirmwareRetractSettings",
+        "retract",
+        "unretract",
+        "start",
+        "temp",
+        "bed",
+        "fan",
+        "go",
+        "fwretract",
+        "polygon",
+        "rect",
+        "extrudeto",
+        "sendExtrusionGCode",
+        "extrude",
+        "move",
+        "moveto",
+        "fillDirection",
+        "fillDirectionH",
+        "sync",
+        "fill",
+        "wait",
+        "pause",
+        "resume",
+        "printPaths",
+        "printPathsThick",
+        "_extrude"
+    ];
+
+    // names of all async functions in API for replacement in minigrammar later on in RunCode
+    const asyncFunctionsInAPIRegex = /[\.|;|\s*](setRetractSpeed|sendFirmwareRetractSettings|retract|unretract|start|temp|bed|fan|go|fwretract|polygon|rect|extrudeto|sendExtrusionGCode|extrude|move|moveto|fillDirection|fillDirectionH|sync|fill|wait|pause|resume|printPaths|printPathsThick|_extrude)\(/sg;
+
     /**
      * Send GCode to the server via ajax and hande response.
      * @param {string} gcode gcode to send
@@ -1995,9 +2029,12 @@ Task.prototype = {
 
             if (fail !== false)
                 result += "/*ERROR IN PARSE: " + fail + "*/\n";
-            else
-                result += parser.results[0] + "\n";
-
+            else {
+                let asyncresult = parser.results[0].replace(asyncFunctionsInAPIRegex, (match, p1) => {
+                    return "await " + p1;
+                });
+                result += asyncresult + "\n";
+            }
             return result;
         });
 
@@ -2039,7 +2076,13 @@ Task.prototype = {
                     //result += parser.results[0] + "\n";
                 }
             }); // end compiling line by line
-            result += parser.results[0] + "\n";
+
+            // TODO: look for async functions in array asyncFunctionsInAPI
+            // add await/try/catch code around them
+            let asyncresult = parser.results[0].replace(asyncFunctionsInAPIRegex, (match, p1) => {
+                return "await " + p1;
+            });
+            result += asyncresult + "\n";
 
             return result;
         });
