@@ -34,8 +34,9 @@ Task.prototype = {
     name: "task",
     data: {},
     delay: 0,
-    run: () => { },
+    run: async () => { return true; },
     repeat: true,
+    running: false,
     system: false
 };
 
@@ -83,10 +84,14 @@ Task.prototype = {
         "polygon",
         "rect",
         "extrudeto",
+        "ext2",
         "sendExtrusionGCode",
         "extrude",
+        "ext",
         "move",
+        "mov",
         "moveto",
+        "mov2",
         "fillDirection",
         "fillDirectionH",
         "sync",
@@ -100,7 +105,9 @@ Task.prototype = {
     ];
 
     // names of all async functions in API for replacement in minigrammar later on in RunCode
-    const asyncFunctionsInAPIRegex = /[\.|;|\s*](setRetractSpeed|sendFirmwareRetractSettings|retract|unretract|start|temp|bed|fan|go|fwretract|polygon|rect|extrudeto|sendExtrusionGCode|extrude|move|moveto|fillDirection|fillDirectionH|sync|fill|wait|pause|resume|printPaths|printPathsThick|_extrude)\(/sg;
+    const asyncFunctionsInAPIRegex = /[\.|;|\s*](setRetractSpeed|sendFirmwareRetractSettings|retract|unretract|start|temp|bed|fan|go|fwretract|polygon|rect|extrudeto|ext2|sendExtrusionGCode|extrude|ext|move|mov2|moveto|mov2|fillDirection|fillDirectionH|sync|fill|wait|pause|resume|printPaths|printPathsThick|_extrude)\(/g;
+
+    const asyncFunctionsInAPICMRegex = /^(setRetractSpeed|sendFirmwareRetractSettings|retract|unretract|start|temp|bed|fan|go|fwretract|polygon|rect|extrudeto|ext2|sendExtrusionGCode|extrude|ext|move|mov2|moveto|mov|fillDirection|fillDirectionH|sync|fill|wait|pause|resume|printPaths|printPathsThick|_extrude)[^a-zA-Z]/;
 
     /**
      * Send GCode to the server via ajax and hande response.
@@ -224,6 +231,8 @@ Task.prototype = {
                 // run events 
                 me.ScheduledEvents.filter(
                     async event => {
+                        if (event.running) return true; //quit if still running
+
                         let keep = true;
                         let tdiff = event.time - time;
                         if (tdiff < 1) {
@@ -232,7 +241,11 @@ Task.prototype = {
                             // if we're behind, don't run this one...
                             //if (!event.ignorable && tdiff > -event.delay * 2) {
                             //if (!event.ignorable) {
+
+                            event.running = true;
                             await event.run(event.time);
+
+
                             if (!event.system) me.eventsListeners.map(listener => { if (listener.EventRun !== undefined) listener.EventRun(event); });
                             //}
                             if (event.repeat) {
@@ -245,6 +258,7 @@ Task.prototype = {
                                 keep = false;
                                 me.eventsListeners.map(listener => { if (listener.EventRemoved !== undefined) listener.EventRemoved(event); });
                             }
+                            event.running = false;
                         }
                         return keep;
                     });
@@ -287,6 +301,29 @@ Task.prototype = {
     /////////////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+
+    CodeMirror.defineMode("mustache", function (config, parserConfig) {
+        const mustacheOverlay = {
+            token: function (stream, state) {
+                let ch = "";
+
+                if (!stream.eol()) {
+                    let matches = stream.match(asyncFunctionsInAPICMRegex, false);
+                    if (matches) {
+                        let i = matches[1].length;
+                        while (i--) stream.eat( () => true );
+                        return "mustache";
+                    }
+                }
+                // fix me for start of lines where word is embedded!!!
+                while (!stream.match(asyncFunctionsInAPICMRegex, false) && stream.next() != null);
+                return null;
+            }
+        };
+        return CodeMirror.overlayMode(CodeMirror.getMode(config, parserConfig.backdrop || "javascript"), mustacheOverlay);
+    });
+
+
     /**
      * CodeMirror code editor instance (local code). See {@link https://codemirror.net/doc/manual.html}
      * @memberOf LivePrinter
@@ -297,6 +334,9 @@ Task.prototype = {
         styleActiveLine: true,
         lineWrapping: true,
         undoDepth: 20,
+        highlightAsyncMatches: true,
+        tabMode: "indent", // or "spaces", "default", "shift"
+        enterMode: "indent", // or "keep", "flat"
         //autocomplete: true,
         extraKeys: {
             "Ctrl-Enter": runCode,
@@ -308,7 +348,7 @@ Task.prototype = {
                 CodeEditor.off("change");
                 CodeEditor.swapDoc(
                     CodeMirror.Doc(
-                        "// Type some code here.  Hit CTRL-Z to clear \n\n\n\n", "javascript"
+                        "// Type some code here.  Hit CTRL-\\ to clear \n\n\n\n", "javascript"
                     )
                 );
                 CodeEditor.on("change", localChangeFunc);
@@ -316,27 +356,32 @@ Task.prototype = {
         },
         foldGutter: true,
         autoCloseBrackets: true,
+        gutters: ["CodeMirror-lint-markers", "CodeMirror-linenumbers", "CodeMirror-foldgutter"],
+        mode: "mustache",
+        onLoad: setLanguageMode
         // VIM MODE!
         //keyMap: "vim",
         //matchBrackets: true,
         //showCursorWhenSelecting: true,
         //inputStyle: "contenteditable"
     });
+    CodeEditor.setOption("theme", "abcdef");
+
 
     window.ce = CodeEditor;
 
-    var commandDisplay = document.querySelectorAll('[id|=command-display]');
-    var keys = '';
-    CodeMirror.on(CodeEditor, 'vim-keypress', function (key) {
-        keys = keys + key;
-        for (let cd of commandDisplay)
-            cd.innerHTML = keys;
-    });
-    CodeMirror.on(CodeEditor, 'vim-command-done', function (e) {
-        keys = '';
-        for (let cd of commandDisplay)
-            cd.innerHTML = keys;
-    });
+    //var commandDisplay = document.querySelectorAll('[id|=command-display]');
+    //var keys = '';
+    //CodeMirror.on(CodeEditor, 'vim-keypress', function (key) {
+    //    keys = keys + key;
+    //    for (let cd of commandDisplay)
+    //        cd.innerHTML = keys;
+    //});
+    //CodeMirror.on(CodeEditor, 'vim-command-done', function (e) {
+    //    keys = '';
+    //    for (let cd of commandDisplay)
+    //        cd.innerHTML = keys;
+    //});
 
 
     /**
@@ -373,7 +418,7 @@ Task.prototype = {
         undoDepth: 20,
         //autocomplete: true,
         extraKeys: {
-            "Ctrl-Enter": () =>(runGCode().catch((err)=> doError(err))),
+            "Ctrl-Enter": () => (runGCode().catch((err) => doError(err))),
             "Cmd-Enter": () => (runGCode().catch((err) => doError(err))),
             "Ctrl-Space": "autocomplete",
             "Ctrl-Q": function (cm) { cm.foldCode(cm.getCursor()); }
@@ -390,8 +435,8 @@ Task.prototype = {
 
     // CodeMirror stuff
 
-    const WORD = /[\w$]+/g, RANGE = 500;
-
+    //const WORD = /[\w$]+/g, RANGE = 500;
+    /*
     CodeMirror.registerHelper("hint", "anyword", function (editor, options) {
         const word = options && options.word || WORD;
         const range = options && options.range || RANGE;
@@ -400,7 +445,7 @@ Task.prototype = {
         while (end < curLine.length && word.test(curLine.charAt(end)))++end;
         while (start && word.test(curLine.charAt(start - 1)))--start;
         let curWord = start !== end && curLine.slice(start, end);
-
+    
         let list = [], seen = {};
         function scan(dir) {
             let line = cur.line, end = Math.min(Math.max(line + dir * range, editor.firstLine()), editor.lastLine()) + dir;
@@ -419,6 +464,7 @@ Task.prototype = {
         scan(1);
         return { list: list, from: CodeMirror.Pos(cur.line, start), to: CodeMirror.Pos(cur.line, end) };
     });
+    */
 
     /**
      * Clear HTML of all displayed code errors
@@ -1267,18 +1313,18 @@ Task.prototype = {
             /*
             if (cmdline.search("G1") > -1) { // look for only extrude/move commands
                 logger("G1");
-    
+     
                 const cmdRegExp = new RegExp("([a-zA-Z][0-9]+\.?[0-9]*)", "gim");
                 const subCmdRegExp = new RegExp("([a-zA-Z])([0-9]+\.?[0-9]*)");
                 const found = line.match(cmdRegExp);
                 for (let cmd of found) {
                     const matches = cmd.match(subCmdRegExp);
-    
+     
                     if (matches.length !== 3) throw new Error("Error in command string: " + found);
-    
+     
                     const cmdChar = matches[1].toUpperCase();
                     const value = parseFloat(matches[2]);
-    
+     
                     switch (cmdChar) {
                         case "X": x = value; break;
                         case "Y": y = value; break;
@@ -1286,9 +1332,9 @@ Task.prototype = {
                         case "E": e = value; break;
                         case "F": speed = value; break;
                     }
-    
+     
                     calculateAndOutput();
-    
+     
                     //logger("x: " + x);
                     //logger("y: " + y);
                     //logger("z: " + z);
@@ -1422,7 +1468,7 @@ Task.prototype = {
     /**
      * Add a cancellable task to the scheduler and also the GUI 
      * @param {Any} task either scheduled task object or name of task plus a function for next arg
-     * @param {Function} func Function, if name was passed as 1st arg
+     * @param {Function} func Async function, if name was passed as 1st arg
      * @memberOf LivePrinter
      */
     function addTask(task, interval, func) {
@@ -1433,7 +1479,7 @@ Task.prototype = {
             window.scope.Scheduler.scheduleEvent(task);
         }
         else {
-            if (func === undefined) throw new Error("AddTask: no function passed!");
+            if (typeof task === "string" && func === undefined) throw new Error("AddTask: no function passed!");
             //try remove first
             window.scope.Scheduler.removeEventByName(task);
             const t = new Task;
@@ -1464,16 +1510,19 @@ Task.prototype = {
      * @memberOf LivePrinter
     */
     function loginfo(text) {
+        console.log("LOGINFO-----------");
+        console.log(text);
+
         if (typeof text === "string")
             infoHandler.info({ time: Date.now(), message: text });
+        else if (typeof text === "object") {
+            infoHandler.info({ time: Date.now(), message: JSON.stringify(text) });
+        }
+        else if (typeof text === "array") {
+            infoHandler.info({ time: Date.now(), message: text.toString() });
+        }
         else {
-            console.log("LOGINFO-----------");
-            console.log(text);
-            let msg = "";
-            for (let prop in text) {
-                msg += (prop + ":" + text) + "\n";
-            }
-            infoHandler.info({ time: Date.now(), message: msg });
+            infoHandler.info({ time: Date.now(), message: text + "" });
         }
     }
 
@@ -1588,15 +1637,16 @@ Task.prototype = {
 
         } else {
             CodeEditor.setOption("gutters", ["CodeMirror-lint-markers", "CodeMirror-linenumbers", "CodeMirror-foldgutter"]);
-            CodeEditor.setOption("mode", "javascript");
-            CodeEditor.setOption("lint", {
-                globalstrict: true,
-                strict: false,
-                esversion: 6
-            });
+            CodeEditor.setOption("mode", "mustache");
+            CodeEditor.setOption("lint", false);
+            //CodeEditor.setOption("lint", {
+            //    globalstrict: false,
+            //    strict: false,
+            //    esversion: 6
+            //});
 
             GlobalCodeEditor.setOption("gutters", ["CodeMirror-lint-markers", "CodeMirror-linenumbers", "CodeMirror-foldgutter"]);
-            GlobalCodeEditor.setOption("mode", "javascript");
+            GlobalCodeEditor.setOption("mode", "mustache");
             GlobalCodeEditor.setOption("lint", {
                 globalstrict: true,
                 strict: false,
@@ -1677,7 +1727,7 @@ Task.prototype = {
         }
         else if (target === "#code-editor-area") {
             CodeEditor.refresh();
-            setLanguageMode(); // have to update gutter, etc.
+            setTimeout(setLanguageMode, 1000); // have to update gutter, etc.
             clearError();
         }
         else if (target === "#gcode-editor-area") {
@@ -1752,9 +1802,6 @@ Task.prototype = {
         }
         setLanguageMode(); // update codemirror editor
     });
-
-    // make sure language mode is set
-    setLanguageMode();
 
     scope.clearPrinterCommandQueue = function () {
         let message = {
@@ -1921,7 +1968,7 @@ Task.prototype = {
                 CodeEditor.on("change", localChangeFunc);
             });
         }
-        setLanguageMode();
+        CodeEditor.refresh();
     };
 
     let reloadGlobalSession = () => {
@@ -1937,7 +1984,7 @@ Task.prototype = {
                 GlobalCodeEditor.on("change", globalChangeFunc);
             });
         }
-        setLanguageMode();
+        GlobalCodeEditor.refresh();
     };
 
     $("#reload-edited-session").on("click", reloadLocalSession);
@@ -1970,17 +2017,6 @@ Task.prototype = {
             });
         }
     });
-
-    if (storageAvailable('localStorage')) {
-        // finally, load the last stored session:
-        reloadGlobalSession();
-        reloadLocalSession();
-    }
-    else {
-        errorHandler({ name: "save error", message: "no local storage available for saving files!" });
-    }
-    // disable form reloading on code compile
-    $('form').submit(false);
 
 
     /**
@@ -2177,6 +2213,18 @@ Task.prototype = {
 
     await getSerialPorts();
     updatePrinterState(true); // start updating printer connection state
+
+
+    if (storageAvailable('localStorage')) {
+        // finally, load the last stored session:
+        reloadGlobalSession();
+        reloadLocalSession();
+    }
+    else {
+        errorHandler({ name: "save error", message: "no local storage available for saving files!" });
+    }
+    // disable form reloading on code compile
+    $('form').submit(false);
 
     //brython(10);
 })().catch(err => {

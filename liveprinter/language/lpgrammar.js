@@ -11,11 +11,20 @@ var grammar = {
     {"name": "Main$ebnf$2", "symbols": ["EOL"], "postprocess": id},
     {"name": "Main$ebnf$2", "symbols": [], "postprocess": function(d) {return null;}},
     {"name": "Main", "symbols": ["Chain", "Space", "Main$ebnf$2"], "postprocess": d => d[0] + ';'},
-    {"name": "Chain", "symbols": ["FunctionStatement", "Space", "PIPE", "Space", "Chain"], "postprocess": d => [d[0]].concat(d[4]).join(".")},
+    {"name": "Chain", "symbols": ["FunctionStatement", "Space", "PIPE", "Space", "Chain"], "postprocess": d => [d[0]].concat(d[4]).join(";")},
     {"name": "Chain$ebnf$1", "symbols": ["PIPE"], "postprocess": id},
     {"name": "Chain$ebnf$1", "symbols": [], "postprocess": function(d) {return null;}},
     {"name": "Chain", "symbols": ["FunctionStatement", "Space", "Chain$ebnf$1"], "postprocess": d => d[0]},
-    {"name": "FunctionStatement$subexpression$1", "symbols": ["FunctionName"], "postprocess": ([name]) => name + "("},
+    {"name": "FunctionStatement$subexpression$1", "symbols": ["FunctionName"], "postprocess":  
+        ([name]) => {
+            const asyncFunctionsInAPIRegex = /^setRetractSpeed|sendFirmwareRetractSettings|retract|unretract|start|temp|bed|fan|go|fwretract|polygon|rect|extrudeto|sendExtrusionGCode|extrude|move|moveto|mov|mov2|ext|ext2|fillDirection|fillDirectionH|sync|fill|wait|pause|resume|printPaths|printPathsThick|_extrude$/;
+        	let asyncFuncCall = asyncFunctionsInAPIRegex.test(name);
+        
+        	if (asyncFuncCall) name = "await lp." + name;
+        	else name = "lp." + name;
+        	return name += "("; 
+        } 
+        	},
     {"name": "FunctionStatement$ebnf$1$subexpression$1$subexpression$1", "symbols": ["ObjArgs"], "postprocess":  
         function ([args]) {
         	let fstr = "{";

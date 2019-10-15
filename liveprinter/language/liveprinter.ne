@@ -9,7 +9,7 @@
 Main -> Chain EOL:+ Space Main {% d => [d[0]].concat(d[3]).join(";") %} 
 	| Chain Space EOL:? {% d => d[0] + ';' %}
 
-Chain -> FunctionStatement Space PIPE Space Chain {% d => [d[0]].concat(d[4]).join(".") %} 
+Chain -> FunctionStatement Space PIPE Space Chain {% d => [d[0]].concat(d[4]).join(";") %} 
 	| FunctionStatement Space PIPE:? {% d => d[0] %}
 
 #Statement -> 	(Number {% id %} 
@@ -18,7 +18,16 @@ Chain -> FunctionStatement Space PIPE Space Chain {% d => [d[0]].concat(d[4]).jo
 #				| FunctionStatement {% id %}
 #				) {% id %} 
 
-FunctionStatement -> (FunctionName {% ([name]) => name + "(" %})  ( Spaces
+FunctionStatement -> (FunctionName {% 
+		([name]) => {
+		    const asyncFunctionsInAPIRegex = /^setRetractSpeed|sendFirmwareRetractSettings|retract|unretract|start|temp|bed|fan|go|fwretract|polygon|rect|extrudeto|sendExtrusionGCode|extrude|move|moveto|mov|mov2|ext|ext2|fillDirection|fillDirectionH|sync|fill|wait|pause|resume|printPaths|printPathsThick|_extrude$/;
+			let asyncFuncCall = asyncFunctionsInAPIRegex.test(name);
+
+			if (asyncFuncCall) name = "await lp." + name;
+			else name = "lp." + name;
+			return name += "("; 
+		} 
+	%})  ( Spaces
 		( ObjArgs 
 		{% 
 		function ([args]) {

@@ -439,3 +439,8 @@ a.graylink, .graylink a:link, .graylink a:active,
     border-radius: 0;
     color: lightgray;
 }
+
+/* Extra CodeMirror */
+.cm-mustache {
+    color: #ee4bfc;
+}
