@@ -107,7 +107,7 @@ Task.prototype = {
     // names of all async functions in API for replacement in minigrammar later on in RunCode
     const asyncFunctionsInAPIRegex = /[\.|;|\s*](setRetractSpeed|sendFirmwareRetractSettings|retract|unretract|start|temp|bed|fan|go|fwretract|polygon|rect|extrudeto|ext2|sendExtrusionGCode|extrude|ext|move|mov2|moveto|mov2|fillDirection|fillDirectionH|sync|fill|wait|pause|resume|printPaths|printPathsThick|_extrude)\(/g;
 
-    const asyncFunctionsInAPICMRegex = /^(setRetractSpeed|sendFirmwareRetractSettings|retract|unretract|start|temp|bed|fan|go|fwretract|polygon|rect|extrudeto|ext2|sendExtrusionGCode|extrude|ext|move|mov2|moveto|mov|fillDirection|fillDirectionH|sync|fill|wait|pause|resume|printPaths|printPathsThick|_extrude)[^a-zA-Z]/;
+    const asyncFunctionsInAPICMRegex = /^(setRetractSpeed|sendFirmwareRetractSettings|retract|unretract|start|temp|bed|fan|go|fwretract|polygon|rect|extrudeto|ext2|sendExtrusionGCode|extrude|ext|move|mov2|moveto|mov|fillDirection|fillDirectionH|sync|fill|wait|pause|resume|printPaths|printPathsThick|_extrude)[^a-zA-Z0-9\_]/;
 
     /**
      * Send GCode to the server via ajax and hande response.
@@ -302,25 +302,29 @@ Task.prototype = {
     /////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-    CodeMirror.defineMode("mustache", function (config, parserConfig) {
-        const mustacheOverlay = {
+    CodeMirror.defineMode("lp", function (config, parserConfig) {
+        const liveprinterOverlay = {
             token: function (stream, state) {
                 let ch = "";
 
                 if (!stream.eol()) {
                     let matches = stream.match(asyncFunctionsInAPICMRegex, false);
                     if (matches) {
+                        //console.log("MATCH::**" + matches[1] + "**");
                         let i = matches[1].length;
-                        while (i--) stream.eat( () => true );
-                        return "mustache";
+                        while (i--) stream.eat(() => true);
+                        return "lp";
                     }
                 }
-                // fix me for start of lines where word is embedded!!!
-                while (!stream.match(asyncFunctionsInAPICMRegex, false) && stream.next() != null);
+                stream.eatSpace();
+                if (stream.match(asyncFunctionsInAPICMRegex, false)) return null;
+                while (ch = stream.eat(/[^\s]/)) {
+                    if (ch === ".") break;
+                };
                 return null;
             }
         };
-        return CodeMirror.overlayMode(CodeMirror.getMode(config, parserConfig.backdrop || "javascript"), mustacheOverlay);
+        return CodeMirror.overlayMode(CodeMirror.getMode(config, parserConfig.backdrop || "javascript"), liveprinterOverlay);
     });
 
 
@@ -357,7 +361,7 @@ Task.prototype = {
         foldGutter: true,
         autoCloseBrackets: true,
         gutters: ["CodeMirror-lint-markers", "CodeMirror-linenumbers", "CodeMirror-foldgutter"],
-        mode: "mustache",
+        mode: "lp",
         onLoad: setLanguageMode
         // VIM MODE!
         //keyMap: "vim",
@@ -1637,7 +1641,7 @@ Task.prototype = {
 
         } else {
             CodeEditor.setOption("gutters", ["CodeMirror-lint-markers", "CodeMirror-linenumbers", "CodeMirror-foldgutter"]);
-            CodeEditor.setOption("mode", "mustache");
+            CodeEditor.setOption("mode", "lp");
             CodeEditor.setOption("lint", false);
             //CodeEditor.setOption("lint", {
             //    globalstrict: false,
@@ -1646,7 +1650,7 @@ Task.prototype = {
             //});
 
             GlobalCodeEditor.setOption("gutters", ["CodeMirror-lint-markers", "CodeMirror-linenumbers", "CodeMirror-foldgutter"]);
-            GlobalCodeEditor.setOption("mode", "mustache");
+            GlobalCodeEditor.setOption("mode", "lp");
             GlobalCodeEditor.setOption("lint", {
                 globalstrict: true,
                 strict: false,

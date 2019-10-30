@@ -441,6 +441,9 @@ a.graylink, .graylink a:link, .graylink a:active,
 }
 
 /* Extra CodeMirror */
-.cm-mustache {
+.cm-lp {
     color: #ee4bfc;
+    text-decoration:dotted;
+    text-decoration-color:aliceblue #ee4bfc;
+    text-decoration-line:underline;
 }

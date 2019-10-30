@@ -1,42 +1,88 @@
-'''
-LivePrinter server.  Uses websockets and JSON RPC to communicate with a 
-USBPrinter via a cmd shell (REPL)
-'''
+#!/usr/bin/env python
+# ---------------------------------------------------------------------------------------------------------------------
+# Copyright 2019 Evan Raskob <evanraskob@gmail.com>
+# ---------------------------------------------------------------------------------------------------------------------
+# Licensed under the AGPL 3+
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+# ---------------------------------------------------------------------------------------------------------------------
+# LivePrinter server.  Uses AJAX and JSON RPC to communicate with a Marlin-based 3D printer via a web-based code editor
+# ---------------------------------------------------------------------------------------------------------------------
+# Notes:
+# ---------------------------------------------------------------------------------------------------------------------
+# to test the AJAX/JSONRPC API by itself:
+# run this file using python 3.7+
+# open http://localhost:8888/jsontest for web interface
+# or directly test json API by:
+#
+# curl --insecure --data '{ "jsonrpc": "2.0", "id": 5, "method": "set-serial-port","params": [ "dummy", 125000]}' http://localhost:8888/jsonrpc
+# curl --insecure --data '{ "jsonrpc": "2.0", "id": 6, "method": "get-serial-ports","params": []}' http://localhost:8888/jsonrpc
+#
+#
+# python -m serial.tools.list_ports will print a list of available ports. It is also possible to add a regexp as first argument and the list will only include entries that matched.
+# pySerial includes a small console based terminal program called serial.tools.miniterm. It ca be started with python -m serial.tools.miniterm <port_name> 
+# (use option -h to get a listing of all options).
+# ---------------------------------------------------------------------------------------------------------------------
 
-from cmd import Cmd
-import sys
+
 import os
-import uuid
-import json
-import functools
-import multiprocessing
-from time import time
-import serial
-import dummyserial
-import logging
-from serial import Serial, SerialException, PARITY_ODD, PARITY_NONE
-import serial.tools.list_ports
-import re
 import random
-from tornado import gen
 import tornado.httpserver
-from tornado.ioloop import IOLoop, PeriodicCallback
-import tornado.websocket
-from tornado.web import Application, RequestHandler, StaticFileHandler
-from jsonrpc import JSONRPCResponseManager, Dispatcher, dispatcher
-import json
-
+import tornado.ioloop
+import tornado.options
+import tornado.web
+from tornado import gen
+from serial import Serial, SerialException, SerialTimeoutException, portNotOpenError, writeTimeoutError
+import serial.tools.list_ports
+import dummyserial
 from tornado.options import define, options
-from USBPrinterOutputDevice import USBPrinter, ConnectionState
-from WebSocketHandler import WebSocketHandler
-from UM.Logger import Logger
+import functools
+from tornado_jsonrpc2.handler import JSONRPCHandler
+from tornado_jsonrpc2.exceptions import MethodNotFound
+import time
+import re
+from typing import Union, Optional, List
+from ConnectionState import ConnectionState
+from SerialDevice import SerialDevice
 
-# tornado options
-define("http-port", default=8888, help="port to listen on", type=int)
-define('debug', default=True, help='Run in debug mode')
-define('baud_rate', default=250000, help="serial baud rate to for connecting to printer")
 
-def list_ports():
+define("port", default=8888, help="run on the given port", type=int)
+
+
+class TestHandler(tornado.web.RequestHandler):
+    def initialize(self, **kwargs):
+        self.printer = kwargs["printer"]
+
+    async def get(self):
+        result = await self.printer.async_connect()
+        self.write("Hello, world: {}".format(repr(result)))
+
+class MainHandler(tornado.web.RequestHandler):
+    def get(self):
+        try:
+            self.render("index.html")
+        except Exception as e:
+            print("ERROR in GET: {}".format(repr(e)))
+        
+class JsonTestHandler(tornado.web.RequestHandler):
+    def check_xsrf_cookie(self):
+        pass
+
+    def get(self):
+        print("TEMPLATE PATH: {}".format(self.get_template_path()))
+        try:
+            self.render("test.html")
+        except Exception as e:
+            print("ERROR in GET: {}".format(repr(e)))
+
+#
+# list all serial ports
+#
+async def list_ports():
     choice_port = []
     ports = []
 
@@ -48,300 +94,15 @@ def list_ports():
     return ports
 
 
-class MainHandler(tornado.web.RequestHandler):
-    def get(self):
-        # self.write("Hello, world")
-        # self.render("index.html")
-        self.render("index.html", messages=WebSocketHandler.cache)
-        
-
-##
-# Websockets stuff
-# This should be a JSON-RPC form - http://www.jsonrpc.org/specification#request_object
-# or 
-#
-
-def broadcast_message(message):
-    '''
-    Broadcast message to websocket clients.
-    Adds 'jsonrpc' field required to satisfy the JSON-RPC 2.0 spec.
-    '''
-    if message['jsonrpc'] is None:
-        message['jsonrpc'] = "2.0"
-    for client in WebSocketHandler.clients:
-        message = json.dumps(message)
-        # double quotes are JSON standard
-        client.write_message(message)
-        Logger.log("i","broadcasting to client: {}".format(message))
-
-## handle printer response queue: PrinterResponse obj with time, type, messages[]
-## decide whether to notify clients
-# @gen.coroutine
-def process_printer_reponses(printer:USBPrinter):
-    #while True:
-    response = printer.getLastResponse()  # PrinterReponse object
-    if response:
-        # Logger.log("i", "RESPONSE: {}".format(response))   
-        printer.lastReponseHandled()
-        broadcast_message(response.toJSONRPC())
-        # Logger.log("i", "TEST")
-
-## 
-# get json gcode (as a list of strings) from json-rpc dispatcher and 
-# sent to the printer to be executed.
-# returns a json string to be sent to front-end websockets clients
-# see http://www.jsonrpc.org/specification#request_object
-# expects:
-    #message = {
-    #    'jsonrpc': '2.0',
-    #    'id': 1, 
-    #    'method': 'gcode',
-    #    'params': [list of multiline gcode],
-    #    }
-    #};
-#
-# returns for broadcast to ALL clients (see http://www.jsonrpc.org/specification#response_object):
-#
-# message = {
-#    'jsonrpc': '2.0',
-#    'id': **uuid**,
-#    'result': {    ## only include this field if the response was successful
-#       'gcode': *optional* [list of multiline gcode]
-#       'html': [list of HTML-formatted G-Code received by the server for broadcast to clients],
-#       }
-#    'error': {  ## only include this field if an error occurred
-#       'code': 1,  ## TODO: error codes 
-#       'message': ERROR STRING IF THERE WAS AN ERROR', 
-#       'data': *optional* but might have {'html': *html formatted code*} field ,
-#       }
-#    }
-# }
-# 
-#
-
-def json_handle_gcode(printer:USBPrinter, *argv):
-
-    command_list = []
-    newline = re.compile(r'\n')
-
-    for arg in argv:
-        # check for newlines, if none this is a single command
-        if newline.search(arg):
-            command_list.extend(arg.splitlines())
-        else:    
-            command_list.append(arg)
-
-        # Logger.log("d", "json arg {} {}".format(type(arg), arg))
-
-    json = None
-   
-    try:
-        printer.sendGCodeList(command_list)
-
-        json = {
-                'jsonrpc': '2.0',
-                'id': 4, 
-                'method': "gcode",
-                'params': {
-                    'time': time()*1000, # for javscript date conversion to seconds
-                    'message': command_list
-                    }
-                }
-    except Exception as e:
-        # TODO: fix this to be a real error type so it gets sent to the clients properly
-       Logger.log("e", "could not send commands to the printer {} : {}".format(repr(e),str(command_list)))
-       raise ValueError("could not send commands to the printer {} : {}".format(repr(e),str(command_list)))
-    
-    return json
-
-
-def json_handle_responses(printer:USBPrinter, *argv):
-    try:
-        response = printer.getLastResponse()  # PrinterReponse object
-    except Exception as e:
-        # TODO: fix this to be a real error type so it gets sent to the clients properly
-       Logger.log("e", "could get responses from printer {}".format(repr(e)))
-       response = None
-
-    if response is not None:
-        # Logger.log("i", "RESPONSE: {}".format(response))
-        printer.lastReponseHandled()
-        return response.toJSONRPC()
-        
-    
-    return None
-
-
-#
-# disconnect the serial port of the printer.
-# return the port name if successful, otherwise "error" as the port
-#
-def json_handle_disconnect_serial_port(printer:USBPrinter):
-    port_str = "None"
-    if (printer._serial_port is not None):
-        port_str = printer._serial_port
-
-    port_msg = "port[" + port_str +"] closed"
-
-    json = {
-            'jsonrpc': '2.0',
-            'id': 5, 
-            'method': 'serial-port-disconnected',
-            'params': {
-                'time': time()*1000,
-                'message': [port_msg]
-                }
-            }
-    printer.close()
-    return json
-
-#
-# set the serial port of the printer and connect.
-# return the port name if successful, otherwise "error" as the port
-#
-def json_handle_set_serial_port(printer:USBPrinter, *msg):
-    # printer:USBPrinter, port:str, baud_rate:int
-    if len(msg) is not 2:
-        Logger.log("e", "Error in handle_serial_port: not 3 required arguments = {}".format(list(msg)))
-        return
-
-    port = msg[0]
-
-    options.baud_rate = int(msg[1])
-    
-    json = {
-            'jsonrpc': '2.0',
-            'id': 5, 
-            'method': 'serial-port-set',
-            'params': {
-                'time': time()*1000,
-                'message': [port, options.baud_rate]
-                }
-            }
-
-    Logger.log("i", "setting serial port: {}".format(port))
-
-    if port.lower().startswith("dummy"):
-         use_dummy_serial_port(printer)
-    else:
-        printer._serial_port = port
-
-        try:
-            if (printer.getConnectionState() == ConnectionState.connected):
-                printer.close()
-
-            printer.setBaudRate(options.baud_rate)
-            printer.connect()
-        except SerialException:
-           Logger.log("e", "could not connect to serial port")
-           json = {
-                    'jsonrpc': '2.0',
-                    'id': 5, 
-                    'method': 'serial-port-set',
-                    'params': {
-                        'time': time()*1000,
-                        'message': ["error"]
-                        }
-                  }
-    return json
-
-#
-# handle request for printer state:
-#closed = 0
-#connecting = 1
-#connected = 2
-#busy = 3
-#error = 4)
-#
-def json_handle_printerstate(printer:USBPrinter, *argv):
-    
-    json = None
-
-    try:
-        connectionState = printer.getConnectionState()
-        serial_port_name = printer._serial_port
-        if printer._serial_port is "/dev/null":
-           serial_port_name = "dummy"
-           
-        json = {
-                'jsonrpc': '2.0',
-                'id': 5, 
-                'method': 'printerstate',
-                'params': {
-                    'time': time()*1000,
-                    'message': [connectionState.name, serial_port_name]
-                    }
-                }
-    except Exception as e:
-        # TODO: fix this to be a real error type so it gets sent to the clients properly
-       Logger.log("e", "could not get printer state: {}".format(repr(e)))
-       raise ValueError("could not get printer state: {}".format(repr(e)))
-    
-    return json
-
-
-#
-# Clear printer's queued commands
-#
-
-def json_handle_clearqueue(printer:USBPrinter, *argv):
-    
-    json = None
-
-    try:
-        connectionState = printer.getConnectionState()
-        if connectionState is ConnectionState.connected: 
-            printer.clearCommands()
-
-            json = {
-                    'jsonrpc': '2.0',
-                    'id': 6, 
-                    'method': 'clear-command-queue',
-                    'params': {
-                        'time': time()*1000,
-                        'message': 'cleared'
-                        }
-                    }
-        else:
-            pass
-
-    except Exception as e:
-        # TODO: fix this to be a real error type so it gets sent to the clients properly
-       Logger.log("e", "could not get printer state: {}".format(repr(e)))
-       raise ValueError("could not get printer state: {}".format(repr(e)))
-    
-    return json
-
-
-
-#
-# Handle request for serial ports from front end
-#
-def json_handle_portslist(*msg):
-
-    try:
-        ports = list_ports()
-        ports.append("dummy") # always add dummy for testing
-
-        json = {
-                'jsonrpc': '2.0',
-                'id': 6, 
-                'method': "serial-ports-list",
-                'params': {
-                    'time': time()*1000,
-                    'message': ports
-                    }
-                }
-    except Exception as e:
-        # TODO: fix this to be a real error type so it gets sent to the clients properly
-       Logger.log("e", "could not get serial ports list: {}".format(repr(e)))
-       raise ValueError("could not get  serial ports list: {}".format(repr(e)))
-    
-    return json
-
-
-def use_dummy_serial_port(printer:USBPrinter):
+def use_dummy_serial_port(printer:SerialDevice):
     if printer._serial_port is not "/dev/null" and printer._serial is None:
+
+        def delayed_string(result:Union[str,bytes]):
+            # print ("delayed string {}".format(time.time()))
+            time.sleep(random.uniform(0.05,0.5))
+            # print ("delayed string {}".format(time.time()))
+            return result
+
         printer._serial_port ="/dev/null"
         printer._serial = dummyserial.Serial(
             port= printer._serial_port,
@@ -350,85 +111,182 @@ def use_dummy_serial_port(printer:USBPrinter):
                 '.*M105.*': lambda : b'ok T:%.2f /190.0 B:%.2f /24.0 @:0 B@:0\n' % (random.uniform(170,195),random.uniform(20,35)),
                 '.*M115.*': b'FIRMWARE_NAME:DUMMY\n',
                 '.*M114.*': lambda : b'X:%.2fY:%.2fZ:%.2fE:%.2f Count X: 2.00Y:3.00Z:4.00\n' % (random.uniform(0,200), random.uniform(0,200), random.uniform(0,200), random.uniform(0,200) ),   # position request
-                '.*G.*': b'ok\n',
+                '.*G.*': lambda : delayed_string(b'ok\n'),
+                '.*M400.*': lambda : delayed_string(b'ok\n'),
                 #'^N.*': b'ok\n',
                 '^XXX': b'!!\n'
                             }
         )
-    printer.setConnectionState(ConnectionState.connected)
+    printer.connection_state = ConnectionState.connected
 
 
-#
-# start this thing up!
-#
-
-if __name__ == '__main__':
-
-    #_logger = logging.getLogger(__name__)
-    #if not _logger.handlers:
-    #    _logger.setLevel(logging.ERROR)
-    #    #console_handler = logging.StreamHandler()
-    #    #console_handler.setLevel(logging.ERROR)
-    #    #console_handler.setFormatter(dummyserial.constants.LOG_FORMAT)
-    #    #_logger.addHandler(console_handler)
-    #    _logger.propagate = False
-
-    #Logger.addLogger(_logger)
-
-    # set up unconnected printer
-    printer = USBPrinter(None, options.baud_rate)
-
-    #use_dummy_serial = True
-    #
-    #if use_dummy_serial:
-    #    use_dummy_serial_port(printer)
-    #else:
-        # printer._serial_port =  list_ports()[0]
-        # printer._serial_port = '/dev/cu.usbmodem1411'
-        # printer.connect()
-
-
-    # set up mappings for JSONRPC
-
-    # send raw gcode:
-    dispatcher.add_dict({"gcode": lambda *msg: json_handle_gcode(printer, *msg)})
-    dispatcher.add_dict({"get-printer-state": lambda *msg: json_handle_printerstate(printer, *msg)})
-    dispatcher.add_dict({"get-serial-ports": lambda *msg: json_handle_portslist(*msg)})
-    dispatcher.add_dict({"set-serial-port": lambda *msg: json_handle_set_serial_port(printer, *msg)}) # printer, port, baud_rate
-    dispatcher.add_dict({"disconnect-serial-port": lambda *msg: json_handle_disconnect_serial_port(printer)}) # printer, port, baud_rate
-    dispatcher.add_dict({"clear-command-queue": lambda *msg: json_handle_clearqueue(printer, *msg)})
     
-    # printer API:
+#
+# set the serial port of the printer and connect.
+# return the port name if successful, otherwise "error" as the port
+#
+async def json_handle_gcode(printer, *args):  
+    for i in args:
+        print("{}".format(i))
 
-    # dispatcher.add_dict({"extrude": lambda *msg: json_handle_extrude(printer, *msg)})
-    # dispatcher.add_dict({"extrudeto": lambda *msg: json_handle_extrudeto(printer, *msg)})
-    # dispatcher.add_dict({"move": lambda *msg: json_handle_move(printer, *msg)})
-    # dispatcher.add_dict({"moveto": lambda *msg: json_handle_moveto(printer, *msg)})
+    gcode = args[0]
+    parse_results = False
+    if len(args) is 2:
+        parse_results = args[1]
 
-    # get last printer response:
-    dispatcher.add_dict({"response": lambda *msg: json_handle_responses(printer, *msg)})
+    try:
+        result = await printer.send_command(gcode, parse_results)
+    except:
+        raise
+    return result
+
+#
+# set the serial port of the printer and connect.
+# return the port name if successful, otherwise "error" as the port
+#
+async def json_handle_set_serial_port(printer, *args):  
+    response = ""
+    for i in args:
+        print("{}".format(i))
+    port = args[0]
+    baud_rate = int(args[1])
+    if baud_rate < 1: 
+        baud_rate = options.baud_rate
+
+    print("setting serial port: {}".format(port))
+
+    if port.lower().startswith("dummy"):
+        use_dummy_serial_port(printer)
+    else:        
+        # TODO: check if printer serial ports are different!!
+        if (printer.connection_state is ConnectionState.connected):
+            await printer.disconnect()
+        
+        printer._serial_port = port
+        printer._baud_rate = baud_rate
+
+        try:
+            received = await printer.async_connect()
+
+        except SerialException:
+            response = "ERROR: could not connect to serial port {}".format(port)
+            print(response)
+            raise Exception(response)
+        else:
+            response = [{
+                    'time': time.time()*1000,
+                    'port': [port, baud_rate],
+                    'messages': received
+                    }]
+    return response
+
+#
+# Disconnect current serial port
+# return the conenction state name (closed, open, etc.)
+#
+async def json_handle_close_serial(printer, *args):  
+    response = ""
+    if printer._serial is not None and printer._serial.is_open:
+        result = await printer.disconnect() # connection_state
+        response = result.name
+    else:
+        state = ConnectionState.closed
+        response = state.name
+    return [response]
+
+#
+# Handle request for serial ports from front end
+#
+async def json_handle_portslist():
+
+    try:
+        ports = await list_ports()
+    except Exception as e:
+        # TODO: fix this to be a real error type so it gets sent to the clients properly
+       print("could not get serial ports list: {}".format(repr(e)))
+       raise ValueError("could not get  serial ports list: {}".format(repr(e)))
+
+    ports.append("dummy")
+    
+    return [{'ports': ports, 'time': time.time()*1000 }]
 
 
-    # Initialize web server.
-    # Backend handler is always required.
-    handlers = [
-        (r"/", MainHandler),
-        (r"/json", WebSocketHandler),
-        ]
+#
+# return the name of the serial port and connection state
+#
+async def json_handle_printer_state(printer):
+    
+    response = []
+
+    connectionState = printer.connection_state
+    serial_port_name = printer._serial_port
+
+    if printer._serial_port is "/dev/null":
+        serial_port_name = "dummy"
+    response.append({
+        'time': time.time()*1000,
+        'port': serial_port_name,
+        'state': connectionState.name
+        })
+    return response
+
+
+def main():
+    tornado.options.parse_command_line()
+
+    loop = tornado.ioloop.IOLoop.current()
+    printer = SerialDevice()
+
+    serial_port_func = functools.partial(json_handle_set_serial_port, printer)
+
+
+    # dispatcher.add_dict({"set-serial-port": serial_port_func })
+
+    #----------------------------------------
+    # THIS DEFINES THE JSON-RPC API:
+    #----------------------------------------
+    async def r_creator(request):
+        params = request.params
+
+        if request.method == "set-serial-port":
+            result = await serial_port_func(*params)
+            return result
+        elif request.method == "get-serial-ports":
+            result = await json_handle_portslist()
+            return result
+        elif request.method == "send-gcode":
+            result = await json_handle_gcode(printer, *params)
+            return result
+        elif request.method == "get-printer-state":
+            result = await json_handle_printer_state(printer)
+            return result
+        elif request.method == "close-serial-port":
+            result = await json_handle_close_serial(printer)
+            return result
+
+        else:
+            raise MethodNotFound("{}".format(request.method))
+
     settings = dict(
             cookie_secret="__TODO:_GENERATE_YOUR_OWN_RANDOM_VALUE_HERE__",
             template_path=os.path.join(os.path.dirname(__file__), "templates"),
             static_path=os.path.join(os.path.dirname(__file__), "static"),
-            xsrf_cookies=True,
-    )
-    Logger.log("d",settings)
-    app = Application(handlers=handlers, debug=options.debug, **settings)
+            xsrf_cookies=False,
+        )
+    handlers = [
+        (r"/", MainHandler),
+        (r"/test", TestHandler, dict(printer=printer)),
+        (r"/jsontest", JsonTestHandler),
+        # (r"/jsonrpc", JSONHandler),
+        (r"/jsonrpc", JSONRPCHandler, dict(response_creator=r_creator)),
+        ]
+    application = tornado.web.Application(handlers=handlers, debug=True, **settings)
+    http_server = tornado.httpserver.HTTPServer(application)
+    http_server.listen(options.port)
 
-    # Create event loop and periodic callbacks
-    httpServer = tornado.httpserver.HTTPServer(app)
-    httpServer.listen(options.http_port)
-    #httpServer.bind(options.http_port)
-    #httpServer.start(0)
 
-    main_loop = tornado.ioloop.IOLoop.instance()
-    main_loop.start()
+    tornado.ioloop.IOLoop.current().start()
+
+
+if __name__ == "__main__":
+    main()
