@@ -19,8 +19,8 @@ We can create a Reddit forum or YouTube channel if there is demand for it.
 The server runs on Python 3 (3.6 and 3.7 tested) so you will need that installed.  Then, use pip (the Python package manager) to install:
 
 * pyserial (tested with 3.4)
-* tornado (tested with 5.0.2)
-* json-rpc (tested with 1.11.0)
+* tornado (tested with 6.0.1)
+* tornado-jsonrpc2 (tested with 0.5)
 
 Here is a short video demonstrating the python installation on Windows (on OS X it's the same, just use Terminal instead of Command Prompt):
 https://youtu.be/ejlaQhOCUHw
@@ -70,7 +70,7 @@ More than one person might be involved: the system is designed to support collab
 
 ### Testing
 
-If you fire up the testing server (tornado_test.py) and then navigate a browser to http://localhost:8888/jsontest you can play with the API in a hands-on web page.
+If you fire up the server and then navigate a browser to http://localhost:8888/jsontest you can play with the API in a hands-on web page.
 
 ### API Documentation
 
