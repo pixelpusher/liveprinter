@@ -33,6 +33,7 @@ class Printer {
      * Create new instance, passing a function for sending messages
      * @constructor
      * @param {Function} _messageSendFunc function to pass in that will send messages to the server/physical printer
+     * @param {Function} _errorFunc function to pass in that will send error messages somewhere (the GUI perhaps)
      */
     constructor(_messageSendFunc = null, _errorFunc = console.log) {
 
@@ -48,13 +49,15 @@ class Printer {
         // this.rsp => set/get move speed
         // this.lh => set layerhight (NOTE: also thick(val) does this)
 
+        this.priority = 4; // priority of queued messages (4 is normal, 0-9 is the range where 0 is highest)
 
         /**
-         *  the function (Websockets or other) that this object will use to send gcode to the printer
-         *  @type {Function} An asynchronous function... run immediately. This looks odd, but otherwise 
-         *  everything would have to be asynchronous in the editor, which makes the syntax much more difficult.
+         *  The function (AJAX or other) that this object will use to send gcode to the printer.
+         *  @param {String} cmd GCode command string to send
+         *  @returns{any} Nothing.
          */
-        this.send = _messageSendFunc;
+        this.send = (cmd) => _messageSendFunc(cmd, this.priority);
+
 
         if (this.send === null) {
             this.send = async msg => {
@@ -93,10 +96,24 @@ class Printer {
         this.boundaryMode = "stop";
 
         this.maxMovePerCycle = 200; // max mm to move per calculation (see _extrude method)
-
-        this.queuedMessages = []; // messages queued to be sent by this.send(...)
-
         this.setProperties();
+    }
+
+    // priority of sent commands in async queue
+    highestPriority() {
+        this.priority = 2;
+    }
+    highPriority() {
+        this.priority = 3;
+    }
+    normalPriority() {
+        this.priority = 4;
+    }
+    lowPriority() {
+        this.priority = 5;
+    }
+    lowestPriority() {
+        this.priority = 6;
     }
 
     /**
@@ -755,17 +772,6 @@ class Printer {
         }
         else {
             await this.send("M209 S" + 1);
-        }
-        return this;
-    }
-
-    /**
-    *  Send all the queued command messages via the send function (probably websockets)
-    * @returns {Printer} reference to this object for chaining
-    */
-    sendQueued() {
-        for (let msg of this.queuedMessages) {
-            this.send(msg);
         }
         return this;
     }

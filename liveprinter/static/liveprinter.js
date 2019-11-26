@@ -112,13 +112,14 @@ Task.prototype = {
     /**
      * Send GCode to the server via ajax and hande response.
      * @param {string} gcode gcode to send
+     * @param {Integer} priority Priority in queue (0-9 where 0 is highest)
      * @memberOf LivePrinter
      * @returns {Object} result Returns json object containing result
      */
-    async function sendGCodeAndHandleResponse(gcode) {
-        const result = await sendGCode(gcode);
-        console.log("GOT RESULTS");
-        console.log(result);
+    async function sendGCodeAndHandleResponse(gcode, priority = 4) {
+        const result = await sendGCode(gcode, priority);
+        //console.log("GOT RESULTS");
+        //console.log(result);
         if (result.result !== undefined)
             for (const res of result.result) {
                 loginfo(res);
@@ -568,8 +569,11 @@ Task.prototype = {
         return limiter;
     }
 
-    let limiter = initLimiter(); // Bottleneck rate limiter
+    let limiter = initLimiter(); // Bottleneck rate limiter for priority async queing
 
+    /**
+     * Stops and clears the current queue of events. Should cancel all non-running actions. No new events can be added after this.
+     */
     async function stopLimiter() {
         await limiter.stop();
         limiter = null;
@@ -577,11 +581,15 @@ Task.prototype = {
         return;
     }
 
+    /**
+     * Effectively cleares the current queue of events and restarts it. Should cancel all non-running actions.
+     */
     async function restartLimiter() {
         await stopLimiter();
         limiter = initLimiter();
         return;
     }
+    window.scope.clearPrinter = restartLimiter;
 
     /**
      * Send a JSON-RPC request to the backend, get a response back. See below implementations for details.
@@ -627,15 +635,16 @@ Task.prototype = {
     /**
      * Run a list of gcode asynchronously in a sequence and return list fo responses when finished
      * @param {Array} list List of GCode lines to run
+     * @param {Integer} priority Priority in queue (0-9 where 0 is highest)
      * @returns {Object} JSON-RPC object with result
      */
-    async function sendGCodeList(list) {
+    async function sendGCodeList(list, priority=4) {
         let gcodeObj = { "jsonrpc": "2.0", "id": 4, "method": "send-gcode", "params": [] };
 
         let result = await Promise.all(list.map(async (gcode) => {
             gcodeObj.params = [gcode];
             //console.log(gcodeObj);
-            return sendJSONRPC(JSON.stringify(gcodeObj));
+            return sendJSONRPC(JSON.stringify(gcodeObj), priority);
         }));
         return result;
     }
@@ -653,7 +662,7 @@ Task.prototype = {
         let printerState = "error";
         let printerPort = "";
 
-        if (stateEvent.result === undefined) {
+        if (stateEvent.result !== undefined) {
             printerState = stateEvent.result[0].state;
             printerPort = stateEvent.result[0].port;
         }
@@ -870,10 +879,12 @@ Task.prototype = {
     /**
      * Send GCode to the server via websockets.
      * @param {string} gcode gcode to send
+     * @param {Integer} priority Priority in queue (0-9 where 0 is highest)
+
      * @memberOf LivePrinter
      * @returns {Object} result Returns json object containing result
      */
-    async function sendGCode(gcode) {
+    async function sendGCode(gcode, priority = 4) {
 
         // remove all comments from lines and reconstruct
         let gcodeLines = gcode.replace(new RegExp(/\n+/g), '\n').split('\n');
@@ -910,7 +921,7 @@ Task.prototype = {
             GCodeEditor.setSelection(pos, newpos);
             GCodeEditor.scrollIntoView(newpos);
         }
-        const result = await sendGCodeList(cleanGCode);
+        const result = await sendGCodeList(cleanGCode, priority);
         return result;
     }
 
@@ -999,15 +1010,16 @@ Task.prototype = {
 
     /**
      * RequestRepeat:
-     * Utility to send a JSON-RPC request repeatedly whilst a "button" is pressed (it has an "active" CSS class)
-     * @param {Object} jsonObject
-     * @param {JQuery} activeElem JQuery element to check for active class
+     * Utility to send a JSON-RPC request repeatedly whilst a "button" is pressed (i.e. it has an "active" CSS class)
+     * @param {Object} jsonObject JSON-RPC to repeat
+     * @param {JQuery} activeElem JQuery element to check for active class (will keep running whist is has an "active" class)
      * @param {Integer} delay Delay between repeated successful calls in millis
      * @param {Function} func Callback to run on result
+     * @param {Integer} priority Priority of request in queue (0-9 where 0 is highest)
      * @returns {Object} JsonRPC response object
      */
-    async function requestRepeat(jsonObject, activeElem, delay, func) {
-        const result = await sendJSONRPC(jsonObject);
+    async function requestRepeat(jsonObject, activeElem, delay, func, priority=4) {
+        const result = await sendJSONRPC(jsonObject, priority);
         func(result);
 
         const running = activeElem.hasClass("active");
@@ -1015,7 +1027,7 @@ Task.prototype = {
         setTimeout(async () => {
             if (!running) return;
             else {
-                await requestRepeat(jsonObject, activeElem, delay, func);
+                await requestRepeat(jsonObject, activeElem, delay, func, priority);
             }
         }, delay);
 
@@ -1025,11 +1037,12 @@ Task.prototype = {
 
     /**
      * json-rpc temperature event handler
+     * @param {Object} JSON-RPC event result 
      * @memberOf LivePrinter
      */
     const tempHandler = (tempEvent) => {
-        console.log("temp event:");
-        console.log(tempEvent);
+        //console.log("temp event:");
+        //console.log(tempEvent);
 
         const data = tempEvent.result[0]; // first object in results array
         let tmp = parseFloat(data.hotend).toFixed(2);
@@ -1049,7 +1062,8 @@ Task.prototype = {
         return requestRepeat({ "jsonrpc": "2.0", "id": 4, "method": "send-gcode", "params": ["M105", true] }, //get temp
             $("#temp-display-btn"), // temp button
             interval,
-            tempHandler);
+            tempHandler,
+            3); // higher priority
     }
 
 
@@ -1879,21 +1893,11 @@ Task.prototype = {
         }
         setLanguageMode(); // update codemirror editor
     });
-
-    scope.clearPrinterCommandQueue = function () {
-        let message = {
-            'jsonrpc': '2.0',
-            'id': 7,
-            'method': 'clear-command-queue',
-            'params': []
-        };
-        socketHandler.sendMessage(message);
-    };
-
+    
     /*
      * Clear printer queue on server 
      */
-    $("#clear-btn").on("click", scope.clearPrinterCommandQueue);
+    $("#clear-btn").on("click", restartLimiter);
 
 
     // TODO: temp probe that gets scheduled every 300ms and then removes self when
@@ -2226,7 +2230,6 @@ Task.prototype = {
             else {
                 if (!globally) {
                     // give quick access to liveprinter API
-                    code = "let cancel = s.clearPrinterCommandQueue;\n" + code; //alias
                     code = "let lp = window.scope.printer;" + code;
                     code = "let sched = window.scope.Scheduler;" + code;
                     code = "let socket = window.scope.socket;" + code;
