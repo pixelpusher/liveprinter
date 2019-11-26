@@ -6,11 +6,12 @@
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
-# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
 # License for the specific language governing permissions and limitations
 # under the License.
 # ---------------------------------------------------------------------------------------------------------------------
-# LivePrinter server.  Uses AJAX and JSON RPC to communicate with a Marlin-based 3D printer via a web-based code editor
+# LivePrinter server.  Uses AJAX and JSON RPC to communicate with a
+# Marlin-based 3D printer via a web-based code editor
 # ---------------------------------------------------------------------------------------------------------------------
 # Notes:
 # ---------------------------------------------------------------------------------------------------------------------
@@ -19,15 +20,21 @@
 # open http://localhost:8888/jsontest for web interface
 # or directly test json API by:
 #
-# curl --insecure --data '{ "jsonrpc": "2.0", "id": 5, "method": "set-serial-port","params": [ "dummy", 125000]}' http://localhost:8888/jsonrpc
-# curl --insecure --data '{ "jsonrpc": "2.0", "id": 6, "method": "get-serial-ports","params": []}' http://localhost:8888/jsonrpc
+# curl --insecure --data '{ "jsonrpc": "2.0", "id": 5, "method":
+# "set-serial-port","params": [ "dummy", 125000]}'
+# http://localhost:8888/jsonrpc
+# curl --insecure --data '{ "jsonrpc": "2.0", "id": 6, "method":
+# "get-serial-ports","params": []}' http://localhost:8888/jsonrpc
 #
 #
-# python -m serial.tools.list_ports will print a list of available ports. It is also possible to add a regexp as first argument and the list will only include entries that matched.
-# pySerial includes a small console based terminal program called serial.tools.miniterm. It ca be started with python -m serial.tools.miniterm <port_name> 
+# python -m serial.tools.list_ports will print a list of available ports.  It
+# is also possible to add a regexp as first argument and the list will only
+# include entries that matched.
+# pySerial includes a small console based terminal program called
+# serial.tools.miniterm.  It ca be started with python -m serial.tools.miniterm
+# <port_name>
 # (use option -h to get a listing of all options).
 # ---------------------------------------------------------------------------------------------------------------------
-
 
 import os
 import random
@@ -79,6 +86,19 @@ class JsonTestHandler(tornado.web.RequestHandler):
         except Exception as e:
             print("ERROR in GET: {}".format(repr(e)))
 
+
+class JsonQueueTestHandler(tornado.web.RequestHandler):
+    def check_xsrf_cookie(self):
+        pass
+
+    def get(self):
+        print("TEMPLATE PATH: {}".format(self.get_template_path()))
+        try:
+            self.render("test-bottleneck.html")
+        except Exception as e:
+            print("ERROR in GET: {}".format(repr(e)))
+
+
 #
 # list all serial ports
 #
@@ -103,20 +123,20 @@ def use_dummy_serial_port(printer:SerialDevice):
             # print ("delayed string {}".format(time.time()))
             return result
 
-        printer._serial_port ="/dev/null"
-        printer._serial = dummyserial.Serial(
-            port= printer._serial_port,
+        printer._serial_port = "/dev/null"
+        printer._serial = dummyserial.Serial(port= printer._serial_port,
             baudrate= printer._baud_rate,
             ds_responses={
                 '.*M105.*': lambda : b'ok T:%.2f /190.0 B:%.2f /24.0 @:0 B@:0\n' % (random.uniform(170,195),random.uniform(20,35)),
                 '.*M115.*': b'FIRMWARE_NAME:DUMMY\n',
-                '.*M114.*': lambda : b'X:%.2fY:%.2fZ:%.2fE:%.2f Count X: 2.00Y:3.00Z:4.00\n' % (random.uniform(0,200), random.uniform(0,200), random.uniform(0,200), random.uniform(0,200) ),   # position request
+                '.*M114.*': lambda : b'X:%.2fY:%.2fZ:%.2fE:%.2f Count X: 2.00Y:3.00Z:4.00\n' % (random.uniform(0,200), random.uniform(0,200), random.uniform(0,200), random.uniform(0,200)),   # position request
                 '.*G.*': lambda : delayed_string(b'ok\n'),
                 '.*M400.*': lambda : delayed_string(b'ok\n'),
-                #'^N.*': b'ok\n',
-                '^XXX': b'!!\n'
-                            }
-        )
+                '.*M207.*': lambda : delayed_string(b'ok\n'),
+                '.*M208.*': lambda : delayed_string(b'ok\n'),
+                '.*M10[0-46-9].*': lambda : delayed_string(b'ok\n'),
+                '^XXX': b'!!\n',
+                            })
     printer.connection_state = ConnectionState.connected
 
 
@@ -174,7 +194,7 @@ async def json_handle_set_serial_port(printer, *args):
             raise Exception(response)
         else:
             response = [{
-                    'time': time.time()*1000,
+                    'time': time.time() * 1000,
                     'port': [port, baud_rate],
                     'messages': received
                     }]
@@ -202,13 +222,14 @@ async def json_handle_portslist():
     try:
         ports = await list_ports()
     except Exception as e:
-        # TODO: fix this to be a real error type so it gets sent to the clients properly
+        # TODO: fix this to be a real error type so it gets sent to the clients
+        # properly
        print("could not get serial ports list: {}".format(repr(e)))
        raise ValueError("could not get  serial ports list: {}".format(repr(e)))
 
     ports.append("dummy")
     
-    return [{'ports': ports, 'time': time.time()*1000 }]
+    return [{'ports': ports, 'time': time.time() * 1000 }]
 
 
 #
@@ -224,7 +245,7 @@ async def json_handle_printer_state(printer):
     if printer._serial_port is "/dev/null":
         serial_port_name = "dummy"
     response.append({
-        'time': time.time()*1000,
+        'time': time.time() * 1000,
         'port': serial_port_name,
         'state': connectionState.name
         })
@@ -267,19 +288,16 @@ def main():
         else:
             raise MethodNotFound("{}".format(request.method))
 
-    settings = dict(
-            cookie_secret="__TODO:_GENERATE_YOUR_OWN_RANDOM_VALUE_HERE__",
+    settings = dict(cookie_secret="__TODO:_GENERATE_YOUR_OWN_RANDOM_VALUE_HERE__",
             template_path=os.path.join(os.path.dirname(__file__), "templates"),
             static_path=os.path.join(os.path.dirname(__file__), "static"),
-            xsrf_cookies=False,
-        )
-    handlers = [
-        (r"/", MainHandler),
+            xsrf_cookies=False,)
+    handlers = [(r"/", MainHandler),
         (r"/test", TestHandler, dict(printer=printer)),
         (r"/jsontest", JsonTestHandler),
+        (r"/jsonqtest", JsonQueueTestHandler),
         # (r"/jsonrpc", JSONHandler),
-        (r"/jsonrpc", JSONRPCHandler, dict(response_creator=r_creator)),
-        ]
+        (r"/jsonrpc", JSONRPCHandler, dict(response_creator=r_creator)),]
     application = tornado.web.Application(handlers=handlers, debug=True, **settings)
     http_server = tornado.httpserver.HTTPServer(application)
     http_server.listen(options.port)

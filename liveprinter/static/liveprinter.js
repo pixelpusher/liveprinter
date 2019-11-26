@@ -535,39 +535,92 @@ Task.prototype = {
     //-------------------------------------------------------------------------------------------------------------------------
     //-------------------------------------------------------------------------------------------------------------------------
 
+
+    function initLimiter() {
+        // Bottleneck rate limiter package: https://www.npmjs.com/package/bottleneck
+        // prevent more than 1 request from running at a time, provides priority queing
+        const limiter = new Bottleneck({
+            maxConcurrent: 1,
+            highWater: 1000, // max jobs
+            minTime: 20, // (ms) How long to wait after launching a job before launching another one.
+            strategy: Bottleneck.strategy.OVERFLOW_PRIORITY, // don't accpt new jobs over highwater
+        });
+
+        // Listen to the "failed" event
+        limiter.on("failed", async (error, jobInfo) => {
+            const id = jobInfo.options.id;
+            console.warn(`Job ${id} failed: ${error}`);
+
+            if (jobInfo.retryCount === 0) { // Here we only retry once
+                console.log(`Retrying job ${id} in 250ms!`);
+                return 250;
+            }
+        });
+
+
+        limiter.on("dropped", function (dropped) {
+            console.warn("dropped:");
+            console.warn(dropped);
+            //   This will be called when a strategy was triggered.
+            //   The dropped request is passed to this event listener.
+        });
+
+        return limiter;
+    }
+
+    let limiter = initLimiter(); // Bottleneck rate limiter
+
+    async function stopLimiter() {
+        await limiter.stop();
+        limiter = null;
+        console.log("Shutdown completed!");
+        return;
+    }
+
+    async function restartLimiter() {
+        await stopLimiter();
+        limiter = initLimiter();
+        return;
+    }
+
     /**
      * Send a JSON-RPC request to the backend, get a response back. See below implementations for details.
      * @param {Object} request JSON-RPC formatted request object
      * @returns {Object} response JSON-RPC response object
      */
-    async function sendJSONRPC(request) {
-        let result;
+
+    let requestId = 0; // for serialising requests
+
+    async function sendJSONRPC(request, priority = 4) { // 4 is default priority (0-9 where 0 is highest)
         //console.log(request)
         let args = typeof request === "string" ? JSON.parse(request) : request;
         //args._xsrf = getCookie("_xsrf");
         //console.log(args);
-        try {
-            result = await $.ajax({
-                url: "http://localhost:8888/jsonrpc",
-                type: "POST",
-                data: JSON.stringify(args),
-                timeout: 60000 // might be a long wait on startup... printer takes time to start up and dump messages
-            });
-            result = JSON.stringify(result);
+        let reqId = "req" + requestId++;
+
+        async function sendBody() {
+            let response = "awaiting response";
+            try {
+                response = await $.ajax({
+                    url: "http://localhost:8888/jsonrpc",
+                    type: "POST",
+                    data: JSON.stringify(args),
+                    timeout: 60000 // might be a long wait on startup... printer takes time to start up and dump messages
+                });
+            }
+            catch (error) {
+                // statusText field has error ("timeout" in this case)
+                response = JSON.stringify(error, null, 2);
+                console.error(response);
+            }
+
+            return response;
         }
-        catch (error) {
-            // statusText field has error ("timeout" in this case)
-            result = JSON.stringify(error, null, 2);
-            //console.log(result);
-        }
-        finally {
-            // DEBUGGING
-            //console.log("JSON-RPC");
-            //console.log(result);
-            //$("#result-txt").val(result);
-        }
-        return JSON.parse(result);
+
+        const result = await limiter.schedule({ priority: priority, id: reqId }, async () => sendBody());
+        return result;
     }
+
     window.scope.sendJSONRPC = sendJSONRPC;
 
 
@@ -591,14 +644,20 @@ Task.prototype = {
 
     /**
     * json-rpc printer state (connected/disconnected) event handler
+    * @param{Object} stateEvent json-rpc response (in json format)
     * @memberOf LivePrinter
     */
     const printerStateHandler = function (stateEvent) {
         //console.log(stateEvent);
         const printerTab = $("#header");
-        const printerState = stateEvent.result[0].state;
-        const printerPort = stateEvent.result[0].port;
+        let printerState = "error";
+        let printerPort = "";
 
+        if (stateEvent.result === undefined) {
+            printerState = stateEvent.result[0].state;
+            printerPort = stateEvent.result[0].port;
+        }
+ 
         switch (printerState) {
             case "connected":
                 if (!printerTab.hasClass("blinkgreen")) {
@@ -621,7 +680,7 @@ Task.prototype = {
                 printerTab.removeClass("blinkgreen");
                 break;
             case "error":
-
+                printerTab.removeClass("blinkgreen");
                 break;
         }
     };
@@ -630,10 +689,22 @@ Task.prototype = {
 
     /**
      * json-rpc serial ports list event handler
+     * @param{Object} event json-rpc response (in json format)
      * @memberOf LivePrinter
      */
     const portsListHandler = function (event) {
-        const ports = event.result[0].ports;
+        let ports = ["none"];
+        try {
+            ports = event.result[0].ports;
+        }
+        catch (e)
+        {
+            console.error("Bad event in portsListHandler:");
+            console.error(event);
+            console.error(e);
+            throw e;
+        }
+
         window.scope.serialPorts = []; // reset serial ports list
         let portsDropdown = $("#serial-ports-list");
         //console.log("list of serial ports:");
@@ -862,8 +933,9 @@ Task.prototype = {
             GCodeEditor.setSelection({ line: cursor.line, ch: 0 }, { line: cursor.line, ch: code.length });
         }
         let result = await sendGCode(code);
-        console.log("GOT RESULTS");
-        console.log(result);
+        // debugging:
+        //console.log("GOT RESULTS");
+        //console.log(result);
         if (result.result !== undefined)
             for (const res of result.result) {
                 loginfo(res);
@@ -884,6 +956,7 @@ Task.prototype = {
             const err = new Error("Printer not connected! Please connect first using the printer settings tab.");
             doError(err);
             throw err;
+            //TODO: BIGGER ERROR MESSAGE HERE
         }
         else {
 
@@ -2055,8 +2128,9 @@ Task.prototype = {
         //
         // try one liner grammar replacement
         //
-
+        let grammarFound = false; // if this line contains the lp grammar
         code = code.replace(grammarOneLineRegex, (match, p1) => {
+            grammarFound = true; // found!
             let result = "";
             let fail = false; // if not successful
             try {
@@ -2069,16 +2143,13 @@ Task.prototype = {
 
             if (fail !== false)
                 result += "/*ERROR IN PARSE: " + fail + "*/\n";
-            else {
-                let asyncresult = parser.results[0].replace(asyncFunctionsInAPIRegex, (match, p1) => {
-                    return "await " + p1;
-                });
-                result += asyncresult + "\n";
-            }
+            else
+                result += parser.results[0] + "\n";
+
             return result;
         });
 
-        console.log("code AFTER pre-processing -------------------------------");
+        console.log("code AFTER one-line-grammar processing -------------------------------");
         console.log(code);
         console.log("========================= -------------------------------");
 
@@ -2117,12 +2188,7 @@ Task.prototype = {
                 }
             }); // end compiling line by line
 
-            // TODO: look for async functions in array asyncFunctionsInAPI
-            // add await/try/catch code around them
-            let asyncresult = parser.results[0].replace(asyncFunctionsInAPIRegex, (match, p1) => {
-                return "await " + p1;
-            });
-            result += asyncresult + "\n";
+            result += parser.results[0] + "\n";
 
             return result;
         });
@@ -2131,7 +2197,7 @@ Task.prototype = {
         // replace globals in js
         code = code.replace(/^[ ]*global[ ]+/gm, "window.");
 
-        console.log("code AFTER grammar processing -------------------------------");
+        console.log("code AFTER block-grammar processing -------------------------------");
         console.log(code);
         console.log("========================= -------------------------------");
 

@@ -519,6 +519,7 @@
     <Content Include="liveprinter\static\scales.js" />
     <Content Include="liveprinter\static\util\svgrenderer.html" />
     <Content Include="liveprinter\templates\index.html" />
+    <Content Include="liveprinter\templates\test-bottleneck.html" />
     <Content Include="liveprinter\templates\test.html" />
     <Content Include="liveprinter\testing\gcodegrammar.js" />
     <Content Include="liveprinter\testing\test_gcode.txt" />

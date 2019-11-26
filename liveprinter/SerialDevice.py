@@ -146,7 +146,8 @@ class SerialDevice():
                 current_time = time.time() - start_time
                 if current_time > max_loop_timeout:
                     result.append("serial response timeout")
-                    break; # exit loop
+                    raise ValueError(result)
+                    break # exit loop
 
                 new_line = await self.read_response()
                 if new_line is not "":
@@ -155,6 +156,7 @@ class SerialDevice():
 
                     if attempts < 1:
                         result.append("too many retries")
+                        raise ValueError(result)
                         break
 
                     # Check for RESEND
@@ -232,7 +234,7 @@ class SerialDevice():
             else:   
                 # DEFAULT RESPONSE if not matched - JUST SEND BACK TO FRONT END
                 result.append(line.rstrip('\n\r'))
-                print("result not parsed {cmd}, {line}".format(cmd=cmd,line=line))
+                # print("result not parsed {cmd}, {line}".format(cmd=cmd,line=line))
 
             # end parsing results
             self.commands_queued -= 1
