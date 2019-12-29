@@ -2127,7 +2127,7 @@ Task.prototype = {
 
         const grammarBlockRegex = /\#\#\s*([^\#][\w\d\s\(\)\{\}\.\,\|\:\"\'\+\-\/\*]+)\s*\#\#/gm;
 
-        const grammarOneLineRegex = /^\#\s*([^\#][\w\d\s\(\)\{\}\.\,\|\:\"\'\+\-\/\*]+)[\r\n]*/;
+        const grammarOneLineRegex = /\s*\#\s*([^\#][\w\d\s\(\)\{\}\.\,\|\:\"\'\+\-\/\*]+)\s*\#?/;
 
         //
         // try one liner grammar replacement
@@ -2137,19 +2137,22 @@ Task.prototype = {
             grammarFound = true; // found!
             let result = "";
             let fail = false; // if not successful
-            try {
-                parser.feed(p1);
-            } catch (e) { // SyntaxError on parse
-                doError(e);
-                console.log(e);
-                fail = e.message;
+            let line = p1.replace(/([\r\n]+)/gm, "").replace(/(^[\s]+)/, "").replace(/([\s]+)$/, "");
+            if (line) {
+                try {
+                    parser.feed(p1);
+                } catch (e) { // SyntaxError on parse
+                    doError(e);
+                    console.log(e);
+                    fail = e.message;
+                    console.log("offending code:[" + line + "]");
+                }
+
+                if (fail !== false)
+                    result += "/*ERROR IN PARSE: [" + fail + "] + offending code: [" + line + "]"+"*/\n";
+                else
+                    result += parser.results[0] + "\n";
             }
-
-            if (fail !== false)
-                result += "/*ERROR IN PARSE: " + fail + "*/\n";
-            else
-                result += parser.results[0] + "\n";
-
             return result;
         });
 
