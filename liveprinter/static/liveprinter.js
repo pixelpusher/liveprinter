@@ -67,6 +67,9 @@ Task.prototype = {
 
     let pythonMode = false;
 
+    // this uses the limiting queue, but that affects performance for fast operations (< 250ms)
+    window.scope.useLimiter = false;
+
     if (scope.printer) delete scope.printer;
 
     // names of all async functions in API for replacement in minigrammar later on in RunCode
@@ -543,7 +546,7 @@ Task.prototype = {
         const limiter = new Bottleneck({
             maxConcurrent: 1,
             highWater: 1000, // max jobs
-            minTime: 20, // (ms) How long to wait after launching a job before launching another one.
+            minTime: 1, // (ms) How long to wait after launching a job before launching another one.
             strategy: Bottleneck.strategy.OVERFLOW_PRIORITY, // don't accpt new jobs over highwater
         });
 
@@ -624,8 +627,17 @@ Task.prototype = {
 
             return response;
         }
+        let result = null;
 
-        const result = await limiter.schedule({ priority: priority, id: reqId }, async () => sendBody());
+        if (window.scope.useLimiter) {
+            // use limiter for priority scheduling
+            result = await limiter.schedule({ priority: priority, id: reqId }, async () => sendBody());
+        }
+        else {
+            // send ASAP
+            result = await sendBody();
+        }
+        
         return result;
     }
 

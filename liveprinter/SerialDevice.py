@@ -50,7 +50,7 @@ class SerialDevice():
             # the printer is quite chatty on startup, but takes a second or so to reboot when connected
             result = []
             newline = ""
-            timeout = 5 # max time to wait in seconds
+            timeout = 10 # max time to wait in seconds
             start_time = time.time()
             got_something = False
 
