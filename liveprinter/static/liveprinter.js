@@ -70,6 +70,8 @@ Task.prototype = {
     // this uses the limiting queue, but that affects performance for fast operations (< 250ms)
     window.scope.useLimiter = false;
 
+    window.scope.ajaxTimeout = 60000; // 1 minute timeout for ajax calls (API calls to the backend server)
+
     if (scope.printer) delete scope.printer;
 
     // names of all async functions in API for replacement in minigrammar later on in RunCode
@@ -544,9 +546,9 @@ Task.prototype = {
         // Bottleneck rate limiter package: https://www.npmjs.com/package/bottleneck
         // prevent more than 1 request from running at a time, provides priority queing
         const limiter = new Bottleneck({
-            maxConcurrent: 1,
-            highWater: 1000, // max jobs
-            minTime: 1, // (ms) How long to wait after launching a job before launching another one.
+            maxConcurrent: 10,
+            highWater: 2000, // max jobs
+            minTime: 0, // (ms) How long to wait after launching a job before launching another one.
             strategy: Bottleneck.strategy.OVERFLOW_PRIORITY, // don't accpt new jobs over highwater
         });
 
@@ -554,17 +556,17 @@ Task.prototype = {
         limiter.on("failed", async (error, jobInfo) => {
             const id = jobInfo.options.id;
             console.warn(`Job ${id} failed: ${error}`);
-
+            logerror(`Job ${id} failed: ${error}`);
             if (jobInfo.retryCount === 0) { // Here we only retry once
-                console.log(`Retrying job ${id} in 250ms!`);
-                return 250;
+                logerror(`Retrying job ${id} in 20ms!`);
+                return 20;
             }
         });
-
 
         limiter.on("dropped", function (dropped) {
             console.warn("dropped:");
             console.warn(dropped);
+            logerror(`"Dropped job ${JSON.stringify(dropped)}`);
             //   This will be called when a strategy was triggered.
             //   The dropped request is passed to this event listener.
         });
@@ -616,13 +618,17 @@ Task.prototype = {
                     url: "http://localhost:8888/jsonrpc",
                     type: "POST",
                     data: JSON.stringify(args),
-                    timeout: 60000 // might be a long wait on startup... printer takes time to start up and dump messages
+                    timeout: window.scope.ajaxTimeout // might be a long wait on startup... printer takes time to start up and dump messages
                 });
             }
             catch (error) {
                 // statusText field has error ("timeout" in this case)
                 response = JSON.stringify(error, null, 2);
                 console.error(response);
+                logerror(response);
+            }
+            if (undefined === response.error) {
+                logerror(response);
             }
 
             return response;
@@ -1628,9 +1634,32 @@ Task.prototype = {
             infoHandler.info({ time: Date.now(), message: text + "" });
         }
     }
+    /**
+    * Log a line of text to the logging panel on the right side
+    * @param {String} text Text to log in the right info panel
+     * @memberOf LivePrinter
+    */
+    function logerror(text) {
+        console.log("LOGERROR-----------");
+        console.log(text);
+
+        if (typeof text === "string")
+            errorHandler.info({ time: Date.now(), message: text });
+        else if (typeof text === "object") {
+            errorHandler.info({ time: Date.now(), message: JSON.stringify(text) });
+        }
+        else if (typeof text === "array") {
+            errorHandler.info({ time: Date.now(), message: text.toString() });
+        }
+        else {
+            errorHandler.info({ time: Date.now(), message: text + "" });
+        }
+    }
+
 
     // make global
     window.loginfo = loginfo;
+    window.logerror = logerror;
 
     /**
      * Attach an external script (and remove it quickly). Useful for adding outside libraries.
@@ -2140,6 +2169,12 @@ Task.prototype = {
         const grammarBlockRegex = /\#\#\s*([^\#][\w\d\s\(\)\{\}\.\,\|\:\"\'\+\-\/\*]+)\s*\#\#/gm;
 
         const grammarOneLineRegex = /\s*\#\s*([^\#][\w\d\s\(\)\{\}\.\,\|\:\"\'\+\-\/\*]+)\s*\#?/;
+
+        const commentRegex = /\/\*[\s\S]*?\*\/|([^\\:]|^)\/\/.*$/gm; // https://stackoverflow.com/questions/5989315/regex-for-match-replacing-javascript-comments-both-multiline-and-inline/15123777#15123777
+
+        code = code.replace(commentRegex, (match, p1) => {
+            return p1;
+        });
 
         //
         // try one liner grammar replacement

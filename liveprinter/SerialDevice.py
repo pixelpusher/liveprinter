@@ -90,7 +90,7 @@ class SerialDevice():
             raise ValueError("Serial port not open")
         
         while self.busy:
-                gen.sleep(0.01)
+            gen.sleep(0.01)
         self.busy = True
 
         while self.commands_queued >= self.max_commands_to_queue:
@@ -120,9 +120,10 @@ class SerialDevice():
             self._serial.write(cmd_to_send)    
             self._serial.flush() # do it now!
         except SerialTimeoutException:
-            raise ValueError("Serial communication timed out whilst sending command")
+            raise ValueError("Serial communication timed out whilst sending {command}:{current}".format(command=cmd_to_send, current=self.commands_sent))
         except SerialException:
-            raise            
+            print("Serial exception whilst sending {command}:{current}".format(command=cmd_to_send, current=self.commands_sent))
+            raise
         else:
 
             self.commands_queued += 1
@@ -163,8 +164,8 @@ class SerialDevice():
                     if 'resend' in lowerline or lowerline.startswith('rs'):
                         # A resend can be requested either by Resend, resend or rs.
                         attempts -= 1
-                        error_msg = "Printer signals resend:{line} for {cmd}".format(line=line, cmd=cmd)
-                        result.append(error_msg)
+                        error_msg = "Printer signals resend:{line} for {cmd} - current line {current}".format(line=line, cmd=cmd, current=self.commands_sent)
+                        # result.append(error_msg)
                         print(error_msg)
 
                         # try again!
@@ -172,8 +173,9 @@ class SerialDevice():
                             self._serial.write(cmd_to_send)    
                             self._serial.flush() # do it now!
                         except SerialTimeoutException:
-                            raise ValueError("Serial communication timed out whilst sending command")
+                            raise ValueError("RESEND:Serial exception whilst sending {command}:{current}".format(command=cmd_to_send, current=self.commands_sent))
                         except:
+                            print("RESEND:Serial exception whilst sending {command}:{current}".format(command=cmd_to_send, current=self.commands_sent))
                             raise
 
                     # Cold extrusion or something else - means line didn't take so don't update line number-- 'echo: cold extrusion prevented'
