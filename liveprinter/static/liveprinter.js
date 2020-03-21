@@ -1644,15 +1644,15 @@ Task.prototype = {
         console.log(text);
 
         if (typeof text === "string")
-            errorHandler.info({ time: Date.now(), message: text });
+            errorHandler.error({ time: Date.now(), message: text });
         else if (typeof text === "object") {
-            errorHandler.info({ time: Date.now(), message: JSON.stringify(text) });
+            errorHandler.error({ time: Date.now(), message: JSON.stringify(text) });
         }
         else if (typeof text === "array") {
-            errorHandler.info({ time: Date.now(), message: text.toString() });
+            errorHandler.error({ time: Date.now(), message: text.toString() });
         }
         else {
-            errorHandler.info({ time: Date.now(), message: text + "" });
+            errorHandler.error({ time: Date.now(), message: text + "" });
         }
     }
 
