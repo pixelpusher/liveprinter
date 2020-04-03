@@ -2191,13 +2191,12 @@ Task.prototype = {
         // global var grammar created by /static/lib/nearley/lpgrammar.js
         // global var nearley created by /static/lib/nearley/nearley.js
 
-        const parser = new nearley.Parser(nearley.Grammar.fromCompiled(grammar));
 
         // in code, find blocks inside ## ## and feed to grammar
 
-        const grammarBlockRegex = /\#\#\s*([^\#][\w\d\s\(\)\{\}\.\,\|\:\"\'\+\-\/\*]+)\s*\#\#/gm;
+        const grammarBlockRegex = /\#\#\s*([^\#][\w\d\s\(\)\{\}\.\,\|\:\"\'\+\-\/\*]+)\s*\#\#\s*/gm;
 
-        const grammarOneLineRegex = /\s*\#\s*([^\#][\w\d\s\(\)\{\}\.\,\|\:\"\'\+\-\/\*]+)\s*\#?/;
+        const grammarOneLineRegex = /\s*([^\#]\#|^\#)\s*([^\#][\w\d\ \t\(\)\{\}\.\,\|\:\"\'\+\-\/\*]+)\s*\#?\s*$/gm;
 
         const commentRegex = /\/\*[\s\S]*?\*\/|([^\\:]|^)\/\/.*$/gm; // https://stackoverflow.com/questions/5989315/regex-for-match-replacing-javascript-comments-both-multiline-and-inline/15123777#15123777
 
@@ -2205,42 +2204,17 @@ Task.prototype = {
             return p1;
         });
 
-        //
-        // try one liner grammar replacement
-        //
-        let grammarFound = false; // if this line contains the lp grammar
-        code = code.replace(grammarOneLineRegex, (match, p1) => {
-            grammarFound = true; // found!
-            let result = "";
-            let fail = false; // if not successful
-            let line = p1.replace(/([\r\n]+)/gm, "").replace(/(^[\s]+)/, "").replace(/([\s]+)$/, "");
-            if (line) {
-                try {
-                    parser.feed(p1);
-                } catch (e) { // SyntaxError on parse
-                    doError(e);
-                    console.log(e);
-                    fail = e.message;
-                    console.log("offending code:[" + line + "]");
-                }
-
-                if (fail !== false)
-                    result += "/*ERROR IN PARSE: [" + fail + "] + offending code: [" + line + "]" + "*/\n";
-                else
-                    result += parser.results[0] + "\n";
-            }
-            return result;
-        });
-
-        console.log("code AFTER one-line-grammar processing -------------------------------");
-        console.log(code);
-        console.log("========================= -------------------------------");
+        // replace globals in js
+        code = code.replace(/^[ ]*global[ ]+/gm, "window.");
 
         //
-        // try block element grammar replacement
+        // try block element grammar replacement FIRST because one-liner matches part
         //
         //code = code.replace(/([\r\n]+)/gm, "|").substring(^\s*(\|), "").replace(grammarFinderRegex, (match, p1) => {
         // TODO: fix multiline (split?)
+
+        const blockparser = new nearley.Parser(nearley.Grammar.fromCompiled(grammar)); // parser for entire block
+
         code = code.replace(grammarBlockRegex, (match, p1) => {
             //console.log("Match: " + p1);
 
@@ -2257,7 +2231,7 @@ Task.prototype = {
 
                 else {
                     try {
-                        parser.feed(line + '\n'); // EOL terminates command
+                        blockparser.feed(line + '\n'); // EOL terminates command
                     } catch (e) { // SyntaxError on parse
                         doError(e);
                         console.log(e);
@@ -2271,16 +2245,52 @@ Task.prototype = {
                 }
             }); // end compiling line by line
 
-            result += parser.results[0] + "\n";
+            result += blockparser.results[0];
 
-            return result;
+            return ' ' + result + "\n"; // need leading space
         });
 
-
-        // replace globals in js
-        code = code.replace(/^[ ]*global[ ]+/gm, "window.");
-
         console.log("code AFTER block-grammar processing -------------------------------");
+        console.log(code);
+        console.log("========================= -------------------------------");
+
+
+        //
+        // try one liner grammar replacement
+        //
+        let grammarFound = false; // if this line contains the lp grammar
+        code = code.replace(grammarOneLineRegex, (match, p1,p2) => {
+            const lineparser = new nearley.Parser(nearley.Grammar.fromCompiled(grammar));
+
+            //console.log("!!!"+match+"!!!");
+            //console.log("!!!"+p2+"!!!");
+            grammarFound = true; // found!
+            let result = "";
+            let fail = false; // if not successful
+            // .replace(/(^[\s]+)/, "")
+            let line = p2.replace(/([\r\n]+)/gm, "").replace(/([\s]+)$/, "");
+
+            //console.log("LINE::" + line + "::LINE");
+            if (line) {
+                try {
+                    lineparser.feed(line + '\n');
+                } catch (e) { // SyntaxError on parse
+                    doError(e);
+                    console.log(e);
+                    fail = e.message;
+                    console.log("offending code:[" + line + "]");
+                }
+
+                if (fail !== false)
+                    result += "/*ERROR IN PARSE: [" + fail + "] + offending code: [" + line + "]" + "*/\n";
+                else
+                    result = lineparser.results[0];
+                //console.log(result);
+            }
+            return ' ' + result;
+        });
+
+        console.log("code AFTER one-line-grammar processing -------------------------------");
         console.log(code);
         console.log("========================= -------------------------------");
 
