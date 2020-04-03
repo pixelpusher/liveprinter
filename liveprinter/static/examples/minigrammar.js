@@ -9,6 +9,14 @@ await lp.moveto({ x: 20, y: 20, speed: 80 });
 // Instead you can type:
 # moveto x: 20 y: 20 speed: 80
 
+// you can enclose statements in # # if you're worried about mixing with javascript:
+
+# moveto x: 20 y: 20 speed: 80 #
+
+// or 
+#moveto x:20 y:20 speed:80#
+
+
 //... and this is automatically compiled into the whole function call above.
 // Single lnes need to start with '#'.
 
@@ -19,7 +27,7 @@ await lp.moveto({ x: 20, y: 20, speed: 80 });
 // compiles to: 
 // await lp.start(210);await lp.move({x:23,y:50,z:10});await lp.extrude({x:50,speed:15});await lp.go(1);
 
-// you can also do blocks:
+// you can also do multiline blocks by surrounding code with ##'s:
 
 ##
 start 210
@@ -44,3 +52,5 @@ else
 }
 
 
+// you can also safely enclose minigrammar statements inside lines with # (code) #
+let bung = () => { # mov2 x: 20 y: 40 # }
