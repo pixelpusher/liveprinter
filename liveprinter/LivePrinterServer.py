@@ -117,6 +117,9 @@ async def list_ports():
 def use_dummy_serial_port(printer:SerialDevice):
     if printer._serial_port is not "/dev/null" and printer._serial is None:
 
+        # FIXME
+        # not great, should be async!!!
+
         def delayed_string(result:Union[str,bytes]):
             # print ("delayed string {}".format(time.time()))
             time.sleep(random.uniform(0.05,0.5))
@@ -175,9 +178,16 @@ async def json_handle_set_serial_port(printer, *args):
 
     print("setting serial port: {}".format(port))
 
+    printer._baud_rate = baud_rate
+
     if port.lower().startswith("dummy"):
+        if (printer.connection_state is ConnectionState.connected):
+            printer.printer.connection_state = ConnectionState.closed
+            printer._serial.close()
+
+        printer._baud_rate = baud_rate
         use_dummy_serial_port(printer)
-    else:        
+    else:
         # TODO: check if printer serial ports are different!!
         if (printer.connection_state is ConnectionState.connected):
             await printer.disconnect()
@@ -207,8 +217,13 @@ async def json_handle_set_serial_port(printer, *args):
 async def json_handle_close_serial(printer, *args):  
     response = ""
     if printer._serial is not None and printer._serial.is_open:
-        result = await printer.disconnect() # connection_state
-        response = result.name
+        if printer._serial_port is "/dev/null":
+            printer._serial.close()
+            printer.connection_state = ConnectionState.closed
+            response = printer.connection_state.name
+        else:
+            result = await printer.disconnect() # connection_state
+            response = result.name
     else:
         state = ConnectionState.closed
         response = state.name
@@ -244,9 +259,11 @@ async def json_handle_printer_state(printer):
 
     if printer._serial_port is "/dev/null":
         serial_port_name = "dummy"
+        serial_port_name = "dummy"
     response.append({
         'time': time.time() * 1000,
         'port': serial_port_name,
+        'baud': str(printer._baud_rate),
         'state': connectionState.name
         })
     return response

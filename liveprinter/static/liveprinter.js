@@ -627,7 +627,7 @@ Task.prototype = {
                 console.error(response);
                 logerror(response);
             }
-            if (undefined === response.error) {
+            if (undefined !== response.error) {
                 logerror(response);
             }
 
@@ -643,7 +643,7 @@ Task.prototype = {
             // send ASAP
             result = await sendBody();
         }
-        
+
         return result;
     }
 
@@ -656,7 +656,7 @@ Task.prototype = {
      * @param {Integer} priority Priority in queue (0-9 where 0 is highest)
      * @returns {Object} JSON-RPC object with result
      */
-    async function sendGCodeList(list, priority=4) {
+    async function sendGCodeList(list, priority = 4) {
         let gcodeObj = { "jsonrpc": "2.0", "id": 4, "method": "send-gcode", "params": [] };
 
         let result = await Promise.all(list.map(async (gcode) => {
@@ -675,40 +675,52 @@ Task.prototype = {
     * @memberOf LivePrinter
     */
     const printerStateHandler = function (stateEvent) {
-        //console.log(stateEvent);
-        const printerTab = $("#header");
-        let printerState = "error";
-        let printerPort = "";
+        //loginfo(JSON.stringify(stateEvent));
 
-        if (stateEvent.result !== undefined) {
-            printerState = stateEvent.result[0].state;
-            printerPort = stateEvent.result[0].port;
-        }
- 
-        switch (printerState) {
-            case "connected":
-                if (!printerTab.hasClass("blinkgreen")) {
-                    printerTab.addClass("blinkgreen");
-                }
-                // highlight connected port
-                $("#serial-ports-list").children().each((i, elem) => {
-                    let $elem = $(elem);
-                    if (elem.innerText === printerPort) {
-                        if (!$elem.hasClass("active")) {
-                            $elem.addClass("active");
-                            $("#connect-btn").text("disconnect").addClass("active"); // toggle connect button
-                        }
-                    } else {
-                        $elem.removeClass("active");
+        if (stateEvent.result === undefined) {
+            logerror("bad state event" + JSON.stringify(stateEvent));
+            return;
+        } else {
+            const printerTab = $("#header");
+            const printerState = stateEvent.result[0].state;
+            const printerPort = stateEvent.result[0].port === "/dev/null" || "null" ? "dummy" : stateEvent.result[0].port;
+            const printerBaud = stateEvent.result[0].baud;
+
+            switch (printerState) {
+                case "connected":
+                    if (!printerTab.hasClass("blinkgreen")) {
+                        printerTab.addClass("blinkgreen");
                     }
-                });
-                break;
-            case "closed":
-                printerTab.removeClass("blinkgreen");
-                break;
-            case "error":
-                printerTab.removeClass("blinkgreen");
-                break;
+                    // highlight connected port
+                    $("#serial-ports-list").children().each((i, elem) => {
+                        let $elem = $(elem);
+                        if (elem.innerText === printerPort) {
+                            if (!$elem.hasClass("active")) {
+                                $elem.addClass("active");
+                                $("#connect-btn").text("disconnect").addClass("active"); // toggle connect button
+                            }
+                        } else {
+                            $elem.removeClass("active");
+                        }
+                    });
+                    $("#baudrates-list").children().each((i, elem) => {
+                        let $elem = $(elem);
+                        if (elem.innerText === printerBaud) {
+                            if (!$elem.hasClass("active")) {
+                                $elem.addClass("active");
+                            }
+                        } else {
+                            $elem.removeClass("active");
+                        }
+                    });
+                    break;
+                case "closed":
+                    printerTab.removeClass("blinkgreen");
+                    break;
+                case "error":
+                    printerTab.removeClass("blinkgreen");
+                    break;
+            }
         }
     };
 
@@ -719,13 +731,12 @@ Task.prototype = {
      * @param{Object} event json-rpc response (in json format)
      * @memberOf LivePrinter
      */
-    const portsListHandler = function (event) {
+    const portsListHandler = async function (event) {
         let ports = ["none"];
         try {
             ports = event.result[0].ports;
         }
-        catch (e)
-        {
+        catch (e) {
             console.error("Bad event in portsListHandler:");
             console.error(event);
             console.error(e);
@@ -762,6 +773,11 @@ Task.prototype = {
 
                 console.log("baudRate:");
                 console.log(baudRate);
+
+                // disable changing baudrate and port
+                //$("#baudrates-list > button").addClass("disabled");
+                //$("#serial-ports-list > button").addClass("disabled");
+
                 await setSerialPort({ port, baudRate });
 
                 await getPrinterState(); // check if we are conncected truly
@@ -780,6 +796,15 @@ Task.prototype = {
         allBaudRates.forEach(rate => {
             //console.log("PORT:" + port);
             let newButton = $('<button class="dropdown-item" type="button" data-rate="' + rate + '">' + rate + '</button>');
+
+            // handle click
+            newButton.click(async function (e) {
+                e.preventDefault();
+                const me = $(this);
+                $("#baudrates-list .active").removeClass("active");
+                me.addClass("active");
+            });
+
             // default rate
             if (rate === 250000) {
                 newButton.addClass("active");
@@ -789,6 +814,8 @@ Task.prototype = {
 
         blinkElem($("#serial-ports-list"));
         blinkElem($("#info-tab"));
+
+        return;
     };
 
 
@@ -806,7 +833,7 @@ Task.prototype = {
         };
         const result = await sendJSONRPC(JSON.stringify(message));
 
-        portsListHandler(result);
+        await portsListHandler(result);
         return result;
     }
     // expose as global
@@ -826,16 +853,15 @@ Task.prototype = {
             'params': [port, baudRate]
         };
         const response = await sendJSONRPC(JSON.stringify(message));
-        if (response.result.length > 0) {
-            if (!response.result[0].messages) {
-                loginfo(response.result[0]);
-            }
-            else {
-                loginfo("connected to port " + response.result[0].port[0] + " at baud rate " + response.result[0].port[1]);
-                loginfo("startup messages:");
-                for (const msg of response.result[0].messages) {
-                    loginfo(msg);
-                }
+        if (undefined === response.result || undefined === response.result[0]) {
+            logerror("bad response from set serialPort():");
+            logerror(JSON.stringify(response));
+        }
+        else {
+            loginfo("connected to port " + response.result[0].port[0] + " at baud rate " + response.result[0].port[1]);
+            loginfo("startup messages:");
+            for (const msg of response.result[0].messages) {
+                loginfo(msg);
             }
         }
 
@@ -1036,7 +1062,7 @@ Task.prototype = {
      * @param {Integer} priority Priority of request in queue (0-9 where 0 is highest)
      * @returns {Object} JsonRPC response object
      */
-    async function requestRepeat(jsonObject, activeElem, delay, func, priority=4) {
+    async function requestRepeat(jsonObject, activeElem, delay, func, priority = 4) {
         const result = await sendJSONRPC(jsonObject, priority);
         func(result);
 
@@ -1813,6 +1839,7 @@ Task.prototype = {
             const me = $(this);
             const connected = me.hasClass('active'); // because it becomes active *after* a push
 
+            // try disconnect
             if (connected) {
                 let selectedPort = $("#serial-ports-list .active");
                 if (selectedPort.length > 0) {
@@ -1827,7 +1854,9 @@ Task.prototype = {
 
                     if (response.result.length > 0 && response.result[0] === "closed") {
                         me.text("connect");
-                        $("#serial-ports-list > button").removeClass("active");
+                        $("#serial-ports-list > button").removeClass("active").removeClass("disabled");
+                        $("#baudrates-list > button").removeClass("disabled");
+
                         // this is how we check if connected!
                         $("#header").removeClass("blinkgreen");
                     }
@@ -1934,7 +1963,7 @@ Task.prototype = {
         }
         setLanguageMode(); // update codemirror editor
     });
-    
+
     /*
      * Clear printer queue on server 
      */
@@ -2196,7 +2225,7 @@ Task.prototype = {
                 }
 
                 if (fail !== false)
-                    result += "/*ERROR IN PARSE: [" + fail + "] + offending code: [" + line + "]"+"*/\n";
+                    result += "/*ERROR IN PARSE: [" + fail + "] + offending code: [" + line + "]" + "*/\n";
                 else
                     result += parser.results[0] + "\n";
             }
@@ -2335,6 +2364,7 @@ Task.prototype = {
     window.scope.Scheduler.startScheduler();
 
     await getSerialPorts();
+
     updatePrinterState(true); // start updating printer connection state
 
 
