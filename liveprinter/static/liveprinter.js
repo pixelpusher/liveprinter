@@ -63,12 +63,14 @@ Task.prototype = {
     let scope = window.scope; // shorthand
     scope.serialPorts = []; // available ports
 
+    scope.lastErrorMessage = "none"; // last error message for GUI
+
     let outgoingQueue = []; // messages for the server
 
     let pythonMode = false;
 
     // this uses the limiting queue, but that affects performance for fast operations (< 250ms)
-    window.scope.useLimiter = false;
+    window.scope.useLimiter = true;
 
     window.scope.ajaxTimeout = 60000; // 1 minute timeout for ajax calls (API calls to the backend server)
 
@@ -109,10 +111,7 @@ Task.prototype = {
         "_extrude"
     ];
 
-    // names of all async functions in API for replacement in minigrammar later on in RunCode
-    const asyncFunctionsInAPIRegex = /[\.|;|\s*](setRetractSpeed|sendFirmwareRetractSettings|retract|unretract|start|temp|bed|fan|go|fwretract|polygon|rect|extrudeto|ext2|sendExtrusionGCode|extrude|ext|move|mov2|moveto|mov2|fillDirection|fillDirectionH|sync|fill|wait|pause|resume|printPaths|printPathsThick|_extrude)\(/g;
-
-    const asyncFunctionsInAPICMRegex = /^(setRetractSpeed|sendFirmwareRetractSettings|retract|unretract|start|temp|bed|fan|go|fwretract|polygon|rect|extrudeto|ext2|sendExtrusionGCode|extrude|ext|move|mov2|moveto|mov|fillDirection|fillDirectionH|sync|fill|wait|pause|resume|printPaths|printPathsThick|_extrude)[^a-zA-Z0-9\_]/;
+    const asyncFunctionsInAPICMRegex = /^(setRetractSpeed|sendFirmwareRetractSettings|retract|unretract|start|temp|bed|fan|go|fwretract|polygon|rect|extrudeto|ext2|sendExtrusionGCode|extrude|ext|move|mov2|moveto|mov|fillDirection|fillDirectionH|sync|fill|wait|pause|resume|printPaths|printPathsThick|_extrude|repeat)[^a-zA-Z0-9\_]/;
 
     /**
      * Send GCode to the server via ajax and hande response.
@@ -492,23 +491,32 @@ Task.prototype = {
      */
     function doError(e) {
 
-        let err = e;
-        if (e.error !== undefined) err = e.error;
-        const lineNumber = err.lineNumber == null ? -1 : e.lineNumber;
-
-        // avoid repeated errors!!!
-        if (scope.lastErrorMessage !== undefined && err.message !== scope.lastErrorMessage) {
-            scope.lastErrorMessage = err.message;
-            // report to user
-            $(".code-errors").html("<p>" + err.name + ": " + err.message + " (line:" + lineNumber + ")</p>");
-
+        if (typeof e !== "object") {
             $("#modal-errors").prepend("<div class='alert alert-warning alert-dismissible fade show' role='alert'>"
-                + err.name + ": " + err.message + " (line:" + lineNumber + ")"
+                + "internal Error in doError(): bad error object:" + e
                 + '<button type="button" class="close" data-dismiss="alert" aria-label="Close">'
                 + '<span aria-hidden="true">&times;</span></button>'
                 + "</div>");
+        }
+        else {
+            let err = e;
+            if (e.error !== undefined) err = e.error;
+            const lineNumber = err.lineNumber == null ? -1 : e.lineNumber;
 
-            console.log(err);
+            // avoid repeated errors!!!
+            if (scope.lastErrorMessage !== undefined && err.message !== scope.lastErrorMessage) {
+                scope.lastErrorMessage = err.message;
+                // report to user
+                $(".code-errors").html("<p>" + err.name + ": " + err.message + " (line:" + lineNumber + ")</p>");
+
+                $("#modal-errors").prepend("<div class='alert alert-warning alert-dismissible fade show' role='alert'>"
+                    + err.name + ": " + err.message + " (line:" + lineNumber + ")"
+                    + '<button type="button" class="close" data-dismiss="alert" aria-label="Close">'
+                    + '<span aria-hidden="true">&times;</span></button>'
+                    + "</div>");
+
+                console.log(err);
+            }
         }
 
         /*
@@ -545,15 +553,15 @@ Task.prototype = {
     function initLimiter() {
         // Bottleneck rate limiter package: https://www.npmjs.com/package/bottleneck
         // prevent more than 1 request from running at a time, provides priority queing
-        const limiter = new Bottleneck({
-            maxConcurrent: 10,
-            highWater: 2000, // max jobs
+        const _limiter = new Bottleneck({
+            maxConcurrent: 1000,
+            highWater: null, // max jobs
             minTime: 0, // (ms) How long to wait after launching a job before launching another one.
-            strategy: Bottleneck.strategy.OVERFLOW_PRIORITY, // don't accpt new jobs over highwater
+            strategy: Bottleneck.strategy.OVERFLOW_PRIORITY, // don't accept new jobs over highwater
         });
 
         // Listen to the "failed" event
-        limiter.on("failed", async (error, jobInfo) => {
+        _limiter.on("failed", async (error, jobInfo) => {
             const id = jobInfo.options.id;
             console.warn(`Job ${id} failed: ${error}`);
             logerror(`Job ${id} failed: ${error}`);
@@ -561,26 +569,28 @@ Task.prototype = {
                 logerror(`Retrying job ${id} in 20ms!`);
                 return 20;
             }
+            return 1;
         });
 
-        limiter.on("dropped", function (dropped) {
+        _limiter.on("dropped", function (dropped) {
             console.warn("dropped:");
             console.warn(dropped);
             logerror(`"Dropped job ${JSON.stringify(dropped)}`);
             //   This will be called when a strategy was triggered.
             //   The dropped request is passed to this event listener.
+            return 1;
         });
 
-        return limiter;
+        return _limiter;
     }
 
-    let limiter = initLimiter(); // Bottleneck rate limiter for priority async queing
+    let limiter = initLimiter(); // Bottleneck rate limiter for priority async queueing
 
     /**
      * Stops and clears the current queue of events. Should cancel all non-running actions. No new events can be added after this.
      */
     async function stopLimiter() {
-        await limiter.stop();
+        if (limiter) await limiter.stop();
         limiter = null;
         console.log("Shutdown completed!");
         return;
@@ -2260,7 +2270,7 @@ Task.prototype = {
         //
         let grammarFound = false; // if this line contains the lp grammar
         // note: p3 is the optional trailing # that can be ignored
-        code = code.replace(grammarOneLineRegex, (match, p1,p2) => {
+        code = code.replace(grammarOneLineRegex, (match, p1, p2) => {
             const lineparser = new nearley.Parser(nearley.Grammar.fromCompiled(grammar));
 
             //console.log("!!!"+match+"!!!");

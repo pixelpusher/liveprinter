@@ -1,6 +1,8 @@
 // CodeMirror, copyright (c) by Marijn Haverbeke and others
 // Distributed under an MIT license: https://codemirror.net/LICENSE
 
+// This version by Evan Raskob <evan@flkr.com> for LivePrinter
+
 // Highlighting text that matches the selection
 //
 // Defines an option highlightSelectionMatches, which, when enabled,
