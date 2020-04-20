@@ -122,12 +122,50 @@ Task.prototype = {
      */
     async function sendGCodeAndHandleResponse(gcode, priority = 4) {
         const result = await sendGCode(gcode, priority);
+
         //console.log("GOT RESULTS");
         //console.log(result);
-        if (result.result !== undefined)
-            for (const res of result.result) {
-                loginfo(res);
+
+        function handleResult(res) {
+            ///
+            /// should only get 4 back (result from gcode)
+            ///
+            switch (res[0].id) {
+                case 1: loginfo("1 received");
+                    /// catch: there is no 1!
+                    break;
+                case 2: loginfo("close serial port received");
+                    break;
+                case 3: loginfo("printer state received");
+                    // keys: time, port, state
+                    break;
+                case 4: //loginfo("gcode response");
+                    if (res[0].result !== undefined) {
+                        for (const rr of res[0].result) {
+                            //loginfo('gcode reply:' + rr);
+                            moveHandler.process(rr);
+                        }
+                    }
+                    break;
+                case 5: loginfo("connection result");
+                    if (res.result !== undefined) {
+                        // keys: time, port, messages
+                        loginfo(res.result);
+                    }
+                    break;
+                case 6: loginfo("port names");
+                    break;
+                default: loginfo(res.id + " received")
             }
+        }
+
+        if (typeof result === "array") {
+            result.map(handleResult);
+        }
+        else {
+            handleResult(result);
+        }
+
         return result;
     }
 
@@ -661,7 +699,7 @@ Task.prototype = {
 
 
     /**
-     * Run a list of gcode asynchronously in a sequence and return list fo responses when finished
+     * Run a list of gcode asynchronously in a sequence and return list of responses when finished
      * @param {Array} list List of GCode lines to run
      * @param {Integer} priority Priority in queue (0-9 where 0 is highest)
      * @returns {Object} JSON-RPC object with result
@@ -931,7 +969,7 @@ Task.prototype = {
 
 
     /**
-     * Send GCode to the server via websockets.
+     * Send GCode to the server via ajax.
      * @param {string} gcode gcode to send
      * @param {Integer} priority Priority in queue (0-9 where 0 is highest)
 
@@ -1150,9 +1188,7 @@ Task.prototype = {
                 name: name,
                 delay: interval,
                 run: async (time) => {
-                    //if (socketHandler.socket.readyState === socketHandler.socket.OPEN) {
                     await getPrinterState();
-                    //}
                 },
                 repeat: true,
                 system: true // system event, non-cancellable by user
@@ -1162,175 +1198,6 @@ Task.prototype = {
             window.scope.Scheduler.removeEventByName(name);
         }
     };
-
-    /**
-    * Handle websockets communications
-    * and event listeners
-    * @memberOf LivePrinter
-    */
-    var socketHandler = {
-        socket: null, //websocket
-        reconnecting: false, // when disconnected
-        listeners: [], // listeners for json rpc calls,
-
-        start: function () {
-
-            let me = this; // for referring back from socket member
-
-            if (this.socket === null) {
-                $("#info > ul").empty();
-                $("#errors > ul").empty();
-                $("#commands > ul").empty();
-            }
-            // remove update function if exists
-            window.scope.Scheduler.removeEventByName("queryResponses");
-
-            // convert to websockets port (works for https too)
-            // NOTE: may need to toggle network.websocket.allowInsecureFromHTTPS in FireFox (about:config) to make this work
-            const url = location.href.replace(/http/, "ws").replace("#", "") + "json";
-            this.socket = new WebSocket(url);
-            console.log('opening socket');
-
-            this.socket.onmessage = function (event) {
-                //console.log(event.data);
-                let jsonRPC = JSON.parse(event.data);
-                //console.log(jsonRPC);
-                socketHandler.handleJSONRPC(jsonRPC);
-                socketHandler.showMessage(event.data);
-            };
-
-            // runs when printer connection is established via websockets
-            this.socket.onopen = function () {
-                // TEST
-                // printer.extrude({
-                //     'x': 20,
-                //     'y': 30,
-                //     'z': 10,
-                // });
-
-                //sendGCode("G92");
-                //sendGCode("G28");
-
-                this.reconnecting = false;
-
-                let node = $("<p class='server-message'>SERVER CONNECTED</p>");
-                node.hide();
-                $("#info").prepend(node);
-                node.slideDown();
-            };
-
-            this.socket.onclose = function (e) {
-                //
-                // try reconnect
-                //
-                if (!this.reconnecting) {
-
-                    const reconnectName = "reconnectWebsocket";
-
-                    window.scope.Scheduler.removeEventByName("queryResponses");
-
-                    updatePrinterState(false); // stop updating printer state
-                    updateTemperature(false); // stop updating temperature                    
-                    $(".server-message").remove();
-                    let node = $("<li class='server-message'>SERVER NOT CONNECTED</li>");
-                    node.hide();
-                    $("#info").prepend(node);
-                    node.slideDown();
-                    $("#serial-ports-list").empty(); // clear serial ports
-                    $("#connect-btn").text("connect").removeClass("active"); // toggle connect button
-                    $("#header").removeClass("blinkgreen");
-
-                    window.scope.Scheduler.scheduleEvent({
-                        name: reconnectName,
-                        delay: 2000,
-                        run: function (event) {
-                            if (me.socket !== null && (me.socket.readyState === WebSocket.OPEN || me.socket.readyState === WebSocket.CONNECTING)) {
-                                window.scope.Scheduler.removeEventByName(reconnectName);
-                            }
-                            else {
-                                delete me.socket; // safe??
-                                me.socket = null;
-                                me.start();
-                            }
-                        },
-                        repeat: false,
-                        system: true
-                    });
-
-                    this.reconnecting = true;
-                }
-            };
-
-        },
-
-        /**
-         * Sends a message as a JSON string. Will stringify any object sent. 
-         * @param {any} message message to send (should be some sort of JSON format)
-         * @returns {Boolean} true for sent, false for not (connection closed) 
-         */
-        sendMessage: function (message) {
-            if (this.socket.readyState === WebSocket.OPEN) // open
-            {
-
-                let message_json = typeof message !== "string" ? JSON.stringify(message) : message;
-                this.socket.send(message_json);
-                return true;
-            }
-            else {
-                errorHandler.error({ time: Date.now(), message: "SendMessage: could not send sockets message [ReadyState=" + this.socket.readyState + "]::" + message });
-                return false;
-            }
-        },
-
-        /**
-         * Show a message in the GUI 
-         * @param {Object} message message to show (should have id and html properties)
-         */
-        showMessage: function (message) {
-            const existing = $("#m" + message.id);
-            if (existing.length > 0) return;
-            const node = $(message.html);
-            node.hide();
-            $("#inbox").prepend(node);
-            node.slideDown();
-        },
-
-        handleError: function (errorJSON) {
-            // TODO:
-            console.log("JSON RPC ERROR: " + errorJSON);
-            errorHandler.error({ message: errorJSON });
-        },
-
-        handleJSONRPC: function (jsonRPC) {
-            // call all listeners
-            //console.log("socket:");
-            //console.log(jsonRPC);
-            this.listeners.map(listener => { if (listener[jsonRPC.method]) { listener[jsonRPC.method](jsonRPC.params); } });
-        },
-
-        //
-        // add a listener to the queue of jsonrpc event listeners
-        // must have a function for jsonrpc event method name which takes appropriate params json object
-        registerListener: function (listener) {
-            this.listeners.push(listener);
-        },
-
-        removeListener: function (listener) {
-            this.listeners = this.listeners.filter(l => l !== listener);
-        }
-    };
-
-    // TEST
-
-    //var testListener = {
-    //    "info": function (params) {
-    //        console.log("INFO:");
-    //        console.log(params);
-    //    }
-    //};
-
-    //socketHandler.registerListener(testListener);
-
 
     /*
     * START SETTING UP SESSION VARIABLES ETC>
@@ -1345,27 +1212,21 @@ Task.prototype = {
 
 
     // handler for JSON-RPC calls from server
-    const jsonrpcPositionListener = {
-        "position": function (params) {
-            console.log("position:");
-            console.log(params);
-            scope.printer.x = parseFloat(params.x);
-            scope.printer.y = parseFloat(params.y);
-            scope.printer.z = parseFloat(params.z);
-            scope.printer.e = parseFloat(params.e);
+    const positionHandler = function (params) {
+        console.log("position:");
+        console.log(params);
+        scope.printer.x = parseFloat(params.x);
+        scope.printer.y = parseFloat(params.y);
+        scope.printer.z = parseFloat(params.z);
+        scope.printer.e = parseFloat(params.e);
 
-            $("input[name='x']").val(window.scope.printer.x);
-            $("input[name='y']").val(window.scope.printer.y);
-            $("input[name='z']").val(window.scope.printer.z);
-            $("input[name='e']").val(window.scope.printer.e);
-        }
+        $("input[name='x']").val(window.scope.printer.x);
+        $("input[name='y']").val(window.scope.printer.y);
+        $("input[name='z']").val(window.scope.printer.z);
+        $("input[name='e']").val(window.scope.printer.e);
     };
 
-    socketHandler.registerListener(jsonrpcPositionListener);
-
     $("#gcode").select();  // focus on code input
-    // socketHandler.start(); // start websockets
-
 
     // message to tell printer to send all responses 
     const responseJSON = JSON.stringify({
@@ -1387,8 +1248,6 @@ Task.prototype = {
             blinkElem($("#inbox"));
         }
     };
-    socketHandler.registerListener(errorHandler);
-
 
     /**
      * json-rpc error event handler
@@ -1407,120 +1266,28 @@ Task.prototype = {
     };
 
 
-    socketHandler.registerListener(infoHandler);
-
     /**
-     * json-rpc gcode event handler
+     * json-rpc move event handler
      * @memberOf LivePrinter
      */
-    const commandHandler = {
-        'gcode': function (event) {
-            // ignore info messages
-            if (!(/M115|M114|M105/.test(event.message))) {
-                appendLoggingNode($("#commands > ul"), event.time, event.message);
-                //blinkElem($("#commands-tab"));
-                //blinkElem($("#inbox"));
-            }
-        }
-    };
-    // NOTE -------------------------------------------------------------
-    // NOW: DISABLED (queued are more interesting)
-    // CAN ENABLE FOR DEBUGGING by uncommenting below
-    //socketHandler.registerListener(commandHandler);
+    const moveHandler = {
+        startsWith: 'ok',
+        process: function (response) {
 
-    /**
-     * json-rpc queued commands event handler - called when commands are actually queued on printer
-     * @memberOf LivePrinter
-     */
-    var commandQueuedHandler = {
-        'queued': function (event) {
+            $("input[name='speed']").val(window.scope.printer.printSpeed); // set speed, maybe reset below
+            // update GUI
+            $("input[name='retract']")[0].value = window.scope.printer.currentRetraction;
 
-            /*
-             * 'command': self._last_command,
-             *   'line': self._commands_current_line,
-             *   'cq': self._command_queue.unfinished_tasks, # cq = commands queued
-             *   'cp': self._commands_on_printer, # cp = comamnds on printer
-             *   'start': time()*1000
-             */
-
-
-            $("input[name='cq']").val(event.cq);
-            $("input[name='cp']").val(event.cp);
-
-            const cmdline = event.command;
-
-            if (!(/M115|M114|M105/.test(cmdline))) {
-                appendLoggingNode($("#commands > ul"), event.time, cmdline);
-                //blinkElem($("#commands-tab"));
-                //blinkElem($("#inbox"));
-            }
-
-            /*
-            if (cmdline.search("G1") > -1) { // look for only extrude/move commands
-                logger("G1");
-     
-                const cmdRegExp = new RegExp("([a-zA-Z][0-9]+\.?[0-9]*)", "gim");
-                const subCmdRegExp = new RegExp("([a-zA-Z])([0-9]+\.?[0-9]*)");
-                const found = line.match(cmdRegExp);
-                for (let cmd of found) {
-                    const matches = cmd.match(subCmdRegExp);
-     
-                    if (matches.length !== 3) throw new Error("Error in command string: " + found);
-     
-                    const cmdChar = matches[1].toUpperCase();
-                    const value = parseFloat(matches[2]);
-     
-                    switch (cmdChar) {
-                        case "X": x = value; break;
-                        case "Y": y = value; break;
-                        case "Z": z = value; break;
-                        case "E": e = value; break;
-                        case "F": speed = value; break;
-                    }
-     
-                    calculateAndOutput();
-     
-                    //logger("x: " + x);
-                    //logger("y: " + y);
-                    //logger("z: " + z);
-                    //logger("e: " + e);
-                    //logger("speed: " + speed);
-                }
-                */
-
-        }
-    };
-    socketHandler.registerListener(commandQueuedHandler);
-
-
-    /**
-     * json-rpc ok event handler
-     * @memberOf LivePrinter
-     */
-    const okHandler = {
-        'ok': function (event) {
-            //console.log("ok event:");
-            //console.log(event);
-            if (outgoingQueue.length > 0) {
-                let msg = outgoingQueue.pop();
-                socketHandler.sendMessage(msg);
-            }
-            const cmdline = event.command;
-
-            if (cmdline.search("G1") > -1) { // look for only extrude/move commands
-                //logger("G1");
-
-                const cmdRegExp = new RegExp("([a-zA-Z][0-9]+\.?[0-9]*)", "gim");
-                const subCmdRegExp = new RegExp("([a-zA-Z])([0-9]+\.?[0-9]*)");
-                const found = cmdline.match(cmdRegExp);
-                for (let cmd of found) {
-                    const matches = cmd.match(subCmdRegExp);
-
-                    if (matches.length !== 3) throw new Error("Error in command string: " + found);
-
-                    const cmdChar = matches[1].toUpperCase();
-                    const value = parseFloat(matches[2]);
-
+            const upper = response.toUpperCase();
+            if (upper.startsWith("X")) { // look for only extrude/move commands
+                loginfo("moveHandler: position update");
+                const newStr = upper.substring(0, upper.indexOf('COUNT'));
+                const cmdRegExp = /([A-Z]\s*):\s*([0-9]+\.[0-9])*/gm;
+                let matches = [...newStr.matchAll(cmdRegExp)];
+                for (let posMatch of matches) {
+                    // ex: ["X:0.93", "X", "0.93"]
+                    const cmdChar = posMatch[1];
+                    const value = parseFloat(posMatch[2]);
                     switch (cmdChar) {
                         case "X": $("input[name='x']").val(value); break;
                         case "Y": $("input[name='y']").val(value); break;
@@ -1530,18 +1297,8 @@ Task.prototype = {
                     }
                 }
             }
-
-            /*
-            $("input[name='x']").val(window.scope.printer.x);
-            $("input[name='y']").val(window.scope.printer.y);
-            $("input[name='z']").val(window.scope.printer.z);
-            $("input[name='e']").val(window.scope.printer.e);
-            */
         }
     };
-
-    socketHandler.registerListener(okHandler);
-
 
     ////////////////////////////////////////////////////////////////////////
     /////////////// Utility functions
@@ -1987,7 +1744,6 @@ Task.prototype = {
     ////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////////////
     // update printing API to share with running script
-    scope.socket = socketHandler;
     scope.sendGCode = sendGCode;
 
     // mouse handling functions
@@ -2279,7 +2035,7 @@ Task.prototype = {
             let result = "";
             let fail = false; // if not successful
             // .replace(/(^[\s]+)/, "")
-            let line = p2.replace(/([\r\n]+)/gm, "").replace(/([\s]+)$/, "");
+            let line = p1.replace(/([\r\n]+)/gm, "").replace(/([\s]+)$/, "");
 
             //console.log("LINE::" + line + "::LINE");
             if (line) {
@@ -2332,7 +2088,6 @@ Task.prototype = {
                     // give quick access to liveprinter API
                     code = "let lp = window.scope.printer;" + code;
                     code = "let sched = window.scope.Scheduler;" + code;
-                    code = "let socket = window.scope.socket;" + code;
                     code = "let gcode = (gc) => ( window.scope.sendGCode(gc).catch(err => doError(err)) );" + code;
                     code = "let updateGUI = window.scope.updateGUI;" + code;
                     code = "let s = window.scope;" + code;
@@ -2354,14 +2109,13 @@ Task.prototype = {
                 let script = document.createElement("script");
                 script.text = code;
                 /*
-                    * NONE OF THIS WORKS IN CHROME... should be aesy, but no.
+                    * NONE OF THIS WORKS IN CHROME... should be easy, but no.
                     *
                 let node = null;
                 script.onreadystatechange = script.onload = function () {
                     console.log("loaded");
                     node.printer = printer;
                     node.scheduler = Scheduler;
-                    node.socket = socketHandler;
      
                     node.parentNode.removeChild(script);
                     node = null;
@@ -2372,13 +2126,12 @@ Task.prototype = {
                 */
                 // run and remove
                 document.head.appendChild(script).parentNode.removeChild(script);
+
+                // update GUI
+                $("input[name='angle']")[0].value = window.scope.printer.angle;
+
             }
         }
-
-        // update GUI
-        $("input[name='retract']")[0].value = window.scope.printer.currentRetraction;
-        $("input[name='angle']")[0].value = window.scope.printer.angle;
-
     } // end globalEval
 
     // start scheduler!
@@ -2395,7 +2148,7 @@ Task.prototype = {
         reloadLocalSession();
     }
     else {
-        errorHandler({ name: "save error", message: "no local storage available for saving files!" });
+        errorHandler.error({ name: "save error", message: "no local storage available for saving files!" });
     }
     // disable form reloading on code compile
     $('form').submit(false);
