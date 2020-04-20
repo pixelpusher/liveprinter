@@ -90,7 +90,7 @@ This is what the API looks like currently:
 * **send any GCode (e.g. "G28"):** { "jsonrpc": "2.0", "id": 4, "method": "send-gcode","params": ["G28"]}
 * **receive back results from printer (e.g. "ok")**: {"jsonrpc":"2.0","id":4,"result":["ok"]}
 
-#### get printer connection state (port name and state e.g. closed or conencted)
+#### get printer connection state (port name and state e.g. closed or connected)
 
 * **send:** { "jsonrpc": "2.0", "id": 3, "method": "get-printer-state","params": []}
 * **receive back:** {"jsonrpc":"2.0","id":3,"result":[{"time":1568371930335.6362,"port":null,"state":"closed"}]} **or** {"jsonrpc":"2.0","id":3,"result":[{"time":1571916551445.2378,"port":"/dev/null","state":"connected"}]}
