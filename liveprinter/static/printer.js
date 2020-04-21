@@ -891,7 +891,7 @@ class Printer {
         // BREAK AT LARGE MOVES
         //
         if (moveTime > this.maxTimePerOperation) {
-            throw Error("move time too long:" + moveTime);
+            throw new Error("move time too long:" + moveTime);
         }
 
         const nozzleSpeed = Vector.div(distanceVec, moveTime);
@@ -1404,9 +1404,9 @@ class Printer {
             for (let i = 1; i <= passes; i++) {
                 const currentHeight = i * this.layerHeight + z;
 
-                this.moveto({ 'x': xmapping(pathCopy[0][0]), 'y': ymapping(pathCopy[0][1]) });
-                this.moveto({ 'z': currentHeight });
-                this.unretract(); // makes sense to do this every time
+                await this.moveto({ 'x': xmapping(pathCopy[0][0]), 'y': ymapping(pathCopy[0][1]) });
+                await this.moveto({ 'z': currentHeight });
+                await this.unretract(); // makes sense to do this every time
 
                 // print each segment, one by one
                 for (let segmentIdx = 0, segmentLength = pathCopy.length; segmentIdx < segmentLength; segmentIdx++) {
@@ -1525,8 +1525,8 @@ class Printer {
                 let pathCopy = paths[pathIdx].slice();
                 const currentHeight = i * this.layerHeight + z;
 
-                this.moveto({ 'x': xmapping(pathCopy[0][0]), 'y': ymapping(pathCopy[0][1]) });
-                this.moveto({ 'z': currentHeight });
+                await this.moveto({ 'x': xmapping(pathCopy[0][0]), 'y': ymapping(pathCopy[0][1]) });
+                await this.moveto({ 'z': currentHeight });
                 // this.unretract(); // makes sense to do this every time
 
                 if (pathCopy.length > 1) {
