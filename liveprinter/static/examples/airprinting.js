@@ -11,24 +11,30 @@ lp.fan(100); // need fan to full!
 
 loginfo(lp._retractSpeed); // useful to check speed - see the info panel to the right
 
-// set up mapping functions to make moving in the printer chassis easier:
-s.xmap = makeMapping([0, 1], [lp.minx, lp.maxx]);
-s.ymap = makeMapping([0, 1], [lp.miny, lp.maxy]);
+lp.printSpeed = 20;
 
-// test 1 for retraction speed - faster is better for up (30)
-for (let i of numrange(1, 5)) {
-    lp.retractSpeed = 35 / i;
-    loginfo(lp.retractSpeed)
-    lp.moveto({ x: s.xmap(i * 0.2), y: s.ymap(0.5), speed: 150 });
-    lp.downto(lp.layerHeight).go();
-    lp.unretract(8);
-    lp.turnto(-90).speed(10).dist(20).go(1, false);
-    lp.speed(10).tilt(90).up(6).go(1, false).retract();
-    lp.wait(2500).unretract();
-    lp.speed(10).tilt(-25).down(6).go(1, false).retract();
-    lp.speed(50).upto(80).go();
-}
+# mov2 x: 60 y: 20 z: lp.lh speed: 80
 
+await repeat(10, async (i) => {
+    # turnto 0 | dist 20 | go 1 0
+    # turn 90 | dist 20 | go 1 0
+    # turn 90 | dist 20 | go 1 0
+    # turn 90 | dist 20 | go 1 0
+    # up lp.lh
+});
+
+
+await repeat(3, async (i) => {
+    await lp.moveto({ x: xmap(i * 0.25), y: ymap(0.5), speed: 150 });
+    await lp.downto(lp.layerHeight);
+    await lp.unretract();
+    await lp.turnto(-90).speed(10).dist(20).go(1, false);
+    await lp.speed(12).tilt(90).up(6, 1, 1);
+    await lp.wait(2500);
+    await lp.unretract();
+    await lp.speed(20).tilt(-30).down(6, 1, 1);
+    await lp.speed(50).upto(80);
+});
 
 // test 2 for retraction speed - faster is better for up (30)
 // hard to see much difference, although last one appeared straighter

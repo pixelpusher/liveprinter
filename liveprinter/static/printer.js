@@ -456,6 +456,12 @@ class Printer {
         await this.send("M104 S" + hotEndTemp); //heater 1 temp
         //this.send("M140 S" + bedTemp); // bed temp
         await this.sendFirmwareRetractSettings();
+        this.x = 0;
+        this.y = 0;
+
+        this.printSpeed = Printer.defaultPrintSpeed;
+        this.travelSpeed = Printer.defaultPrintSpeed;
+        await this.sync();
         //this.moveto({ x: this.cx, y: this.cy, z: this.maxz, speed: Printer.defaultPrintSpeed });
         //this.send("M106 S100"); // set fan to full
 
@@ -663,11 +669,10 @@ class Printer {
      * @param {Number} d distance in mm to move up
      * @returns {Printer} Reference to this object for chaining
      */
-    up(d) {
+    async up(d, extruding=false, _retract=false) {
         if (Math.abs(this._elevation) < Number.EPSILON) this._elevation = Math.PI / 2;
-
         this._zdistance += d;
-        return this;
+        return this.go(extruding, _retract);
     }
 
     /**
@@ -676,10 +681,10 @@ class Printer {
      * @param {Number} d distance in mm to move up
      * @returns {Printer} Reference to this object for chaining
      */
-    upto(d) {
+    async upto(d, extruding = false, _retract = false) {
         this._elevation = Math.PI / 2;
         this._zdistance = d - this.z;
-        return this;
+        return this.go(extruding, _retract);
     }
 
     /**
@@ -687,8 +692,8 @@ class Printer {
      * @param {Number} d distance in mm to move up
      * @returns {Printer} Reference to this object for chaining
      */
-    downto(d) {
-        return this.upto(d);
+    async downto(d, extruding = false, _retract = false) {
+        return this.upto(d, extruding, _retract);
     }
 
     /**
@@ -696,11 +701,11 @@ class Printer {
      * @param {Number} d distance in mm to move up
      * @returns {Printer} Reference to this object for chaining
      */
-    down(d) {
+    async down(d, extruding = false, _retract = false) {
         if (Math.abs(this._elevation) < Number.EPSILON) this._elevation = -Math.PI / 2;
 
         this._zdistance += -d;
-        return this;
+        return this.go(extruding, _retract);
     }
 
     /**

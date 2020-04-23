@@ -99,6 +99,10 @@ Task.prototype = {
         "mov",
         "moveto",
         "mov2",
+        "up",
+        "upto",
+        "down",
+        "downto",
         "fillDirection",
         "fillDirectionH",
         "sync",
@@ -111,7 +115,7 @@ Task.prototype = {
         "_extrude"
     ];
 
-    const asyncFunctionsInAPICMRegex = /^(setRetractSpeed|sendFirmwareRetractSettings|retract|unretract|start|temp|bed|fan|go|fwretract|polygon|rect|extrudeto|ext2|sendExtrusionGCode|extrude|ext|move|mov2|moveto|mov|fillDirection|fillDirectionH|sync|fill|wait|pause|resume|printPaths|printPathsThick|_extrude|repeat)[^a-zA-Z0-9\_]/;
+    const asyncFunctionsInAPICMRegex = /^(setRetractSpeed|sendFirmwareRetractSettings|retract|unretract|start|temp|bed|fan|go|up|upto|down|downto|fwretract|polygon|rect|extrudeto|ext2|sendExtrusionGCode|extrude|ext|move|mov2|moveto|mov|fillDirection|fillDirectionH|sync|fill|wait|pause|resume|printPaths|printPathsThick|_extrude|repeat)[^a-zA-Z0-9\_]/;
 
     /**
      * Send GCode to the server via ajax and hande response.
@@ -143,7 +147,10 @@ Task.prototype = {
                     if (res[0].result !== undefined) {
                         for (const rr of res[0].result) {
                             //loginfo('gcode reply:' + rr);
-                            moveHandler.process(rr);
+                            if (!moveHandler.process(rr))
+                            {
+                                console.log('gcode reply:' + rr);
+                            }
                         }
                     }
                     break;
@@ -170,6 +177,7 @@ Task.prototype = {
     }
 
     scope.printer = new Printer(sendGCodeAndHandleResponse, doError);
+    scope.sendGCodeAndHandleResponse = sendGCodeAndHandleResponse;
 
     /**
      * Handy object for scheduling events at intervals, etc.
@@ -1274,6 +1282,8 @@ Task.prototype = {
         startsWith: 'ok',
         process: function (response) {
 
+            let processed = false;
+
             $("input[name='speed']").val(window.scope.printer.printSpeed); // set speed, maybe reset below
             // update GUI
             $("input[name='retract']")[0].value = window.scope.printer.currentRetraction;
@@ -1296,7 +1306,9 @@ Task.prototype = {
                         case "F": $("input[name='speed']").val(value / 60); break;
                     }
                 }
+                processed = true;
             }
+            return processed;
         }
     };
 
@@ -2088,7 +2100,7 @@ Task.prototype = {
                     // give quick access to liveprinter API
                     code = "let lp = window.scope.printer;" + code;
                     code = "let sched = window.scope.Scheduler;" + code;
-                    code = "let gcode = (gc) => ( window.scope.sendGCode(gc).catch(err => doError(err)) );" + code;
+                    code = "let gcode = (gc) => ( window.scope.sendGCodeAndHandleResponse(gc).catch(err => doError(err)) );" + code;
                     code = "let updateGUI = window.scope.updateGUI;" + code;
                     code = "let s = window.scope;" + code;
 
@@ -2102,7 +2114,7 @@ Task.prototype = {
 
                     // function wrapping - run in closure
                     code = '(async function(){"use strict";' + code;
-                    code = code + "})().catch(err => doError(err));";
+                    code = code + "})().catch(err => window.doError(err));";
                 }
 
                 //console.log("adding code:" + code);
@@ -2125,8 +2137,11 @@ Task.prototype = {
                 node = document.head.appendChild(script);
                 */
                 // run and remove
-                document.head.appendChild(script).parentNode.removeChild(script);
-
+                try {
+                    document.head.appendChild(script).parentNode.removeChild(script);
+                } catch (e) {
+                    doError(e);
+                }
                 // update GUI
                 $("input[name='angle']")[0].value = window.scope.printer.angle;
 
