@@ -1,7 +1,7 @@
 #
 # The Printer device
 #
-# by Evan Raskob <evanraskob@gmail.com> 2019-2020 
+# by Evan Raskob <evanraskob@gmail.com> 2019-2020
 # See main license for details.
 #
 from tornado import gen
@@ -34,7 +34,7 @@ class SerialDevice():
         try:
             self._serial = Serial(str(self._serial_port), self._baud_rate, timeout=self._timeout, writeTimeout=self._timeout)
             if self._serial.is_open:
-                print ("SERIAL OPEN")
+                print("SERIAL OPEN")
                 self.connection_state = ConnectionState.connected
                 result = "open"
             else:
@@ -47,7 +47,8 @@ class SerialDevice():
             self.connection_state = ConnectionState.closed
             raise
         else:
-            # the printer is quite chatty on startup, but takes a second or so to reboot when connected
+            # the printer is quite chatty on startup, but takes a second or so
+            # to reboot when connected
             result = []
             newline = ""
             timeout = 10 # max time to wait in seconds
@@ -58,17 +59,25 @@ class SerialDevice():
                 gen.sleep(0.05)
 
             self.busy = True # async mutex
+            
+            retry_count = 0
 
             while time.time() - start_time < timeout:
                 new_line = await self.read_response()
                 new_line = str(new_line).rstrip('\n\r')
-                print("got::{}::".format(new_line))
+                # print("got::{}::".format(new_line))
                 if new_line is not "":
                     result.append(new_line)
                     got_something = True
                 else:
-                    if got_something:
-                        break # we're done, already got everything!
+                    if retry_count > 3:
+                        if got_something:
+                            result.append('DONE')
+                            break # we're done, already got everything!
+                        else:
+                            retry_count += 1
+                            result.append('WAITING...')
+                            await gen.sleep(0.25)
                     else:
                         # just chill for a bit
                         await gen.sleep(0.25)
@@ -83,7 +92,8 @@ class SerialDevice():
 
 
     #
-    # Send a GCODE command and get result. If parse_results, try and interpret the results as a dict()
+    # Send a GCODE command and get result.  If parse_results, try and interpret
+    # the results as a dict()
     #
     async def send_command(self, cmd:Union[str,bytes], parse_results:bool=False):
         if self._serial is None:
@@ -101,8 +111,10 @@ class SerialDevice():
         #if self.commands_sent > 100:
         #    # reset line number!
         #    cmd_reset = "M110 N1"
-        #    checksum = functools.reduce(lambda x, y: x ^ y, map(ord, "N%d%s" % (self.commands_sent, cmd_reset)))
-        #    cmd_to_send = str("N%d%s*%d" % (self.commands_sent, cmd_reset, checksum)).encode()
+        #    checksum = functools.reduce(lambda x, y: x ^ y, map(ord, "N%d%s" %
+        #    (self.commands_sent, cmd_reset)))
+        #    cmd_to_send = str("N%d%s*%d" % (self.commands_sent, cmd_reset,
+        #    checksum)).encode()
         #    if not cmd_to_send.endswith(b"\n"):
         #        cmd_to_send += b"\n"
         #    await self.send_raw_command(cmd_to_send)
@@ -133,13 +145,15 @@ class SerialDevice():
             result = []
             newline = ""
             attempts = 5
-            max_loop_timeout = 40 # 40 secs between moves... might need to be higher
+            max_loop_timeout = 40 # 40 secs between moves...  might need to be higher
             start_time = time.time()
             current_time = 0
            
             line = "" # line received from serial, to parse
 
             # loop through all serial data
+
+            retries = 0 # absorb everything
 
             while True:
 
@@ -162,7 +176,8 @@ class SerialDevice():
 
                     # Check for RESEND
                     if 'resend' in lowerline or lowerline.startswith('rs'):
-                        # A resend can be requested either by Resend, resend or rs.
+                        # A resend can be requested either by Resend, resend or
+                        # rs.
                         attempts -= 1
                         error_msg = "Printer signals resend:{line} for {cmd} - current line {current}".format(line=line, cmd=cmd, current=self.commands_sent)
                         # result.append(error_msg)
@@ -178,7 +193,9 @@ class SerialDevice():
                             print("RESEND:Serial exception whilst sending {command}:{current}".format(command=cmd_to_send, current=self.commands_sent))
                             raise
 
-                    # Cold extrusion or something else - means line didn't take so don't update line number-- 'echo: cold extrusion prevented'
+                    # Cold extrusion or something else - means line didn't take
+                    # so don't update line number-- 'echo: cold extrusion
+                    # prevented'
                     elif line.startswith("echo:"):                              
 
                         echo_matches = re.findall("echo: ?(.+)", line)
@@ -186,58 +203,69 @@ class SerialDevice():
                             result.append(echo_matches[0])
                         else:
                             result.append(line)
-                        # don't break! more to read
                     
                     else:
-                        # we've received something, break loop
-                        break
+                        # Otherwise, attempt to parse the response from the printer into
+                        # something sensible.
+                        # This can be tricky, given all the Marlin versions...
+
+                        # if not parsing, return whatever we got
+                        if not parse_results:
+                            print("SerialDevice(236): Appending {line}::{cmd}".format(line=line, cmd=cmd))
+                            result.append(line.rstrip('\n\r'))
+                            
+                            ## G commands are only one line
+                            if str(cmd).startswith("G"):
+                                break
                 
+                        # Temperature message.  'T:' for extruder and 'B:' for bed
+                        elif "ok T:" in line or line.startswith("T:") or "ok B:" in line or line.startswith("B:"):                          
+                            response_props = dict()
+
+                            print("temp response: {}".format(line))
+                            extruder_temperature_matches = re.findall("T(\d*): ?([\d\.]+) ?\/?([\d\.]+)?", line)
+                            # Update all temperature values
+                            # line looks like: b'ok T:24.7 /0.0 B:23.4 /0.0 @:0
+                            # B@:0\n'
+                            # OR b'T:176.1 E:0 W:?\n'
+                            if len(extruder_temperature_matches) > 0:
+                                match = extruder_temperature_matches[0]
+                                ### NOTE: hot end (tool number) is the first match
+                                ### (0)
+                                response_props["hotend"] = match[1]
+                    
+                                if match[2]:                         
+                                    response_props["hotend_target"] = match[2]
+                
+                            bed_temperature_matches = re.findall("B: ?([\d\.]+) ?\/?([\d\.]+)?", line)
+
+                            if len(bed_temperature_matches) > 0:
+                                match = bed_temperature_matches[0]
+                                response_props["bed"] = match[0]
+                                response_props["bed_target"] = match[1]
+                            result.append(response_props)
+                            # END TEMP PARSING
+                        else:   
+                            # DEFAULT RESPONSE if not matched - JUST SEND BACK TO FRONT END
+                            result.append(line.rstrip('\n\r'))
+                            # DEBUG
+                            print("SerialDevice(270):{line}".format(line)) 
+                            # print("result not parsed {cmd},
+                            # {line}".format(cmd=cmd,line=line))
+
+                            ## G commands are only one line
+                            if str(cmd).startswith("G"):
+                                break
+
                 # nothing received via serial
                 else:
-                    print("Waiting on command: {}".format(cmd))
-                    gen.sleep(0.01)
+                    if retries > 1:
+                        break
+                    retries += 1
+                    # print("Waiting on command: {}".format(cmd))
+                    gen.sleep(0.001)
 
-
-            # Otherwise, attempt to parse the response from the printer into something sensible.
-            # This can be tricky, given all the Marlin versions...
-
-            # if not parsing, return whatever we got
-            if not parse_results:
-                print("Appending {line}::{cmd}".format(line=line, cmd=cmd))
-                result.append(line.rstrip('\n\r'))
-                
-            # Temperature message.  'T:' for extruder and 'B:' for bed
-            elif "ok T:" in line or line.startswith("T:") or "ok B:" in line or line.startswith("B:"):                          
-                response_props = dict();
-
-                print("temp response: {}".format(line))
-                extruder_temperature_matches = re.findall("T(\d*): ?([\d\.]+) ?\/?([\d\.]+)?", line)
-                # Update all temperature values
-                # line looks like: b'ok T:24.7 /0.0 B:23.4 /0.0 @:0
-                # B@:0\n'
-                # OR b'T:176.1 E:0 W:?\n'
-                if len(extruder_temperature_matches) > 0:
-                    match = extruder_temperature_matches[0]
-                    ### NOTE: hot end (tool number) is the first match
-                    ### (0)
-                    response_props["hotend"] = match[1]
-                    
-                    if match[2]:                         
-                        response_props["hotend_target"] = match[2]
-                
-                bed_temperature_matches = re.findall("B: ?([\d\.]+) ?\/?([\d\.]+)?", line)
-
-                if len(bed_temperature_matches) > 0:
-                    match = bed_temperature_matches[0]
-                    response_props["bed"] = match[0]
-                    response_props["bed_target"] = match[1]
-                result.append(response_props)
-                # END TEMP PARSING
-            else:   
-                # DEFAULT RESPONSE if not matched - JUST SEND BACK TO FRONT END
-                result.append(line.rstrip('\n\r'))
-                # print("result not parsed {cmd}, {line}".format(cmd=cmd,line=line))
-
+            
             # end parsing results
             self.commands_queued -= 1
             self.busy = False
@@ -249,7 +277,7 @@ class SerialDevice():
     async def send_raw_command(self, command, timeout=40):
         result = []
         newline = ""
-        max_loop_timeout = timeout # 40 secs between moves... might need to be higher
+        max_loop_timeout = timeout # 40 secs between moves...  might need to be higher
         start_time = time.time()
         current_time = 0
 
@@ -261,7 +289,7 @@ class SerialDevice():
             current_time = time.time() - start_time
             if current_time > max_loop_timeout:
                 result.append("serial response timeout")
-                break; # exit loop
+                break # exit loop
 
             new_line = await self.read_response()
             
@@ -272,12 +300,14 @@ class SerialDevice():
                 # DEFAULT RESPONSE if not matched - JUST SEND BACK TO FRONT END
                 result.append(line.rstrip('\n\r'))
                 print("result not parsed {cmd}, {line}".format(cmd=command,line=line))
-                break;
+                break
                 # end parsing results
 
             else:
-                print("Waiting on command: {}".format(command))
-                # await gen.sleep(0.05) # should this be gen.sleep() or just sleep?? Should it block?
+                # DEBUG
+                # print("Waiting on command: {}".format(command))
+                # await gen.sleep(0.05) # should this be gen.sleep() or just
+                # sleep??  Should it block?
                 time.sleep(0.01)
 
         return result
@@ -287,7 +317,7 @@ class SerialDevice():
         line = ""
         try:
             line = self._serial.readline()
-            print("line: {}".format(line))
+            # print("SerialDevice(324):line: {}".format(line))
         except SerialException as se:
             line = repr(se)
             print("[except] line: {}".format(line))
@@ -297,4 +327,6 @@ class SerialDevice():
         if line is not "":              
             # this format seems to work best for cross-platform Marlin printers
             line = line.decode('cp437')
+            # print("SerialDevice(334): line: {}".format(line))
+
         return line

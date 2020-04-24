@@ -163,6 +163,9 @@ class Printer {
      */
     get time() { return this.totalMoveTime; }
 
+    set optime(t) { this.maxTimePerOperation = t; } 
+    get optime() { return this.maxTimePerOperation; } 
+
     /**
      * set printer model (See Printer class for valid ones)
      * @param {String} m Valid model from Printer class
@@ -457,7 +460,8 @@ class Printer {
         //this.send("M140 S" + bedTemp); // bed temp
         await this.sendFirmwareRetractSettings();
         this.x = 0;
-        this.y = 0;
+        this.y = this.maxy;
+        this.z = this.maxz;
 
         this.printSpeed = Printer.defaultPrintSpeed;
         this.travelSpeed = Printer.defaultPrintSpeed;
@@ -1125,7 +1129,7 @@ class Printer {
      * Synchronise variables like position and temp
      */
     async sync() {
-        await this.send("M115"); // temperature
+        await this.send("M105"); // temperature
         await this.send("M114"); // position
         return this;
     }
