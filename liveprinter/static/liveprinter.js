@@ -24,6 +24,125 @@
 // import vector functions - doesn't work in chrome ?
 //import { Vector } from './lib/Vector.prototype.js';
 
+// from
+
+// http://stackoverflow.com/questions/10454518/javascript-how-to-retrieve-the-number-of-decimals-of-a-string-number
+const decimalPlaces = (num) => {
+    const match = ('' + num).match(/(?:\.(\d+))?(?:[eE]([+-]?\d+))?$/);
+    if (!match) {
+        return 0;
+    }
+
+    // Number of digits right of decimal point.
+    const digits = match[1] ? match[1].length : 0;
+
+    // Adjust for scientific notation.
+    const E = match[2] ? (+match[2]) : 0;
+
+    return Math.max(0, digits - E);
+};
+
+// from https://github.com/cncjs/cncjs/blob/30c294f0ffb304441304aaa6b75a728f3a096827/src/server/controllers/Marlin/MarlinLineParserResultPosition.js
+
+class MarlinLineParserResultPosition {
+    // X:0.00 Y:0.00 Z:0.00 E:0.00 Count X:0 Y:0 Z:0
+    static parse(line) {
+        const r = line.match(/^(?:(?:X|Y|Z|E):[0-9\.\-]+\s*)+/i);
+        if (!r) {
+            return null;
+        }
+
+        const payload = {
+            pos: {}
+        };
+        const pattern = /((X|Y|Z|E):[0-9\.\-]+)/gi;
+        const params = r[0].match(pattern);
+
+        for (let param of params) {
+            const nv = param.match(/([a-z]+):([0-9\.\-]+)/i);
+            if (nv) {
+                const axis = nv[1].toLowerCase();
+                const pos = nv[2];
+                const digits = decimalPlaces(pos);
+                payload.pos[axis] = Number(pos).toFixed(digits);
+            }
+        }
+
+        return {
+            type: MarlinLineParserResultPosition,
+            payload: payload
+        };
+    }
+}
+
+//  from https://github.com/cncjs/cncjs/blob/f33e6464e93de65b53aa4160676b8ee51ed4dcc6/src/server/controllers/Marlin/MarlinLineParserResultTemperature.js
+class MarlinLineParserResultTemperature {
+    // ok T:0
+    // ok T:293.0 /0.0 B:25.9 /0.0 @:0 B@:0
+    // ok T:293.0 /0.0 B:25.9 /0.0 T0:293.0 /0.0 T1:100.0 /0.0 @:0 B@:0 @0:0 @1:0
+    // ok T:293.0 /0.0 (0.0) B:25.9 /0.0 T0:293.0 /0.0 (0.0) T1:100.0 /0.0 (0.0) @:0 B@:0 @0:0 @1:0
+    // ok T:293.0 /0.0 (0.0) B:25.9 /0.0 T0:293.0 /0.0 (0.0) T1:100.0 /0.0 (0.0) @:0 B@:0 @0:0 @1:0 W:?
+    // ok T:293.0 /0.0 (0.0) B:25.9 /0.0 T0:293.0 /0.0 (0.0) T1:100.0 /0.0 (0.0) @:0 B@:0 @0:0 @1:0 W:0
+    //  T:293.0 /0.0 B:25.9 /0.0 @:0 B@:0
+    //  T:293.0 /0.0 B:25.9 /0.0 T0:293.0 /0.0 T1:100.0 /0.0 @:0 B@:0 @0:0 @1:0
+    //  T:293.0 /0.0 (0.0) B:25.9 /0.0 T0:293.0 /0.0 (0.0) T1:100.0 /0.0 (0.0) @:0 B@:0 @0:0 @1:0
+    static parse(line) {
+        let r = line.match(/^(ok)?\s+T:[0-9\.\-]+/i);
+        if (!r) {
+            return null;
+        }
+
+        const payload = {
+            ok: line.startsWith('ok'),
+            extruder: {},
+            heatedBed: {}
+        };
+
+        const re = /(?:(?:(T|B|T\d+):([0-9\.\-]+)\s+\/([0-9\.\-]+)(?:\s+\((?:[0-9\.\-]+)\))?)|(?:(@|B@|@\d+):([0-9\.\-]+))|(?:(W):(\?|[0-9]+)))/ig;
+
+        while ((r = re.exec(line))) {
+            const key = r[1] || r[4] || r[6];
+
+            if (key === 'T') { // T:293.0 /0.0
+                payload.extruder.deg = r[2];
+                payload.extruder.degTarget = r[3];
+                continue;
+            }
+
+            if (key === 'B') { // B:60.0 /0.0
+                payload.heatedBed.deg = r[2];
+                payload.heatedBed.degTarget = r[3];
+                continue;
+            }
+
+            if (key === '@') { // @:127
+                payload.extruder.power = r[5];
+                continue;
+            }
+
+            if (key === 'B@') { // B@:127
+                payload.heatedBed.power = r[5];
+                continue;
+            }
+
+            // M109, M190: Print temp & remaining time every 1s while waiting
+            if (key === 'W') { // W:?, W:9, ..., W:0
+                payload.wait = r[7];
+                continue;
+            }
+
+            // Hotends: T0, T1, ...
+            // TODO
+        }
+
+        return {
+            type: MarlinLineParserResultTemperature,
+            payload: payload
+        };
+    }
+};
+
+
 /**
  * Class for Scheduler tasks
  * @memberof LivePrinter
@@ -134,7 +253,7 @@ Task.prototype = {
             ///
             /// should only get 4 back (result from gcode)
             ///
-            switch (res[0].id) {
+            switch (res.id) {
                 case 1: loginfo("1 received");
                     /// catch: there is no 1!
                     break;
@@ -144,12 +263,16 @@ Task.prototype = {
                     // keys: time, port, state
                     break;
                 case 4: //loginfo("gcode response");
-                    if (res[0].result !== undefined) {
-                        for (const rr of res[0].result) {
+                    if (res.result !== undefined) {
+                        for (const rr of res.result) {
                             //loginfo('gcode reply:' + rr);
-                            if (!moveHandler.process(rr))
-                            {
-                                console.log('gcode reply:' + rr);
+                            if (!moveHandler(rr)) {
+                                if (!rr.match(/ok/i)) loginfo(rr);
+                                else
+                                    if (rr.match(/[Ee]rror/)) doError(rr);
+                                    else if (tempParser(rr)) {
+                                        console.log('temp');
+                                    }
                             }
                         }
                     }
@@ -162,11 +285,11 @@ Task.prototype = {
                     break;
                 case 6: loginfo("port names");
                     break;
-                default: loginfo(res.id + " received")
+                default: loginfo(res.id + " received");
             }
         }
 
-        if (typeof result === "array") {
+        if (Array.isArray(result)) {
             result.map(handleResult);
         }
         else {
@@ -177,7 +300,7 @@ Task.prototype = {
     }
 
     scope.printer = new Printer(sendGCodeAndHandleResponse, doError);
-    scope.sendGCodeAndHandleResponse = sendGCodeAndHandleResponse;
+    window.gcode = sendGCodeAndHandleResponse;
 
     /**
      * Handy object for scheduling events at intervals, etc.
@@ -825,6 +948,7 @@ Task.prototype = {
             newButton.click(async function (e) {
                 e.preventDefault();
                 const me = $(this);
+                loginfo("opening serial port " + me.html());
                 const baudRate = $("#baudrates-list .active").data("rate");
 
                 console.log("baudRate:");
@@ -1006,7 +1130,7 @@ Task.prototype = {
         ) + '\n';
 
         // ignore temperature or other info commands - no need to save these!
-        if (!(/M115|M114|M105/.test(gcode))) {
+        if (!/M114|M105/.test(gcode)) {
 
             const doc = GCodeEditor.getDoc();
             let line = doc.lastLine();
@@ -1134,6 +1258,46 @@ Task.prototype = {
         return true;
     }
 
+    const tempParser = (data) => {
+        let parsed = true;
+
+        if (undefined !== data.hotend) {
+
+            try {
+                let tmp = parseFloat(data.hotend).toFixed(2);
+                let target = parseFloat(data.hotend_target).toFixed(2);
+                let tmpbed = parseFloat(data.bed).toFixed(2);
+                let targetbed = parseFloat(data.bed_target).toFixed(2);
+
+                $("input[name='temphot']").val(target);
+                $("input[name='tempbed']").val(targetbed);
+                let $tt = $("input[name='temphot-target']")[0];
+                if ($tt !== $(document.activeElement)) $tt.value = tmp;
+                //$("input[name='temphot-target']").val(tmp);
+                $("input[name='tempbed-target']").val(tmpbed);
+            } catch (e) {
+                parsed = false;
+            }
+        }
+        else {
+            const result = MarlinLineParserResultTemperature.parse(data);
+            if (!result) parsed = false;
+            else {
+                if (undefined !== result.payload.extruder) {
+                    $("input[name='temphot']").val(result.payload.extruder.deg);
+                    // make sure user isn't typing in this
+                    let $tt = $("input[name='temphot-target']")[0];
+                    if ($tt !== $(document.activeElement)) $tt.value = result.payload.extruder.degTarget;
+                }
+                if (undefined !== result.payload.heatedBed) {
+                    $("input[name='tempbed']").val(result.payload.heatedBed.deg);
+                    let $tt = $("input[name='tempbed-target']")[0];
+                    if ($tt !== $(document.activeElement)) $tt.value = result.payload.heatedBed.degTarget;
+                }
+            }
+        }
+        return parsed;
+    };
 
     /**
      * json-rpc temperature event handler
@@ -1143,23 +1307,13 @@ Task.prototype = {
     const tempHandler = (tempEvent) => {
         //console.log("temp event:");
         //console.log(tempEvent);
+        const data = tempEvent.result[0];
 
-        const data = tempEvent.result[0]; // first object in results array
-        let tmp = parseFloat(data.hotend).toFixed(2);
-        let target = parseFloat(data.hotend_target).toFixed(2);
-        let tmpbed = parseFloat(data.bed).toFixed(2);
-        let targetbed = parseFloat(data.bed_target).toFixed(2);
-
-        $("input[name='temphot']").val(target);
-        $("input[name='tempbed']").val(targetbed);
-        let $tt = $("input[name='temphot-target']")[0];
-        if ($tt !== $(document.activeElement)) $tt.value = tmp;
-        //$("input[name='temphot-target']").val(tmp);
-        $("input[name='tempbed-target']").val(tmpbed);
+        return tempParser(tempEvent.result[0]); // first object in results array
     };
 
     async function updateTemperature(interval = 5000) {
-        return requestRepeat({ "jsonrpc": "2.0", "id": 4, "method": "send-gcode", "params": ["M105", true] }, //get temp
+        return requestRepeat({ "jsonrpc": "2.0", "id": 4, "method": "send-gcode", "params": ["M115", true] }, //get temp
             $("#temp-display-btn"), // temp button
             interval,
             tempHandler,
@@ -1219,23 +1373,6 @@ Task.prototype = {
     //////////////////////////////////////////////////////////////////////
 
 
-    // handler for JSON-RPC calls from server
-    const positionHandler = function (params) {
-        console.log("position:");
-        console.log(params);
-        scope.printer.x = parseFloat(params.x);
-        scope.printer.y = parseFloat(params.y);
-        scope.printer.z = parseFloat(params.z);
-        scope.printer.e = parseFloat(params.e);
-
-        $("input[name='x']").val(window.scope.printer.x);
-        $("input[name='y']").val(window.scope.printer.y);
-        $("input[name='z']").val(window.scope.printer.z);
-        $("input[name='e']").val(window.scope.printer.e);
-    };
-
-    $("#gcode").select();  // focus on code input
-
     // message to tell printer to send all responses 
     const responseJSON = JSON.stringify({
         "jsonrpc": "2.0",
@@ -1278,39 +1415,26 @@ Task.prototype = {
      * json-rpc move event handler
      * @memberOf LivePrinter
      */
-    const moveHandler = {
-        startsWith: 'ok',
-        process: function (response) {
+    const moveHandler = (response) => {
+        $("input[name='speed']").val(window.scope.printer.printSpeed); // set speed, maybe reset below
+        // update GUI
+        $("input[name='retract']")[0].value = window.scope.printer.currentRetraction;
 
-            let processed = false;
-
-            $("input[name='speed']").val(window.scope.printer.printSpeed); // set speed, maybe reset below
-            // update GUI
-            $("input[name='retract']")[0].value = window.scope.printer.currentRetraction;
-
-            const upper = response.toUpperCase();
-            if (upper.startsWith("X")) { // look for only extrude/move commands
-                loginfo("moveHandler: position update");
-                const newStr = upper.substring(0, upper.indexOf('COUNT'));
-                const cmdRegExp = /([A-Z]\s*):\s*([0-9]+\.[0-9])*/gm;
-                let matches = [...newStr.matchAll(cmdRegExp)];
-                for (let posMatch of matches) {
-                    // ex: ["X:0.93", "X", "0.93"]
-                    const cmdChar = posMatch[1];
-                    const value = parseFloat(posMatch[2]);
-                    switch (cmdChar) {
-                        case "X": $("input[name='x']").val(value); break;
-                        case "Y": $("input[name='y']").val(value); break;
-                        case "Z": $("input[name='z']").val(value); break;
-                        case "E": $("input[name='e']").val(value); break;
-                        case "F": $("input[name='speed']").val(value / 60); break;
-                    }
-                }
-                processed = true;
-            }
-            return processed;
-        }
+        return moveParser(response);
     };
+
+    const moveParser = (data) => {
+        let result = MarlinLineParserResultPosition.parse(data);
+
+        if (!result) return false;
+
+        $("input[name='x']").val(result.payload.pos.x); 
+        $("input[name='y']").val(result.payload.pos.y); 
+        $("input[name='z']").val(result.payload.pos.z); 
+        $("input[name='e']").val(result.payload.pos.e); 
+        return true;
+    };
+
 
     ////////////////////////////////////////////////////////////////////////
     /////////////// Utility functions
@@ -1524,6 +1648,8 @@ Task.prototype = {
     /////////////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+    $("#gcode").select();  // focus on code input
+
 
     function updateGUI() {
         $("input[name='x']").val(window.scope.printer.x);
@@ -1613,6 +1739,8 @@ Task.prototype = {
 
     $("#connect-btn").on("click", async function (e) {
         e.preventDefault();
+        loginfo("OPENING SERIAL PORT");
+
         const notCalledFromCode = !(e.namespace !== undefined && e.namespace === "");
         if (notCalledFromCode) {
             const me = $(this);
@@ -1620,8 +1748,9 @@ Task.prototype = {
 
             // try disconnect
             if (connected) {
-                let selectedPort = $("#serial-ports-list .active");
+                const selectedPort = $("#serial-ports-list .active");
                 if (selectedPort.length > 0) {
+                    loginfo("Closing open port " + selectedPort.html());
                     // check for non-code-initiated click
                     const message = {
                         'jsonrpc': '2.0',
@@ -1629,7 +1758,7 @@ Task.prototype = {
                         'method': 'close-serial-port',
                         'params': []
                     };
-                    let response = await sendJSONRPC(message);
+                    const response = await sendJSONRPC(message);
 
                     if (response.result.length > 0 && response.result[0] === "closed") {
                         me.text("connect");
@@ -1646,11 +1775,12 @@ Task.prototype = {
             }
 
             else {
-                let selectedPort = $("#serial-ports-list .active");
+                const selectedPort = $("#serial-ports-list .active");
                 if (selectedPort.length < 1) {
                     me.removeClass('active');
                 }
                 else {
+                    loginfo("Opening port " + selectedPort.html());
                     me.text("disconnect");
                     selectedPort.click(); // trigger connection using active port
                 }
@@ -1718,7 +1848,6 @@ Task.prototype = {
 
     $("#refresh-serial-ports-btn").on("click", async function (e) {
         e.preventDefault();
-
         if (!this.working) {
             this.working = true;
         }
@@ -2100,7 +2229,7 @@ Task.prototype = {
                     // give quick access to liveprinter API
                     code = "let lp = window.scope.printer;" + code;
                     code = "let sched = window.scope.Scheduler;" + code;
-                    code = "let gcode = (gc) => ( window.scope.sendGCodeAndHandleResponse(gc).catch(err => doError(err)) );" + code;
+                    //code = "let gcode = (gc) => ( window.scope.sendGCodeAndHandleResponse(gc).catch(err => doError(err)) );" + code;
                     code = "let updateGUI = window.scope.updateGUI;" + code;
                     code = "let s = window.scope;" + code;
 
