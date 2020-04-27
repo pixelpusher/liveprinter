@@ -55,9 +55,28 @@ import re
 from typing import Union, Optional, List
 from ConnectionState import ConnectionState
 from SerialDevice import SerialDevice
-
+import logging
 
 define("port", default=8888, help="run on the given port", type=int)
+
+# create logger with 'spam_application'
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+# create file handler which logs even debug messages
+server_log = logging.FileHandler(
+    os.path.join(
+        os.path.dirname(__file__), 
+        "logs", 
+        "server-{time}.log".format(time=time.time())
+        )
+    )
+  
+server_log.setLevel(logging.ERROR)
+# create formatter and add it to the handlers
+formatter = logging.Formatter('%(asctime)s, %(name)s, %(levelname)s, %(message)s')
+server_log.setFormatter(formatter)
+# add the handlers to the logger
+logger.addHandler(server_log)
 
 
 class TestHandler(tornado.web.RequestHandler):
@@ -151,6 +170,7 @@ def use_dummy_serial_port(printer:SerialDevice):
 async def json_handle_gcode(printer, *args):  
     for i in args:
         print("{}".format(i))
+        logger.debug("json_handle_gcode::start::{}".format(i))
 
     gcode = args[0]
     parse_results = False
@@ -159,9 +179,21 @@ async def json_handle_gcode(printer, *args):
 
     try:
         result = await printer.send_command(gcode, parse_results)
-    except:
-        raise
+    except Exception as e:
+        logger.error("json_handle_gcode::178::error (see serial logs)::{err}".format(err=e))
+        
+    logger.debug("json_handle_gcode::handled")
     return result
+
+
+#
+# set line number
+# return the line number if successful, otherwise -1
+#
+async def json_handle_line_number(printer, *args):
+    printer.commands_sent = int(args[0])
+    response = [printer.commands_sent]
+    return response
 
 #
 # set the serial port of the printer and connect.
@@ -199,9 +231,9 @@ async def json_handle_set_serial_port(printer, *args):
             received = await printer.async_connect()
 
         except SerialException:
-            response = "ERROR: could not connect to serial port {}".format(port)
-            print(response)
-            raise Exception(response)
+            response = ["ERROR: could not connect to serial port {}".format(port)]
+            logger.error(response[0])
+            # raise Exception(response)
         else:
             response = [{
                     'time': time.time() * 1000,
@@ -233,18 +265,19 @@ async def json_handle_close_serial(printer, *args):
 # Handle request for serial ports from front end
 #
 async def json_handle_portslist():
-
+    result = []
     try:
         ports = await list_ports()
     except Exception as e:
         # TODO: fix this to be a real error type so it gets sent to the clients
         # properly
        print("could not get serial ports list: {}".format(repr(e)))
-       raise ValueError("could not get  serial ports list: {}".format(repr(e)))
-
-    ports.append("dummy")
-    
-    return [{'ports': ports, 'time': time.time() * 1000 }]
+       result = ["ERROR: could not get  serial ports list: {error}".format(error=repr(e)) ]
+       # raise ValueError()
+    else:
+        ports.append("dummy")
+        result = [{'ports': ports, 'time': time.time() * 1000 }]
+    return result
 
 
 #
@@ -259,7 +292,6 @@ async def json_handle_printer_state(printer):
 
     if printer._serial_port is "/dev/null":
         serial_port_name = "dummy"
-        serial_port_name = "dummy"
     response.append({
         'time': time.time() * 1000,
         'port': serial_port_name,
@@ -270,21 +302,22 @@ async def json_handle_printer_state(printer):
 
 
 def main():
-    tornado.options.parse_command_line()
-
-    loop = tornado.ioloop.IOLoop.current()
-    printer = SerialDevice()
+    settings = dict(cookie_secret="__TODO:_GENERATE_YOUR_OWN_RANDOM_VALUE_HERE__",
+            template_path=os.path.join(os.path.dirname(__file__), "templates"),
+            static_path=os.path.join(os.path.dirname(__file__), "static"),
+            logs_path=os.path.join(os.path.dirname(__file__), "logs"),
+            xsrf_cookies=False,)
+    
+    printer = SerialDevice(logpath=settings['logs_path'])
 
     serial_port_func = functools.partial(json_handle_set_serial_port, printer)
-
-
-    # dispatcher.add_dict({"set-serial-port": serial_port_func })
 
     #----------------------------------------
     # THIS DEFINES THE JSON-RPC API:
     #----------------------------------------
     async def r_creator(request):
         params = request.params
+        logger.debug("JSONRPC request: {}".format(request))
 
         if request.method == "set-serial-port":
             result = await serial_port_func(*params)
@@ -301,24 +334,32 @@ def main():
         elif request.method == "close-serial-port":
             result = await json_handle_close_serial(printer)
             return result
+        elif request.method == "set-line":
+            result = json_handle_line_number(printer, *params)
+            return result
 
         else:
-            raise MethodNotFound("{}".format(request.method))
+            logger.error("Method not found: request.method")
+            # raise MethodNotFound("{}".format(request.method))
+            request.params = ["ERROR: Method not found"]
+            return request
 
-    settings = dict(cookie_secret="__TODO:_GENERATE_YOUR_OWN_RANDOM_VALUE_HERE__",
-            template_path=os.path.join(os.path.dirname(__file__), "templates"),
-            static_path=os.path.join(os.path.dirname(__file__), "static"),
-            xsrf_cookies=False,)
     handlers = [(r"/", MainHandler),
         (r"/test", TestHandler, dict(printer=printer)),
         (r"/jsontest", JsonTestHandler),
         (r"/jsonqtest", JsonQueueTestHandler),
         # (r"/jsonrpc", JSONHandler),
         (r"/jsonrpc", JSONRPCHandler, dict(response_creator=r_creator)),]
+    
     application = tornado.web.Application(handlers=handlers, debug=True, **settings)
+    
     http_server = tornado.httpserver.HTTPServer(application)
-    http_server.listen(options.port)
 
+    tornado.options.parse_command_line()
+    print(settings['logs_path'])
+    loop = tornado.ioloop.IOLoop.current()
+
+    http_server.listen(options.port)
 
     tornado.ioloop.IOLoop.current().start()
 

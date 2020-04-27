@@ -266,7 +266,10 @@ Task.prototype = {
                     if (res.result !== undefined) {
                         for (const rr of res.result) {
                             //loginfo('gcode reply:' + rr);
-                            if (!moveHandler(rr)) {
+                            if (rr.startsWith('ERROR')) {
+                                logerror(rr);
+                            }
+                            else if (!moveHandler(rr)) {
                                 if (!rr.match(/ok/i)) loginfo(rr);
                                 else
                                     if (rr.match(/[Ee]rror/)) doError(rr);
@@ -723,7 +726,7 @@ Task.prototype = {
         // Bottleneck rate limiter package: https://www.npmjs.com/package/bottleneck
         // prevent more than 1 request from running at a time, provides priority queing
         const _limiter = new Bottleneck({
-            maxConcurrent: 1000,
+            maxConcurrent: 100,
             highWater: null, // max jobs
             minTime: 0, // (ms) How long to wait after launching a job before launching another one.
             strategy: Bottleneck.strategy.OVERFLOW_PRIORITY, // don't accept new jobs over highwater
@@ -744,7 +747,7 @@ Task.prototype = {
         _limiter.on("dropped", function (dropped) {
             console.warn("dropped:");
             console.warn(dropped);
-            logerror(`"Dropped job ${JSON.stringify(dropped)}`);
+            logerror(`Dropped job ${JSON.stringify(dropped)}`);
             //   This will be called when a strategy was triggered.
             //   The dropped request is passed to this event listener.
             return 1;
@@ -769,6 +772,7 @@ Task.prototype = {
      * Effectively cleares the current queue of events and restarts it. Should cancel all non-running actions.
      */
     async function restartLimiter() {
+        loginfo("Limiter restarting");
         await stopLimiter();
         limiter = initLimiter();
         return;
@@ -789,6 +793,7 @@ Task.prototype = {
         //args._xsrf = getCookie("_xsrf");
         //console.log(args);
         let reqId = "req" + requestId++;
+        
 
         async function sendBody() {
             let response = "awaiting response";
@@ -816,7 +821,9 @@ Task.prototype = {
 
         if (window.scope.useLimiter) {
             // use limiter for priority scheduling
+            commandsHandler.log(`SENDING ${reqId}::${request}`);
             result = await limiter.schedule({ priority: priority, id: reqId }, async () => sendBody());
+            commandsHandler.log(`RECEIVED ${reqId}::${request}`);
         }
         else {
             // send ASAP
@@ -862,7 +869,7 @@ Task.prototype = {
         } else {
             const printerTab = $("#header");
             const printerState = stateEvent.result[0].state;
-            const printerPort = stateEvent.result[0].port === "/dev/null" || "null" ? "dummy" : stateEvent.result[0].port;
+            const printerPort = stateEvent.result[0].port === ("/dev/null" || "null") ? "dummy" : stateEvent.result[0].port;
             const printerBaud = stateEvent.result[0].baud;
 
             switch (printerState) {
@@ -1033,7 +1040,7 @@ Task.prototype = {
             'params': [port, baudRate]
         };
         const response = await sendJSONRPC(JSON.stringify(message));
-        if (undefined === response.result || undefined === response.result[0]) {
+        if (undefined === response.result || undefined === response.result[0] || typeof response.result[0] === "string") {
             logerror("bad response from set serialPort():");
             logerror(JSON.stringify(response));
         }
@@ -1051,6 +1058,33 @@ Task.prototype = {
     window.scope.setSerialPort = setSerialPort;
 
     /**
+        * Set the current commands line number on the printer (in case of resend)
+        * @memberOf LivePrinter
+        * @param {int} int new line number
+        * @returns {Object} result Returns json object containing result
+        */
+    async function setCurrentLine(lineNumber) {
+        const message = {
+            'jsonrpc': '2.0',
+            'id': 7,
+            'method': 'set-line',
+            'params': [lineNumber]
+        };
+        const response = await sendJSONRPC(JSON.stringify(message));
+        if (undefined === response.result || undefined === response.result[0] || response.result[0].startsWith('ERROR')) {
+            logerror("bad response from set setCurrentLine():");
+            logerror(JSON.stringify(response));
+        }
+        else {
+            loginfo("set line number " + response.result[0].line);
+        }
+
+        return response;
+    }
+    // expose as global
+    window.scope.setline = setCurrentLine;
+
+    /**
         * Get the connection state of the printer and display in the GUI (the listener will take care of that)
         * @memberOf LivePrinter
         * @returns {Object} result Returns json object containing result
@@ -1065,9 +1099,15 @@ Task.prototype = {
                 'method': 'get-printer-state',
                 'params': []
             };
-            const result = await sendJSONRPC(JSON.stringify(message));
-            printerStateHandler(result);
-            return result;
+            const response = await sendJSONRPC(JSON.stringify(message));
+            if (undefined === response) {
+                logerror("bad response from set getPrinterState():");
+                logerror(JSON.stringify(response));
+            }
+            else {
+                printerStateHandler(response);
+            }
+            return response;
         }
         return null;
     }
@@ -1395,7 +1435,7 @@ Task.prototype = {
     };
 
     /**
-     * json-rpc error event handler
+     * json-rpc info event handler
      * @memberOf LivePrinter
      */
     const infoHandler = {
@@ -1408,6 +1448,17 @@ Task.prototype = {
             blinkElem($("#info-tab"));
             blinkElem($("#inbox"));
         }
+    };
+
+    /**
+     * json-rpc general event handler
+     * @memberOf LivePrinter
+     */
+    const commandsHandler = {
+        'log': function (event) {
+            appendLoggingNode($("#commands > ul"), Date.now(), event);
+            blinkElem($("#inbox"));
+        },
     };
 
 

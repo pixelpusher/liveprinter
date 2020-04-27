@@ -11,26 +11,45 @@ import re
 from typing import Union, Optional, List
 import functools
 from ConnectionState import ConnectionState
-
+import logging
+import os
 
 class SerialDevice():
-    def __init__(self):
+    def __init__(self, **kwdargs):
+        logpath = kwdargs['logpath']
         self._serial = None
         self._serial_port = None
         self._baud_rate = 250000
         self._timeout = 0.8 # 100 ms
         self.connection_state = ConnectionState.closed
-        self.commands_sent = 0 # needed for keeping track of them
+        self.commands_sent = 1 # needed for keeping track of them
         self.commands_queued = 0 # how many on the printer
-        self.max_commands_to_queue = 3 
+        self.max_commands_to_queue = 10 
         self.busy = False # whether it is processing commands or not
+        
+       
+        self.gcode_logger = logging.getLogger("{name}.gcode".format(name=__name__))
+        self.serial_logger = logging.getLogger("{name}.serial".format(name=__name__))
+        self.gcode_logger.setLevel(logging.DEBUG)
+        self.serial_logger.setLevel(logging.DEBUG)
+
+        # create file handler which logs even debug messages
+        gcode_fh = logging.FileHandler(os.path.join(logpath, "gcode-{time}.log".format(time=time.time())))
+        serial_fh = logging.FileHandler(os.path.join(logpath, "serial-{time}.log".format(time=time.time())))
+        # create formatter and add it to the handlers
+        formatter = logging.Formatter('%(asctime)s, %(name)s, %(message)s')
+        gcode_fh.setFormatter(formatter)
+        serial_fh.setFormatter(formatter)
+       
+        self.gcode_logger.addHandler(gcode_fh)
+        self.serial_logger.addHandler(serial_fh)
 
     #
     # async connect - returns a future
     #
     async def async_connect(self):
         result = ""
-        self.commands_sent = 0 # reset on each connection
+        self.commands_sent = 1 # reset on each connection
         try:
             self._serial = Serial(str(self._serial_port), self._baud_rate, timeout=self._timeout, writeTimeout=self._timeout)
             if self._serial.is_open:
@@ -45,7 +64,8 @@ class SerialDevice():
             print("An exception occured while trying to create serial connection: {}".format(repr(e)))
             result = "nope"
             self.connection_state = ConnectionState.closed
-            raise
+            self.serial_logger.error("67, An exception occured while trying to create serial connection: {}".format(repr(e)))
+            #raise
         else:
             # the printer is quite chatty on startup, but takes a second or so
             # to reboot when connected
@@ -96,59 +116,81 @@ class SerialDevice():
     # the results as a dict()
     #
     async def send_command(self, cmd:Union[str,bytes], parse_results:bool=False):
+        result = []
         if self._serial is None:
-            raise ValueError("Serial port not open")
-        
+            result.append("Serial port not open")
+            return result
+
+        # spin lock??        
         while self.busy:
-            gen.sleep(0.01)
+            await gen.sleep(0.01)
+
         self.busy = True
 
-        while self.commands_queued >= self.max_commands_to_queue:
-            gen.sleep(0.01)
+        # all commands have a response, wait for it
+        no_response = True
 
-        self.commands_sent += 1
-        
-        #if self.commands_sent > 100:
-        #    # reset line number!
-        #    cmd_reset = "M110 N1"
-        #    checksum = functools.reduce(lambda x, y: x ^ y, map(ord, "N%d%s" %
-        #    (self.commands_sent, cmd_reset)))
-        #    cmd_to_send = str("N%d%s*%d" % (self.commands_sent, cmd_reset,
-        #    checksum)).encode()
-        #    if not cmd_to_send.endswith(b"\n"):
-        #        cmd_to_send += b"\n"
-        #    await self.send_raw_command(cmd_to_send)
-        #    self.commands_sent = 1
+        while no_response:
+            #if self.commands_sent > 100:
+            #    # reset line number!
+            #    cmd_reset = "M110 N1"
+            #    checksum = functools.reduce(lambda x, y: x ^ y, map(ord, "N%d%s" %
+            #    (self.commands_sent, cmd_reset)))
+            #    cmd_to_send = str("N%d%s*%d" % (self.commands_sent, cmd_reset,
+            #    checksum)).encode()
+            #    if not cmd_to_send.endswith(b"\n"):
+            #        cmd_to_send += b"\n"
+            #    await self.send_raw_command(cmd_to_send)
+            #    self.commands_sent = 1
 
-        if self._serial_port is "/dev/null":
-            cmd_to_send = str(cmd).encode()
-        else:
-            checksum = functools.reduce(lambda x, y: x ^ y, map(ord, "N%d%s" % (self.commands_sent, cmd)))
-            cmd_to_send = str("N%d%s*%d" % (self.commands_sent, cmd, checksum)).encode()
-        if not cmd_to_send.endswith(b"\n"):
-            cmd_to_send += b"\n"
-        print("sending:{line}:{commmand}".format(line=self.commands_sent, commmand=cmd_to_send))
-        try:
-            self._serial.write(cmd_to_send)    
-            self._serial.flush() # do it now!
-        except SerialTimeoutException:
-            raise ValueError("Serial communication timed out whilst sending {command}:{current}".format(command=cmd_to_send, current=self.commands_sent))
-        except SerialException:
-            print("Serial exception whilst sending {command}:{current}".format(command=cmd_to_send, current=self.commands_sent))
-            raise
-        else:
+            # log to file
+            self.gcode_logger.debug("{line},{code}".format(line=self.commands_sent, code=str(cmd)))
+            send_tries = 0
+            max_send_tries = 50
 
-            self.commands_queued += 1
+            # wait to send - might take time
+            while True:
+                if send_tries > max_send_tries:
+                    self.serial_logger.error("153, Serial communication timeout: try {tries}: sending:{line}::{commmand}".format(tries=send_tries, line=self.commands_sent, commmand=cmd_to_send))
+                    result.append("ERROR: Serial communication timed out whilst sending {command}:{current}".format(command=cmd_to_send, current=self.commands_sent))
+                    return result
+
+                if self._serial_port is "/dev/null":
+                    cmd_to_send = str(cmd).encode()
+                else:
+                    checksum = functools.reduce(lambda x, y: x ^ y, map(ord, "N%d%s" % (self.commands_sent, cmd)))
+                    cmd_to_send = str("N%d%s*%d" % (self.commands_sent, cmd, checksum)).encode()
+                if not cmd_to_send.endswith(b"\n"):
+                    cmd_to_send += b"\n"
+            
+                self.serial_logger.debug("166, try {tries}: sending:{line}::{commmand}".format(tries=send_tries, line=self.commands_sent, commmand=cmd_to_send))
+                try:
+                    send_tries += 1
+                    self._serial.write(cmd_to_send)    
+                    self._serial.flush() # do it now!
+                except SerialTimeoutException as e:
+                    self.serial_logger.error(e)
+                    self.serial_logger.error("158, Serial timeout")
+                    result.append("Serial communication timed out whilst sending {command}:{current}".format(command=cmd_to_send, current=self.commands_sent))
+                    return result
+                except SerialException as e:
+                    self.serial_logger.error(e)
+                    self.serial_logger.error("161, Fatal error: Serial exception sending command")
+                    result.append("Serial exception whilst sending {command}:{current}".format(command=cmd_to_send, current=self.commands_sent))
+                    return result
+                else:
+                    # success!
+                    break
 
             # read line -- async, sleeping if waiting
             # response = ...
-            result = []
+
             newline = ""
             attempts = 5
             max_loop_timeout = 40 # 40 secs between moves...  might need to be higher
             start_time = time.time()
             current_time = 0
-           
+        
             line = "" # line received from serial, to parse
 
             # loop through all serial data
@@ -160,58 +202,80 @@ class SerialDevice():
                 # check for timeout
                 current_time = time.time() - start_time
                 if current_time > max_loop_timeout:
-                    result.append("serial response timeout")
-                    raise ValueError(result)
-                    break # exit loop
+                    result.append("ERROR: serial response timeout")
+                    self.serial_logger.error("196, serial response timeout waiting for result")
+                    return result
+                    #break # exit loop
 
                 new_line = await self.read_response()
                 if new_line is not "":
                     line = str(new_line)
                     lowerline = line.lower()
+                    # serial_logger.info("{lowerline}".format(lowerline=lowerline))
 
                     if attempts < 1:
-                        result.append("too many retries")
-                        raise ValueError(result)
-                        break
+                        result.append("ERROR: too many retries")
+                        self.serial_logger.error("208, too many retries waiting for result")
+                        return result
+                        # break
 
                     # Check for RESEND
                     if 'resend' in lowerline or lowerline.startswith('rs'):
+
                         # A resend can be requested either by Resend, resend or
                         # rs.
                         attempts -= 1
-                        error_msg = "Printer signals resend:{line} for {cmd} - current line {current}".format(line=line, cmd=cmd, current=self.commands_sent)
+                        error_msg = "Printer signals resend:{line} for {cmd} - current line {current}".format(line=line.rstrip('\n\r'), cmd=cmd, current=self.commands_sent)
+                        self.serial_logger.error("218, {msg}".format(msg=error_msg))
+
                         # result.append(error_msg)
-                        print(error_msg)
+                        # print(error_msg)
+                        await gen.sleep(1)
 
                         # try again!
-                        try:
-                            self._serial.write(cmd_to_send)    
-                            self._serial.flush() # do it now!
-                        except SerialTimeoutException:
-                            raise ValueError("RESEND:Serial exception whilst sending {command}:{current}".format(command=cmd_to_send, current=self.commands_sent))
-                        except:
-                            print("RESEND:Serial exception whilst sending {command}:{current}".format(command=cmd_to_send, current=self.commands_sent))
-                            raise
+                        #try:
+                        #    self._serial.write(cmd_to_send)    
+                        #    self._serial.flush() # do it now!
+                        #except SerialTimeoutException:
+                        #    result.append("ERROR: RESEND:Serial exception whilst sending {command}:{current}".format(command=cmd_to_send, current=self.commands_sent))
+                        #    return result
+                        #except:
+                        #    result.append("ERROR: RESEND:Serial exception whilst sending {command}:{current}".format(command=cmd_to_send, current=self.commands_sent))
+                        #    return result
 
                     # Cold extrusion or something else - means line didn't take
                     # so don't update line number-- 'echo: cold extrusion
                     # prevented'
                     elif line.startswith("echo:"):                              
+                        no_response = False # received something
 
                         echo_matches = re.findall("echo: ?(.+)", line)
                         if len(echo_matches) > 0:
                             result.append(echo_matches[0])
                         else:
                             result.append(line)
+
+                    elif 'Line Number' in lowerline:
+                        # next line will be resend, do nothing
+                        self.serial_logger.error("260, line number is not last error")
+                        continue
                     
+                    elif 'checksum' in lowerline:
+                        # next line will be resend, do nothing
+                        self.serial_logger.error("260, checksum mismatch")
+                        continue
+
+
                     else:
+                        no_response = False # received something
+
                         # Otherwise, attempt to parse the response from the printer into
                         # something sensible.
                         # This can be tricky, given all the Marlin versions...
 
                         # if not parsing, return whatever we got
                         if not parse_results:
-                            print("SerialDevice(236): Appending {line}::{cmd}".format(line=line, cmd=cmd))
+                            self.serial_logger.debug("263, Appending {line}::{cmd}".format(line=line.rstrip('\n\r'), cmd=cmd))
                             result.append(line.rstrip('\n\r'))
                             
                             ## G commands are only one line
@@ -249,7 +313,8 @@ class SerialDevice():
                             # DEFAULT RESPONSE if not matched - JUST SEND BACK TO FRONT END
                             result.append(line.rstrip('\n\r'))
                             # DEBUG
-                            print("SerialDevice(270):{line}".format(line)) 
+                            self.serial_logger.debug("270,{line}".format(line=line.rstrip('\n\r').escape()))
+                            print("SerialDevice(270):{line}".format(line.line.rstrip('\n\r').escape()))
                             # print("result not parsed {cmd},
                             # {line}".format(cmd=cmd,line=line))
 
@@ -263,13 +328,14 @@ class SerialDevice():
                         break
                     retries += 1
                     # print("Waiting on command: {}".format(cmd))
-                    gen.sleep(0.001)
+                    await gen.sleep(0.001)
 
-            
-            # end parsing results
-            self.commands_queued -= 1
-            self.busy = False
-            return result
+        self.commands_sent += 1
+          
+        # end parsing results
+        # self.commands_queued -= 1
+        self.busy = False
+        return result
     
     #
     # send a command to the serial port, return array of responses
@@ -320,8 +386,9 @@ class SerialDevice():
             # print("SerialDevice(324):line: {}".format(line))
         except SerialException as se:
             line = repr(se)
-            print("[except] line: {}".format(line))
-            raise
+            print("SerialDevice(370) [except] line: {}".format(line))
+            self.serial_logger.error("370, line: {}".format(line))
+            # raise
 
         # only process if there's something to process
         if line is not "":              
