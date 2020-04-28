@@ -34,7 +34,7 @@
                             <a id="printer-tab" class="flex-sm-fill text-sm-center nav-link active lightnav" data-toggle="pill" href="#printer" role="tab" aria-controls="printer" aria-selected="false">printer settings</a>
                         </li>
                         <li class="nav-item">
-                            <a id="global-editor-tab" class="flex-sm-fill text-sm-center nav-link lightnav" data-toggle="pill" href="#global-code-editor-area" role="tab" aria-controls="global-code-editor-area" aria-selected="false">global code editor</a>
+                            <a id="history-editor-tab" class="flex-sm-fill text-sm-center nav-link lightnav" data-toggle="pill" href="#history-code-editor-area" role="tab" aria-controls="history-code-editor-area" aria-selected="false">history code editor</a>
                         </li>
                         <li class="nav-item">
                             <a id="gcode-editor-tab" class="flex-sm-fill text-sm-center nav-link lightnav" data-toggle="pill" href="#gcode-editor-area" role="tab" aria-controls="gcode-editor-area" aria-selected="false">gcode editor</a>
@@ -236,20 +236,20 @@
                             </div>
                         </div>
 
-                        <!-- global code editor-->
-                        <div id="global-code-editor-area" class="tab-pane fade show active hideAfterLoad" role="tabpanel" aria-labelledby="pills-global-editor-tab">
+                        <!-- history code editor-->
+                        <div id="history-code-editor-area" class="tab-pane fade show active hideAfterLoad" role="tabpanel" aria-labelledby="pills-history-editor-tab">
                             <div class="row">
                                 <div class="col-12 cm-contain">
                                     <form>
-                                        <textarea id="global-code-editor">
-                                    // start coding global functions, etc. here or load an example from the dropdown above!
+                                        <textarea id="history-code-editor">
+                                    // all the code you've run will appear here
 
                                         </textarea>
                                     </form>
                                 </div>
                             </div>
                             <div class="row">
-                                <div class="col-md-12">Key buffer: <span id="command-display-global"></span></div>
+                                <div class="col-md-12">Key buffer: <span id="command-display-history"></span></div>
                             </div>
                             <div class="row">
                                 <div class="col-md-2 code-errors-panel"><p class="lead font-weight-bold">Errors:</p></div>

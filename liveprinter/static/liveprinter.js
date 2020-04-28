@@ -142,6 +142,36 @@ class MarlinLineParserResultTemperature {
     }
 };
 
+//
+// for console debugging
+//
+
+
+function Logger() { }
+Logger.DEBUG_LEVEL = {
+    error: 0,
+    warning: 1,
+    info: 2,
+    debug: 3
+};
+
+Logger.debugLevel = Logger.DEBUG_LEVEL.info;
+
+Logger.log = function (text, level = Logger.debugLevel) {
+    if (level >= Logger.debugLevel) {
+        console.log(text);
+    }
+};
+
+Logger.info = t => Logger.log(t, Logger.DEBUG_LEVEL.info);
+Logger.debug = t => Logger.log(t, Logger.DEBUG_LEVEL.debug);
+Logger.warning = t => Logger.log(t, Logger.DEBUG_LEVEL.warning);
+Logger.error = t => Logger.log(t, Logger.DEBUG_LEVEL.error);
+
+
+Logger.info("boots");
+Logger.debug("boots", Logger.DEBUG_LEVEL.debug);
+
 
 /**
  * Class for Scheduler tasks
@@ -165,9 +195,14 @@ Task.prototype = {
 
     await $.ready();
 
-
-    if (!window.console) window.console = {};
-    if (!window.console.log) window.console.log = function () { };
+    if (!window.console) {
+        window.console = {
+            __log: [],
+            get _log() { return this.__log; },
+            log: function (text) { this._log.push(text); },
+            getLog: function () { return this._log; }
+        };
+    }
 
     // dangerous?
     // need to pass to scripts somehow
@@ -246,8 +281,8 @@ Task.prototype = {
     async function sendGCodeAndHandleResponse(gcode, priority = 4) {
         const result = await sendGCode(gcode, priority);
 
-        //console.log("GOT RESULTS");
-        //console.log(result);
+        //Logger.log("GOT RESULTS");
+        //Logger.log(result);
 
         function handleResult(res) {
             ///
@@ -274,7 +309,7 @@ Task.prototype = {
                                 else
                                     if (rr.match(/[Ee]rror/)) doError(rr);
                                     else if (tempParser(rr)) {
-                                        console.log('temp');
+                                        Logger.log('temp');
                                     }
                             }
                         }
@@ -378,7 +413,7 @@ Task.prototype = {
          */
         startScheduler: function () {
 
-            console.log("scheduler starting at time: " + this.startTime);
+            Logger.log("scheduler starting at time: " + this.startTime);
             const me = this; //local reference for this closure
 
             function scheduler(nextTime) {
@@ -414,7 +449,7 @@ Task.prototype = {
                         let tdiff = event.time - time;
                         if (tdiff < 1) {
 
-                            //if (!event.system) console.log("running event at time:" + time);
+                            //if (!event.system) Logger.log("running event at time:" + time);
                             // if we're behind, don't run this one...
                             //if (!event.ignorable && tdiff > -event.delay * 2) {
                             //if (!event.ignorable) {
@@ -447,7 +482,7 @@ Task.prototype = {
 
     // Scheduler.scheduleEvent({
     //     delay: 2000,
-    //     run: function() { console.log("EVENT"); } ,
+    //     run: function() { Logger.log("EVENT"); } ,
     //     repeat: true,
     // });
 
@@ -455,16 +490,16 @@ Task.prototype = {
     //
     //window.scope.Scheduler.addEventsListener({
     //    EventRemoved: function (e) {
-    //        console.log("event removed:");
-    //        console.log(e);
+    //        Logger.log("event removed:");
+    //        Logger.log(e);
     //    },
     //    EventAdded: function (e) {
-    //        console.log("event added:");
-    //        console.log(e);
+    //        Logger.log("event added:");
+    //        Logger.log(e);
     //    },
     //    EventsCleared: function (e) {
-    //        console.log("events cleared:");
-    //        console.log(e);
+    //        Logger.log("events cleared:");
+    //        Logger.log(e);
     //    }
 
     //});
@@ -487,7 +522,7 @@ Task.prototype = {
                 if (!stream.eol()) {
                     let matches = stream.match(asyncFunctionsInAPICMRegex, false);
                     if (matches) {
-                        //console.log("MATCH::**" + matches[1] + "**");
+                        //Logger.log("MATCH::**" + matches[1] + "**");
                         let i = matches[1].length;
                         while (i--) stream.eat(() => true);
                         return "lp";
@@ -566,11 +601,11 @@ Task.prototype = {
 
 
     /**
-     * Global code CodeMirror editor instance. See {@link https://codemirror.net/doc/manual.html}
+     * History code CodeMirror editor instance. See {@link https://codemirror.net/doc/manual.html}
      * @namespace CodeMirror
      * @memberOf LivePrinter
      */
-    const GlobalCodeEditor = CodeMirror.fromTextArea(document.getElementById("global-code-editor"), {
+    const HistoryCodeEditor = CodeMirror.fromTextArea(document.getElementById("history-code-editor"), {
         lineNumbers: true,
         scrollbarStyle: "simple",
         styleActiveLine: true,
@@ -578,13 +613,11 @@ Task.prototype = {
         undoDepth: 20,
         //autocomplete: true,
         extraKeys: {
-            "Ctrl-Enter": runGlobalCode,
-            "Cmd-Enter": runGlobalCode,
+            "Ctrl-Enter": () => (runGCode().catch((err) => doError(err))),
+            "Cmd-Enter": () => (runGCode().catch((err) => doError(err))),
             "Ctrl-Space": "autocomplete",
             "Ctrl-Q": function (cm) { cm.foldCode(cm.getCursor()); }
-        },
-        foldGutter: true,
-        autoCloseBrackets: true
+        }
     });
 
     /**
@@ -612,7 +645,7 @@ Task.prototype = {
         $(this).removeClass('active');
     });
 
-    //GlobalCodeEditor.hide(); // hidden to start
+    //HistoryCodeEditor.hide(); // hidden to start
 
     // CodeMirror stuff
 
@@ -687,21 +720,21 @@ Task.prototype = {
                     + '<span aria-hidden="true">&times;</span></button>'
                     + "</div>");
 
-                console.log(err);
+                Logger.log(err);
             }
         }
 
         /*
-        console.log("SyntaxError? " + (e instanceof SyntaxError)); // true
-        console.log(e); // true
-        console.log("SyntaxError? " + (e instanceof SyntaxError)); // true
-        console.log("ReferenceError? " + (e instanceof ReferenceError)); // true
-        console.log(e.message);                // "missing ; before statement"
-        console.log(e.name);                   // "SyntaxError"
-        console.log(e.fileName);               // "Scratchpad/1"
-        console.log(e.lineNumber);             // 1
-        console.log(e.columnNumber);           // 4
-        console.log(e.stack);                  // "@Scratchpad/1:2:3\n"
+        Logger.log("SyntaxError? " + (e instanceof SyntaxError)); // true
+        Logger.log(e); // true
+        Logger.log("SyntaxError? " + (e instanceof SyntaxError)); // true
+        Logger.log("ReferenceError? " + (e instanceof ReferenceError)); // true
+        Logger.log(e.message);                // "missing ; before statement"
+        Logger.log(e.name);                   // "SyntaxError"
+        Logger.log(e.fileName);               // "Scratchpad/1"
+        Logger.log(e.lineNumber);             // 1
+        Logger.log(e.columnNumber);           // 4
+        Logger.log(e.stack);                  // "@Scratchpad/1:2:3\n"
         */
 
         // this sucked because of coding... jst highlight instead!
@@ -764,7 +797,7 @@ Task.prototype = {
     async function stopLimiter() {
         if (limiter) await limiter.stop();
         limiter = null;
-        console.log("Shutdown completed!");
+        Logger.log("Shutdown completed!");
         return;
     }
 
@@ -788,12 +821,12 @@ Task.prototype = {
     let requestId = 0; // for serialising requests
 
     async function sendJSONRPC(request, priority = 4) { // 4 is default priority (0-9 where 0 is highest)
-        //console.log(request)
+        //Logger.log(request)
         let args = typeof request === "string" ? JSON.parse(request) : request;
         //args._xsrf = getCookie("_xsrf");
-        //console.log(args);
+        //Logger.log(args);
         let reqId = "req" + requestId++;
-        
+
 
         async function sendBody() {
             let response = "awaiting response";
@@ -847,7 +880,7 @@ Task.prototype = {
 
         let result = await Promise.all(list.map(async (gcode) => {
             gcodeObj.params = [gcode];
-            //console.log(gcodeObj);
+            //Logger.log(gcodeObj);
             return sendJSONRPC(JSON.stringify(gcodeObj), priority);
         }));
         return result;
@@ -931,8 +964,8 @@ Task.prototype = {
 
         window.scope.serialPorts = []; // reset serial ports list
         let portsDropdown = $("#serial-ports-list");
-        //console.log("list of serial ports:");
-        //console.log(event);
+        //Logger.log("list of serial ports:");
+        //Logger.log(event);
         portsDropdown.empty();
         if (ports.length === 0) {
             appendLoggingNode($("#info > ul"), Date.now(), "<li>no serial ports found</li > ");
@@ -949,7 +982,7 @@ Task.prototype = {
         }
 
         window.scope.serialPorts.forEach(function (port) {
-            //console.log("PORT:" + port);
+            //Logger.log("PORT:" + port);
             let newButton = $('<button class="dropdown-item" type="button" data-port-name="' + port + '">' + port + '</button>');
             //newButton.data("portName", port);
             newButton.click(async function (e) {
@@ -958,8 +991,8 @@ Task.prototype = {
                 loginfo("opening serial port " + me.html());
                 const baudRate = $("#baudrates-list .active").data("rate");
 
-                console.log("baudRate:");
-                console.log(baudRate);
+                Logger.log("baudRate:");
+                Logger.log(baudRate);
 
                 // disable changing baudrate and port
                 //$("#baudrates-list > button").addClass("disabled");
@@ -981,7 +1014,7 @@ Task.prototype = {
         const allBaudRates = [115200, 250000, 230400, 57600, 38400, 19200, 9600];
 
         allBaudRates.forEach(rate => {
-            //console.log("PORT:" + port);
+            //Logger.log("PORT:" + port);
             let newButton = $('<button class="dropdown-item" type="button" data-rate="' + rate + '">' + rate + '</button>');
 
             // handle click
@@ -1144,7 +1177,7 @@ Task.prototype = {
      * Send GCode to the server via ajax.
      * @param {string} gcode gcode to send
      * @param {Integer} priority Priority in queue (0-9 where 0 is highest)
-
+ 
      * @memberOf LivePrinter
      * @returns {Object} result Returns json object containing result
      */
@@ -1154,7 +1187,7 @@ Task.prototype = {
         let gcodeLines = gcode.replace(new RegExp(/\n+/g), '\n').split('\n');
         let cleanGCode = gcodeLines.map(l => stripComments(l)).filter(l => l !== '\n');
 
-        //console.log(cleanGCode);
+        //Logger.log(cleanGCode);
 
         // add comment with date and time
         const dateStr = '; ' + (new Date()).toLocaleString('en-US',
@@ -1203,14 +1236,14 @@ Task.prototype = {
 
         if (!code) {
             // info level
-            //console.log("no selections");
+            //Logger.log("no selections");
             code = GCodeEditor.getLine(cursor.line);
             GCodeEditor.setSelection({ line: cursor.line, ch: 0 }, { line: cursor.line, ch: code.length });
         }
         let result = await sendGCode(code);
         // debugging:
-        //console.log("GOT RESULTS");
-        //console.log(result);
+        //Logger.log("GOT RESULTS");
+        //Logger.log(result);
         if (result.result !== undefined)
             for (const res of result.result) {
                 loginfo(res);
@@ -1240,7 +1273,7 @@ Task.prototype = {
 
             if (!code) {
                 // info level
-                //console.log("no selections");
+                //Logger.log("no selections");
                 code = CodeEditor.getLine(cursor.line);
                 CodeEditor.setSelection({ line: cursor.line, ch: 0 }, { line: cursor.line, ch: code.length });
             }
@@ -1250,26 +1283,6 @@ Task.prototype = {
             // run code
             globalEval(code, cursor.line + 1);
         }
-    }
-
-    /**
-     * This function takes the highlighted "global" code from the editor and runs the compiling and error-checking functions.
-     */
-    function runGlobalCode() {
-        let code = GlobalCodeEditor.getSelection();
-        const cursor = GlobalCodeEditor.getCursor();
-
-        if (!code) {
-            // info level
-            //console.log("no selections");
-            code = GlobalCodeEditor.getLine(cursor.line);
-            GlobalCodeEditor.setSelection({ line: cursor.line, ch: 0 }, { line: cursor.line, ch: code.length });
-        }
-        // blink the form
-        blinkElem($("form"));
-
-        // run code
-        globalEval(code, cursor.line + 1, true);
     }
 
     /**
@@ -1345,8 +1358,8 @@ Task.prototype = {
      * @memberOf LivePrinter
      */
     const tempHandler = (tempEvent) => {
-        //console.log("temp event:");
-        //console.log(tempEvent);
+        //Logger.log("temp event:");
+        //Logger.log(tempEvent);
         const data = tempEvent.result[0];
 
         return tempParser(tempEvent.result[0]); // first object in results array
@@ -1479,10 +1492,10 @@ Task.prototype = {
 
         if (!result) return false;
 
-        $("input[name='x']").val(result.payload.pos.x); 
-        $("input[name='y']").val(result.payload.pos.y); 
-        $("input[name='z']").val(result.payload.pos.z); 
-        $("input[name='e']").val(result.payload.pos.e); 
+        $("input[name='x']").val(result.payload.pos.x);
+        $("input[name='y']").val(result.payload.pos.y);
+        $("input[name='z']").val(result.payload.pos.z);
+        $("input[name='e']").val(result.payload.pos.e);
         return true;
     };
 
@@ -1519,14 +1532,14 @@ Task.prototype = {
     var taskListener =
     {
         EventRemoved: function (task) {
-            console.log("event removed:");
-            console.log(task);
+            Logger.log("event removed:");
+            Logger.log(task);
             if (task != null) $('#task-' + task.name).remove();
         },
 
         EventAdded: function (task) {
-            console.log("event added:");
-            console.log(task);
+            Logger.log("event added:");
+            Logger.log(task);
 
             $("#tasks > ul").prepend("<li id='task-" + task.name + "' class='alert alert-success alert-dismissible fade show' role='alert'>"
                 + task.name
@@ -1542,8 +1555,8 @@ Task.prototype = {
         },
 
         EventsCleared: function (task) {
-            console.log("events cleared:");
-            console.log(task);
+            Logger.log("events cleared:");
+            Logger.log(task);
             $("#tasks > ul").empty();
         },
 
@@ -1599,8 +1612,8 @@ Task.prototype = {
      * @memberOf LivePrinter
     */
     function loginfo(text) {
-        console.log("LOGINFO-----------");
-        console.log(text);
+        Logger.log("LOGINFO-----------");
+        Logger.log(text);
 
         if (typeof text === "string")
             infoHandler.info({ time: Date.now(), message: text });
@@ -1620,8 +1633,8 @@ Task.prototype = {
      * @memberOf LivePrinter
     */
     function logerror(text) {
-        console.log("LOGERROR-----------");
-        console.log(text);
+        Logger.log("LOGERROR-----------");
+        Logger.log(text);
 
         if (typeof text === "string")
             errorHandler.error({ time: Date.now(), message: text });
@@ -1745,9 +1758,9 @@ Task.prototype = {
             CodeEditor.setOption("mode", "text/x-python");
             CodeEditor.setOption("lint", true);
 
-            GlobalCodeEditor.setOption("gutters", ["CodeMirror-linenumbers", "CodeMirror-foldgutter"]);
-            GlobalCodeEditor.setOption("mode", "text/x-python");
-            GlobalCodeEditor.setOption("lint", true);
+            HistoryCodeEditor.setOption("gutters", ["CodeMirror-linenumbers", "CodeMirror-foldgutter"]);
+            HistoryCodeEditor.setOption("mode", "text/x-python");
+            HistoryCodeEditor.setOption("lint", true);
 
         } else {
             CodeEditor.setOption("gutters", ["CodeMirror-lint-markers", "CodeMirror-linenumbers", "CodeMirror-foldgutter"]);
@@ -1759,9 +1772,9 @@ Task.prototype = {
             //    esversion: 6
             //});
 
-            GlobalCodeEditor.setOption("gutters", ["CodeMirror-lint-markers", "CodeMirror-linenumbers", "CodeMirror-foldgutter"]);
-            GlobalCodeEditor.setOption("mode", "lp");
-            GlobalCodeEditor.setOption("lint", {
+            HistoryCodeEditor.setOption("gutters", ["CodeMirror-lint-markers", "CodeMirror-linenumbers", "CodeMirror-foldgutter"]);
+            HistoryCodeEditor.setOption("mode", "lp");
+            HistoryCodeEditor.setOption("lint", {
                 globalstrict: true,
                 strict: false,
                 esversion: 6
@@ -1841,8 +1854,8 @@ Task.prototype = {
 
     $('a[data-toggle="pill"]').on('shown.bs.tab', function (e) {
         const target = $(e.target).attr("href"); // activated tab
-        if (target === "#global-code-editor-area") {
-            GlobalCodeEditor.refresh();
+        if (target === "#history-code-editor-area") {
+            HistoryCodeEditor.refresh();
             setLanguageMode(); // have to update gutter, etc.
             clearError();
         }
@@ -1860,11 +1873,11 @@ Task.prototype = {
     // redirect error to browser GUI
     //
     $(window).on("error", function (evt) {
-        //console.log("jQuery error event:");
-        //console.log(evt);
+        //Logger.log("jQuery error event:");
+        //Logger.log(evt);
 
         const e = evt.originalEvent.error; // get the javascript event
-        //console.log("original event:", e);
+        //Logger.log("original event:", e);
         doError(e);
     });
 
@@ -1884,7 +1897,7 @@ Task.prototype = {
         );
         downloadFile(CodeEditor.getDoc().getValue(), "LivePrinterCode" + dateStr + ".js", 'text/javascript');
         downloadFile(GCodeEditor.getDoc().getValue(), "LivePrinterGCode" + dateStr + ".js", 'text/javascript');
-        downloadFile(GlobalCodeEditor.getDoc().getValue(), "LivePrinterGlobalCode" + dateStr + ".js", 'text/javascript');
+        downloadFile(HistoryCodeEditor.getDoc().getValue(), "LivePrinterHistoryCode" + dateStr + ".js", 'text/javascript');
     });
 
 
@@ -1963,8 +1976,8 @@ Task.prototype = {
      * @example 
      * Example in use:
      * s.mousemove( function(e) {
-     *     console.log(e);
-     *     console.log((e.x-e.px) + "," + (e.y-e.py));
+     *     Logger.log(e);
+     *     Logger.log((e.x-e.px) + "," + (e.y-e.py));
      *   }, 20);
      * @memberOf LivePrinter
      */
@@ -1988,7 +2001,7 @@ Task.prototype = {
                 let distY = scope.my - scope.pmy;
                 let dist = distX * distX + distY * distY;
                 if (minDelta * minDelta < dist) {
-                    console.log("mouse move:" + evt.pageX + "," + evt.pageY);
+                    Logger.log("mouse move:" + evt.pageX + "," + evt.pageY);
                     func.call(this, {
                         x: scope.mx, y: scope.my,
                         px: scope.pmx, py: scope.pmy,
@@ -2047,22 +2060,22 @@ Task.prototype = {
     const editedLocalKey = "editedLoc";
     const savedLocalKey = "savedLoc";
 
-    const editedGlobalKey = "editedGlob";
-    const savedGlobalKey = "savedGlob";
+    const editedHistoryKey = "editedHist";
+    const savedGlobalKey = "savedHist";
 
     const localChangeFunc = cm => {
         let txt = cm.getDoc().getValue();
         localStorage.setItem(editedLocalKey, txt);
     };
 
-    const globalChangeFunc = cm => {
+    const historyChangeFunc = cm => {
         let txt = cm.getDoc().getValue();
-        localStorage.setItem(editedGlobalKey, txt);
+        localStorage.setItem(editedHistoryKey, txt);
     };
 
     CodeEditor.on("change", localChangeFunc);
 
-    GlobalCodeEditor.on("change", globalChangeFunc);
+    HistoryCodeEditor.on("change", historyChangeFunc);
 
     let reloadLocalSession = () => {
         CodeEditor.off("change");
@@ -2080,20 +2093,12 @@ Task.prototype = {
         CodeEditor.refresh();
     };
 
-    let reloadGlobalSession = () => {
-        GlobalCodeEditor.off("change");
-        let newFile = localStorage.getItem(editedGlobalKey);
-        if (newFile !== undefined && newFile) {
-            blinkElem($(".CodeMirror"), "slow", () => {
-                GlobalCodeEditor.swapDoc(
-                    CodeMirror.Doc(
-                        newFile, "javascript"
-                    )
-                );
-                GlobalCodeEditor.on("change", globalChangeFunc);
-            });
-        }
-        GlobalCodeEditor.refresh();
+    // clear it, only save during session
+    let reloadHistorySession = () => {
+        HistoryCodeEditor.off("change");
+        localStorage.removeItem(editedHistoryKey);
+        HistoryCodeEditor.on("change", historyChangeFunc);
+        HistoryCodeEditor.refresh();
     };
 
     $("#reload-edited-session").on("click", reloadLocalSession);
@@ -2137,11 +2142,45 @@ Task.prototype = {
       */
     function globalEval(code, line, globally = false) {
         clearError();
-        // removed because comments were tripping this up...
-        //code = jQuery.trim(code);
-        console.log("code before pre-processing-------------------------------");
-        console.log(code);
-        console.log("========================= -------------------------------");
+
+        ///
+        /// log code to code history window -------------------
+        ///
+
+        // add comment with date and time
+        const dateStr = (new Date()).toLocaleString('en-US',
+            {
+                hour12: false,
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            }
+        ) + '\n';
+
+        const doc = HistoryCodeEditor.getDoc();
+        let lastLine = doc.getLine(doc.lastLine());
+        const pos = {
+            "line": doc.lastLine(),
+            "ch": lastLine.length
+        };
+        const codeText = "//" + dateStr + code + (code.endsWith('\n') ? '' : '\n');
+        doc.replaceRange(codeText, pos);
+        HistoryCodeEditor.refresh();
+        lastLine = doc.getLine(doc.lastLine());
+        const newpos = { line: doc.lastLine(), ch: lastLine.length };
+        HistoryCodeEditor.setSelection(pos, newpos);
+        HistoryCodeEditor.scrollIntoView(newpos);
+        ///
+        /// end logging code to code history window -----------------------------
+        ///
+
+        
+        Logger.debug("code before pre-processing-------------------------------");
+        Logger.debug(code);
+        Logger.debug("========================= -------------------------------");
 
         // compile in minigrammar
 
@@ -2174,7 +2213,7 @@ Task.prototype = {
         const blockparser = new nearley.Parser(nearley.Grammar.fromCompiled(grammar)); // parser for entire block
 
         code = code.replace(grammarBlockRegex, (match, p1) => {
-            //console.log("Match: " + p1);
+            //Logger.log("Match: " + p1);
 
             let result = "";
             let fail = false; // if not successful
@@ -2192,7 +2231,7 @@ Task.prototype = {
                         blockparser.feed(line + '\n'); // EOL terminates command
                     } catch (e) { // SyntaxError on parse
                         doError(e);
-                        console.log(e);
+                        Logger.log(e);
                         fail = e.message;
                     }
 
@@ -2208,9 +2247,9 @@ Task.prototype = {
             return ' ' + result + "\n"; // need leading space
         });
 
-        console.log("code AFTER block-grammar processing -------------------------------");
-        console.log(code);
-        console.log("========================= -------------------------------");
+        Logger.log("code AFTER block-grammar processing -------------------------------");
+        Logger.log(code);
+        Logger.log("========================= -------------------------------");
 
 
         //
@@ -2221,37 +2260,37 @@ Task.prototype = {
         code = code.replace(grammarOneLineRegex, (match, p1, p2) => {
             const lineparser = new nearley.Parser(nearley.Grammar.fromCompiled(grammar));
 
-            //console.log("!!!"+match+"!!!");
-            //console.log("!!!"+p2+"!!!");
+            //Logger.log("!!!"+match+"!!!");
+            //Logger.log("!!!"+p2+"!!!");
             grammarFound = true; // found!
             let result = "";
             let fail = false; // if not successful
             // .replace(/(^[\s]+)/, "")
             let line = p1.replace(/([\r\n]+)/gm, "").replace(/([\s]+)$/, "");
 
-            //console.log("LINE::" + line + "::LINE");
+            //Logger.log("LINE::" + line + "::LINE");
             if (line) {
                 try {
                     lineparser.feed(line + '\n');
                 } catch (e) { // SyntaxError on parse
                     doError(e);
-                    console.log(e);
+                    Logger.log(e);
                     fail = e.message;
-                    console.log("offending code:[" + line + "]");
+                    Logger.log("offending code:[" + line + "]");
                 }
 
                 if (fail !== false)
                     result += "/*ERROR IN PARSE: [" + fail + "] + offending code: [" + line + "]" + "*/\n";
                 else
                     result = lineparser.results[0];
-                //console.log(result);
+                //Logger.log(result);
             }
             return ' ' + result;
         });
 
-        console.log("code AFTER one-line-grammar processing -------------------------------");
-        console.log(code);
-        console.log("========================= -------------------------------");
+        Logger.log("code AFTER one-line-grammar processing -------------------------------");
+        Logger.log(code);
+        Logger.log("========================= -------------------------------");
 
         if (code) {
             if (pythonMode) {
@@ -2272,7 +2311,7 @@ Task.prototype = {
                 brython(); // re-run brython
 
                 //code = __BRYTHON__.py2js(code + "", "newcode", "newcode").to_js();
-                // console.log(code);
+                // Logger.log(code);
                 // eval(code);
             }
             else {
@@ -2280,7 +2319,6 @@ Task.prototype = {
                     // give quick access to liveprinter API
                     code = "let lp = window.scope.printer;" + code;
                     code = "let sched = window.scope.Scheduler;" + code;
-                    //code = "let gcode = (gc) => ( window.scope.sendGCodeAndHandleResponse(gc).catch(err => doError(err)) );" + code;
                     code = "let updateGUI = window.scope.updateGUI;" + code;
                     code = "let s = window.scope;" + code;
 
@@ -2290,14 +2328,14 @@ Task.prototype = {
                     // error handling -- wrap in try block
                     code = 'try {\n' + code;
 
-                    code = code + '\n} catch (e) { window.scope.lastErrorMessage = null;e.lineNumber=' + line + ';console.log(e);window.doError(e); }';
+                    code = code + '\n} catch (e) { window.scope.lastErrorMessage = null;e.lineNumber=' + line + ';Logger.log(e);window.doError(e); }';
 
                     // function wrapping - run in closure
                     code = '(async function(){"use strict";' + code;
                     code = code + "})().catch(err => window.doError(err));";
                 }
 
-                //console.log("adding code:" + code);
+                //Logger.log("adding code:" + code);
                 let script = document.createElement("script");
                 script.text = code;
                 /*
@@ -2305,14 +2343,14 @@ Task.prototype = {
                     *
                 let node = null;
                 script.onreadystatechange = script.onload = function () {
-                    console.log("loaded");
+                    Logger.log("loaded");
                     node.printer = printer;
                     node.scheduler = Scheduler;
      
                     node.parentNode.removeChild(script);
                     node = null;
                 };
-                script.onerror = function (e) { console.log("script error:" + e) };
+                script.onerror = function (e) { Logger.log("script error:" + e) };
      
                 node = document.head.appendChild(script);
                 */
@@ -2339,7 +2377,7 @@ Task.prototype = {
 
     if (storageAvailable('localStorage')) {
         // finally, load the last stored session:
-        reloadGlobalSession();
+        reloadHistorySession(); // actually, clear it
         reloadLocalSession();
     }
     else {
