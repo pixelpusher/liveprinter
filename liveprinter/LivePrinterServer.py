@@ -149,16 +149,17 @@ def use_dummy_serial_port(printer:SerialDevice):
         printer._serial = dummyserial.Serial(port= printer._serial_port,
             baudrate= printer._baud_rate,
             ds_responses={
-                '.*M105.*': lambda : b'ok T:%.2f /190.0 B:%.2f /24.0 @:0 B@:0\n' % (random.uniform(170,195),random.uniform(20,35)),
-                '.*M115.*': b'FIRMWARE_NAME:DUMMY\n',
-                '.*M114.*': lambda : b'X:%.2fY:%.2fZ:%.2fE:%.2f Count X: 2.00Y:3.00Z:4.00\n' % (random.uniform(0,200), random.uniform(0,200), random.uniform(0,200), random.uniform(0,200)),   # position request
-                '.*G.*': lambda : delayed_string(b'ok\n'),
-                '.*M400.*': lambda : delayed_string(b'ok\n'),
-                '.*M207.*': lambda : delayed_string(b'ok\n'),
-                '.*M208.*': lambda : delayed_string(b'ok\n'),
-                '.*M10[0-46-9].*': lambda : delayed_string(b'ok\n'),
+                'N?[0-9]*(M105).*': lambda : b'ok T:%.2f /190.0 B:%.2f /24.0 @:0 B@:0\n' % (random.uniform(170,195),random.uniform(20,35)),
+                'N?[0-9]*M115.*': b'FIRMWARE_NAME:DUMMY\n',
+                'N?[0-9]*M114.*': lambda : b'X:%.2fY:%.2fZ:%.2fE:%.2f Count X: 2.00Y:3.00Z:4.00\n' % (random.uniform(0,200), random.uniform(0,200), random.uniform(0,200), random.uniform(0,200)),   # position request
+                'N?[0-9]*G.*': lambda : delayed_string(b'ok\n'),
+                'N?[0-9]*M400.*': lambda : delayed_string(b'ok\n'),
+                'N?[0-9]*M207.*': lambda : delayed_string(b'ok\n'),
+                'N?[0-9]*M208.*': lambda : delayed_string(b'ok\n'),
+                'N?[0-9]*M10[0-46-9].*': lambda : delayed_string(b'ok\n'),
+                "N?[0-9]*(M[0-9]+).*" : lambda : delayed_string(b'ok\n'), # catch all M codes
                 '^XXX': b'!!\n',
-                            })
+                })
     printer.connection_state = ConnectionState.connected
 
 

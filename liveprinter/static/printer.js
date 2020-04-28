@@ -56,9 +56,9 @@ class Printer {
          *  @param {String} cmd GCode command string to send
          *  @returns{any} Nothing.
          */
-        this.send = (cmd) => _messageSendFunc(cmd, this.priority);
+        this.send = async (cmd) => await _messageSendFunc(cmd, this.priority);
 
-
+        // default send - log to console
         if (this.send === null) {
             this.send = async msg => {
                 console.log(msg); return true;

@@ -129,8 +129,16 @@ class SerialDevice():
 
         # all commands have a response, wait for it
         no_response = True
+        
+        max_loop_timeout = 40 # timeout for this whole function, for safety - 40 secs between moves...  might need to be higher
+        start_time = time.time()
+        current_time = 0
 
-        while no_response:
+
+        while no_response and current_time < max_loop_timeout:
+            
+            current_time = time.time() - start_time
+
             #if self.commands_sent > 100:
             #    # reset line number!
             #    cmd_reset = "M110 N1"
@@ -150,12 +158,13 @@ class SerialDevice():
 
             # wait to send - might take time
             while True:
+                # if we've exceeded tries, just break out with error
                 if send_tries > max_send_tries:
                     self.serial_logger.error("153, Serial communication timeout: try {tries}: sending:{line}::{commmand}".format(tries=send_tries, line=self.commands_sent, commmand=cmd_to_send))
                     result.append("ERROR: Serial communication timed out whilst sending {command}:{current}".format(command=cmd_to_send, current=self.commands_sent))
                     return result
 
-                if self._serial_port is "/dev/null":
+                if self._serial_port is "/dev/null": # fake serial port
                     cmd_to_send = str(cmd).encode()
                 else:
                     checksum = functools.reduce(lambda x, y: x ^ y, map(ord, "N%d%s" % (self.commands_sent, cmd)))
@@ -187,9 +196,6 @@ class SerialDevice():
 
             newline = ""
             attempts = 5
-            max_loop_timeout = 40 # 40 secs between moves...  might need to be higher
-            start_time = time.time()
-            current_time = 0
         
             line = "" # line received from serial, to parse
 
@@ -201,6 +207,7 @@ class SerialDevice():
 
                 # check for timeout
                 current_time = time.time() - start_time
+
                 if current_time > max_loop_timeout:
                     result.append("ERROR: serial response timeout")
                     self.serial_logger.error("196, serial response timeout waiting for result")

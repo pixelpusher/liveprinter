@@ -57,8 +57,13 @@
     <Content Include="liveprinter\static\examples\airprinting.js" />
     <Content Include="liveprinter\static\examples\algorave.js" />
     <Content Include="liveprinter\static\examples\circle.js" />
+    <Content Include="liveprinter\static\examples\corbusier.js" />
     <Content Include="liveprinter\static\examples\cyber-ants.js" />
     <Content Include="liveprinter\static\examples\default.js" />
+    <Content Include="liveprinter\static\examples\hilbert.js" />
+    <Content Include="liveprinter\static\examples\lsystems.js" />
+    <Content Include="liveprinter\static\examples\lsystems2.js" />
+    <Content Include="liveprinter\static\examples\manualhilbert.js" />
     <Content Include="liveprinter\static\examples\maryhadalittlelamb.js" />
     <Content Include="liveprinter\static\examples\musicalevents.js" />
     <Content Include="liveprinter\static\examples\minigrammar.js" />

@@ -17,7 +17,7 @@ var grammar = {
     {"name": "Chain", "symbols": ["FunctionStatement", "Space", "Chain$ebnf$1"], "postprocess": d => d[0]},
     {"name": "FunctionStatement$subexpression$1", "symbols": ["FunctionName"], "postprocess":  
         ([name]) => {
-            const asyncFunctionsInAPIRegex = /^setRetractSpeed|sendFirmwareRetractSettings|retract|unretract|start|temp|bed|fan|go|fwretract|polygon|rect|extrudeto|sendExtrusionGCode|extrude|move|moveto|mov|mov2|ext|ext2|fillDirection|fillDirectionH|sync|fill|wait|pause|resume|printPaths|printPathsThick|_extrude$/;
+            const asyncFunctionsInAPIRegex = /^setRetractSpeed|sendFirmwareRetractSettings|retract|unretract|start|temp|bed|fan|go|fwretract|polygon|rect|extrudeto|sendExtrusionGCode|extrude|move|moveto|mov|mov2|ext|ext2|up|upto|down|downto|fillDirection|fillDirectionH|sync|fill|wait|pause|resume|printPaths|printPathsThick|_extrude$/;
         	let asyncFuncCall = asyncFunctionsInAPIRegex.test(name);
         
         	if (asyncFuncCall) name = "await lp." + name;
@@ -111,7 +111,7 @@ var grammar = {
     {"name": "ParenthesisStatement$ebnf$1$subexpression$2", "symbols": [/[()\s]/]},
     {"name": "ParenthesisStatement$ebnf$1", "symbols": ["ParenthesisStatement$ebnf$1", "ParenthesisStatement$ebnf$1$subexpression$2"], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
     {"name": "ParenthesisStatement", "symbols": [{"literal":"("}, "ParenthesisStatement$ebnf$1", {"literal":")"}], "postprocess": ([lparen, statement, rparen]) => statement.join('')},
-    {"name": "MathOps", "symbols": [/[*+-\/]/]},
+    {"name": "MathOps", "symbols": [/[*+-/]/]},
     {"name": "ArgSeparator", "symbols": [{"literal":":"}]},
     {"name": "Zero", "symbols": [{"literal":"0"}]},
     {"name": "AnyValidCharacter", "symbols": ["Letter"]},
