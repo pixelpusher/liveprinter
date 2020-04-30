@@ -56,11 +56,16 @@ from typing import Union, Optional, List
 from ConnectionState import ConnectionState
 from SerialDevice import SerialDevice
 import logging
+import tornado.log
+
 
 define("port", default=8888, help="run on the given port", type=int)
 
-# create logger with 'spam_application'
-logger = logging.getLogger(__name__)
+# create logger for this module
+# logger = tornado.log.access_log
+
+logger = tornado.log.app_log
+
 logger.setLevel(logging.DEBUG)
 # create file handler which logs even debug messages
 server_log = logging.FileHandler(
@@ -70,8 +75,8 @@ server_log = logging.FileHandler(
         "server-{time}.log".format(time=time.time())
         )
     )
-  
-server_log.setLevel(logging.ERROR)
+
+server_log.setLevel(logging.DEBUG)
 # create formatter and add it to the handlers
 formatter = logging.Formatter('%(asctime)s, %(name)s, %(levelname)s, %(message)s')
 server_log.setFormatter(formatter)
@@ -92,18 +97,18 @@ class MainHandler(tornado.web.RequestHandler):
         try:
             self.render("index.html")
         except Exception as e:
-            print("ERROR in GET: {}".format(repr(e)))
+            logger.error("ERROR in GET: {}".format(repr(e)))
         
 class JsonTestHandler(tornado.web.RequestHandler):
     def check_xsrf_cookie(self):
         pass
 
     def get(self):
-        print("TEMPLATE PATH: {}".format(self.get_template_path()))
+        logger.info("TEMPLATE PATH: {}".format(self.get_template_path()))
         try:
             self.render("test.html")
         except Exception as e:
-            print("ERROR in GET: {}".format(repr(e)))
+            logger.error("ERROR in GET: {}".format(repr(e)))
 
 
 class JsonQueueTestHandler(tornado.web.RequestHandler):
@@ -111,11 +116,11 @@ class JsonQueueTestHandler(tornado.web.RequestHandler):
         pass
 
     def get(self):
-        print("TEMPLATE PATH: {}".format(self.get_template_path()))
+        logger.info("TEMPLATE PATH: {}".format(self.get_template_path()))
         try:
             self.render("test-bottleneck.html")
         except Exception as e:
-            print("ERROR in GET: {}".format(repr(e)))
+            logger.error("ERROR in GET: {}".format(repr(e)))
 
 
 #
@@ -128,8 +133,8 @@ async def list_ports():
     for n, (portname, desc, hwid) in enumerate(sorted(serial.tools.list_ports.comports())):
                 choice_port.append(u'{} - {}'.format(portname, desc))
                 ports.append(portname)
-                print("__Found serial ports:\n")
-                print("%d: %s" % (n,portname))
+                logger.debug("__Found serial ports:\n")
+                logger.debug("%d: %s" % (n,portname))
     return ports
 
 
@@ -170,7 +175,7 @@ def use_dummy_serial_port(printer:SerialDevice):
 #
 async def json_handle_gcode(printer, *args):  
     for i in args:
-        print("{}".format(i))
+        logger.debug("{}".format(i))
         logger.debug("json_handle_gcode::start::{}".format(i))
 
     gcode = args[0]
@@ -203,13 +208,13 @@ async def json_handle_line_number(printer, *args):
 async def json_handle_set_serial_port(printer, *args):  
     response = ""
     for i in args:
-        print("{}".format(i))
+        logger.debug("{}".format(i))
     port = args[0]
     baud_rate = int(args[1])
     if baud_rate < 1: 
         baud_rate = options.baud_rate
 
-    print("setting serial port: {}".format(port))
+    logger.debug("setting serial port: {}".format(port))
 
     printer._baud_rate = baud_rate
 
@@ -272,7 +277,7 @@ async def json_handle_portslist():
     except Exception as e:
         # TODO: fix this to be a real error type so it gets sent to the clients
         # properly
-       print("could not get serial ports list: {}".format(repr(e)))
+       logger.error("could not get serial ports list: {}".format(repr(e)))
        result = ["ERROR: could not get  serial ports list: {error}".format(error=repr(e)) ]
        # raise ValueError()
     else:
@@ -336,7 +341,7 @@ def main():
             result = await json_handle_close_serial(printer)
             return result
         elif request.method == "set-line":
-            result = json_handle_line_number(printer, *params)
+            result = await json_handle_line_number(printer, *params)
             return result
 
         else:
@@ -357,7 +362,7 @@ def main():
     http_server = tornado.httpserver.HTTPServer(application)
 
     tornado.options.parse_command_line()
-    print(settings['logs_path'])
+    logger.debug(settings['logs_path'])
     loop = tornado.ioloop.IOLoop.current()
 
     http_server.listen(options.port)

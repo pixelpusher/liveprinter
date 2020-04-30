@@ -84,10 +84,10 @@ class Printer {
         // NOTE: disabled for now to use hardware retraction settings
         this.currentRetraction = 0; // length currently retracted
         this.retractLength = 8.5; // in mm - amount to retract after extrusion.  This is high because most moves are slow...
-        this._retractSpeed = 30 * 60; //mm/min, see getter/setter
-        this.firmwareRetract = true;    // use Marlin or printer for retraction
-        this.extraUnretract = 0.1; // extra amount to unretract each time (recovery filament) in mm
-        this.unretractZHop = 2; //little z-direction hop on retracting to avoid blobs, in mm
+        this._retractSpeed = 30*60; //mm/min, see getter/setter
+        this.firmwareRetract = false;    // use Marlin or printer for retraction
+        this.extraUnretract = 0; // extra amount to unretract each time (recovery filament) in mm
+        this.unretractZHop = 0; //little z-direction hop on retracting to avoid blobs, in mm
 
         /**
          * What to do when movement or extrusion commands are out of machine bounds.
@@ -297,7 +297,7 @@ class Printer {
      * @param {Number} s Speed in mm/s
      */
     async setRetractSpeed(s) {
-        this._retractSpeed = s * 60;
+        this._retractSpeed = s*60;
         await this.sendFirmwareRetractSettings();
     }
 
@@ -305,10 +305,10 @@ class Printer {
      * @returns {Number} Retraction speed in mm/s
      */
     get retractSpeed() {
-        return this._retractSpeed / 60;
+        return this._retractSpeed;
     }
     get rsp() {
-        return this._retractSpeed / 60;
+        return this._retractSpeed;
     }
 
     /**
@@ -337,9 +337,9 @@ class Printer {
     */
     async sendFirmwareRetractSettings() {
         // update firmware retract settings
-        await this.send("M207 S" + this.retractLength + " F" + this._retractSpeed + " Z" + this.unretractZHop);
+        await this.send("M207 S" + this.retractLength.toFixed(2) + " F" + this._retractSpeed.toFixed(2) + " Z" + this.unretractZHop.toFixed(2));
         //set retract recover
-        await this.send("M208 S" + (this.retractLength + this.extraUnretract) + "F" + this._retractSpeed);
+        await this.send("M208 S" + (this.retractLength.toFixed(2) + this.extraUnretract.toFixed(2)) + "F" + this._retractSpeed.toFixed(2));
 
         return this;
     }
@@ -366,26 +366,29 @@ class Printer {
         if (this.currentRetraction > 0) return; // don't retract twice!
 
         if (len < 0) throw new Error("retract length can't be less than 0: " + len);
-        const sendSettings = (len !== this.currentRetraction || speed !== undefined);
+        let lengthUpdated = false;
+        if (len !== this.retractLength) lengthUpdated = true;
         this.retractLength = len;
 
+        let speedUpdated = false;
         if (speed !== undefined) {
             if (speed <= 0) throw new Error("retract speed can't be 0 or less: " + speed);
             // set speed safely!
             if (speed > Printer.maxPrintSpeed["e"]) throw new Error("retract speed to high: " + speed);
-            this._retractSpeed = speed;
-            await this.sendFirmwareRetractSettings();
+            speedUpdated = true;
+            this._retractSpeed = speed*60; // avoid calling next line twice
         }
-        // RETRACT        
-        this.currentRetraction += this.retractLength;
-        this.e -= this.currentRetraction;
 
+        // RETRACT        
+        this.currentRetraction = this.retractLength;
+        this.e -= this.currentRetraction;
 
         if (!this.firmwareRetract) {
             const fixedE = this.e.toFixed(4);
             await this.send("G1 " + "E" + fixedE + " F" + this._retractSpeed.toFixed(4));
             this.e = parseFloat(fixedE); // make sure e is actually e even with rounding errors!
         } else {
+            if (speedUpdated || lengthUpdated) await this.sendFirmwareRetractSettings();// might slow things down...
             // retract via firmware otherwise
             await this.send("G10");
         }
@@ -412,19 +415,20 @@ class Printer {
      */
     async unretract(len = this.currentRetraction, speed) {
         if (this.currentRetraction < 0.01) return; // don't unretract if we don't have to!
-
-        const sendSettings = (len !== this.currentRetraction || speed !== undefined);
         if (len < 0) throw new Error("retract length can't be less than 0: " + len);
-        if (len !== this.currentRetraction) this.retractLength = len; // set new retract length if specified
 
+        let lengthUpdated = false;
+        if (len !== this.retractLength) lengthUpdated = true;
+        this.retractLength = len;
+
+        let speedUpdated = false;
         if (speed !== undefined) {
             if (speed <= 0) throw new Error("retract speed can't be 0 or less: " + speed);
             // set speed safely!
             if (speed > Printer.maxPrintSpeed["e"]) throw new Error("retract speed to high: " + speed);
-            this._retractSpeed = speed;
+            speedUpdated = true;
+            this._retractSpeed = speed*60;
         }
-        if (sendSettings) await this.sendFirmwareRetractSettings();
-        // UNRETRACT
 
         this.e += this.currentRetraction + this.extraUnretract;
 
@@ -435,6 +439,8 @@ class Printer {
             await this.send("G1 " + "E" + this.e.toFixed(4) + " F" + this._retractSpeed.toFixed(4));
 
         } else {
+            if (speedUpdated || lengthUpdated) await this.sendFirmwareRetractSettings();// might slow things down...
+
             // unretract via firmware otherwise
             await this.send("G11");
         }

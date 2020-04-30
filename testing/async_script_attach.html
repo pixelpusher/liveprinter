@@ -1,0 +1,29 @@
+<html>
+
+<head>
+</head>
+
+<body>
+</body>
+<script type="text/javascript">
+  (async () => {
+    console.log("loaded");
+    const script = document.createElement("script");
+    script.type = "text/javascript";
+    script.async = true;
+    script.onerror = console.log;
+    script.text = "window.something = async() =>{ console.log(\"did something\")};";
+    const scriptTag = document.head.appendChild(script);
+    console.log("script tag created");
+    try {
+      const result = await window.something(); // run code
+    } catch (e) {
+      doError(e);
+    }
+    scriptTag.parentNode.removeChild(script);
+
+  })().catch((err) => console.log(err));
+
+</script>
+
+</html>

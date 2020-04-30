@@ -158,7 +158,7 @@ Logger.DEBUG_LEVEL = {
 Logger.debugLevel = Logger.DEBUG_LEVEL.info;
 
 Logger.log = function (text, level = Logger.debugLevel) {
-    if (level >= Logger.debugLevel) {
+    if (level <= Logger.debugLevel) {
         console.log(text);
     }
 };
@@ -167,10 +167,6 @@ Logger.info = t => Logger.log(t, Logger.DEBUG_LEVEL.info);
 Logger.debug = t => Logger.log(t, Logger.DEBUG_LEVEL.debug);
 Logger.warning = t => Logger.log(t, Logger.DEBUG_LEVEL.warning);
 Logger.error = t => Logger.log(t, Logger.DEBUG_LEVEL.error);
-
-
-Logger.info("boots");
-Logger.debug("boots", Logger.DEBUG_LEVEL.debug);
 
 
 /**
@@ -223,6 +219,8 @@ Task.prototype = {
 
     let pythonMode = false;
 
+    window.logAjax = false; // log all ajax request/response pairs for debugging to command panel
+
     // this uses the limiting queue, but that affects performance for fast operations (< 250ms)
     window.scope.useLimiter = true;
 
@@ -271,74 +269,10 @@ Task.prototype = {
 
     const asyncFunctionsInAPICMRegex = /^(setRetractSpeed|sendFirmwareRetractSettings|retract|unretract|start|temp|bed|fan|go|up|upto|down|downto|fwretract|polygon|rect|extrudeto|ext2|sendExtrusionGCode|extrude|ext|move|mov2|moveto|mov|fillDirection|fillDirectionH|sync|fill|wait|pause|resume|printPaths|printPathsThick|_extrude|repeat)[^a-zA-Z0-9\_]/;
 
-    /**
-     * Send GCode to the server via ajax and hande response.
-     * @param {string} gcode gcode to send
-     * @param {Integer} priority Priority in queue (0-9 where 0 is highest)
-     * @memberOf LivePrinter
-     * @returns {Object} result Returns json object containing result
-     */
-    async function sendGCodeAndHandleResponse(gcode, priority = 4) {
-        const result = await sendGCode(gcode, priority);
+    window.requestId = 0;
 
-        //Logger.log("GOT RESULTS");
-        //Logger.log(result);
-
-        function handleResult(res) {
-            ///
-            /// should only get 4 back (result from gcode)
-            ///
-            switch (res.id) {
-                case 1: loginfo("1 received");
-                    /// catch: there is no 1!
-                    break;
-                case 2: loginfo("close serial port received");
-                    break;
-                case 3: loginfo("printer state received");
-                    // keys: time, port, state
-                    break;
-                case 4: //loginfo("gcode response");
-                    if (res.result !== undefined) {
-                        for (const rr of res.result) {
-                            //loginfo('gcode reply:' + rr);
-                            if (rr.startsWith('ERROR')) {
-                                logerror(rr);
-                            }
-                            else if (!moveHandler(rr)) {
-                                if (!rr.match(/ok/i)) loginfo(rr);
-                                else
-                                    if (rr.match(/[Ee]rror/)) doError(rr);
-                                    else if (tempParser(rr)) {
-                                        Logger.log('temp');
-                                    }
-                            }
-                        }
-                    }
-                    break;
-                case 5: loginfo("connection result");
-                    if (res.result !== undefined) {
-                        // keys: time, port, messages
-                        loginfo(res.result);
-                    }
-                    break;
-                case 6: loginfo("port names");
-                    break;
-                default: loginfo(res.id + " received");
-            }
-        }
-
-        if (Array.isArray(result)) {
-            result.map(handleResult);
-        }
-        else {
-            handleResult(result);
-        }
-
-        return result;
-    }
-
-    scope.printer = new Printer(sendGCodeAndHandleResponse, doError);
-    window.gcode = sendGCodeAndHandleResponse;
+    // liveprinter object
+    scope.printer = new Printer(scheduleGCode, doError);
 
     /**
      * Handy object for scheduling events at intervals, etc.
@@ -555,7 +489,7 @@ Task.prototype = {
         enterMode: "indent", // or "keep", "flat"
         //autocomplete: true,
         extraKeys: {
-            "Ctrl-Enter": runCode,
+            "Ctrl-Enter": runCode, // handles aync
             "Shift-Enter": runCode,
             "Cmd-Enter": runCode,
             "Ctrl-Space": "autocomplete",
@@ -583,7 +517,6 @@ Task.prototype = {
     });
     CodeEditor.setOption("theme", "abcdef");
 
-
     window.ce = CodeEditor;
 
     //var commandDisplay = document.querySelectorAll('[id|=command-display]');
@@ -610,14 +543,34 @@ Task.prototype = {
         scrollbarStyle: "simple",
         styleActiveLine: true,
         lineWrapping: true,
-        undoDepth: 20,
+        undoDepth: 4, // updated too often for high numbers
+        highlightAsyncMatches: true,
+        tabMode: "indent", // or "spaces", "default", "shift"
+        enterMode: "indent", // or "keep", "flat"
         //autocomplete: true,
         extraKeys: {
-            "Ctrl-Enter": () => (runGCode().catch((err) => doError(err))),
-            "Cmd-Enter": () => (runGCode().catch((err) => doError(err))),
+            /* TODO: implement history code running
+            "Ctrl-Enter": runCode, // handles aync
+            "Shift-Enter": runCode,
+            "Cmd-Enter": runCode,
+            */
             "Ctrl-Space": "autocomplete",
-            "Ctrl-Q": function (cm) { cm.foldCode(cm.getCursor()); }
-        }
+            "Ctrl-Q": function (cm) { cm.foldCode(cm.getCursor()); },
+            "Ctrl-\\": (cm) => {
+                HistoryCodeEditor.off("change");
+                HistoryCodeEditor.swapDoc(
+                    HistoryCodeEditor.Doc(
+                        "// Type some code here.  Hit CTRL-\\ to clear \n\n\n\n", "javascript"
+                    )
+                );
+                HistoryCodeEditor.on("change", historyChangeFunc);
+            }
+        },
+        foldGutter: true,
+        autoCloseBrackets: true,
+        gutters: ["CodeMirror-lint-markers", "CodeMirror-linenumbers", "CodeMirror-foldgutter"],
+        mode: "lp",
+        theme: "abcdef"
     });
 
     /**
@@ -632,8 +585,8 @@ Task.prototype = {
         undoDepth: 20,
         //autocomplete: true,
         extraKeys: {
-            "Ctrl-Enter": () => (runGCode().catch((err) => doError(err))),
-            "Cmd-Enter": () => (runGCode().catch((err) => doError(err))),
+            "Ctrl-Enter": runEditorGCode,
+            "Cmd-Enter": runEditorGCode,
             "Ctrl-Space": "autocomplete",
             "Ctrl-Q": function (cm) { cm.foldCode(cm.getCursor()); }
         }
@@ -754,48 +707,86 @@ Task.prototype = {
     //-------------------------------------------------------------------------------------------------------------------------
     //-------------------------------------------------------------------------------------------------------------------------
 
+    window.maxCodeWaitTime = 4 * 60 * 1000; // max time the limiter waits for scheduled code before dropping job -- in ms
 
     function initLimiter() {
         // Bottleneck rate limiter package: https://www.npmjs.com/package/bottleneck
         // prevent more than 1 request from running at a time, provides priority queing
         const _limiter = new Bottleneck({
-            maxConcurrent: 100,
-            highWater: null, // max jobs
-            minTime: 0, // (ms) How long to wait after launching a job before launching another one.
-            strategy: Bottleneck.strategy.OVERFLOW_PRIORITY, // don't accept new jobs over highwater
+            maxConcurrent: 1,
+            highWater: 10000, // max jobs, good to set for performance
+            minTime: 25, // (ms) How long to wait after launching a job before launching another one.
+            strategy: Bottleneck.strategy.LEAK // cancel lower-priority jobs if over highwater
+        });
+        
+        _limiter.on("error", (error) => {
+            /* handle errors here */
+            let errorTxt = error;
+            try {
+                errorTxt = `${JSON.stringify(error)}`;
+            }
+            catch (err) {
+                errorTxt = error + "";
+            }
+            doError(Error(errorTxt));
+            logerror(`Limiter error: ${errorTxt}`);
         });
 
         // Listen to the "failed" event
         _limiter.on("failed", async (error, jobInfo) => {
             const id = jobInfo.options.id;
-            console.warn(`Job ${id} failed: ${error}`);
+            Logger.warn(`Job ${id} failed: ${error}`);
             logerror(`Job ${id} failed: ${error}`);
             if (jobInfo.retryCount === 0) { // Here we only retry once
                 logerror(`Retrying job ${id} in 20ms!`);
-                return 20;
+                return;
             }
-            return 1;
+            return 0;
         });
 
-        _limiter.on("dropped", function (dropped) {
-            console.warn("dropped:");
-            console.warn(dropped);
-            logerror(`Dropped job ${JSON.stringify(dropped)}`);
+        _limiter.on("dropped", (dropped) => {
+            Logger.warn("limiter dropped:");
+            Logger.warn(dropped);
+            let errorTxt = "";
+            try {
+                errorTxt = `${JSON.stringify(dropped)}`;
+            }
+            catch (err) {
+                errorTxt = dropped + "";
+            }
+            doError(Error(errorTxt));
+            logerror(`Dropped job ${errorTxt}`);
             //   This will be called when a strategy was triggered.
             //   The dropped request is passed to this event listener.
-            return 1;
         });
 
         return _limiter;
     }
 
+    window.codeLimiter = initLimiter(); // runs code in a scheduler: see globalEval()
+    window.codeLine = 0; // limiter again
+
     let limiter = initLimiter(); // Bottleneck rate limiter for priority async queueing
+
+    const scheduleReservior = async () => {
+        const reservoir = await limiter.currentReservoir();
+        $("input[name='queued']")[0].value = reservoir;
+    };
+
+    function getQueued() {
+        return limiter.queued();
+    }
+
 
     /**
      * Stops and clears the current queue of events. Should cancel all non-running actions. No new events can be added after this.
      */
     async function stopLimiter() {
-        if (limiter) await limiter.stop();
+        if (limiter) {
+            await limiter.stop({ dropWaitingJobs: true });
+            limiter.disconnect(); // clear interval and allow memory to be freed
+            loginfo("Limiter stopped.");
+        }
         limiter = null;
         Logger.log("Shutdown completed!");
         return;
@@ -810,7 +801,7 @@ Task.prototype = {
         limiter = initLimiter();
         return;
     }
-    window.scope.clearPrinter = restartLimiter;
+    window.scope.restartLimiter = restartLimiter;
 
     /**
      * Send a JSON-RPC request to the backend, get a response back. See below implementations for details.
@@ -818,74 +809,38 @@ Task.prototype = {
      * @returns {Object} response JSON-RPC response object
      */
 
-    let requestId = 0; // for serialising requests
-
-    async function sendJSONRPC(request, priority = 4) { // 4 is default priority (0-9 where 0 is highest)
+    async function sendJSONRPC(request) {
         //Logger.log(request)
         let args = typeof request === "string" ? JSON.parse(request) : request;
         //args._xsrf = getCookie("_xsrf");
         //Logger.log(args);
-        let reqId = "req" + requestId++;
+        let reqId = "req" + requestId++; // shared with limiter - see above
 
+        if (logAjax) commandsHandler.log(`SENDING ${reqId}::${request}`);
 
-        async function sendBody() {
-            let response = "awaiting response";
-            try {
-                response = await $.ajax({
-                    url: "http://localhost:8888/jsonrpc",
-                    type: "POST",
-                    data: JSON.stringify(args),
-                    timeout: window.scope.ajaxTimeout // might be a long wait on startup... printer takes time to start up and dump messages
-                });
-            }
-            catch (error) {
-                // statusText field has error ("timeout" in this case)
-                response = JSON.stringify(error, null, 2);
-                console.error(response);
-                logerror(response);
-            }
-            if (undefined !== response.error) {
-                logerror(response);
-            }
-
-            return response;
+        let response = "awaiting response";
+        try {
+            response = await $.ajax({
+                url: "http://localhost:8888/jsonrpc",
+                type: "POST",
+                data: JSON.stringify(args),
+                timeout: window.scope.ajaxTimeout // might be a long wait on startup... printer takes time to start up and dump messages
+            });
         }
-        let result = null;
-
-        if (window.scope.useLimiter) {
-            // use limiter for priority scheduling
-            commandsHandler.log(`SENDING ${reqId}::${request}`);
-            result = await limiter.schedule({ priority: priority, id: reqId }, async () => sendBody());
-            commandsHandler.log(`RECEIVED ${reqId}::${request}`);
+        catch (error) {
+            // statusText field has error ("timeout" in this case)
+            response = JSON.stringify(error, null, 2);
+            console.error(response);
+            logerror(response);
         }
-        else {
-            // send ASAP
-            result = await sendBody();
+        if (undefined !== response.error) {
+            logerror(response);
         }
 
-        return result;
+        if (logAjax) commandsHandler.log(`RECEIVED ${reqId}::${request}`);
+        return response;
     }
-
     window.scope.sendJSONRPC = sendJSONRPC;
-
-
-    /**
-     * Run a list of gcode asynchronously in a sequence and return list of responses when finished
-     * @param {Array} list List of GCode lines to run
-     * @param {Integer} priority Priority in queue (0-9 where 0 is highest)
-     * @returns {Object} JSON-RPC object with result
-     */
-    async function sendGCodeList(list, priority = 4) {
-        let gcodeObj = { "jsonrpc": "2.0", "id": 4, "method": "send-gcode", "params": [] };
-
-        let result = await Promise.all(list.map(async (gcode) => {
-            gcodeObj.params = [gcode];
-            //Logger.log(gcodeObj);
-            return sendJSONRPC(JSON.stringify(gcodeObj), priority);
-        }));
-        return result;
-    }
-    window.scope.sendGCodeList = sendGCodeList;
 
 
     /**
@@ -1173,16 +1128,62 @@ Task.prototype = {
     };
 
 
+
+    function handleGCodeResponse(res) {
+        ///
+        /// should only get 4 back (result from gcode)
+        ///
+        switch (res.id) {
+            case 1: loginfo("1 received");
+                /// catch: there is no 1!
+                break;
+            case 2: loginfo("close serial port received");
+                break;
+            case 3: loginfo("printer state received");
+                // keys: time, port, state
+                break;
+            case 4: //loginfo("gcode response");
+                if (res.result !== undefined) {
+                    for (const rr of res.result) {
+                        //loginfo('gcode reply:' + rr);
+                        if (rr.startsWith('ERROR')) {
+                            logerror(rr);
+                        }
+                        else if (!moveHandler(rr)) {
+                            if (!rr.match(/ok/i)) loginfo(rr);
+                            else
+                                if (rr.match(/[Ee]rror/)) doError(rr);
+                                else if (tempParser(rr)) {
+                                    Logger.debug('temperature event handled');
+                                }
+                        }
+                    }
+                }
+                break;
+            case 5: loginfo("connection result");
+                if (res.result !== undefined) {
+                    // keys: time, port, messages
+                    loginfo(res.result);
+                }
+                break;
+            case 6: loginfo("port names");
+                break;
+            default: loginfo(res.id + " received");
+        }
+        updateGUI(); // update after response
+    }
+
+
+
     /**
-     * Send GCode to the server via ajax.
+     * Send GCode to the server via json-rpc over ajax.
      * @param {string} gcode gcode to send
      * @param {Integer} priority Priority in queue (0-9 where 0 is highest)
- 
+     
      * @memberOf LivePrinter
      * @returns {Object} result Returns json object containing result
      */
-    async function sendGCode(gcode, priority = 4) {
-
+    async function sendGCodeRPC(gcode) {
         // remove all comments from lines and reconstruct
         let gcodeLines = gcode.replace(new RegExp(/\n+/g), '\n').split('\n');
         let cleanGCode = gcodeLines.map(l => stripComments(l)).filter(l => l !== '\n');
@@ -1218,36 +1219,86 @@ Task.prototype = {
             GCodeEditor.setSelection(pos, newpos);
             GCodeEditor.scrollIntoView(newpos);
         }
-        const result = await sendGCodeList(cleanGCode, priority);
+
+        let gcodeObj = { "jsonrpc": "2.0", "id": 4, "method": "send-gcode", "params": [] };
+        if (logAjax) commandsHandler.log(`SENDING gcode ${cleanGCode}`);
+
+        if (Array.isArray(cleanGCode)) {
+            //Logger.debug("start array gcode[" + codeLine + "]");
+
+            const results = await Promise.all(cleanGCode.map(async (gcode) => {
+                gcodeObj.params = [gcode];
+                //Logger.log(gcodeObj);
+                const response = sendJSONRPC(JSON.stringify(gcodeObj));
+                response.then((result) => { Logger.debug(result); handleGCodeResponse(result) });
+                return response;
+            }));
+            //Logger.debug("finish array gcode[" + codeLine + "]");
+        } else {
+            //Logger.debug("single line gcode");
+            gcodeObj.params = [cleanGCode];
+            const response = await sendJSONRPC(JSON.stringify(gcodeObj), priority);
+            handleResult(response);
+        }
+        if (logAjax) commandsHandler.log(`DONE gcode ${cleanGCode}`);
+        //Logger.debug(`DONE gcode ${codeLine}`);
+        return 1;
+    }
+
+    /**
+     * Schedule GCode to be sent to the server, in order, using the limiter via json-rpc over ajax.
+     * @param {string} gcode gcode to send
+     * @param {Integer} priority Priority in queue (0-9 where 0 is highest)
+     
+     * @memberOf LivePrinter
+     * @returns {Object} result Returns json promise object containing printer response
+     */
+    async function scheduleGCode(gcode, priority = 4) { // 0-9, lower higher
+        let result = null;
+        if (window.scope.useLimiter) {
+            // use limiter for priority scheduling
+            let reqId = "req" + requestId++;
+            if (logAjax) commandsHandler.log(`SENDING ${reqId}`);
+            try {
+                result = await limiter.schedule(
+                    { "priority": priority, weight: 1, id: reqId, expiration: maxCodeWaitTime },
+                    async () => await sendGCodeRPC(gcode)
+                );
+            }
+            catch (err) {
+                logerror(`Error with ${reqId}:: ${err}`);
+            }
+            if (logAjax) commandsHandler.log(`RECEIVED ${reqId}`);
+        }
         return result;
     }
+
 
     /**
      * Run GCode from the editor by sending to the server.
      * @memberOf LivePrinter
+     * @param {string} _gcode gcode to send
      * @returns {Object} result Returns json object containing result
      */
-    async function runGCode() {
-        let code = GCodeEditor.getSelection();
+    async function runEditorGCode(_gcode) {
+        let gcode = GCodeEditor.getSelection();
         const cursor = GCodeEditor.getCursor();
 
         // parse first??
         let validCode = true;
 
-        if (!code) {
+        if (!gcode) {
             // info level
             //Logger.log("no selections");
-            code = GCodeEditor.getLine(cursor.line);
-            GCodeEditor.setSelection({ line: cursor.line, ch: 0 }, { line: cursor.line, ch: code.length });
+            gcode = GCodeEditor.getLine(cursor.line);
+            GCodeEditor.setSelection({ line: cursor.line, ch: 0 }, { line: cursor.line, ch: gcode.length });
         }
-        let result = await sendGCode(code);
+        const result = await scheduleGCode(gcode);
         // debugging:
-        //Logger.log("GOT RESULTS");
-        //Logger.log(result);
-        if (result.result !== undefined)
-            for (const res of result.result) {
-                loginfo(res);
-            }
+        //if (result.result !== undefined)
+        //    for (const res of result.result) {
+        //        Logger.debug(res);
+        //    }
         return result;
     }
 
@@ -1255,7 +1306,7 @@ Task.prototype = {
      * This function takes the highlighted "local" code from the editor and runs the compiling and error-checking functions.
      * @memberOf LivePrinter
      */
-    function runCode() {
+    async function runCode() {
 
         // if printer isn't connected, we shouldn't run!
         let printerConnected = $("#header").hasClass("blinkgreen");
@@ -1281,7 +1332,14 @@ Task.prototype = {
             blinkElem($("form"));
 
             // run code
-            globalEval(code, cursor.line + 1);
+            try {
+                window.codeLine++; // increment times we've run code
+                await globalEval(code, cursor.line + 1);
+            }
+            catch (err) {
+                window.codeLine--; // go back 
+                doError("runCode/globalEval:" + err);
+            }
         }
     }
 
@@ -1295,8 +1353,8 @@ Task.prototype = {
      * @param {Integer} priority Priority of request in queue (0-9 where 0 is highest)
      * @returns {Object} JsonRPC response object
      */
-    async function requestRepeat(jsonObject, activeElem, delay, func, priority = 4) {
-        const result = await sendJSONRPC(jsonObject, priority);
+    async function requestRepeat(gcode, activeElem, delay, func, priority = 1) {
+        const result = await scheduleGCode(gcode, priority);
         func(result);
 
         const running = activeElem.hasClass("active");
@@ -1304,13 +1362,17 @@ Task.prototype = {
         setTimeout(async () => {
             if (!running) return;
             else {
-                await requestRepeat(jsonObject, activeElem, delay, func, priority);
+                await requestRepeat(gcode, activeElem, delay, func, priority);
             }
         }, delay);
 
         return true;
     }
-
+    /**
+     * Parse temperature response from printer firmware (Marlin)
+     * @param {String} data serial response from printer firmware (Marlin)
+     * @return {Boolean} true or false if parsed or not
+     */
     const tempParser = (data) => {
         let parsed = true;
 
@@ -1326,7 +1388,6 @@ Task.prototype = {
                 $("input[name='tempbed']").val(targetbed);
                 let $tt = $("input[name='temphot-target']")[0];
                 if ($tt !== $(document.activeElement)) $tt.value = tmp;
-                //$("input[name='temphot-target']").val(tmp);
                 $("input[name='tempbed-target']").val(tmpbed);
             } catch (e) {
                 parsed = false;
@@ -1354,7 +1415,8 @@ Task.prototype = {
 
     /**
      * json-rpc temperature event handler
-     * @param {Object} JSON-RPC event result 
+     * @param {Object} tempEvent JSON-RPC event result
+     * @return {Any} result or parser
      * @memberOf LivePrinter
      */
     const tempHandler = (tempEvent) => {
@@ -1366,7 +1428,7 @@ Task.prototype = {
     };
 
     async function updateTemperature(interval = 5000) {
-        return requestRepeat({ "jsonrpc": "2.0", "id": 4, "method": "send-gcode", "params": ["M115", true] }, //get temp
+        return requestRepeat("M115", //get temp
             $("#temp-display-btn"), // temp button
             interval,
             tempHandler,
@@ -1383,6 +1445,21 @@ Task.prototype = {
         }
         else {
             me.text("start polling Temperature");
+        }
+        me.button('toggle');
+    });
+
+
+    $("#log-requests-btn").on("click", async function (e) {
+        let me = $(this);
+        let doUpdates = !me.hasClass('active'); // because it becomes active *after* a push
+        if (doUpdates) {
+            me.text("stop logging ajax");
+            logAjax = true;
+        }
+        else {
+            me.text("start logging ajax");
+            logAjax = false;
         }
         me.button('toggle');
     });
@@ -1491,6 +1568,10 @@ Task.prototype = {
         let result = MarlinLineParserResultPosition.parse(data);
 
         if (!result) return false;
+        window.scope.printer.x = parseFloat(result.payload.pos.x);
+        window.scope.printer.y = parseFloat(result.payload.pos.y);
+        window.scope.printer.z = parseFloat(result.payload.pos.z);
+        window.scope.printer.e = parseFloat(result.payload.pos.e);
 
         $("input[name='x']").val(result.payload.pos.x);
         $("input[name='y']").val(result.payload.pos.y);
@@ -1514,7 +1595,12 @@ Task.prototype = {
      * @memberOf LivePrinter
      */
     function appendLoggingNode(elem, time, message) {
-        const dateStr = (new Date(time)).toLocaleString('en-US', { year: '2-digit', month: '2-digit', day: '2-digit', hours: '2-digit', minutes: '2-digit', seconds: '2-digit' });
+        const dateStr = new Intl.DateTimeFormat('en-US', {
+            year: 'numeric', month: 'numeric', day: 'numeric',
+            hour: 'numeric', minute: 'numeric', second: 'numeric',
+            hour12: false
+        }).format(new Date(time));
+
         //if (elem.children().length > maxLogPopups) {
         //    elem.children().
         // }
@@ -1612,21 +1698,23 @@ Task.prototype = {
      * @memberOf LivePrinter
     */
     function loginfo(text) {
-        Logger.log("LOGINFO-----------");
-        Logger.log(text);
+        //Logger.debug("LOGINFO-----------");
+        Logger.debug(text);
 
-        if (typeof text === "string")
+        if (Array.isArray(text)) {
+            infoHandler.info({ time: Date.now(), message: '['+text.toString()+']' });
+        }
+        else if (typeof text === "string") {
             infoHandler.info({ time: Date.now(), message: text });
+        }
         else if (typeof text === "object") {
             infoHandler.info({ time: Date.now(), message: JSON.stringify(text) });
-        }
-        else if (typeof text === "array") {
-            infoHandler.info({ time: Date.now(), message: text.toString() });
         }
         else {
             infoHandler.info({ time: Date.now(), message: text + "" });
         }
     }
+
     /**
     * Log a line of text to the logging panel on the right side
     * @param {String} text Text to log in the right info panel
@@ -1721,6 +1809,8 @@ Task.prototype = {
         $("input[name='z']").val(window.scope.printer.z);
         $("input[name='e']").val(window.scope.printer.e);
         $("input[name='angle']").val(window.scope.printer.angle);
+        $("input[name='speed']").val(window.scope.printer.printSpeed);
+        $("input[name='retract']").val(window.scope.printer.currentRetraction);
     }
     window.scope.updateGUI = updateGUI;
 
@@ -1942,15 +2032,6 @@ Task.prototype = {
     $("#clear-btn").on("click", restartLimiter);
 
 
-    // TODO: temp probe that gets scheduled every 300ms and then removes self when
-    // tempHandler called
-
-
-    ////////////////////////////////////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////////////////////////////////
-    // update printing API to share with running script
-    scope.sendGCode = sendGCode;
-
     // mouse handling functions
     scope.mx = 0;
     scope.my = 0;
@@ -2140,7 +2221,7 @@ Task.prototype = {
       * @param {Boolean} globally true if executing in global space, false (normal) if executing within closure to minimise side-effects
       * @memberOf LivePrinter
       */
-    function globalEval(code, line, globally = false) {
+    async function globalEval(code, line, globally = false) {
         clearError();
 
         ///
@@ -2177,7 +2258,7 @@ Task.prototype = {
         /// end logging code to code history window -----------------------------
         ///
 
-        
+
         Logger.debug("code before pre-processing-------------------------------");
         Logger.debug(code);
         Logger.debug("========================= -------------------------------");
@@ -2296,7 +2377,7 @@ Task.prototype = {
             if (pythonMode) {
 
 
-                code = "from browser import document as doc\nfrom browser import window as win\nlp = win.scope.printer\ngcode = win.scope.sendGCode\n"
+                code = "from browser import document as doc\nfrom browser import window as win\nlp = win.scope.printer\ngcode = win.scope.scheduleGCode\n"
                     + code;
 
                 let script = document.createElement("script");
@@ -2315,57 +2396,59 @@ Task.prototype = {
                 // eval(code);
             }
             else {
-                if (!globally) {
-                    // give quick access to liveprinter API
-                    code = "let lp = window.scope.printer;" + code;
-                    code = "let sched = window.scope.Scheduler;" + code;
-                    code = "let updateGUI = window.scope.updateGUI;" + code;
-                    code = "let s = window.scope;" + code;
+                // wrap in async limiter/queue
+                code =
+                    'const result = await codeLimiter.schedule({ priority:1,weight:1,id:codeIndex,expiration:maxCodeWaitTime},async()=>{ ' +
+                    code + "\nreturn 1;});\n";
+                
+                // wrap in try/catch block and debugging code
+                code = 'try {\n' +
+                    "let codeIndex = " + window.codeLine + ';\n' +
+                    "\nif (logAjax) loginfo(`starting code ${codeIndex}`);\n" +
+                    code + '\n' +
+                    "if (logAjax) loginfo(`finished with ${codeIndex}`);\n" +
+                    '} catch (e) { window.scope.lastErrorMessage = null;e.lineNumber=' + line + ';Logger.log(e);window.doError(e); }';
 
-                    // wrap code in anonymous function to avoid redeclaring scope variables and
-                    // scope bleed.  For global functions that persist, use lp scope or s
+                // prefix with locals to give quick access to liveprinter API
+                code = "let lp = window.scope.printer;" +
+                    "let sched = window.scope.Scheduler;" +
+                    "let updateGUI = window.scope.updateGUI;" +
+                    "let stop = window.scope.restartLimiter;" +
+                    "let s = window.scope;\n" +
+                    code;
 
-                    // error handling -- wrap in try block
-                    code = 'try {\n' + code;
+                // wrap in global function call
+                code = "window.codeToRun = async () => {\n" +
+                    code +
+                    "\n}";
 
-                    code = code + '\n} catch (e) { window.scope.lastErrorMessage = null;e.lineNumber=' + line + ';Logger.log(e);window.doError(e); }';
+                Logger.debug(code);
+            }
 
-                    // function wrapping - run in closure
-                    code = '(async function(){"use strict";' + code;
-                    code = code + "})().catch(err => window.doError(err));";
-                }
+            //Logger.log("adding code:" + code);
+            const script = document.createElement("script");
+            script.async = true;
+            script.onerror = doError;
+            script.type = "text/javascript";
+            script.onerror = console.log;
+            script.text = code;
 
-                //Logger.log("adding code:" + code);
-                let script = document.createElement("script");
-                script.text = code;
-                /*
-                    * NONE OF THIS WORKS IN CHROME... should be easy, but no.
-                    *
-                let node = null;
-                script.onreadystatechange = script.onload = function () {
-                    Logger.log("loaded");
-                    node.printer = printer;
-                    node.scheduler = Scheduler;
-     
-                    node.parentNode.removeChild(script);
-                    node = null;
-                };
-                script.onerror = function (e) { Logger.log("script error:" + e) };
-     
-                node = document.head.appendChild(script);
-                */
-                // run and remove
-                try {
-                    document.head.appendChild(script).parentNode.removeChild(script);
-                } catch (e) {
-                    doError(e);
-                }
-                // update GUI
-                $("input[name='angle']")[0].value = window.scope.printer.angle;
-
+            try {
+                const scriptTag = document.head.appendChild(script);
+                Logger.debug("script tag created");
+                const didIt = await window.codeToRun(); // run code
+                scriptTag.parentNode.removeChild(script);
+            } catch (e) {
+                doError(e);
             }
         }
-    } // end globalEval
+        return;
+    }
+    // end globalEval
+
+    ///----------------------------------------------------------------------------
+    ///--------Start running things------------------------------------------------
+    ///----------------------------------------------------------------------------
 
     // start scheduler!
     window.scope.Scheduler.startScheduler();
