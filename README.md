@@ -151,12 +151,13 @@ LivePrinter is completely open source (AGPL 3.0). To summarise, it is built on a
 * [Cura 3D printing software](https://github.com/Ultimaker/Cura/)
 * [Marlin Firmware](https://github.com/MarlinFirmware/Marlin)
 * [Ultimaker 2 Marlin variant](https://github.com/Ultimaker/Ultimaker2Marlin)
+* Bottleneck async limiter](https://github.com/SGrondin/bottleneck)
+* bits of [CNCjs](https://cnc.js.org/)
 
 ## Similar Projects
 
 * [OpenGB](https://github.com/amorphitec/opengb) has been an inspiration
 * [Fabrica](https://github.com/arthurwolf/fabrica), a front-end for [Smoothieware](https://github.com/Smoothieware/Smoothieware) looks interesting.  Smoothieware integration might be nice, someday.
-* CNC.js
 
 ## Who is behind this
 
