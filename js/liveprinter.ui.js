@@ -32,10 +32,11 @@ const Printer = require('./liveprinter.printer'); // printer API object
 var $ = require('jquery');
 
 let vars = Object.create(null); // session vars
+window.vars = vars;
 
 vars.serialPorts = []; // available ports
 
-vars.lastErrorMessage = "none"; // last error message for GUI
+let lastErrorMessage = "none"; // last error message for GUI
 
 // this uses the limiting queue, but that affects performance for fast operations (< 250ms)
 vars.useLimiter = true;
@@ -62,6 +63,8 @@ function clearError() {
     $("#modal-errors").empty();
 }
 
+exports.clearError = clearError;
+
 /**
  * Show an error in the HTML GUI  
  * @param {Error} e Standard JavaScript error object to show
@@ -83,8 +86,8 @@ function doError(e) {
         const lineNumber = err.lineNumber == null ? -1 : e.lineNumber;
 
         // avoid repeated errors!!!
-        if (scope.lastErrorMessage !== undefined && err.message !== scope.lastErrorMessage) {
-            scope.lastErrorMessage = err.message;
+        if (lastErrorMessage !== undefined && err.message !== lastErrorMessage) {
+            lastErrorMessage = err.message;
             // report to user
             $(".code-errors").html("<p>" + err.name + ": " + err.message + " (line:" + lineNumber + ")</p>");
 
@@ -527,16 +530,14 @@ exports.getPrinterState = getPrinterState;
 
 /**
  * Send GCode to the server via json-rpc over ajax.
- * @param {string} gcode gcode to send
- * @param {Integer} priority Priority in queue (0-9 where 0 is highest)
- 
+ * @param {string} gcode gcode to send 
  * @memberOf LivePrinter
  * @returns {Object} result Returns json object containing result
  */
 async function sendGCodeRPC(gcode) {
 
     let gcodeObj = { "jsonrpc": "2.0", "id": 4, "method": "send-gcode", "params": [] };
-    if (liveprinter.logAjax) commandsHandler.log(`SENDING gcode ${gcode}`);
+    if (vars.logAjax) commandsHandler.log(`SENDING gcode ${gcode}`);
 
     if (Array.isArray(gcode)) {
         //Logger.debug("start array gcode[" + codeLine + "]");
@@ -552,10 +553,10 @@ async function sendGCodeRPC(gcode) {
     } else {
         //Logger.debug("single line gcode");
         gcodeObj.params = [gcode];
-        const response = await sendJSONRPC(JSON.stringify(gcodeObj), priority);
-        handleResult(response);
+        const response = await sendJSONRPC(JSON.stringify(gcodeObj));
+        handleGCodeResponse(response);
     }
-    if (liveprinter.logAjax) commandsHandler.log(`DONE gcode ${gcode}`);
+    if (vars.logAjax) commandsHandler.log(`DONE gcode ${gcode}`);
     //Logger.debug(`DONE gcode ${codeLine}`);
     return 1;
 }
@@ -572,10 +573,10 @@ async function sendGCodeRPC(gcode) {
 async function scheduleGCode(gcode, priority = 4) { // 0-9, lower higher
     let result = null;
 
-    if (liveprinter.useLimiter) {
+    if (vars.useLimiter) {
         // use limiter for priority scheduling
-        let reqId = "req" + liveprinter.requestId++;
-        if (liveprinter.logAjax) commandsHandler.log(`SENDING ${reqId}`);
+        let reqId = "req" + vars.requestId++;
+        if (vars.logAjax) commandsHandler.log(`SENDING ${reqId}`);
         try {
             result = await limiter.schedule(
                 { "priority": priority, weight: 1, id: reqId, expiration: maxCodeWaitTime },
@@ -585,7 +586,7 @@ async function scheduleGCode(gcode, priority = 4) { // 0-9, lower higher
         catch (err) {
             logerror(`Error with ${reqId}:: ${err}`);
         }
-        if (liveprinter.logAjax) commandsHandler.log(`RECEIVED ${reqId}`);
+        if (vars.logAjax) commandsHandler.log(`RECEIVED ${reqId}`);
     }
     return result;
 }
@@ -626,11 +627,11 @@ $("#log-requests-btn").on("click", async function (e) {
     let doUpdates = !me.hasClass('active'); // because it becomes active *after* a push
     if (doUpdates) {
         me.text("stop logging ajax");
-        liveprinter.logAjax = true;
+        vars.logAjax = true;
     }
     else {
         me.text("start logging ajax");
-        liveprinter.logAjax = false;
+        vars.logAjax = false;
     }
     me.button('toggle');
 });
@@ -882,9 +883,9 @@ exports.commandsHandler = commandsHandler;
  * @memberOf LivePrinter
  */
 const moveHandler = (response) => {
-    $("input[name='speed']").val(liveprinter.printer.printSpeed); // set speed, maybe reset below
+    $("input[name='speed']").val(printer.printSpeed); // set speed, maybe reset below
     // update GUI
-    $("input[name='retract']")[0].value = liveprinter.printer.currentRetraction;
+    $("input[name='retract']")[0].value = printer.currentRetraction;
 
     return moveParser(response);
 };
@@ -896,10 +897,11 @@ const moveParser = (data) => {
     let result = MarlinParsers.MarlinLineParserResultPosition.parse(data);
 
     if (!result) return false;
-    liveprinter.printer.x = parseFloat(result.payload.pos.x);
-    liveprinter.printer.y = parseFloat(result.payload.pos.y);
-    liveprinter.printer.z = parseFloat(result.payload.pos.z);
-    liveprinter.printer.e = parseFloat(result.payload.pos.e);
+    
+    printer.x = parseFloat(result.payload.pos.x);
+    printer.y = parseFloat(result.payload.pos.y);
+    printer.z = parseFloat(result.payload.pos.z);
+    printer.e = parseFloat(result.payload.pos.e);
 
     $("input[name='x']").val(result.payload.pos.x);
     $("input[name='y']").val(result.payload.pos.y);
@@ -1045,6 +1047,9 @@ function loginfo(text) {
     }
 }
 
+exports.loginfo = loginfo;
+window.loginfo = loginfo;
+
 /**
 * Log a line of text to the logging panel on the right side
 * @param {String} text Text to log in the right info panel
@@ -1069,8 +1074,8 @@ function logerror(text) {
 
 
 // make global
-exports.loginfo = loginfo;
 exports.logerror = logerror;
+window.logerror = logerror;
 
 /**
  * Attach an external script (and remove it quickly). Useful for adding outside libraries.
@@ -1097,6 +1102,8 @@ function attachScript(url) {
     }
 }
 exports.attachScript = attachScript;
+window.attachScript = attachScript;
+
 
 /**
  * Download a file. From stack overflow
@@ -1192,15 +1199,16 @@ async function globalEval(code, line, globally = false) {
     Logger.debug("code before pre-processing-------------------------------");
     Logger.debug(code);
     Logger.debug("========================= -------------------------------");
-
+    
+    //
     // compile in minigrammar
-
-
+    //
+    code = compile(code);
 
     if (code) {
-        if (!$("#python-mode-btn").hasClass('active')) { // check python mode
+        if ($("#python-mode-btn").hasClass('active')) { // check python mode
 
-            code = "from browser import document as doc\nfrom browser import window as win\nlp = win.scope.printer\ngcode = win.scope.scheduleGCode\n"
+            code = "from browser import document as doc\nfrom browser import window as win\nlp = win.printer\n"
                 + code;
 
             let script = document.createElement("script");
@@ -1230,7 +1238,7 @@ async function globalEval(code, line, globally = false) {
                 "\nif (vars.logAjax) loginfo(`starting code ${codeIndex}`);\n" +
                 code + '\n' +
                 "if (vars.logAjax) loginfo(`finished with ${codeIndex}`);\n" +
-                '} catch (e) { vars.lastErrorMessage = null;e.lineNumber=' + line + ';Logger.log(e);window.doError(e); }';
+                '} catch (e) { lastErrorMessage = null;e.lineNumber=' + line + ';Logger.log(e);window.doError(e); }';
 
             // prefix with locals to give quick access to liveprinter API
             code = "let lp = window.printer;" +

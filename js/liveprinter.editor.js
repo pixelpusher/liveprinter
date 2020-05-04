@@ -127,7 +127,7 @@ async function runCode(editor, callback) {
     // if printer isn't connected, we shouldn't run!
     const printerConnected = $("#header").hasClass("blinkgreen");
     if (!printerConnected) {
-        clearError();
+        liveprinter.clearError();
         const err = new Error("Printer not connected! Please connect first using the printer settings tab.");
         doError(err);
         throw err;
@@ -155,8 +155,9 @@ async function runCode(editor, callback) {
             //await globalEval(code, cursor.line + 1);
         }
         catch (err) {
+            err.message = "runCode:" + err.message;
             window.codeLine--; // go back 
-            doError("runCode:" + err);
+            doError(err);
         }
     }
 }
@@ -487,7 +488,7 @@ const init = async function () {
      */
     function setLanguageMode() {
 
-        const pythonMode = !$("#python-mode-btn").hasClass('active'); // because it becomes active *after* a push
+        const pythonMode = $("#python-mode-btn").hasClass('active'); // because it becomes active *after* a push
 
         if (pythonMode) {
             CodeEditor.setOption("gutters", ["CodeMirror-linenumbers", "CodeMirror-foldgutter"]);
@@ -525,9 +526,9 @@ const init = async function () {
     $("#python-mode-btn").on("click", function (e) {
         e.preventDefault();
         const me = $(this);
-        vars.pythonMode = !me.hasClass('active'); // because it becomes active *after* a push
 
-        if (vars.pythonMode) {
+        // because it becomes active *after* a push
+        if (!me.hasClass('active')) {
             me.text("python mode");
         }
         else {
@@ -546,12 +547,12 @@ const init = async function () {
         if (target === "#history-code-editor-area") {
             HistoryCodeEditor.refresh();
             setLanguageMode(); // have to update gutter, etc.
-            clearError();
+            liveprinter.clearError();
         }
         else if (target === "#code-editor-area") {
             CodeEditor.refresh();
             setTimeout(setLanguageMode, 1000); // have to update gutter, etc.
-            clearError();
+            liveprinter.clearError();
         }
         else if (target === "#gcode-editor-area") {
             GCodeEditor.refresh();
@@ -574,9 +575,9 @@ const init = async function () {
                 minute: '2-digit'
             }
         );
-        downloadFile(CodeEditor.getDoc().getValue(), "LivePrinterCode" + dateStr + ".js", 'text/javascript');
-        downloadFile(GCodeEditor.getDoc().getValue(), "LivePrinterGCode" + dateStr + ".js", 'text/javascript');
-        downloadFile(HistoryCodeEditor.getDoc().getValue(), "LivePrinterHistoryCode" + dateStr + ".js", 'text/javascript');
+        liveprinter.downloadFile(CodeEditor.getDoc().getValue(), "LivePrinterCode" + dateStr + ".js", 'text/javascript');
+        liveprinter.downloadFile(GCodeEditor.getDoc().getValue(), "LivePrinterGCode" + dateStr + ".js", 'text/javascript');
+        liveprinter.downloadFile(HistoryCodeEditor.getDoc().getValue(), "LivePrinterHistoryCode" + dateStr + ".js", 'text/javascript');
     });
 
 

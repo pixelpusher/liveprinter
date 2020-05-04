@@ -198,7 +198,7 @@ class Vector {
     * Subtract a vector object (x,y,z,e or whatever) from another and return a new vector.
     * @param {Vector} v0 first vector 
     * @param {Vector} v1 amount to subtract
-    * @returns {object} reference to this for chaining
+    * @returns {Vector} result vector
     */
     static sub(v0, v1) {
         const v2 = new Vector();
@@ -209,6 +209,37 @@ class Vector {
         } catch (e) {
             // rethrow, caught in GUI
             throw (e);
+        }
+        return v2;
+    }
+
+    /**
+    * Multiply a vector object (x,y,z,e or whatever) to another and return a new vector.
+    * @param {Vector} v0 first vector 
+    * @param {Vector} v1 second vector
+    * @returns {Vector} result vector 
+    */
+    static mult(v0, v1) {
+        const v2 = new Vector();
+        if (typeof v1 === "object") {
+            try {
+                for (const axis in v0.axes) {
+                    v2.axes[axis] = v0.axes[axis] * v1.axes[axis];
+                }
+            } catch (e) {
+                // rethrow, caught in GUI
+                throw (e);
+            }
+        }
+        else if (typeof v1 === "number") {
+            try {
+                for (const axis in v0.axes) {
+                    v2.axes[axis] = v0.axes[axis] * v1;
+                }
+            } catch (e) {
+                // rethrow, caught in GUI
+                throw (e);
+            }        
         }
         return v2;
     }

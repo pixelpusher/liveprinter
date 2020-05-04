@@ -8,24 +8,29 @@ const Vector = require ('./util').Vector;
 const scales = require ('./util').scales;
 
 const repeat = require ('./util').repeat;
+window.repeat = repeat;
+
 const numrange = require ('./util').numrange;
+window.numrange = numrange;
+
 const countto = require ('./util').countto;
+window.countto = countto;
 
-const editors = require('./liveprinter.editor');
-const liveprinterComms = require('./liveprinter.ui');
+const editors = require('./liveprinter.editor'); // code editors and functions
 
-console.log(scales.majPattern);
+const liveprinterComms = require('./liveprinter.ui'); // main ui and server comms
+
+//console.log(scales.majPattern); // test
 
 //require('./svg/SVGReader'); // svg util class
 //require('./svg/svg2gcode'); // svg gcode converter
-
 
 (async function (w) {
     "use strict";
 
     await $.ready();
 
-    await repeat(2, async(n) => console.log(n));
+    //await repeat(2, async(n) => console.log(n)); // test func
 
     if (!window.console) {
         window.console = {
@@ -35,12 +40,12 @@ console.log(scales.majPattern);
             getLog: function () { return this._log; }
         };
     }
-    
+
     require('popper.js'); // for bootstrap
     var bootstrap = require('bootstrap');
 
-    await editors.init();
-    await liveprinterComms.start();
+    await editors.init(); // create editors and setup live editing functions
+    await liveprinterComms.start(); // start server communications and setup UI
 
 })(global).catch(err => {
     console.error(err);

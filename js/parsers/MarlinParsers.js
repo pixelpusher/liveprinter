@@ -1,3 +1,5 @@
+const decimalPlaces = require('../util').decimalPlaces;
+
 // from https://github.com/cncjs/cncjs/blob/30c294f0ffb304441304aaa6b75a728f3a096827/src/server/controllers/Marlin/MarlinLineParserResultPosition.js
 
 class MarlinLineParserResultPosition {
