@@ -41,7 +41,9 @@
   ES6's backticks come in handy here.
 */
 
-var global, exports
+module.exports = {};
+
+var global, exports = module.exports
 ,   __fext_debug_all  // ?boolean?
 ;
 (function (global) {

@@ -21,6 +21,9 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
+
+const Vector = require('./util').Vector;
+
 class Printer {
 
     ///////
@@ -1947,4 +1950,6 @@ Printer.speedScale = {};
 Printer.speedScale[Printer.UM2] = { 'x': 47.069852, 'y': 47.069852, 'z': 160.0 };
 Printer.speedScale[Printer.UM2plus] = { 'x': 47.069852, 'y': 47.069852, 'z': 160.0 };
 
-        //////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////
+
+module.exports = Printer;

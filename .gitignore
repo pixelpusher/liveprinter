@@ -57,6 +57,9 @@ target/
 docs/
 node_modules/
 
+# npm/nodejs
+
+*.lock
 
 # misc
 goprosettings_donotcommit.txt 

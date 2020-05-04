@@ -1,20 +1,48 @@
 {
   "name": "LivePrinter",
   "description": "LivePrinter livecoding system for 3D printing and CNC manufacturing",
-  "version": "v0.1.0-alpha",
-  "keywords": "3DPrinting, livecoding",
+  "version": "1.0.0",
+  "main": "./js/main.js",
+  "keywords": [
+    "3DPrinting, livecoding"
+  ],
   "bugs": {
-    "url": "https://github.com/pixelpusher/liveprinter/issues",
-    "email": "info@pixelist.info"
+    "email": "info@pixelist.info",
+    "url": "https://github.com/pixelpusher/liveprinter/issues"
   },
   "homepage": "https://github.com/pixelpusher/liveprinter",
   "repository": "https://github.com/pixelpusher/liveprinter",
   "license": "AGPL-3.0-or-later",
-  "author": "Evan Raskob and others",
+  "author": "Evan Raskob",
+  "dependencies": {
+    "bootstrap": "^4.4.1",
+    "bottleneck": "^2.19.5",
+    "brython": "^3.8.8",
+    "codemirror": "^5.53.2",
+    "csslint": "^1.0.5",
+    "jquery": "^3.5.0",
+    "json-lint": "^0.1.0",
+    "nearley": "^2.19.3",
+    "popper.js": "^1.16.1",
+    "svgjs": "^2.6.2",
+    "watchify": "^3.11.1"
+  },
   "devDependencies": {
+    "@babel/core": "^7.9.6",
+    "@babel/plugin-transform-modules-commonjs": "^7.9.6",
+    "babelify": "^10.0.0",
+    "browserify": "^16.5.1",
+    "jshint": "^2.11.0",
+    "stylelint": "^13.3.3",
+    "stylelint-config-standard": "^20.0.0",
     "esdoc": "^1.1.0",
     "esdoc-standard-plugin": "^1.0.0",
     "minami": "^1.2.3",
     "tidy-jsdoc": "^0.2.1"
+  },
+  "scripts": {
+    "build": "browserify js/main.js -t [ babelify --presets [ ] --plugins [ @babel/plugin-transform-modules-commonjs ] ] -o liveprinter/static/lib/liveprinter.js",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "watch": "watchify js/main.js -o liveprinter/static/lib/liveprinter.js --debug --verbose"
   }
 }
