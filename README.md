@@ -16,7 +16,13 @@ We can create a Reddit forum or YouTube channel if there is demand for it.
 
 [A quickstart document can be found here](https://www.odrive.com/s/80d3d8b4-096c-4c67-a71a-3e0c29273701-5c826d80)
 
-The server runs on Python 3 (3.6 and 3.7 tested) so you will need that installed.  Then, use pip (the Python package manager) to install:
+The server front-end is coded in JavaScript using NodeJS's npm build system. You will need to compile it first, so download and unzip the project using the link in the above right. Then, in your project folder, open a command prompt. Make sure you have npm installed.
+
+1. To build the live server run ```npm run build``` and follow the instructions below to get the python server up and running.
+2. For development, run ```npm run watch``` to have any saved changed automatically re-compiled and to use debug javascript (nearly triples size of js file!)
+
+
+The web server (tornado 6) runs on Python 3 (3.6 and 3.7 tested) so you will need that installed.  Then, use pip (the Python package manager) to install:
 
 * pyserial (tested with 3.4)
 * tornado (tested with 6.0.1)
