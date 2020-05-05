@@ -3,7 +3,7 @@
 //
 
 if (window.Logger === undefined) {
-    Logger = {};
+    const Logger = {};
 
     Logger.DEBUG_LEVEL = {
         error: 0,
