@@ -2,6 +2,8 @@
 
 *Experiments in live computational sculpting*
 
+LivePrinter is an open source system for live, intuitive, immediate drawing and fabrication with 3D printers. It allows people to directly draw shapes, lines, and complex objects using only code. The system serves as an introduction to the basics of 3D printing, as well as platform for experimenting with new techniques that are not allowed by current software. It also allows users to create physical forms using different functions that take into account physical properties like speed and temperature, instead of the usual visual modelling techniques. As a live performance system, LivePrinter blends mechanical music, sculpture and moving image together. It allows musical concepts and visual aesthetics to directly influence digital manufacturing toolpaths and vice versa. It demonstrates a possible future path where humans play a direct, creatively-rewarding part in a system of semi-automated, digital manufacturing.
+
 ## Getting involved
 
 There's a forum on https://talk.lurk.org/channel/liveprinter
@@ -16,11 +18,11 @@ We can create a Reddit forum or YouTube channel if there is demand for it.
 
 [A quickstart document can be found here](https://www.odrive.com/s/80d3d8b4-096c-4c67-a71a-3e0c29273701-5c826d80)
 
-The server front-end is coded in JavaScript using NodeJS's npm build system. You will need to compile it first, so download and unzip the project using the link in the above right. Then, in your project folder, open a command prompt. Make sure you have npm installed.
+The server front-end is coded in JavaScript using NodeJS's npm build system. You will need to compile it first, so download and unzip the project using the link in the above right. Then, in your project folder, open a command prompt. Make sure you have npm installed. To build the client-side web app (that runs on the python webserver):
 
-1. To build the live server run ```npm run build``` and follow the instructions below to get the python server up and running.
-2. For development, run ```npm run watch``` to have any saved changed automatically re-compiled and to use debug javascript (nearly triples size of js file!)
-
+1. Run ```npm install``` to install required modules
+2. For production, build streamlined javascript by running ```npm run build``` and following the instructions below to get the python server up and running.
+3. For development, run ```npm run watch``` to have any saved changed automatically re-compiled and to use debug javascript (nearly triples size of js file!)
 
 The web server (tornado 6) runs on Python 3 (3.6 and 3.7 tested) so you will need that installed.  Then, use pip (the Python package manager) to install:
 
@@ -32,6 +34,12 @@ Here is a short video demonstrating the python installation on Windows (on OS X 
 https://youtu.be/ejlaQhOCUHw
 
 Run the server using your Python environment of choice * it's in the liveprinter folder, called LivePrinterServer.py.  By default, the server runs on port 8888 so open a web browser to http://localhost:8888 (or [change it](https://github.com/pixelpusher/liveprinter/blob/master/liveprinter/LivePrinterServer.py#L28)).  It can run without a printer using a "fake" serial port.
+
+## Using LivePrinter
+
+A short video to get up and running in 2 minutes (assuming you've plugged your printer into your computer via USB and turned it on!)
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/jdqrpgFGCgc" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 
 ## About
 
