@@ -39,7 +39,7 @@ Run the server using your Python environment of choice * it's in the liveprinter
 
 A short video to get up and running in 2 minutes (assuming you've plugged your printer into your computer via USB and turned it on!)
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/jdqrpgFGCgc" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+[![video of LivePrinter in action](https://img.youtube.com/vi/jdqrpgFGCgc/0.jpg "video of LivePrinter in action")](https://www.youtube.com/watch?v=jdqrpgFGCgc)
 
 ## About
 
