@@ -18,7 +18,7 @@ We can create a Reddit forum or YouTube channel if there is demand for it.
 
 [A quickstart document can be found here](https://www.odrive.com/s/80d3d8b4-096c-4c67-a71a-3e0c29273701-5c826d80)
 
-The server front-end is coded in JavaScript using NodeJS's npm build system. You will need to compile it first, so download and unzip the project using the link in the above right. Then, in your project folder, open a command prompt. Make sure you have npm installed. To build the client-side web app (that runs on the python webserver):
+The server front-end is coded in JavaScript using NodeJS's npm build system. You will need to compile it first (or [download a pre-compiled release](https://github.com/pixelpusher/liveprinter/releases)) so download and unzip the project using the link in the above right. Then, in your project folder, open a command prompt. Make sure you have npm installed.
 
 1. Run ```npm install``` to install required modules
 2. For production, build streamlined javascript by running ```npm run build``` and following the instructions below to get the python server up and running.
