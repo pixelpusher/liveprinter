@@ -570,7 +570,7 @@ class Printer {
             // makes no sense to start printing when still retracted
             if (extruding && this.currentRetraction > 0) await this.unretract();
 
-            return this.extrude({ x: _x, y: _y, z: _z, e: _e, 'retract': retract });
+            return this.extrude({ x: _x, y: _y, z: _z, e: _e, 'retract': retract, speed: extruding ? this._printSpeed : this._travelSpeed });
         }
         // never reached
         return this;
@@ -1129,7 +1129,7 @@ class Printer {
     async move(params) {
         params.e = 0; // no filament extrusion
         params.retract = false;
-        params.speed = (params.speed === undefined) ? this.travelspeed : parseFloat(params.speed);
+        params.speed = (params.speed === undefined) ? this._travelSpeed : parseFloat(params.speed);
         return this.extrude(params);
     }
 
@@ -1141,7 +1141,7 @@ class Printer {
     async moveto(params) {
         params.e = this.e; // keep filament at current position
         params.retract = false;
-        params.speed = (params.speed === undefined) ? this.travelspeed : parseFloat(params.speed);
+        params.speed = (params.speed === undefined) ? this._travelSpeed : parseFloat(params.speed);
         return this.extrudeto(params);
     }
 
@@ -1291,7 +1291,7 @@ class Printer {
      * @param {Number} time Time to move in milliseconds
      * @returns {Float} distance in mm
      */
-    t2mm(time, speed = this.travelspeed) {
+    t2mm(time, speed = this._printSpeed) {
         return speed * time / 1000; // time in ms
     }
 
