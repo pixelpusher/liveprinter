@@ -1629,7 +1629,7 @@ class Printer {
 
                         if (newAngle !== currentAngle) {
                             // print current path and make new w/h
-                            await this.fillDirectionH(currentW || 2, currentH || 2, t);
+                            await this.drawfill(currentW || 2, currentH || 2, t);
                             currentW = currentH = 0;
                             this.turn(newAngle);
                             currentAngle = newAngle;
