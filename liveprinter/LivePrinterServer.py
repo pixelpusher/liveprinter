@@ -66,7 +66,7 @@ define("port", default=8888, help="run on the given port", type=int)
 
 logger = tornado.log.app_log
 
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.ERROR)
 # create file handler which logs even debug messages
 server_log = logging.FileHandler(
     os.path.join(
@@ -78,7 +78,7 @@ server_log = logging.FileHandler(
 
 server_log.setLevel(logging.DEBUG)
 # create formatter and add it to the handlers
-formatter = logging.Formatter('%(asctime)s, %(name)s, %(levelname)s, %(message)s')
+formatter = logging.Formatter('%(asctime)s::%(name)s.%(funcName)s[%(lineno)s]: %(message)s')
 server_log.setFormatter(formatter)
 # add the handlers to the logger
 logger.addHandler(server_log)
@@ -186,7 +186,7 @@ async def json_handle_gcode(printer, *args):
     try:
         result = await printer.send_command(gcode, parse_results)
     except Exception as e:
-        logger.error("json_handle_gcode::178::error (see serial logs)::{err}".format(err=e))
+        logger.error("json_handle_gcode::error (see serial logs)::{err}".format(err=e))
         
     logger.debug("json_handle_gcode::handled")
     return result
