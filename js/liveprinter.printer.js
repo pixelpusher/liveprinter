@@ -330,7 +330,7 @@ class Printer {
      * @param {Number} s Option speed in mm/s to set, otherwise just get
      */
     async retractspeed(s) {
-        if (s !== undefined){
+        if (s !== undefined) {
             this._retractSpeed = s * 60;
             await this.sendFirmwareRetractSettings();
         }
@@ -566,7 +566,11 @@ class Printer {
             this._zdistance = 0;
             this._elevation = 0;
 
-            return this.extrude({ x: _x, y: _y, z: _z, e: _e, 'retract': retract});
+            //first, no matter what, if we are retracted then unretract!
+            // makes no sense to start printing when still retracted
+            if (extruding && this.currentRetraction > 0) await this.unretract();
+
+            return this.extrude({ x: _x, y: _y, z: _z, e: _e, 'retract': retract });
         }
         // never reached
         return this;
@@ -678,7 +682,7 @@ class Printer {
         return this.go(extruding, _retract);
     }
 
-    
+
     /**
      * Move up quickly! (in mm)
      * @param {Number} d distance in mm to draw upwards
@@ -692,7 +696,7 @@ class Printer {
 
     // shortcut
     async dup(d, _retract) {
-        return this.drawup(d,_ret);
+        return this.drawup(d, _ret);
     }
 
     /**
@@ -742,7 +746,7 @@ class Printer {
 
     // shortcut
     async ddown(d, _ret) {
-        return this.drawdown(d,_ret);
+        return this.drawdown(d, _ret);
     }
 
 
@@ -809,7 +813,7 @@ class Printer {
      */
     async travel(d) {
         if (d !== undefined) {
-            this.distance = d;
+            this._distance = d;
         }
         return await this.go(0);
     }
@@ -853,7 +857,7 @@ class Printer {
         const r2x2 = r * r * 2;
         const segAngle = Math.PI * 2 / segs;
         const arc = Math.sqrt(r2x2 - r2x2 * Math.cos(segAngle));
-        
+
         const prevAutoRetract = this._autoRetract; // save previous state
         this._autoRetract = false; // turn off for this operation
 
@@ -865,7 +869,7 @@ class Printer {
             this.turn(segAngle, true); // use radians
             await this.draw(arc);
         }
-        
+
         this._autoRetract = prevAutoRetract; // turn to prev state
         if (this._autoRetract) await this.retract();
         return this;
@@ -877,7 +881,7 @@ class Printer {
      * @param {any} h height
      * @returns {Printer} reference to this object for chaining
      */
-    async rect(w, h) {        
+    async rect(w, h) {
         const prevAutoRetract = this._autoRetract; // save previous state
         this._autoRetract = false; // turn off for this operation
 
@@ -890,7 +894,8 @@ class Printer {
 
         this._autoRetract = prevAutoRetract; // turn to prev state
         if (this._autoRetract) await this.retract();
-        return this;    }
+        return this;
+    }
 
     /**
     * Extrude plastic from the printer head to specific coordinates, within printer bounds
