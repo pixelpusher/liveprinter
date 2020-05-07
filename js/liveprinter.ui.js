@@ -824,7 +824,7 @@ const tempHandler = (tempEvent) => {
 };
 
 async function updateTemperature(interval = 5000) {
-    return requestRepeat("M115", //get temp
+    return requestRepeat("M105", //get temp
         $("#temp-display-btn"), // temp button
         interval,
         tempHandler,
