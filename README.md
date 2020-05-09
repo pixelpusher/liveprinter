@@ -16,7 +16,7 @@ We can create a Reddit forum or YouTube channel if there is demand for it.
 
 ## Installing and Running
 
-[A quickstart document can be found here](https://www.odrive.com/s/80d3d8b4-096c-4c67-a71a-3e0c29273701-5c826d80)
+~~[A quickstart document can be found here](https://www.odrive.com/s/80d3d8b4-096c-4c67-a71a-3e0c29273701-5c826d80)~~ -- this needs an update! It is fairly out of date.
 
 The server front-end is coded in JavaScript using NodeJS's npm build system. You will need to compile it first (or [download a pre-compiled release](https://github.com/pixelpusher/liveprinter/releases)) so download and unzip the project using the link in the above right. Then, in your project folder, open a command prompt. Make sure you have npm installed.
 
@@ -40,6 +40,8 @@ Run the server using your Python environment of choice * it's in the liveprinter
 A short video to get up and running in 2 minutes (assuming you've plugged your printer into your computer via USB and turned it on!)
 
 [![video of LivePrinter in action](https://img.youtube.com/vi/jdqrpgFGCgc/0.jpg "video of LivePrinter in action")](https://www.youtube.com/watch?v=jdqrpgFGCgc)
+
+Try these [instructions for using the livecoding editor and controlling the printer](reference/Quickstart.md).
 
 ## About
 
