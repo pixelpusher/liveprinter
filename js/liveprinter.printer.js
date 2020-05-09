@@ -51,10 +51,6 @@ class Printer {
         this.ret = this.retract;
         this.unret = this.unretract;
 
-        // this.psp => set/get printspeed
-        // this.rsp => set/get move speed
-        // this.lh => set layerhight (NOTE: also thick(val) does this)
-
         this.priority = 4; // priority of queued messages (4 is normal, 0-9 is the range where 0 is highest)
 
         /**
@@ -317,14 +313,6 @@ class Printer {
         this._heading = ang;
     }
 
-    set d(_d) {
-        this._distance = d;
-    }
-
-    get d() {
-        return this._distance;
-    }
-
     /**
      * Retraction speed - updates firmware on printer too
      * @param {Number} s Option speed in mm/s to set, otherwise just get
@@ -343,8 +331,9 @@ class Printer {
      * @returns {Printer} reference to this object for chaining
      */
     thick(val) {
-        this.layerHeight = val;
-        return this;
+        if (val !== undefined)
+            this.layerHeight = parseFloat(val);
+        return this.layerHeight;
     }
 
     /**
@@ -578,7 +567,7 @@ class Printer {
     }
 
     /**
-     * Set layer height safely and easily
+     * Set/get layer height safely and easily.
      *
      * @param {float} height layer height in mm
      * @returns {Printer} Reference to this object for chaining

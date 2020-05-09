@@ -4,10 +4,8 @@
 
 const $ = require('jquery');
 
-const liveprinter = require('./liveprinter.ui');
-//const util = require('./util');
-
-const AsyncFunctionsConstants = require('./constants/AsyncFunctionsConstants');
+const liveprinterUI = require('./liveprinter.ui');
+const util = require('./util');
 
 /// Code Mirror stuff
 const CodeMirror = require('codemirror');
@@ -38,8 +36,10 @@ require('codemirror/addon/fold/brace-fold');
 require('codemirror/addon/dialog/dialog');
 require('codemirror/addon/search/searchcursor');
 
-console.log('codemirror loaded');
+// liveprinter editor linting mode
+require('./language/lpmode');
 
+console.log('codemirror loaded');
 
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -98,6 +98,20 @@ function recordCode(editor, code) {
  */
 
 function recordGCode(editor, gcode) {
+
+    // add comment with date and time
+    const dateStr = (new Date()).toLocaleString('en-US',
+        {
+            hour12: false,
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit'
+        }
+    ) + '\n';
+
     const gcodeArray = Array.isArray(gcode) ? gcode : [gcode];
     // ignore temperature or other info commands - no need to save these!
     const usefulGCode = gcodeArray.filter(_gcode => !/M114|M105/.test(_gcode));
@@ -127,7 +141,7 @@ async function runCode(editor, callback) {
     // if printer isn't connected, we shouldn't run!
     const printerConnected = $("#header").hasClass("blinkgreen");
     if (!printerConnected) {
-        liveprinter.clearError();
+        liveprinterUI.clearError();
         const err = new Error("Printer not connected! Please connect first using the printer settings tab.");
         doError(err);
         throw err;
@@ -145,7 +159,7 @@ async function runCode(editor, callback) {
             editor.setSelection({ line: cursor.line, ch: 0 }, { line: cursor.line, ch: code.length });
         }
         // blink the form
-        liveprinter.blinkElem($("form"));
+        liveprinterUI.blinkElem($("form"));
 
         // run code
         try {
@@ -206,31 +220,6 @@ const savedGlobalKey = "savedHist";
 
 
 const init = async function () {
-    CodeMirror.defineMode("lp", function (config, parserConfig) {
-        const liveprinterOverlay = {
-            token: function (stream, state) {
-                let ch = "";
-
-                if (!stream.eol()) {
-                    let matches = stream.match(AsyncFunctionsConstants.asyncFunctionsInAPICMRegex, false);
-                    if (matches) {
-                        //Logger.log("MATCH::**" + matches[1] + "**");
-                        let i = matches[1].length;
-                        while (i--) stream.eat(() => true);
-                        return "lp";
-                    }
-                }
-                stream.eatSpace();
-                if (stream.match(AsyncFunctionsConstants.asyncFunctionsInAPICMRegex, false)) return null;
-                while (ch = stream.eat(/[^\s]/)) {
-                    if (ch === ".") break;
-                };
-                return null;
-            }
-        };
-        return CodeMirror.overlayMode(CodeMirror.getMode(config, parserConfig.backdrop || "javascript"), liveprinterOverlay);
-    });
-
 
     /**
      * CodeMirror code editor instance (local code). See {@link https://codemirror.net/doc/manual.html}
@@ -251,17 +240,17 @@ const init = async function () {
                 async (cm) =>
                     await runCode(cm,
                         async (code) =>
-                            await liveprinter.globalEval(recordCode(HistoryCodeEditor, code))
+                            await liveprinterUI.globalEval(recordCode(HistoryCodeEditor, code))
                     ),
             "Shift-Enter": async (cm) =>
                 await runCode(cm,
                     async (code) =>
-                        await liveprinter.globalEval(recordCode(HistoryCodeEditor, code))
+                        await liveprinterUI.globalEval(recordCode(HistoryCodeEditor, code))
                 ),
             "Cmd-Enter": async (cm) =>
                 await runCode(cm,
                     async (code) =>
-                        await liveprinter.globalEval(recordCode(HistoryCodeEditor, code))
+                        await liveprinterUI.globalEval(recordCode(HistoryCodeEditor, code))
                 ),
             "Ctrl-Space": "autocomplete",
             "Ctrl-Q": function (cm) { cm.foldCode(cm.getCursor()); },
@@ -355,20 +344,20 @@ const init = async function () {
         extraKeys: {
             "Ctrl-Enter":
                 async (cm) => await runCode(cm,
-                    async (gcode) => await liveprinter.scheduleGCode(
+                    async (gcode) => await liveprinterUI.scheduleGCode(
                         recordGCode(cm, util.cleanGCode(gcode))
                     )
                 ), // handles aync
             "Shift-Enter":
                 async (cm) => await runCode(cm,
-                    async (gcode) => await liveprinter.scheduleGCode(
+                    async (gcode) => await liveprinterUI.scheduleGCode(
                         recordGCode(cm, util.cleanGCode(gcode))
                     )
                 ), // handles aync
 
             "Cmd-Enter":
                 async (cm) => await runCode(cm,
-                    async (gcode) => await liveprinter.scheduleGCode(
+                    async (gcode) => await liveprinterUI.scheduleGCode(
                         recordGCode(cm, util.cleanGCode(gcode))
                     )
                 ), // handles aync
@@ -379,6 +368,9 @@ const init = async function () {
     });
 
 
+    //
+    // Session saving functions for editors
+    //
 
     const localChangeFunc = cm => {
         let txt = cm.getDoc().getValue();
@@ -398,7 +390,7 @@ const init = async function () {
         CodeEditor.off("change");
         let newFile = localStorage.getItem(editedLocalKey);
         if (newFile !== undefined && newFile) {
-            liveprinter.blinkElem($(".CodeMirror"), "slow", () => {
+            liveprinterUI.blinkElem($(".CodeMirror"), "slow", () => {
                 CodeEditor.swapDoc(
                     CodeMirror.Doc(
                         newFile, "javascript"
@@ -424,7 +416,7 @@ const init = async function () {
         CodeEditor.off("change");
         let txt = CodeEditor.getDoc().getValue();
         localStorage.setItem(savedKey, txt);
-        liveprinter.blinkElem($(".CodeMirror"), "fast", () => {
+        liveprinterUI.blinkElem($(".CodeMirror"), "fast", () => {
             CodeEditor.on("change", localChangeFunc);
         });
         // mark as reload-able
@@ -438,7 +430,7 @@ const init = async function () {
         CodeEditor.off("change");
         let newFile = localStorage.getItem(savedKey);
         if (newFile !== undefined && newFile) {
-            liveprinter.blinkElem($(".CodeMirror"), "slow", () => {
+            liveprinterUI.blinkElem($(".CodeMirror"), "slow", () => {
                 CodeEditor.swapDoc(
                     CodeMirror.Doc(
                         newFile, "javascript"
@@ -537,6 +529,25 @@ const init = async function () {
         setLanguageMode(); // update codemirror editor
     });
 
+    ///----------------------------------------------------------
+    ///------------Examples list---------------------------------
+    ///----------------------------------------------------------
+
+    let exList = $("#examples-list > .dropdown-item").not("[id*='session']");
+    exList.on("click", async function () {
+        let me = $(this);
+        let filename = me.data("link");
+        liveprinterUI.clearError(); // clear loading errors
+        const jqxhr = $.ajax({ url: filename, dataType: "text" })
+            .done(function (content) {
+                let newDoc = CodeMirror.Doc(content, "javascript");
+                liveprinterUI.blinkElem($(".CodeMirror"), "slow", () => CodeEditor.swapDoc(newDoc));
+            })
+            .fail(function () {
+                doError({ name: "error", message: "file load error:" + filename });
+            });
+    });
+
 
     ///----------------------------------------------------------
     ///------------GUI events------------------------------------
@@ -547,12 +558,12 @@ const init = async function () {
         if (target === "#history-code-editor-area") {
             HistoryCodeEditor.refresh();
             setLanguageMode(); // have to update gutter, etc.
-            liveprinter.clearError();
+            liveprinterUI.clearError();
         }
         else if (target === "#code-editor-area") {
             CodeEditor.refresh();
             setTimeout(setLanguageMode, 1000); // have to update gutter, etc.
-            liveprinter.clearError();
+            liveprinterUI.clearError();
         }
         else if (target === "#gcode-editor-area") {
             GCodeEditor.refresh();
@@ -575,9 +586,9 @@ const init = async function () {
                 minute: '2-digit'
             }
         );
-        liveprinter.downloadFile(CodeEditor.getDoc().getValue(), "LivePrinterCode" + dateStr + ".js", 'text/javascript');
-        liveprinter.downloadFile(GCodeEditor.getDoc().getValue(), "LivePrinterGCode" + dateStr + ".js", 'text/javascript');
-        liveprinter.downloadFile(HistoryCodeEditor.getDoc().getValue(), "LivePrinterHistoryCode" + dateStr + ".js", 'text/javascript');
+        liveprinterUI.downloadFile(CodeEditor.getDoc().getValue(), "LivePrinterCode" + dateStr + ".js", 'text/javascript');
+        liveprinterUIdownloadFile(GCodeEditor.getDoc().getValue(), "LivePrinterGCode" + dateStr + ".js", 'text/javascript');
+        liveprinterUIdownloadFile(HistoryCodeEditor.getDoc().getValue(), "LivePrinterHistoryCode" + dateStr + ".js", 'text/javascript');
     });
 
 
@@ -587,7 +598,7 @@ const init = async function () {
         reloadLocalSession();
     }
     else {
-        liveprinter.errorHandler.error({ name: "save error", message: "no local storage available for saving files!" });
+        liveprinterUIerrorHandler.error({ name: "save error", message: "no local storage available for saving files!" });
     }
     return;
 }

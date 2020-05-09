@@ -1289,21 +1289,7 @@ const start = async function () {
  * build examples loader links for dynamically loading example files
  * @memberOf LivePrinter
  */
-    let exList = $("#examples-list > .dropdown-item").not("[id*='session']");
-    exList.on("click", function () {
-        let me = $(this);
-        let filename = me.data("link");
-        clearError(); // clear loading errors
-        var jqxhr = $.ajax({ url: filename, dataType: "text" })
-            .done(function (content) {
-                let newDoc = CodeMirror.Doc(content, "javascript");
-                blinkElem($(".CodeMirror"), "slow", () => CodeEditor.swapDoc(newDoc));
-            })
-            .fail(function () {
-                doError({ name: "error", message: "file load error:" + filename });
-            });
-    });
-
+ 
     $("#connect-btn").on("click", async function (e) {
         e.preventDefault();
         loginfo("OPENING SERIAL PORT");
