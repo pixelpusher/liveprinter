@@ -128,6 +128,13 @@ class Printer {
         const results = await Promise.all(this.gcodeListeners.map(async (l) => l.gcodeEvent(gcode)));
     }
 
+    //
+    // shorthand for livecoding
+    //
+    async gcode(gc) {
+        return this.gcodeEvent(gc); 
+    }
+
     /**
      *  Notify listeners that an error has taken place.
      *  @param {Error} err GCode command string to send
@@ -238,6 +245,18 @@ class Printer {
         return this._autoRetract;
     }
 
+    ///
+    /// this is dangerous because retraction could get out of sync and likely should never be used.
+    ///
+
+    async retractlength(len) {
+        if (len < 0) throw new Error("retract length can't be less than 0: " + len);
+        let lengthUpdated = false;
+        if (len !== this.retractLength) lengthUpdated = true;
+        this.retractLength = len;
+
+        if (lengthUpdated) await this.sendFirmwareRetractSettings();// might slow things
+    }
 
     /**
      * Get the center horizontal (x) position on the bed
@@ -355,7 +374,7 @@ class Printer {
         // update firmware retract settings
         await this.gcodeEvent("M207 S" + this.retractLength.toFixed(2) + " F" + this._retractSpeed.toFixed(2) + " Z" + this.unretractZHop.toFixed(2));
         //set retract recover
-        await this.gcodeEvent("M208 S" + (this.retractLength.toFixed(2) + this.extraUnretract.toFixed(2)) + "F" + this._retractSpeed.toFixed(2));
+        await this.gcodeEvent("M208 S" + (this.retractLength.toFixed(2) + this.extraUnretract.toFixed(2)) + " F" + this._retractSpeed.toFixed(2));
 
         return this;
     }
@@ -407,7 +426,11 @@ class Printer {
      * @returns {Printer} reference to this object for chaining
      */
     async unretract(len = this.currentRetraction, speed) {
-        if (this.currentRetraction < 0.01) return; // don't unretract if we don't have to!
+        if (this.currentRetraction < 0.01) 
+        {
+            //loginfo('no unretract:' + len + '/' + this.currentRetraction);
+            return; // don't unretract if we don't have to!
+        }
         if (len < 0) throw new Error("retract length can't be less than 0: " + len);
 
         let lengthUpdated = false;
@@ -423,12 +446,12 @@ class Printer {
             this._retractSpeed = speed * 60;
         }
 
-        this.e += this.currentRetraction + this.extraUnretract;
+        this.e += this.retractLength + this.extraUnretract;
 
         //unretract manually first if needed
         if (!this.firmwareRetract) {
             // account for previous retraction
-
+            await this.gcodeEvent("; unretract");
             await this.gcodeEvent("G1 " + "E" + this.e.toFixed(4) + " F" + this._retractSpeed.toFixed(4));
 
         } else {
@@ -913,7 +936,10 @@ class Printer {
         let __y = (params.y !== undefined) ? parseFloat(params.y) : this.y;
         let __z = (params.z !== undefined) ? parseFloat(params.z) : this.z;
         let __e = (extrusionSpecified) ? parseFloat(params.e) : this.e;
-
+        if (Math.abs(__e - this.e) > 0.01) 
+        {
+            this.currentRetraction = 0; //clear retraction if we go manual
+        }
         let newPosition = new Vector({ x: __x, y: __y, z: __z, e: __e });
 
         let _speed = parseFloat((params.speed !== undefined) ? params.speed : this._printSpeed);
@@ -1041,7 +1067,8 @@ class Printer {
                 await this.gcodeEvent("G11");
             }
             this.e = parseFloat(newE);
-            this.currentRetraction = 0;;
+            loginfo('current extrusion gcode retact clear');
+            this.currentRetraction = 0;
         }
 
         // G1 - Coordinated Movement X Y Z E

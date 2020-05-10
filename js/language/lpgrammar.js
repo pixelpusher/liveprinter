@@ -17,8 +17,8 @@ var grammar = {
     {"name": "Chain", "symbols": ["FunctionStatement", "Space", "Chain$ebnf$1"], "postprocess": d => d[0]},
     {"name": "FunctionStatement$subexpression$1", "symbols": ["FunctionName"], "postprocess":  
         ([name]) => {
-            const asyncFunctionsInAPIRegex = /^setRetractSpeed|sendFirmwareRetractSettings|retract|unretract|ret|unret|start|temp|bed|fan|go|fwretract|retractspeed|polygon|rect|extrudeto|sendExtrusionGCode|travel|draw|drawfill|extrude|move|moveto|mov|mov2|ext|ext2|up|upto|drawup|dup|drawdown|ddown|down|downto|fillDirection|fillDirectionH|sync|fill|wait|pause|resume|printPaths|printPathsThick|_extrude$/;
-        	let asyncFuncCall = asyncFunctionsInAPIRegex.test(name);
+            const asyncFunctionsInAPIRegex = /^(setRetractSpeed|sendFirmwareRetractSettings|retract|unretract|ret|unret|start|temp|bed|fan|go|fwretract|retractspeed|polygon|rect|extrudeto|sendExtrusionGCode|travel|draw|drawfill|extrude|move|moveto|mov|mov2|ext|ext2|up|upto|drawup|dup|drawdown|ddown|down|downto|fillDirection|fillDirectionH|sync|fill|wait|pause|resume|printPaths|printPathsThick|_extrude)$/;
+        	const asyncFuncCall = asyncFunctionsInAPIRegex.test(name);
         
         	if (asyncFuncCall) name = "await lp." + name;
         	else name = "lp." + name;

@@ -2,27 +2,32 @@
 // tests different properties in an automated way.
 // the goal: print structures in air, reliably!
 
-lp.start(195); // start
+# start 200 | bed 50
 
-lp.sync();
-lp.extrude({ e: 5, speed: 10 });
+# sync
 
-lp.fan(100); // need fan to full!
+# mov2 x:lp.cx y:100
+# retractspeed 30
+# extrude e: 6 speed: 1 // do this a few times to prime filament
 
-loginfo(lp._retractSpeed); // useful to check speed - see the info panel to the right
+# retract 8 // ready for printing!
 
-lp.printSpeed = 20;
-
-# mov2 x: 60 y: 20 z: lp.lh speed: 80
-
-await repeat(10, async (i) => {
-    # turnto 0 | dist 20 | go 1 0
-    # turn 90 | dist 20 | go 1 0
-    # turn 90 | dist 20 | go 1 0
-    # turn 90 | dist 20 | go 1 0
-    # up lp.lh
+await repeat(1, async (i) => {
+    let h = 3.5;
+    # thick 0.11
+  await lp.move({ x: i*0.2*lp.maxx, y:30, speed: 150 });
+  # downto lp.layerHeight
+    lp.autoretract(0);
+  # turnto -90 | printspeed 10 | retractspeed 40
+  # unretract | printspeed 12 | draw 20 | tilt 90 | drawup h | retract 4.5 
+  # wait 3000
+  # unretract
+  # thick 0.1
+  # printspeed 18 | tilt -35 | drawdown h | draw 8 | retract 8
+  # travelspeed 50 | upto 80
+  # autoretract 1
 });
-
+//////////////////////// untested --- old!
 
 await repeat(3, async (i) => {
     await lp.moveto({ x: xmap(i * 0.25), y: ymap(0.5), speed: 150 });

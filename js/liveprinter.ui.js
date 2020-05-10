@@ -518,8 +518,6 @@ async function getPrinterState() {
 exports.getPrinterState = getPrinterState;
 
 
-
-
 /**
  * Send GCode to the server via json-rpc over ajax.
  * @param {string} gcode gcode to send 
@@ -527,7 +525,6 @@ exports.getPrinterState = getPrinterState;
  * @returns {Object} result Returns json object containing result
  */
 async function sendGCodeRPC(gcode) {
-
     let gcodeObj = { "jsonrpc": "2.0", "id": 4, "method": "send-gcode", "params": [] };
     if (vars.logAjax) commandsHandler.log(`SENDING gcode ${gcode}`);
 
@@ -535,18 +532,24 @@ async function sendGCodeRPC(gcode) {
         //Logger.debug("start array gcode[" + codeLine + "]");
 
         const results = await Promise.all(gcode.map(async (_gcode) => {
-            gcodeObj.params = [_gcode];
-            //Logger.log(gcodeObj);
-            const response = sendJSONRPC(JSON.stringify(gcodeObj));
-            response.then((result) => { Logger.debug(result); handleGCodeResponse(result) });
-            return response;
+            if (!_gcode.startsWith(';')) // don't send comments
+            {
+                gcodeObj.params = [_gcode];
+                //Logger.log(gcodeObj);
+                const response = sendJSONRPC(JSON.stringify(gcodeObj));
+                response.then((result) => { Logger.debug(result); handleGCodeResponse(result) });
+                return response;
+            }
         }));
         //Logger.debug("finish array gcode[" + codeLine + "]");
     } else {
         //Logger.debug("single line gcode");
-        gcodeObj.params = [gcode];
-        const response = await sendJSONRPC(JSON.stringify(gcodeObj));
-        handleGCodeResponse(response);
+        if (!gcode.startsWith(';')) // don't send comments
+        {
+            gcodeObj.params = [gcode];
+            const response = await sendJSONRPC(JSON.stringify(gcodeObj));
+            handleGCodeResponse(response);
+        }
     }
     if (vars.logAjax) commandsHandler.log(`DONE gcode ${gcode}`);
     //Logger.debug(`DONE gcode ${codeLine}`);
@@ -584,6 +587,7 @@ async function scheduleGCode(gcode, priority = 4) { // 0-9, lower higher
 }
 
 exports.scheduleGCode = scheduleGCode;
+
 
 /**
  * Run GCode from the editor by sending to the server.
@@ -889,7 +893,7 @@ const moveParser = (data) => {
     let result = MarlinParsers.MarlinLineParserResultPosition.parse(data);
 
     if (!result) return false;
-    
+
     printer.x = parseFloat(result.payload.pos.x);
     printer.y = parseFloat(result.payload.pos.y);
     printer.z = parseFloat(result.payload.pos.z);
@@ -1104,21 +1108,21 @@ window.attachScript = attachScript;
  * @param {String} type Type of file (e.g. text/javascript)
  * @memberOf LivePrinter
  */
-function downloadFile(data, filename, type) {
-    var file = new Blob([data], { type: type });
+async function downloadFile(data, filename, type) {
+    const file = new Blob([data], { type: type });
     if (window.navigator.msSaveOrOpenBlob) // IE10+
         window.navigator.msSaveOrOpenBlob(file, filename);
     else { // Others
-        var a = document.createElement("a"),
+        const a = document.createElement("a"),
             url = URL.createObjectURL(file);
         a.href = url;
         a.download = filename;
         document.body.appendChild(a);
-        a.click();
-        setTimeout(function () {
-            document.body.removeChild(a);
-            window.URL.revokeObjectURL(url);
-        }, 0);
+        await (async () => (a.click()))();
+        //setTimeout(function () {
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+        //}, 0);
     }
 }
 
@@ -1191,7 +1195,7 @@ async function globalEval(code, line, globally = false) {
     Logger.debug("code before pre-processing-------------------------------");
     Logger.debug(code);
     Logger.debug("========================= -------------------------------");
-    
+
     //
     // compile in minigrammar
     //
@@ -1234,10 +1238,7 @@ async function globalEval(code, line, globally = false) {
 
             // prefix with locals to give quick access to liveprinter API
             code = "let lp = window.printer;" +
-                //"let sched = scheduler;" +
-                //"let updateGUI = .updateGUI;" +
                 "let stop = window.restartLimiter;" +
-                //"let s = window.scope;\n" +
                 code;
 
             // wrap in global function call
@@ -1275,10 +1276,10 @@ exports.globalEval = globalEval;
 
 const start = async function () {
 
-/// attach listeners
+    /// attach listeners
 
-printer.addGCodeListener({gcodeEvent: sendGCodeRPC});
-printer.addErrorListener({errorEvent: doError});
+    printer.addGCodeListener({ gcodeEvent: sendGCodeRPC });
+    printer.addErrorListener({ errorEvent: doError });
 
     ///--------------------------------------
     ///---------setup GUI--------------------
@@ -1287,7 +1288,7 @@ printer.addErrorListener({errorEvent: doError});
  * build examples loader links for dynamically loading example files
  * @memberOf LivePrinter
  */
- 
+
     $("#connect-btn").on("click", async function (e) {
         e.preventDefault();
         loginfo("OPENING SERIAL PORT");

@@ -212,12 +212,6 @@ function storageAvailable(type) {
     }
 }
 
-const editedLocalKey = "editedLoc";
-const savedLocalKey = "savedLoc";
-
-const editedHistoryKey = "editedHist";
-const savedGlobalKey = "savedHist";
-
 
 const init = async function () {
 
@@ -254,15 +248,7 @@ const init = async function () {
                 ),
             "Ctrl-Space": "autocomplete",
             "Ctrl-Q": function (cm) { cm.foldCode(cm.getCursor()); },
-            "Ctrl-\\": (cm) => {
-                CodeEditor.off("change");
-                CodeEditor.swapDoc(
-                    CodeMirror.Doc(
-                        "// Type some code here.  Hit CTRL-\\ to clear \n\n\n\n", "javascript"
-                    )
-                );
-                CodeEditor.on("change", localChangeFunc);
-            },
+            "Ctrl-\\": clearEditor,
         },
         foldGutter: true,
         autoCloseBrackets: true,
@@ -276,6 +262,8 @@ const init = async function () {
         //inputStyle: "contenteditable"
     });
     CodeEditor.setOption("theme", "abcdef");
+    CodeEditor.storageKey = "storedCodeEditor";
+    CodeEditor.saveStorageKey = "savedCodeEditor";
 
 
     //var commandDisplay = document.querySelectorAll('[id|=command-display]');
@@ -313,15 +301,7 @@ const init = async function () {
             "Cmd-Enter": async (cm) => await runCode(cm, globalEval),
             "Ctrl-Space": "autocomplete",
             "Ctrl-Q": function (cm) { cm.foldCode(cm.getCursor()); },
-            "Ctrl-\\": (cm) => {
-                HistoryCodeEditor.off("change");
-                HistoryCodeEditor.swapDoc(
-                    HistoryCodeEditor.Doc(
-                        "// Type some code here.  Hit CTRL-\\ to clear \n\n\n\n", "javascript"
-                    )
-                );
-                HistoryCodeEditor.on("change", historyChangeFunc);
-            }
+            "Ctrl-\\": clearEditor
         },
         foldGutter: true,
         autoCloseBrackets: true,
@@ -329,6 +309,9 @@ const init = async function () {
         mode: "lp",
         theme: "abcdef"
     });
+
+    HistoryCodeEditor.storageKey = "storedHistoryCodeEditor";
+    HistoryCodeEditor.saveStorageKey = "savedHistoryCodeEditor";
 
     /**
      * CodeMirror code editor instance (compiled gcode). See {@link https://codemirror.net/doc/manual.html}
@@ -363,61 +346,75 @@ const init = async function () {
                 ), // handles aync
 
             "Ctrl-Space": "autocomplete",
-            "Ctrl-Q": function (cm) { cm.foldCode(cm.getCursor()); }
+            "Ctrl-Q": function (cm) { cm.foldCode(cm.getCursor()); },
+            "Ctrl-\\": clearEditor
         }
     });
 
+    GCodeEditor.storageKey = "storedGCodeEditor";
+    GCodeEditor.saveStorageKey = "savedGCodeEditor";
+
+    // cheeky shortcut function...
+    // window.gcode = async (gc) => liveprinterUI.scheduleGCode(
+    //     recordGCode(GCodeEditor, util.cleanGCode(gc))
+    // );
+
+    function clearEditor(cm, opts) {
+        cm.off("changes");
+        cm.swapDoc(
+            CodeMirror.Doc(
+                "// Type some code here.  Hit CTRL-\\ to clear \n\n\n\n"
+            )
+        );
+        cm.on("changes");
+    }
 
     //
     // Session saving functions for editors
     //
 
-    const localChangeFunc = cm => {
+    const handleChanges = cm => {
         let txt = cm.getDoc().getValue();
-        localStorage.setItem(editedLocalKey, txt);
+        localStorage.setItem(cm.storageKey, txt);
     };
 
-    const historyChangeFunc = cm => {
-        let txt = cm.getDoc().getValue();
-        localStorage.setItem(editedHistoryKey, txt);
-    };
-
-    CodeEditor.on("change", localChangeFunc);
-
-    HistoryCodeEditor.on("change", historyChangeFunc);
-
-    const reloadLocalSession = () => {
-        CodeEditor.off("change");
-        let newFile = localStorage.getItem(editedLocalKey);
-        if (newFile !== undefined && newFile) {
-            liveprinterUI.blinkElem($(".CodeMirror"), "slow", () => {
-                CodeEditor.swapDoc(
-                    CodeMirror.Doc(
-                        newFile, "javascript"
-                    )
-                );
-                CodeEditor.on("change", localChangeFunc);
-            });
-        }
-        CodeEditor.refresh();
-    };
 
     // clear it, only save during session
-    const reloadHistorySession = () => {
-        HistoryCodeEditor.off("change");
-        localStorage.removeItem(editedHistoryKey);
-        HistoryCodeEditor.on("change", historyChangeFunc);
-        HistoryCodeEditor.refresh();
+    const reloadSession = cm => {
+        cm.off("changes");
+        const newFile = localStorage.getItem(cm.storageKey);
+        const mode = cm.getDoc().getMode();
+        if (newFile !== undefined && newFile) {
+            liveprinterUI.blinkElem($(".CodeMirror"), "slow", () => {
+                cm.swapDoc(
+                    CodeMirror.Doc(
+                        newFile, mode
+                    )
+                );
+            });
+        }
+        cm.on("changes", handleChanges);
+        cm.refresh();
     };
 
-    $("#reload-edited-session").on("click", reloadLocalSession);
+    const editors = [CodeEditor, HistoryCodeEditor, GCodeEditor];
+
+    // HistoryCodeEditor.on("changes", handleChanges);
+    // CodeEditor.on("changes", handleChanges);
+    // HistoryCodeEditor.on("changes", handleChanges);
+
+
+    $("#reload-edited-session").on("click",
+        () => editors.map(cm => reloadSession(cm)));
 
     $("#save-session").on("click", () => {
-        CodeEditor.off("change");
-        let txt = CodeEditor.getDoc().getValue();
-        localStorage.setItem(savedKey, txt);
-        liveprinterUI.blinkElem($(".CodeMirror"), "fast", () => {
-            CodeEditor.on("change", localChangeFunc);
+        editors.map(cm => {
+            cm.off("changes");
+            const txt = cm.getDoc().getValue();
+            localStorage.setItem(cm.saveStorageKey, txt);
+            liveprinterUI.blinkElem($(".CodeMirror"), "fast", () => {
+                cm.on("changes", handleChanges);
+            });
         });
         // mark as reload-able
         $("#reload-saved-session").removeClass("graylink");
@@ -427,19 +424,23 @@ const init = async function () {
     $("#reload-saved-session").addClass("graylink");
 
     $("#reload-saved-session").on("click", () => {
-        CodeEditor.off("change");
-        let newFile = localStorage.getItem(savedKey);
-        if (newFile !== undefined && newFile) {
-            liveprinterUI.blinkElem($(".CodeMirror"), "slow", () => {
-                CodeEditor.swapDoc(
-                    CodeMirror.Doc(
-                        newFile, "javascript"
-                    )
-                );
-                CodeEditor.on("change", localChangeFunc);
-            });
-        }
+        editors.map(cm => {
+            cm.off("changes");
+            const mode = cm.getDoc().getMode();
+            const newFile = localStorage.getItem(cm.saveStorageKey);
+            if (newFile !== undefined && newFile) {
+                liveprinterUI.blinkElem($(".CodeMirror"), "slow", () => {
+                    cm.swapDoc(
+                        CodeMirror.Doc(
+                            newFile, mode
+                        )
+                    );
+                    cm.on("changes", handleChanges);
+                });
+            }
+        });
     });
+
 
     // CodeMirror stuff
 
@@ -535,13 +536,21 @@ const init = async function () {
 
     let exList = $("#examples-list > .dropdown-item").not("[id*='session']");
     exList.on("click", async function () {
-        let me = $(this);
-        let filename = me.data("link");
+        const me = $(this);
+        const filename = me.data("link");
         liveprinterUI.clearError(); // clear loading errors
         const jqxhr = $.ajax({ url: filename, dataType: "text" })
             .done(function (content) {
-                let newDoc = CodeMirror.Doc(content, "javascript");
-                liveprinterUI.blinkElem($(".CodeMirror"), "slow", () => CodeEditor.swapDoc(newDoc));
+                CodeEditor.off('changes');
+                CodeEditor.off('blur');
+
+                const newDoc = CodeMirror.Doc(content, "lp");
+                liveprinterUI.blinkElem($(".CodeMirror"), "slow", () => {
+                    CodeEditor.swapDoc(newDoc);
+                    CodeEditor.refresh();
+                    CodeEditor.on('changes', handleChanges);
+                    CodeEditor.on('blur', handleChanges);
+                });
             })
             .fail(function () {
                 doError({ name: "error", message: "file load error:" + filename });
@@ -574,7 +583,7 @@ const init = async function () {
     $("#sendCode").on("click", runCode);
 
     /// download all code
-    $(".btn-download").on("click", () => {
+    $(".btn-download").on("click", async () => {
         // add comment with date and time
         const dateStr = '_' + (new Date()).toLocaleString('en-US',
             {
@@ -586,26 +595,28 @@ const init = async function () {
                 minute: '2-digit'
             }
         );
-        liveprinterUI.downloadFile(CodeEditor.getDoc().getValue(), "LivePrinterCode" + dateStr + ".js", 'text/javascript');
-        liveprinterUIdownloadFile(GCodeEditor.getDoc().getValue(), "LivePrinterGCode" + dateStr + ".js", 'text/javascript');
-        liveprinterUIdownloadFile(HistoryCodeEditor.getDoc().getValue(), "LivePrinterHistoryCode" + dateStr + ".js", 'text/javascript');
+        await liveprinterUI.downloadFile(CodeEditor.getDoc().getValue(), "LivePrinterCode" + dateStr + ".js", 'text/javascript');
+        await liveprinterUI.downloadFile(GCodeEditor.getDoc().getValue(), "LivePrinterGCode" + dateStr + ".js", 'text/javascript');
+        await liveprinterUI.downloadFile(HistoryCodeEditor.getDoc().getValue(), "LivePrinterHistoryCode" + dateStr + ".js", 'text/javascript');
     });
 
+    // set up events
+    editors.map(cm => cm.on("changes", handleChanges));
+    editors.map(cm => cm.on("blur", handleChanges));
 
     if (storageAvailable('localStorage')) {
         // finally, load the last stored session:
-        reloadHistorySession(); // actually, clear it
-        reloadLocalSession();
+        editors.map(cm => reloadSession(cm));
     }
     else {
-        liveprinterUIerrorHandler.error({ name: "save error", message: "no local storage available for saving files!" });
+        liveprinterUI.doError({ name: "save error", message: "no local storage available for saving files!" });
     }
 
     ///
-    /// add GCode listener
+    /// add GCode listener to capture compiles GCode to editor
     printer.addGCodeListener(
         { gcodeEvent: async (gcode) => recordGCode(GCodeEditor, gcode) }
-        );
+    );
 
     return;
 }

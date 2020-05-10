@@ -175,7 +175,7 @@ const repeat = async (num, func) => {
             await func(i); // pass the comp sci way
         }
         catch (e) {
-            exports.doError(e); // print GUI response
+            throw e; // re-throw
         }
     }
     return 1;
