@@ -30,15 +30,11 @@ class Printer {
     // Printer API /////////////////
     ///////
 
-    // FUTURE NOTE: make this not a class but use object inheritance and prototyping
-
     /**
      * Create new instance, passing a function for sending messages
      * @constructor
-     * @param {Function} _messageSendFunc function to pass in that will send messages to the server/physical printer
-     * @param {Function} _errorFunc function to pass in that will send error messages somewhere (the GUI perhaps)
      */
-    constructor(_messageSendFunc = null, _errorFunc = console.log) {
+    constructor() {
 
         /////---------------------------------------------
         // Shortcuts --------------------------------------
@@ -51,21 +47,9 @@ class Printer {
         this.ret = this.retract;
         this.unret = this.unretract;
 
-        this.priority = 4; // priority of queued messages (4 is normal, 0-9 is the range where 0 is highest)
+        this.gcodeListeners = []; // will be notified of gcode events
+        this.errorListeners = []; // will be notified of error events
 
-        /**
-         *  The function (AJAX or other) that this object will use to send gcode to the printer.
-         *  @param {String} cmd GCode command string to send
-         *  @returns{any} Nothing.
-         */
-        this.send = async (cmd) => await _messageSendFunc(cmd, this.priority);
-
-        // default send - log to console
-        if (this.send === null) {
-            this.send = async msg => {
-                console.log(msg); return true;
-            };
-        }
         this._layerHeight = 0.2; // thickness of a 3d printed extrudion, mm by default
         this.lastSpeed = -1.0;
 
@@ -103,23 +87,6 @@ class Printer {
         this.setProperties();
     }
 
-    // priority of sent commands in async queue
-    highestPriority() {
-        this.priority = 2;
-    }
-    highPriority() {
-        this.priority = 3;
-    }
-    normalPriority() {
-        this.priority = 4;
-    }
-    lowPriority() {
-        this.priority = 5;
-    }
-    lowestPriority() {
-        this.priority = 6;
-    }
-
     /**
      * Set default properties for the printer based on the printer model, e.g. bed size, speeds
      * @param {String} model Valid model from Printer class
@@ -150,6 +117,50 @@ class Printer {
             z: this.minPosition.axes.z, // z position in mm
             e: 0
         });
+    }
+
+    /**
+     *  Notify listeners that GCode is ready to be consumed.
+     *  @param {String} gcode GCode command string to send
+     *  @returns{any} Nothing.
+     */
+    async gcodeEvent(gcode) {
+        const results = await Promise.all(this.gcodeListeners.map(async (l) => l.gcodeEvent(gcode)));
+    }
+
+    /**
+     *  Notify listeners that an error has taken place.
+     *  @param {Error} err GCode command string to send
+     *  @returns{any} Nothing.
+     */
+    async errorEvent(err) {
+        const results = await Promise.all(this.errorListeners.map(async (el) => el.errorEvent(gcode)));
+    }
+
+    addGCodeListener(gl) {
+        if (this.gcodeListeners.indexOf(gl) < 0){
+            this.gcodeListeners.push(gl);
+        }
+    }
+
+    addErrorListener(gl) {
+        if (this.errorListeners.indexOf(gl) < 0){
+            this.errorListeners.push(gl);
+        }
+    }
+
+    removeGCodeListener(gl) {
+        const index = this.gcodeListeners.indexOf(gl);
+        if (index > -1) {
+            this.gcodeListeners.splice(index,1);
+        }
+    }
+
+    removeErrorListener(gl) {
+        const index = this.errorListeners.indexOf(gl);
+        if (index > -1) {
+            this.errorListeners.splice(index,1);
+        }
     }
 
     /// -------------------------------------------------------------------
@@ -342,9 +353,9 @@ class Printer {
     */
     async sendFirmwareRetractSettings() {
         // update firmware retract settings
-        await this.send("M207 S" + this.retractLength.toFixed(2) + " F" + this._retractSpeed.toFixed(2) + " Z" + this.unretractZHop.toFixed(2));
+        await this.gcodeEvent("M207 S" + this.retractLength.toFixed(2) + " F" + this._retractSpeed.toFixed(2) + " Z" + this.unretractZHop.toFixed(2));
         //set retract recover
-        await this.send("M208 S" + (this.retractLength.toFixed(2) + this.extraUnretract.toFixed(2)) + "F" + this._retractSpeed.toFixed(2));
+        await this.gcodeEvent("M208 S" + (this.retractLength.toFixed(2) + this.extraUnretract.toFixed(2)) + "F" + this._retractSpeed.toFixed(2));
 
         return this;
     }
@@ -378,12 +389,12 @@ class Printer {
 
         if (!this.firmwareRetract) {
             const fixedE = this.e.toFixed(4);
-            await this.send("G1 " + "E" + fixedE + " F" + this._retractSpeed.toFixed(4));
+            await this.gcodeEvent("G1 " + "E" + fixedE + " F" + this._retractSpeed.toFixed(4));
             this.e = parseFloat(fixedE); // make sure e is actually e even with rounding errors!
         } else {
             if (speedUpdated || lengthUpdated) await this.sendFirmwareRetractSettings();// might slow things down...
             // retract via firmware otherwise
-            await this.send("G10");
+            await this.gcodeEvent("G10");
         }
 
         return this;
@@ -407,7 +418,7 @@ class Printer {
         if (speed !== undefined) {
             if (speed <= 0) throw new Error("retract speed can't be 0 or less: " + speed);
             // set speed safely!
-            if (speed > Printer.maxPrintSpeed["e"]) throw new Error("retract speed to high: " + speed);
+            if (speed > Printer.maxPrintSpeed["e"]) throw new Error("retract speed too high: " + speed);
             speedUpdated = true;
             this._retractSpeed = speed * 60;
         }
@@ -418,13 +429,13 @@ class Printer {
         if (!this.firmwareRetract) {
             // account for previous retraction
 
-            await this.send("G1 " + "E" + this.e.toFixed(4) + " F" + this._retractSpeed.toFixed(4));
+            await this.gcodeEvent("G1 " + "E" + this.e.toFixed(4) + " F" + this._retractSpeed.toFixed(4));
 
         } else {
             if (speedUpdated || lengthUpdated) await this.sendFirmwareRetractSettings();// might slow things down...
 
             // unretract via firmware otherwise
-            await this.send("G11");
+            await this.gcodeEvent("G11");
         }
         this.e = parseFloat(this.e.toFixed(4));
         this.currentRetraction = 0;
@@ -441,11 +452,11 @@ class Printer {
      * @returns {Printer} reference to this object for chaining
      */
     async start(hotEndTemp = "190", bedTemp = "50") {
-        await this.send("G28");
-        await this.send("M114"); // get current position
-        await this.send("M106 S0"); // set fan to full
-        await this.send("M104 S" + hotEndTemp); //heater 1 temp
-        //this.send("M140 S" + bedTemp); // bed temp
+        await this.gcodeEvent("G28");
+        await this.gcodeEvent("M114"); // get current position
+        await this.gcodeEvent("M106 S0"); // set fan to full
+        await this.gcodeEvent("M104 S" + hotEndTemp); //heater 1 temp
+        //this.gcodeEvent("M140 S" + bedTemp); // bed temp
         await this.sendFirmwareRetractSettings();
         this.x = 0;
         this.y = this.maxy;
@@ -455,7 +466,7 @@ class Printer {
         this.travelspeed(Printer.defaultPrintSpeed);
         await this.sync();
         //this.moveto({ x: this.cx, y: this.cy, z: this.maxz, speed: Printer.defaultPrintSpeed });
-        //this.send("M106 S100"); // set fan to full
+        //this.gcodeEvent("M106 S100"); // set fan to full
 
         return this;
     }
@@ -469,7 +480,7 @@ class Printer {
      * @returns {Printer} reference to this object for chaining
      */
     async temp(temp = "190") {
-        await this.send("M104 S" + temp);
+        await this.gcodeEvent("M104 S" + temp);
         return this;
     }
 
@@ -480,7 +491,7 @@ class Printer {
      * @returns {Printer} reference to this object for chaining
      */
     async bed(temp = "190") {
-        await this.send("M140 S" + temp);
+        await this.gcodeEvent("M140 S" + temp);
         return this;
     }
 
@@ -490,7 +501,7 @@ class Printer {
      * @returns {Printer} reference to this object for chaining
      */
     async  fan(speed = "100") {
-        await this.send("M106 S" + speed);
+        await this.gcodeEvent("M106 S" + speed);
         return this;
     }
 
@@ -828,10 +839,10 @@ class Printer {
         this.firmwareRetract = state;
         // tell firmware we're handling it, or not
         if (this.fwretract) {
-            await this.send("M209 S" + 0);
+            await this.gcodeEvent("M209 S" + 0);
         }
         else {
-            await this.send("M209 S" + 1);
+            await this.gcodeEvent("M209 S" + 1);
         }
         return this;
     }
@@ -1024,10 +1035,10 @@ class Printer {
             let newE = this.e.toFixed(4);
             if (!this.firmwareRetract) {
                 // account for previous retraction
-                await this.send("G1 " + "E" + newE + " F" + this._retractSpeed.toFixed(4));
+                await this.gcodeEvent("G1 " + "E" + newE + " F" + this._retractSpeed.toFixed(4));
             } else {
                 // unretract via firmware otherwise
-                await this.send("G11");
+                await this.gcodeEvent("G11");
             }
             this.e = parseFloat(newE);
             this.currentRetraction = 0;;
@@ -1040,7 +1051,7 @@ class Printer {
         moveCode.push("Z" + this.z.toFixed(4));
         moveCode.push("E" + this.e.toFixed(4));
         moveCode.push("F" + (speed * 60).toFixed(4)); // mm/s to mm/min
-        await this.send(moveCode.join(" "));
+        await this.gcodeEvent(moveCode.join(" "));
 
         // RETRACT
         if (retract && this.retractLength > 0 && this.currentRetraction < 0.01) {
@@ -1048,10 +1059,10 @@ class Printer {
             this.e -= this.currentRetraction;
 
             if (this.firmwareRetract) {
-                await this.send("G10");
+                await this.gcodeEvent("G10");
                 // this is handled in hardware                       
             } else {
-                await this.send("G1 " + "E" + this.e.toFixed(4) + " F" + this._retractSpeed.toFixed(4));
+                await this.gcodeEvent("G1 " + "E" + this.e.toFixed(4) + " F" + this._retractSpeed.toFixed(4));
             }
         }
         // account for errors in decimal precision
@@ -1060,7 +1071,7 @@ class Printer {
         this.y = parseFloat(this.y.toFixed(4));
         this.z = parseFloat(this.z.toFixed(4));
 
-        //await this.send("M400"); // finish all moves
+        //await this.gcodeEvent("M400"); // finish all moves
 
         return this;
     } // end sendExtrusionGCode
@@ -1192,8 +1203,8 @@ class Printer {
      * Synchronise variables like position and temp
      */
     async sync() {
-        await this.send("M105"); // temperature
-        await this.send("M114"); // position
+        await this.gcodeEvent("M105"); // temperature
+        await this.gcodeEvent("M114"); // position
         return this;
     }
 
@@ -1345,7 +1356,7 @@ class Printer {
      * @returns {Printer} reference to this object for chaining
      */
     async wait(ms = this._waitTime) {
-        await this.send("G4 P" + ms);
+        await this.gcodeEvent("G4 P" + ms);
         this._waitTime = 0;
         return this;
     }
@@ -1358,8 +1369,8 @@ class Printer {
         // retract filament, turn off fan and heater wait
         await this.extrude({ e: -16, speed: 250 });
         await this.move({ z: -3 });
-        await this.send("M104 S0"); // turn off temp
-        await this.send("M107 S0"); // turn off fan
+        await this.gcodeEvent("M104 S0"); // turn off temp
+        await this.gcodeEvent("M107 S0"); // turn off fan
         return this;
     }
 
@@ -1369,8 +1380,8 @@ class Printer {
      * @returns {Printer} reference to this object for chaining
      */
     async resume(temp = "190") {
-        await this.send("M109 S" + temp); // turn on temp, but wait until full temp reached
-        await this.send("M106 S100"); // turn on fan
+        await this.gcodeEvent("M109 S" + temp); // turn on temp, but wait until full temp reached
+        await this.gcodeEvent("M106 S100"); // turn on fan
         await this.extrude({ e: 16, speed: 250 });
         return this;
     }

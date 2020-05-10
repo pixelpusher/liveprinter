@@ -27,8 +27,6 @@ const Scheduler = util.Scheduler;
 const Logger = util.Logger;
 const compile = require('./language/compile'); // minigrammar compile function
 
-const Printer = require('./liveprinter.printer'); // printer API object
-
 var $ = require('jquery');
 
 let vars = Object.create(null); // session vars
@@ -48,12 +46,6 @@ vars.ajaxTimeout = 60000; // 1 minute timeout for ajax calls (API calls to the b
 vars.requestId = 0;
 
 const scheduler = new Scheduler();
-
-// liveprinter object
-const printer = new Printer(scheduleGCode, doError);
-
-if (window.printer) delete window.printer;
-window.printer = printer; // make available to script later on, pollutes but oh well...
 
 /**
  * Clear HTML of all displayed code errors
@@ -1282,6 +1274,12 @@ exports.globalEval = globalEval;
 
 
 const start = async function () {
+
+/// attach listeners
+
+printer.addGCodeListener({gcodeEvent: sendGCodeRPC});
+printer.addErrorListener({errorEvent: doError});
+
     ///--------------------------------------
     ///---------setup GUI--------------------
     ///--------------------------------------
@@ -1354,8 +1352,8 @@ const start = async function () {
     });
 
     // temperature buttons
-    $("#basic-addon-tempbed").on("click", () => printer.bed(parseFloat($("input[name=tempbed]")[0].value)));
-    $("#basic-addon-temphot").on("click", () => printer.temp(parseFloat($("input[name=temphot]")[0].value)));
+    $("#basic-addon-tempbed").on("click", async () => printer.bed(parseFloat($("input[name=tempbed]")[0].value)));
+    $("#basic-addon-temphot").on("click", async () => printer.temp(parseFloat($("input[name=temphot]")[0].value)));
 
     $("#basic-addon-angle").on("click", () => printer.turnto(parseFloat($("input[name=angle]")[0].value)));
 

@@ -16,6 +16,14 @@ window.numrange = numrange;
 const countto = require ('./util').countto;
 window.countto = countto;
 
+const Printer = require('./liveprinter.printer'); // printer API object
+
+// liveprinter object
+const printer = new Printer();
+
+if (window.printer) delete window.printer;
+window.printer = printer; // make available to all scripts later on, pollutes but oh well... FIXME
+
 const editors = require('./liveprinter.editor'); // code editors and functions
 
 const liveprinterComms = require('./liveprinter.ui'); // main ui and server comms

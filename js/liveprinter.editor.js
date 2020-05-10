@@ -600,6 +600,13 @@ const init = async function () {
     else {
         liveprinterUIerrorHandler.error({ name: "save error", message: "no local storage available for saving files!" });
     }
+
+    ///
+    /// add GCode listener
+    printer.addGCodeListener(
+        { gcodeEvent: async (gcode) => recordGCode(GCodeEditor, gcode) }
+        );
+
     return;
 }
 
