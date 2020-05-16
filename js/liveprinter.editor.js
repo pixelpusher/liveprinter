@@ -353,7 +353,8 @@ const init = async function () {
 
     GCodeEditor.storageKey = "storedGCodeEditor";
     GCodeEditor.saveStorageKey = "savedGCodeEditor";
-
+    exports.GCodeEditor = GCodeEditor;
+    
     // cheeky shortcut function...
     // window.gcode = async (gc) => liveprinterUI.scheduleGCode(
     //     recordGCode(GCodeEditor, util.cleanGCode(gc))
@@ -611,12 +612,6 @@ const init = async function () {
     else {
         liveprinterUI.doError({ name: "save error", message: "no local storage available for saving files!" });
     }
-
-    ///
-    /// add GCode listener to capture compiles GCode to editor
-    printer.addGCodeListener(
-        { gcodeEvent: async (gcode) => recordGCode(GCodeEditor, gcode) }
-    );
 
     return;
 }

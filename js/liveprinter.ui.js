@@ -16,36 +16,17 @@
 * License for the specific language governing permissions and limitations
 * under the License.
 */
-
-const Bottleneck = require('bottleneck');
-
 const MarlinParsers = require('./parsers/MarlinParsers');
 const util = require('./util'); // utility functions
-const Task = util.Task;
-const Vector = util.Vector; // vector class
-const Scheduler = util.Scheduler;
 const Logger = util.Logger;
-const compile = require('./language/compile'); // minigrammar compile function
 
 var $ = require('jquery');
 
-let vars = Object.create(null); // session vars
-window.vars = vars;
-
-vars.serialPorts = []; // available ports
+const liveprintercomms = require('./liveprinter.comms');
 
 let lastErrorMessage = "none"; // last error message for GUI
 
-// this uses the limiting queue, but that affects performance for fast operations (< 250ms)
-vars.useLimiter = true;
-
-vars.logAjax = false; // log all ajax request/response pairs for debugging to command panel
-
-vars.ajaxTimeout = 60000; // 1 minute timeout for ajax calls (API calls to the backend server)
-
-vars.requestId = 0;
-
-const scheduler = new Scheduler();
+const vars = liveprintercomms.vars;
 
 /**
  * Clear HTML of all displayed code errors
@@ -116,147 +97,38 @@ function doError(e) {
 }
 window.doError = doError;
 
-//-------------------------------------------------------------------------------------------------------------------------
-//-------------------------------------------------------------------------------------------------------------------------
-//-------------------------------------------------------------------------------------------------------------------------
-//----------- LIVEPRINTER BACKEND JSON-RPC API ----------------------------------------------------------------------------
-//-------------------------------------------------------------------------------------------------------------------------
-//-------------------------------------------------------------------------------------------------------------------------
-
-window.maxCodeWaitTime = 4 * 60 * 1000; // max time the limiter waits for scheduled code before dropping job -- in ms
-
-function initLimiter() {
-    // Bottleneck rate limiter package: https://www.npmjs.com/package/bottleneck
-    // prevent more than 1 request from running at a time, provides priority queing
-    const _limiter = new Bottleneck({
-        maxConcurrent: 1,
-        highWater: 10000, // max jobs, good to set for performance
-        minTime: 25, // (ms) How long to wait after launching a job before launching another one.
-        strategy: Bottleneck.strategy.LEAK // cancel lower-priority jobs if over highwater
-    });
-
-    _limiter.on("error", (error) => {
-        /* handle errors here */
-        let errorTxt = error;
-        try {
-            errorTxt = `${JSON.stringify(error)}`;
-        }
-        catch (err) {
-            errorTxt = error + "";
-        }
-        doError(Error(errorTxt));
-        logerror(`Limiter error: ${errorTxt}`);
-    });
-
-    // Listen to the "failed" event
-    _limiter.on("failed", async (error, jobInfo) => {
-        const id = jobInfo.options.id;
-        Logger.warn(`Job ${id} failed: ${error}`);
-        logerror(`Job ${id} failed: ${error}`);
-        if (jobInfo.retryCount === 0) { // Here we only retry once
-            logerror(`Retrying job ${id} in 20ms!`);
-            return;
-        }
-        return 0;
-    });
-
-    _limiter.on("dropped", (dropped) => {
-        Logger.warn("limiter dropped:");
-        Logger.warn(dropped);
-        let errorTxt = "";
-        try {
-            errorTxt = `${JSON.stringify(dropped)}`;
-        }
-        catch (err) {
-            errorTxt = dropped + "";
-        }
-        doError(Error(errorTxt));
-        logerror(`Dropped job ${errorTxt}`);
-        //   This will be called when a strategy was triggered.
-        //   The dropped request is passed to this event listener.
-    });
-
-    return _limiter;
-}
-
-window.codeLimiter = initLimiter(); // runs code in a scheduler: see globalEval()
-window.codeLine = 0; // limiter again
-
-let limiter = initLimiter(); // Bottleneck rate limiter for priority async queueing
-
-const scheduleReservior = async () => {
-    const reservoir = await limiter.currentReservoir();
-    $("input[name='queued']")[0].value = reservoir;
-};
-
-function getQueued() {
-    return limiter.queued();
-}
-
-
 /**
- * Stops and clears the current queue of events. Should cancel all non-running actions. No new events can be added after this.
+ * Function to start or stop polling for printer state updates
+ * @param {Boolean} state true if starting, false if stopping
+ * @param {Integer} interval time interval between updates
+ * @memberOf LivePrinter
  */
-async function stopLimiter() {
-    if (limiter) {
-        await limiter.stop({ dropWaitingJobs: true });
-        limiter.disconnect(); // clear interval and allow memory to be freed
-        loginfo("Limiter stopped.");
-    }
-    limiter = null;
-    Logger.log("Shutdown completed!");
-    return;
-}
+const updatePrinterState = function (state, interval = 20000) {
+    const name = "stateUpdates";
 
-/**
- * Effectively cleares the current queue of events and restarts it. Should cancel all non-running actions.
- */
-async function restartLimiter() {
-    loginfo("Limiter restarting");
-    await stopLimiter();
-    limiter = initLimiter();
-    return;
-}
-window.restartLimiter = restartLimiter; // expose to GUI, FIXME
-
-
-/**
- * Send a JSON-RPC request to the backend, get a response back. See below implementations for details.
- * @param {Object} request JSON-RPC formatted request object
- * @returns {Object} response JSON-RPC response object
- */
-
-async function sendJSONRPC(request) {
-    //Logger.log(request)
-    let args = typeof request === "string" ? JSON.parse(request) : request;
-    //args._xsrf = getCookie("_xsrf");
-    //Logger.log(args);
-    let reqId = "req" + vars.requestId++; // shared with limiter - see above
-
-    if (vars.logAjax) commandsHandler.log(`SENDING ${reqId}::${request}`);
-
-    let response = "awaiting response";
-    try {
-        response = await $.ajax({
-            url: "http://localhost:8888/jsonrpc",
-            type: "POST",
-            data: JSON.stringify(args),
-            timeout: vars.ajaxTimeout // might be a long wait on startup... printer takes time to start up and dump messages
+    if (state) {
+        // schedule state updates every little while
+        taskListener.scheduler.scheduleEvent({
+            name: name,
+            delay: interval,
+            run: async (time) => {
+                try {
+                    const state = await liveprintercomms.getPrinterState();
+                    printerStateHandler(state);
+                }
+                catch (err) {
+                    doError(err);
+                }
+            },
+            repeat: true,
+            system: true // system event, non-cancellable by user
         });
+    } else {
+        // stop updates
+        scheduler.removeEventByName(name);
     }
-    catch (error) {
-        // statusText field has error ("timeout" in this case)
-        response = JSON.stringify(error, null, 2);
-        console.error(response);
-        logerror(response);
-    }
-    if (undefined !== response.error) {
-        logerror(response);
-    }
-
-    if (vars.logAjax) commandsHandler.log(`RECEIVED ${reqId}::${request}`);
-    return response;
-}
+};
+exports.updatePrinterState = updatePrinterState;
 
 /**
 * json-rpc printer state (connected/disconnected) event handler
@@ -320,7 +192,7 @@ const printerStateHandler = function (stateEvent) {
  * @param{Object} event json-rpc response (in json format)
  * @memberOf LivePrinter
  */
-const portsListHandler = async function (event) {
+const portsListHandler = function (event) {
     let ports = ["none"];
     try {
         ports = event.result[0].ports;
@@ -368,12 +240,22 @@ const portsListHandler = async function (event) {
             //$("#baudrates-list > button").addClass("disabled");
             //$("#serial-ports-list > button").addClass("disabled");
 
-            await setSerialPort({ port, baudRate });
-
-            await getPrinterState(); // check if we are conncected truly
+            try {
+                await setSerialPort({ port, baudRate });
+            }
+            catch (err) {
+                doError(err);
+            }
+            try {
+                const state = await getPrinterState(); // check if we are connected truly
+                printerStateHandler(state);
+            } catch (err) {
+                doError(err);
+            }
             $("#serial-ports-list > button").removeClass("active");
             me.addClass("active");
             $("#connect-btn").text("disconnect").addClass("active"); // toggle connect button
+
             return;
         });
         portsDropdown.append(newButton);
@@ -407,215 +289,6 @@ const portsListHandler = async function (event) {
 
     return;
 };
-
-
-/**
-* Get the list of serial ports from the server (or refresh it) and display in the GUI (the listener will take care of that)
-* @memberOf LivePrinter
-* @returns {Object} result Returns json object containing result
-*/
-async function getSerialPorts() {
-    const message = {
-        'jsonrpc': '2.0',
-        'id': 6,
-        'method': 'get-serial-ports',
-        'params': []
-    };
-    const result = await sendJSONRPC(JSON.stringify(message));
-
-    await portsListHandler(result);
-    return result;
-}
-// expose as global
-exports.getSerialPorts = getSerialPorts;
-
-/**
-    * Set the serial port from the server (or refresh it) and display in the GUI (the listener will take care of that)
-    * @memberOf LivePrinter
-    * @param {String} port Name of the port (machine)
-    * @returns {Object} result Returns json object containing result
-    */
-async function setSerialPort({ port, baudRate }) {
-    const message = {
-        'jsonrpc': '2.0',
-        'id': 5,
-        'method': 'set-serial-port',
-        'params': [port, baudRate]
-    };
-    const response = await sendJSONRPC(JSON.stringify(message));
-    if (undefined === response.result || undefined === response.result[0] || typeof response.result[0] === "string") {
-        logerror("bad response from set serialPort():");
-        logerror(JSON.stringify(response));
-    }
-    else {
-        loginfo("connected to port " + response.result[0].port[0] + " at baud rate " + response.result[0].port[1]);
-        loginfo("startup messages:");
-        for (const msg of response.result[0].messages) {
-            loginfo(msg);
-        }
-    }
-
-    return response;
-}
-// expose as global
-exports.setSerialPort = setSerialPort;
-
-/**
-    * Set the current commands line number on the printer (in case of resend)
-    * @memberOf LivePrinter
-    * @param {int} int new line number
-    * @returns {Object} result Returns json object containing result
-    */
-async function setCurrentLine(lineNumber) {
-    const message = {
-        'jsonrpc': '2.0',
-        'id': 7,
-        'method': 'set-line',
-        'params': [lineNumber]
-    };
-    const response = await sendJSONRPC(JSON.stringify(message));
-    if (undefined === response.result || undefined === response.result[0] || response.result[0].startsWith('ERROR')) {
-        logerror("bad response from set setCurrentLine():");
-        logerror(JSON.stringify(response));
-    }
-    else {
-        loginfo("set line number " + response.result[0].line);
-    }
-
-    return response;
-}
-// expose as global
-exports.setline = setCurrentLine;
-
-/**
-    * Get the connection state of the printer and display in the GUI (the listener will take care of that)
-    * @memberOf LivePrinter
-    * @returns {Object} result Returns json object containing result
-    */
-let gettingState = false;
-
-async function getPrinterState() {
-    if (!gettingState) {
-        const message = {
-            'jsonrpc': '2.0',
-            'id': 3,
-            'method': 'get-printer-state',
-            'params': []
-        };
-        const response = await sendJSONRPC(JSON.stringify(message));
-        if (undefined === response) {
-            logerror("bad response from set getPrinterState():");
-            logerror(JSON.stringify(response));
-        }
-        else {
-            printerStateHandler(response);
-        }
-        return response;
-    }
-    return null;
-}
-// expose as global
-exports.getPrinterState = getPrinterState;
-
-
-/**
- * Send GCode to the server via json-rpc over ajax.
- * @param {string} gcode gcode to send 
- * @memberOf LivePrinter
- * @returns {Object} result Returns json object containing result
- */
-async function sendGCodeRPC(gcode) {
-    let gcodeObj = { "jsonrpc": "2.0", "id": 4, "method": "send-gcode", "params": [] };
-    if (vars.logAjax) commandsHandler.log(`SENDING gcode ${gcode}`);
-
-    if (Array.isArray(gcode)) {
-        //Logger.debug("start array gcode[" + codeLine + "]");
-
-        const results = await Promise.all(gcode.map(async (_gcode) => {
-            if (!_gcode.startsWith(';')) // don't send comments
-            {
-                gcodeObj.params = [_gcode];
-                //Logger.log(gcodeObj);
-                const response = sendJSONRPC(JSON.stringify(gcodeObj));
-                response.then((result) => { Logger.debug(result); handleGCodeResponse(result) });
-                return response;
-            }
-        }));
-        //Logger.debug("finish array gcode[" + codeLine + "]");
-    } else {
-        //Logger.debug("single line gcode");
-        if (!gcode.startsWith(';')) // don't send comments
-        {
-            gcodeObj.params = [gcode];
-            const response = await sendJSONRPC(JSON.stringify(gcodeObj));
-            handleGCodeResponse(response);
-        }
-    }
-    if (vars.logAjax) commandsHandler.log(`DONE gcode ${gcode}`);
-    //Logger.debug(`DONE gcode ${codeLine}`);
-    return 1;
-}
-
-
-/**
- * Schedule GCode to be sent to the server, in order, using the limiter via json-rpc over ajax.
- * @param {string} gcode gcode to send
- * @param {Integer} priority Priority in queue (0-9 where 0 is highest)
- 
- * @memberOf LivePrinter
- * @returns {Object} result Returns json promise object containing printer response
- */
-async function scheduleGCode(gcode, priority = 4) { // 0-9, lower higher
-    let result = null;
-
-    if (vars.useLimiter) {
-        // use limiter for priority scheduling
-        let reqId = "req" + vars.requestId++;
-        if (vars.logAjax) commandsHandler.log(`SENDING ${reqId}`);
-        try {
-            result = await limiter.schedule(
-                { "priority": priority, weight: 1, id: reqId, expiration: maxCodeWaitTime },
-                async () => await sendGCodeRPC(gcode)
-            );
-        }
-        catch (err) {
-            logerror(`Error with ${reqId}:: ${err}`);
-        }
-        if (vars.logAjax) commandsHandler.log(`RECEIVED ${reqId}`);
-    }
-    return result;
-}
-
-exports.scheduleGCode = scheduleGCode;
-
-
-/**
- * Run GCode from the editor by sending to the server.
- * @memberOf LivePrinter
- * @param {string} _gcode gcode to send
- * @returns {Object} result Returns json object containing result
- */
-async function runEditorGCode(_gcode) {
-    let gcode = GCodeEditor.getSelection();
-    const cursor = GCodeEditor.getCursor();
-
-    // parse first??
-    let validCode = true;
-
-    if (!gcode) {
-        // info level
-        //Logger.log("no selections");
-        gcode = GCodeEditor.getLine(cursor.line);
-        GCodeEditor.setSelection({ line: cursor.line, ch: 0 }, { line: cursor.line, ch: gcode.length });
-    }
-    const result = await scheduleGCode(gcode);
-    // debugging:
-    //if (result.result !== undefined)
-    //    for (const res of result.result) {
-    //        Logger.debug(res);
-    //    }
-    return result;
-}
 
 
 $("#log-requests-btn").on("click", async function (e) {
@@ -721,89 +394,16 @@ $("#temp-display-btn").on("click", async function (e) {
 
 
 
-/**
- * Function to start or stop polling for printer state updates
- * @param {Boolean} state true if starting, false if stopping
- * @param {Integer} interval time interval between updates
- * @memberOf LivePrinter
- */
-const updatePrinterState = function (state, interval = 20000) {
-    const name = "stateUpdates";
-
-    if (state) {
-        // schedule state updates every little while
-        scheduler.scheduleEvent({
-            name: name,
-            delay: interval,
-            run: async (time) => {
-                await getPrinterState();
-            },
-            repeat: true,
-            system: true // system event, non-cancellable by user
-        });
-    } else {
-        // stop updates
-        scheduler.removeEventByName(name);
-    }
-};
-
 /*
-* START SETTING UP SESSION VARIABLES ETC>
-* **************************************
-* 
-*/
+ * START SETTING UP SESSION VARIABLES ETC>
+ * **************************************
+ * 
+ */
 
 //////////////////////////////////////////////////////////////////////
 // Listeners for printer events  /////////////////////////////////////
 //////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////
-
-
-
-function handleGCodeResponse(res) {
-    ///
-    /// should only get 4 back (result from gcode)
-    ///
-    switch (res.id) {
-        case 1: loginfo("1 received");
-            /// catch: there is no 1!
-            break;
-        case 2: loginfo("close serial port received");
-            break;
-        case 3: loginfo("printer state received");
-            // keys: time, port, state
-            break;
-        case 4: //loginfo("gcode response");
-            if (res.result !== undefined) {
-                for (const rr of res.result) {
-                    //loginfo('gcode reply:' + rr);
-                    if (rr.startsWith('ERROR')) {
-                        logerror(rr);
-                    }
-                    else if (!moveHandler(rr)) {
-                        if (!rr.match(/ok/i)) loginfo(rr);
-                        else
-                            if (rr.match(/[Ee]rror/)) doError(rr);
-                            else if (tempParser(rr)) {
-                                Logger.debug('temperature event handled');
-                            }
-                    }
-                }
-            }
-            break;
-        case 5: loginfo("connection result");
-            if (res.result !== undefined) {
-                // keys: time, port, messages
-                loginfo(res.result);
-            }
-            break;
-        case 6: loginfo("port names");
-            break;
-        default: loginfo(res.id + " received");
-    }
-    updateGUI(); // update after response
-}
-
 
 /**
  * json-rpc temperature event handler
@@ -826,8 +426,6 @@ async function updateTemperature(interval = 5000) {
         tempHandler,
         3); // higher priority
 }
-
-
 
 /**
  * json-rpc error event handler
@@ -943,8 +541,12 @@ function appendLoggingNode(elem, time, message) {
 
 exports.appendLoggingNode = appendLoggingNode;
 
-var taskListener =
+const taskListener =
 {
+    _scheduler: null,
+    get scheduler() { return this._scheduler },
+    set scheduler(s) { this._scheduler = s },
+
     EventRemoved: function (task) {
         Logger.log("event removed:");
         Logger.log(task);
@@ -964,7 +566,7 @@ var taskListener =
             + "</li>");
 
         $('#task-' + task.name).on('close.bs.alert',
-            () => scheduler.removeEventByName(task.name)
+            () => this.scheduler.removeEventByName(task.name)
         );
     },
 
@@ -979,45 +581,8 @@ var taskListener =
     }
 };
 
-scheduler.addEventsListener(taskListener);
+exports.taskListener = taskListener;
 
-/**
- * Add a cancellable task to the scheduler and also the GUI 
- * @param {Any} task either scheduled task object or name of task plus a function for next arg
- * @param {Function} func Async function, if name was passed as 1st arg
- * @memberOf LivePrinter
- */
-function addTask(task, interval, func) {
-
-    if (func === undefined) {
-        //try remove first
-        scheduler.removeEventByName(task.name);
-        scheduler.scheduleEvent(task);
-    }
-    else {
-        if (typeof task === "string" && func === undefined) throw new Error("AddTask: no function passed!");
-        //try remove first
-        scheduler.removeEventByName(task);
-        const t = new Task;
-        t.name = task;
-        t.delay = interval;
-        t.run = func;
-        scheduler.scheduleEvent(t);
-    }
-}
-exports.addTask = addTask;
-
-function getTask(name) {
-    return scheduler.getEventByName(name);
-}
-
-exports.getTask = getTask;
-
-function removeTask(name) {
-    return scheduler.removeEventByName(name);
-}
-
-exports.removeTask = removeTask;
 
 
 /**
@@ -1044,7 +609,7 @@ function loginfo(text) {
 }
 
 exports.loginfo = loginfo;
-window.loginfo = loginfo;
+window.loginfo = loginfo; //cheat, for livecoding...
 
 /**
 * Log a line of text to the logging panel on the right side
@@ -1071,7 +636,7 @@ function logerror(text) {
 
 // make global
 exports.logerror = logerror;
-window.logerror = logerror;
+window.logerror = logerror;  //cheat, for livecoding...
 
 /**
  * Attach an external script (and remove it quickly). Useful for adding outside libraries.
@@ -1098,7 +663,7 @@ function attachScript(url) {
     }
 }
 exports.attachScript = attachScript;
-window.attachScript = attachScript;
+window.attachScript = attachScript;  //cheat, for livecoding...
 
 
 /**
@@ -1129,12 +694,10 @@ async function downloadFile(data, filename, type) {
 exports.downloadFile = downloadFile;
 
 
-/////////////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////// GUI SETUP /////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////// GUI SETUP ///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
 function updateGUI() {
     $("input[name='x']").val(printer.x);
@@ -1145,7 +708,8 @@ function updateGUI() {
     $("input[name='speed']").val(printer.printSpeed);
     $("input[name='retract']").val(printer.currentRetraction);
 }
-window.updateGUI = updateGUI;
+exports.updateGUI = updateGUI;
+window.updateGUI = updateGUI;  //cheat, for livecoding...
 
 /**
  * blink an element using css animation class
@@ -1237,8 +801,7 @@ async function globalEval(code, line, globally = false) {
                 '} catch (e) { lastErrorMessage = null;e.lineNumber=' + line + ';Logger.log(e);window.doError(e); }';
 
             // prefix with locals to give quick access to liveprinter API
-            code = "let lp = window.printer;" +
-                "let stop = window.restartLimiter;" +
+            code = "let stop = window.restartLimiter;" +
                 code;
 
             // wrap in global function call
@@ -1270,16 +833,10 @@ async function globalEval(code, line, globally = false) {
 }
 // end globalEval
 
-
 exports.globalEval = globalEval;
 
 
-const start = async function () {
-
-    /// attach listeners
-
-    printer.addGCodeListener({ gcodeEvent: sendGCodeRPC });
-    printer.addErrorListener({ errorEvent: doError });
+const init = async function () {
 
     ///--------------------------------------
     ///---------setup GUI--------------------
@@ -1367,22 +924,19 @@ const start = async function () {
             this.working = true;
         }
         else {
-            await getSerialPorts();
+            try {
+                const portsList = await getSerialPorts();
+                await portsListHandler(portsList);
+            }
+            catch (err) {
+                doError(err);
+            }
+
             this.working = false;
         }
         return true;
     });
 
-    ///----------------------------------------------------------------------------
-    ///--------Start running things------------------------------------------------
-    ///----------------------------------------------------------------------------
-
-    // start scheduler!
-    scheduler.startScheduler();
-
-    await getSerialPorts();
-
-    updatePrinterState(true); // start updating printer connection state
     // disable form reloading on code compile
     $('form').submit(false);
 
@@ -1393,9 +947,9 @@ const start = async function () {
 
 
     /// Clear printer queue on server 
-    $("#clear-btn").on("click", restartLimiter);
+    $("#clear-btn").on("click", liveprintercomms.restartLimiter);
+
+    updatePrinterState(true);
 };
 
-exports.start = start;
-
-exports.vars = vars;
+exports.init = init;

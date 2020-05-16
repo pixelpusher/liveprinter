@@ -2,31 +2,23 @@
 
 window.$ = window.jquery = require('jquery');
 
-const fext = require('./fext'); // recursion library
+const util = require('./util');
 
-const Vector = require ('./util').Vector;
-const scales = require ('./util').scales;
-
-const repeat = require ('./util').repeat;
-window.repeat = repeat;
-
-const numrange = require ('./util').numrange;
-window.numrange = numrange;
-
-const countto = require ('./util').countto;
-window.countto = countto;
+window.repeat = util.repeat;
+window.numrange = util.numrange;
+window.countto = util.countto;
 
 const Printer = require('./liveprinter.printer'); // printer API object
 
 // liveprinter object
 const printer = new Printer();
 
-if (window.printer) delete window.printer;
-window.printer = printer; // make available to all scripts later on, pollutes but oh well... FIXME
+if (window.lp) delete window.printer;
+window.lp = printer; // make available to all scripts later on and livecoding... not great
 
 const editors = require('./liveprinter.editor'); // code editors and functions
-
-const liveprinterComms = require('./liveprinter.ui'); // main ui and server comms
+const liveprinterui = require('./liveprinter.ui'); // main ui
+const liveprintercomms = require('./liveprinter.comms'); // browser-to-server communications
 
 //console.log(scales.majPattern); // test
 
@@ -53,7 +45,77 @@ const liveprinterComms = require('./liveprinter.ui'); // main ui and server comm
     var bootstrap = require('bootstrap');
 
     await editors.init(); // create editors and setup live editing functions
-    await liveprinterComms.start(); // start server communications and setup UI
+    await liveprinterui.init(); // start server communications and setup UI
+
+        /// attach listeners
+
+        printer.addGCodeListener({ gcodeEvent: liveprintercomms.sendGCodeRPC });
+        printer.addErrorListener({ errorEvent: liveprinterui.doError });
+        
+        ///
+        /// add GCode listener to capture compiles GCode to editor
+        printer.addGCodeListener(
+            { gcodeEvent: async (gcode) => editors.recordGCode(editors.GCodeEditor, gcode) }
+        );
+    
+    ///----------------------------------------------------------------------------
+    ///--------Start running things------------------------------------------------
+    ///----------------------------------------------------------------------------
+
+    // start task scheduler!
+    const scheduler = new util.Scheduler();
+    liveprinterui.taskListener.scheduler = scheduler;
+
+    // register GUI handler for scheduled tasks events 
+    scheduler.addEventsListener(liveprinterui.taskListener);
+
+    
+    ////
+    /// Livecoding tasks API -- sort of floating here, for now
+    ///
+    /**
+     * Add a cancellable task to the scheduler and also the GUI 
+     * @param {Any} task either scheduled task object or name of task plus a function for next arg
+     * @param {Function} func Async function, if name was passed as 1st arg
+     * @memberOf LivePrinter
+     */
+    function addTask(scheduler, task, interval, func) {
+
+        if (func === undefined) {
+            //try remove first
+            scheduler.removeEventByName(task.name);
+            scheduler.scheduleEvent(task);
+        }
+        else {
+            if (typeof task === "string" && func === undefined) throw new Error("AddTask: no function passed!");
+            //try remove first
+            scheduler.removeEventByName(task);
+            const t = new Task;
+            t.name = task;
+            t.delay = interval;
+            t.run = func;
+            scheduler.scheduleEvent(t);
+        }
+    }
+    window.addTask = addTask;
+
+    function getTask(scheduler, name) {
+        return scheduler.getEventByName(name);
+    }
+
+    window.getTask = getTask;
+
+    function removeTask(scheduler, name) {
+        return scheduler.removeEventByName(name);
+    }
+
+    window.removeTask = removeTask;
+    ///
+    /// --------- End livecoding tasks API -------------------------
+    ///
+
+    // get serial ports, to start things
+    await liveprintercomms.getSerialPorts();
 
 })(global).catch(err => {
     console.error(err);

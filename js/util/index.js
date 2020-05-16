@@ -6,7 +6,6 @@ exports.Logger = require('./logger');
 exports.Vector = require('./vector');
 exports.scales = require('./scales');
 
-
 /**
  * Strip GCode comments from text. Comments can be embedded in a line using parentheses () or for the remainder of a lineusing a semi-colon.
  * The semi-colon is not treated as the start of a comment when enclosed in parentheses.
