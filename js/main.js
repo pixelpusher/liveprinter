@@ -9,13 +9,6 @@ window.numrange = util.numrange;
 window.countto = util.countto;
 
 const Printer = require('./liveprinter.printer'); // printer API object
-
-// liveprinter object
-const printer = new Printer();
-
-if (window.lp) delete window.printer;
-window.lp = printer; // make available to all scripts later on and livecoding... not great
-
 const editors = require('./liveprinter.editor'); // code editors and functions
 const liveprinterui = require('./liveprinter.ui'); // main ui
 const liveprintercomms = require('./liveprinter.comms'); // browser-to-server communications
@@ -44,32 +37,37 @@ const liveprintercomms = require('./liveprinter.comms'); // browser-to-server co
     require('popper.js'); // for bootstrap
     var bootstrap = require('bootstrap');
 
-    await editors.init(); // create editors and setup live editing functions
-    await liveprinterui.init(); // start server communications and setup UI
+    // liveprinter object
+    const printer = new Printer();
 
-        /// attach listeners
-
-        printer.addGCodeListener({ gcodeEvent: liveprintercomms.sendGCodeRPC });
-        printer.addErrorListener({ errorEvent: liveprinterui.doError });
-        
-        ///
-        /// add GCode listener to capture compiles GCode to editor
-        printer.addGCodeListener(
-            { gcodeEvent: async (gcode) => editors.recordGCode(editors.GCodeEditor, gcode) }
-        );
-    
-    ///----------------------------------------------------------------------------
-    ///--------Start running things------------------------------------------------
-    ///----------------------------------------------------------------------------
+    if (window.lp) delete window.printer;
+    window.lp = printer; // make available to all scripts later on and livecoding... not great
 
     // start task scheduler!
     const scheduler = new util.Scheduler();
-    liveprinterui.taskListener.scheduler = scheduler;
 
     // register GUI handler for scheduled tasks events 
     scheduler.addEventsListener(liveprinterui.taskListener);
 
-    
+    await editors.init(); // create editors and setup live editing functions
+    await liveprinterui.init(printer, scheduler); // start server communications and setup UI
+
+    /// attach listeners
+
+    printer.addGCodeListener({ gcodeEvent: liveprintercomms.sendGCodeRPC });
+    printer.addErrorListener({ errorEvent: liveprinterui.doError });
+
+    ///
+    /// add GCode listener to capture compiles GCode to editor
+    printer.addGCodeListener(
+        { gcodeEvent: async (gcode) => editors.recordGCode(editors.GCodeEditor, gcode) }
+    );
+
+    ///----------------------------------------------------------------------------
+    ///--------Start running things------------------------------------------------
+    ///----------------------------------------------------------------------------
+
+
     ////
     /// Livecoding tasks API -- sort of floating here, for now
     ///
@@ -115,7 +113,8 @@ const liveprintercomms = require('./liveprinter.comms'); // browser-to-server co
     ///
 
     // get serial ports, to start things
-    await liveprintercomms.getSerialPorts();
+    const portsReponse = await liveprintercomms.getSerialPorts();
+    liveprinterui.portsListHandler(portsReponse);
 
 })(global).catch(err => {
     console.error(err);

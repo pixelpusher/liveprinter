@@ -20,6 +20,8 @@ const MarlinParsers = require('./parsers/MarlinParsers');
 const util = require('./util'); // utility functions
 const Logger = util.Logger;
 
+const compile = require('./language/compile'); // minigrammar compile function
+
 var $ = require('jquery');
 
 const liveprintercomms = require('./liveprinter.comms');
@@ -27,6 +29,9 @@ const liveprintercomms = require('./liveprinter.comms');
 let lastErrorMessage = "none"; // last error message for GUI
 
 const vars = liveprintercomms.vars;
+
+let scheduler = null; // task scheduler, see init()
+let printer = null; // liveprinter printer object
 
 /**
  * Clear HTML of all displayed code errors
@@ -106,26 +111,30 @@ window.doError = doError;
 const updatePrinterState = function (state, interval = 20000) {
     const name = "stateUpdates";
 
-    if (state) {
-        // schedule state updates every little while
-        taskListener.scheduler.scheduleEvent({
-            name: name,
-            delay: interval,
-            run: async (time) => {
-                try {
-                    const state = await liveprintercomms.getPrinterState();
-                    printerStateHandler(state);
-                }
-                catch (err) {
-                    doError(err);
-                }
-            },
-            repeat: true,
-            system: true // system event, non-cancellable by user
-        });
+    if (!scheduler) {
+        logerror("Warning: printer state update called but no scheduler!");
     } else {
-        // stop updates
-        scheduler.removeEventByName(name);
+        if (state) {
+            // schedule state updates every little while
+            scheduler.scheduleEvent({
+                name: name,
+                delay: interval,
+                run: async (time) => {
+                    try {
+                        const state = await liveprintercomms.getPrinterState();
+                        printerStateHandler(state);
+                    }
+                    catch (err) {
+                        doError(err);
+                    }
+                },
+                repeat: true,
+                system: true // system event, non-cancellable by user
+            });
+        } else {
+            // stop updates
+            scheduler.removeEventByName(name);
+        }
     }
 };
 exports.updatePrinterState = updatePrinterState;
@@ -185,7 +194,7 @@ const printerStateHandler = function (stateEvent) {
     }
 };
 
-
+exports.printerStateHandler = printerStateHandler;
 
 /**
  * json-rpc serial ports list event handler
@@ -241,13 +250,13 @@ const portsListHandler = function (event) {
             //$("#serial-ports-list > button").addClass("disabled");
 
             try {
-                await setSerialPort({ port, baudRate });
+                await liveprintercomms.setSerialPort({ port, baudRate });
             }
             catch (err) {
                 doError(err);
             }
             try {
-                const state = await getPrinterState(); // check if we are connected truly
+                const state = await liveprintercomms.getPrinterState(); // check if we are connected truly
                 printerStateHandler(state);
             } catch (err) {
                 doError(err);
@@ -290,6 +299,7 @@ const portsListHandler = function (event) {
     return;
 };
 
+exports.portsListHandler = portsListHandler;
 
 $("#log-requests-btn").on("click", async function (e) {
     let me = $(this);
@@ -332,13 +342,38 @@ async function requestRepeat(gcode, activeElem, delay, func, priority = 1) {
     return true;
 }
 
+$("#temp-display-btn").on("click", async function (e) {
+    let me = $(this);
+    let doUpdates = !me.hasClass('active'); // because it becomes active *after* a push
+    if (doUpdates) {
+        me.text("stop polling temperature");
+        updateTemperature();
+    }
+    else {
+        me.text("start polling Temperature");
+    }
+    me.button('toggle');
+});
+
+
+
+/*
+ * START SETTING UP SESSION VARIABLES ETC>
+ * **************************************
+ * 
+ */
+
+//////////////////////////////////////////////////////////////////////
+// Listeners for printer events  /////////////////////////////////////
+//////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////
 
 /**
  * Parse temperature response from printer firmware (Marlin)
  * @param {String} data serial response from printer firmware (Marlin)
  * @return {Boolean} true or false if parsed or not
  */
-const tempParser = (data) => {
+const tempHandler = (data) => {
     let parsed = true;
 
     if (undefined !== data.hotend) {
@@ -377,53 +412,13 @@ const tempParser = (data) => {
     }
     return parsed;
 };
-
-
-$("#temp-display-btn").on("click", async function (e) {
-    let me = $(this);
-    let doUpdates = !me.hasClass('active'); // because it becomes active *after* a push
-    if (doUpdates) {
-        me.text("stop polling temperature");
-        updateTemperature();
-    }
-    else {
-        me.text("start polling Temperature");
-    }
-    me.button('toggle');
-});
-
-
-
-/*
- * START SETTING UP SESSION VARIABLES ETC>
- * **************************************
- * 
- */
-
-//////////////////////////////////////////////////////////////////////
-// Listeners for printer events  /////////////////////////////////////
-//////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////
-
-/**
- * json-rpc temperature event handler
- * @param {Object} tempEvent JSON-RPC event result
- * @return {Any} result or parser
- * @memberOf LivePrinter
- */
-const tempHandler = (tempEvent) => {
-    //Logger.log("temp event:");
-    //Logger.log(tempEvent);
-    const data = tempEvent.result[0];
-
-    return tempParser(tempEvent.result[0]); // first object in results array
-};
+exports.tempHandler = tempHandler;
 
 async function updateTemperature(interval = 5000) {
     return requestRepeat("M105", //get temp
         $("#temp-display-btn"), // temp button
         interval,
-        tempHandler,
+        (res) => tempHandler(res.result[0]),
         3); // higher priority
 }
 
@@ -541,12 +536,10 @@ function appendLoggingNode(elem, time, message) {
 
 exports.appendLoggingNode = appendLoggingNode;
 
-const taskListener =
-{
-    _scheduler: null,
-    get scheduler() { return this._scheduler },
-    set scheduler(s) { this._scheduler = s },
 
+
+const taskListenerUI =
+{
     EventRemoved: function (task) {
         Logger.log("event removed:");
         Logger.log(task);
@@ -566,7 +559,7 @@ const taskListener =
             + "</li>");
 
         $('#task-' + task.name).on('close.bs.alert',
-            () => this.scheduler.removeEventByName(task.name)
+            () => scheduler.removeEventByName(task.name)
         );
     },
 
@@ -580,8 +573,6 @@ const taskListener =
         blinkElem($('#task-' + task.name));
     }
 };
-
-exports.taskListener = taskListener;
 
 
 
@@ -836,7 +827,24 @@ async function globalEval(code, line, globally = false) {
 exports.globalEval = globalEval;
 
 
-const init = async function () {
+/**
+ * 
+ * @param {Scheduler} _scheduler Scheduler object to use for tasks, repeating events, etc. If
+ *  undefined, will crearte new one. 
+ */
+const init = async function (_printer, _scheduler) {
+
+    if (!_printer) {
+        logerror("FATAL error: no liveprinter object in gui init()!");
+        return;
+    }
+    else {
+        printer = _printer;
+    }
+
+    // we can use our own, or the one passed in
+    if (!_scheduler) scheduler = new util.Scheduler();
+    else scheduler = _scheduler;
 
     ///--------------------------------------
     ///---------setup GUI--------------------

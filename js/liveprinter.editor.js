@@ -132,6 +132,8 @@ function recordGCode(editor, gcode) {
     return usefulGCode;
 }
 
+exports.recordGCode = recordGCode;
+
 /**
  * This function takes the highlighted "local" code from the editor and runs the compiling and error-checking functions.
  * @memberOf LivePrinter
