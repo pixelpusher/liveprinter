@@ -30,7 +30,7 @@ class SerialDevice():
         self.gcode_logger = logging.getLogger("{name}.gcode".format(name=__name__))
         self.serial_logger = logging.getLogger("{name}.serial".format(name=__name__))
         self.gcode_logger.setLevel(logging.DEBUG)
-        self.serial_logger.setLevel(logging.ERROR)
+        self.serial_logger.setLevel(logging.DEBUG)
 
         # create file handler which logs even debug messages
         gcode_fh = logging.FileHandler(os.path.join(logpath, "gcode-{time}.log".format(time=time.time())))
@@ -48,28 +48,37 @@ class SerialDevice():
     # async connect - returns a future
     #
     async def async_connect(self):
-        result = ""
+        result = []
+
+        if self._serial_port == "/dev/null": # fake serial port
+            self.connection_state = ConnectionState.connected
+            result.append("FIRMWARE VERSION: DUMMY")
+            self.serial_logger.debug("DUMMY SERIAL OPEN")
+
+            return result
+        else:
+            self.serial_logger.debug("self port: ::{}::".format(self._serial_port))
+
         self.commands_sent = 1 # reset on each connection
         try:
             self._serial = Serial(str(self._serial_port), self._baud_rate, timeout=self._timeout, writeTimeout=self._timeout)
             if self._serial.is_open:
                 self.serial_logger.debug("SERIAL OPEN")
                 self.connection_state = ConnectionState.connected
-                result = "open"
+                result.append("open")
             else:
                 self.serial_logger.debug("SERIAL NOT OPEN")
                 self.connection_state = ConnectionState.closed
-                result = "closed"
+                result.append("closed")
         except SerialException as e:
             print("An exception occured while trying to create serial connection: {}".format(repr(e)))
-            result = "nope"
+            result.append("nope")
             self.connection_state = ConnectionState.closed
             self.serial_logger.error("An exception occurred while trying to create serial connection: {}".format(repr(e)))
             #raise
         else:
             # the printer is quite chatty on startup, but takes a second or so
             # to reboot when connected
-            result = []
             newline = ""
             timeout = 10 # max time to wait in seconds
             start_time = time.time()
@@ -85,7 +94,7 @@ class SerialDevice():
             while time.time() - start_time < timeout:
                 new_line = await self.read_response()
                 new_line = str(new_line).rstrip('\n\r')
-                if new_line is not "":
+                if new_line != "":
                     result.append(new_line)
                     got_something = True
                 else:
@@ -164,7 +173,7 @@ class SerialDevice():
                     result.append("ERROR: Serial communication timed out whilst sending {command}:{current}".format(command=cmd_to_send, current=self.commands_sent))
                     return result
 
-                if self._serial_port is "/dev/null": # fake serial port
+                if self._serial_port == "/dev/null": # fake serial port
                     cmd_to_send = str(cmd).encode()
                 else:
                     checksum = functools.reduce(lambda x, y: x ^ y, map(ord, "N%d%s" % (self.commands_sent, cmd)))
@@ -215,7 +224,7 @@ class SerialDevice():
                     #break # exit loop
 
                 new_line = await self.read_response()
-                if new_line is not "":
+                if new_line != "":
                     line = str(new_line)
                     lowerline = line.lower()
 
@@ -372,7 +381,7 @@ class SerialDevice():
 
             new_line = await self.read_response()
             
-            if new_line is not "":
+            if new_line != "":
                 line = str(new_line)
                 lowerline = line.lower()
 
@@ -404,7 +413,7 @@ class SerialDevice():
             # raise
 
         # only process if there's something to process
-        if line is not "":              
+        if line != "":              
             # this format seems to work best for cross-platform Marlin printers
             line = line.decode('cp437')
             # print("SerialDevice(334): line: {}".format(line))

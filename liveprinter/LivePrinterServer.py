@@ -66,7 +66,7 @@ define("port", default=8888, help="run on the given port", type=int)
 
 logger = tornado.log.app_log
 
-logger.setLevel(logging.ERROR)
+logger.setLevel(logging.DEBUG)
 # create file handler which logs even debug messages
 server_log = logging.FileHandler(
     os.path.join(
@@ -220,8 +220,10 @@ async def json_handle_set_serial_port(printer, *args):
 
     if port.lower().startswith("dummy"):
         if (printer.connection_state is ConnectionState.connected):
-            printer.printer.connection_state = ConnectionState.closed
+            printer.connection_state = ConnectionState.closed
             printer._serial.close()
+        
+        logger.debug("setting dummy serial port: {}".format(port))
 
         printer._baud_rate = baud_rate
         use_dummy_serial_port(printer)
@@ -233,19 +235,19 @@ async def json_handle_set_serial_port(printer, *args):
         printer._serial_port = port
         printer._baud_rate = baud_rate
 
-        try:
-            received = await printer.async_connect()
+    try:
+        received = await printer.async_connect()
 
-        except SerialException:
-            response = ["ERROR: could not connect to serial port {}".format(port)]
-            logger.error(response[0])
-            # raise Exception(response)
-        else:
-            response = [{
-                    'time': time.time() * 1000,
-                    'port': [port, baud_rate],
-                    'messages': received
-                    }]
+    except SerialException:
+        response = ["ERROR: could not connect to serial port {}".format(port)]
+        logger.error(response[0])
+        # raise Exception(response)
+    else:
+        response = [{
+                'time': time.time() * 1000,
+                'port': [port, baud_rate],
+                'messages': received
+                }]
     return response
 
 #
