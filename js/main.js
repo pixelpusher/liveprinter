@@ -40,7 +40,7 @@ const liveprintercomms = require('./liveprinter.comms'); // browser-to-server co
     // liveprinter object
     const printer = new Printer();
 
-    if (window.lp) delete window.printer;
+    if (window.lp) delete window.lp;
     window.lp = printer; // make available to all scripts later on and livecoding... not great
 
     // start task scheduler!
