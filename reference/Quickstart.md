@@ -1,5 +1,7 @@
 # Using LivePrinter
 
+---
+
 _v1.0.2 by Evan Raskob, 2020_
 
 ## Basics
@@ -10,12 +12,17 @@ _v1.0.2 by Evan Raskob, 2020_
 
 ### Step 3:  start LivePrinter server (Use Visual Studio Code, or your favourite Python environment)
 
-### Step 4: open http:
-localhost:8888 (and here you are!)
+### Step 4: Open a web browser
 
-### Step 5: click printer settings tab, select serial port. Wait for connection messages and green dots to move up top.
+Open http://localhost:8888 and get ready to connect.
 
-### Step 6: click code tab to load editor:
+### Step 5: click printer settings tab, select serial port. 
+
+Wait for connection messages and green dots to move up top. This can take a few seconds, up to 30.
+
+### Step 6: click code tab to load editor
+
+Livecode in the editor!
 
 - Single lines of liveprinter code start with '#'
 - Blocks of liveprinter code start and end with '##' (more on this later)
@@ -25,7 +32,11 @@ If there's a problem with your code, it should pop up at the top of this editor.
 
 If it's a problem with the system, you might have to open the JavaScript console for your web browser.
 
-### Step 7: Home the axes so the printer knows where the print head is positioned. (Do this every time it loses power). Set print head temperature to 210 (for PLA) and turn on print head fan:
+There are examples in the editor tab with the arrow to get you started, one of these is this quickstart.
+
+### Step 7: Home the axes so the printer knows where the print head is positioned. 
+
+Do this every time it loses power! Also, it sets the print head temperature to 210 (for PLA) and turn on print head fan:
 
 ```
 # start 210
@@ -87,24 +98,23 @@ Now your printer is ready to print! (When the target temperature of 210C is reac
 
 ## MOVING (traveling)
 
---------------------------------------------------------
+---
 
- Try moving - you can do this whilst it warms up:
-
+Try moving - you can do this whilst it warms up:
 
 absolute move to x=20mm, y=20mm at speed 80mm/s:
+
 ```
 # moveto x:20 y:20 speed:80
 ```
-
 
  you can also use the shorthand:
 ```
 # mov2 x:20 y:20 speed:80
 ```
 
+relative move at 1/2 the speed - we should be at x,y (60,20) now.
 
- relative move at 1/2 the speed - we should be at x,y (60,20) now.
 ```
 # move x:40 speed:40
 ```
@@ -115,26 +125,28 @@ You can move up and down too: try moving the print head down 10mm (meaning the b
 # mov z:-10
 ```
 
-Lower the bed to 50mm less than the bottom:
+Raise the print head to 50mm below the top (z of 0 is where the print head touches the print surface):
 
 ```
 # moveto z:lp.maxz-50 speed:40
 ```
 
 ## EXTRUDING (drawing)
+
 ---
 
-### Extrude some plastic! 16mm to be exact.
+### Extrude some plastic! 
+
+5mm to be exact, although you should repeat this until you see a stream of plastic come out of the head.
 
 You can move the filament directly (the 'e' dimension), and negative is backwards.
 
-Watch the speed! Slow is good here, otherwise you'll force the material through the 
-
-extruder too quickly and it will grind it. 
+Watch the speed! Slow is good here, otherwise you'll force the material through the extruder too quickly and it will grind it. 
 
 ```
 # extrude e:5 speed:1
 ```
+
 Repeat that until some gunk comes out of the head in a nice stream.
 
 ### Retracting
@@ -158,11 +170,10 @@ Move to the centre of the bed, with the head at a the layer height (0.2mm defaul
 # moveto x:lp.cx y:lp.cy z:lp.layerHeight speed:80
 ```
 
-
 Let's slowly extrude to a set position from here. When finished, you should see a 40mm horizontal line. First, we'll unretract (prime the filament). Highlight these two lines of code (and the `##` around them) and hit CTRL+ENTER to run them together:
 
 ```
-## 
+##
 unretract
 extrudeto x:lp.minx+40 y:lp.miny speed:20
 ##
@@ -180,8 +191,8 @@ Great! Lift up the print head so you can see what you made:
 # up 50
 ```
 
-
 ## DRAWING AND TRAVELING
+
 ---
 
  The draw and travel functions use the current heading (lp.angle) to move.
@@ -191,11 +202,13 @@ Great! Lift up the print head so you can see what you made:
 
  Clean your build plate and let's try again. Move back into printing position:
 ```
+
 # moveto x:lp.cx y:lp.cy z:lp.layerHeight speed:80
 ```
 
 Move (don't draw) at an angle of 20 degrees (if moving to the right on the x axis as 0 degrees) at a distance of 30mm:
 ```
+
 # turnto 20
 # travel 30
 ```
@@ -235,6 +248,7 @@ You can also chain together commands. When you do, they are run in order from le
 ```
 
 ## Shortcuts
+
 ---
 
 You can use shorter versions for brevity (at the loss of readability)
@@ -247,3 +261,5 @@ You can use shorter versions for brevity (at the loss of readability)
 - tur2 => turnto;
 - psp => printspeed: set/get printSpeed
 - tsp => travelspeed: set/get move speed
+- ret => retract
+- unret => unretract
