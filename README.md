@@ -138,13 +138,15 @@ There is [an API and function reference for the client end](https://pixelpusher.
 
 It makes sense (in general, not just for this project) to do Python development using isolated [virtual environments](https://virtualenv.pypa.io/en/stable/), to prevent contamination or clashes between modules and utilities by keeping all configuration sandboxed. This requires a global installation of `virtualenv`. After that we can do (on macOS and Linux at least):
 
-        virtualenv --python=python3 ~/Desktop/venv3
+        cd LIVEPRINTER_MAIN_FOLDER
+        cd liveprinter
+        virtualenv --python=python3 ./venv3
                 # create a Python 3 virtual environment
-        . ~/Desktop/venv3/bin/activate
+        . /venv3/bin/activate
                 # activate the environment
         pip install --upgrade pip
                 # get the latest pip in the virtual environment (probably not essential)
-        pip install tornado pyserial json-rpc
+        pip install tornado pyserial tornado_jsonrpc2
                 # get the libraries we need
         python LivePrinterServer.py
                 # launch the server in the Python 3 sandbox  
