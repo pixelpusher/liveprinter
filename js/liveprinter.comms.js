@@ -158,7 +158,7 @@ async function sendJSONRPC(request) {
     let response = "awaiting response";
     try {
         response = await $.ajax({
-            url: "http://localhost:8888/jsonrpc",
+            url: `${location.protocol}//${location.host}/jsonrpc`,
             type: "POST",
             data: JSON.stringify(args),
             timeout: vars.ajaxTimeout // might be a long wait on startup... printer takes time to start up and dump messages
