@@ -1,0 +1,63 @@
+/*
+
+go: 
+
+wait 
+or
+use stored vars to convert to cartesian
+run extrudeto
+
+*/
+
+
+
+/*
+extrudeto
+let extrusionSpecified = (params.e !== undefined);
+        // set retract, but if only e given don't retract (that would be dumb)
+        // remember that a retract setting here overrides internal autoretract!
+        let retract = (params.retract === undefined) ? !extrusionSpecified && this._autoRetract : params.retract; // don't retract if given e value alone, no matter what
+
+        if (Math.abs(__e - this.e) > 0.01) 
+        {
+            this.currentRetraction = 0; //clear retraction if we go manual
+        }
+
+*/
+
+digraph retract {
+    splines="TRUE";
+
+    /* Entities */
+    start [label=<start<br/>movement>, shape="circle" ]
+    
+    checkextruding [label=<extrusion<br/>specified?> shape="diamond"]    
+    
+    unretract [label=<unretract> shape="rect"]
+
+    //error [label=<throw error> shape="doubleoctagon"]
+    
+    // wait [label=<wait for<br/>
+    // response from<br/>
+    // printer>]
+
+    quit [shape="octagon"]
+
+
+    /* Relationships */
+    start -> checkextruding
+
+    checkextruding -> unretract [label=<yes<br/>(printing)>]
+
+    checkextruding -> unretract [label=<no<br/>(traveling)>]
+
+    //unretract -> error [label="printer error"]
+
+    //unretract -> "printing"
+
+    //wait -> quit[label="response received"]
+    //wait -> error[label="no response"]
+
+    /* Ranks */
+    { rank=same; };
+}
