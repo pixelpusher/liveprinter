@@ -25,31 +25,80 @@ let extrusionSpecified = (params.e !== undefined);
 
 */
 
-digraph retract {
+digraph movement {
+
     splines="TRUE";
 
     /* Entities */
-    start [label=<start<br/>movement>, shape="circle" ]
-    
+
+    //start [shape="point"]
+
+    startgo [label=<go( )>, shape="ellipse" ]
+
+    checkwait [label="waiting\ntime set?" shape="diamond"]    
+
+    "printer\nwaits" [shape="house"]
+
+    calcmovedist  [label="calculate\nrelative\nmove"]
+
+    startmoveto [label=<moveto( )>, shape="ellipse" ]
+
+
+    startmove [label=<move( )>, shape="ellipse" ]
+
+    checkparamsmove [label=<angle or<br/>distance<br/>specified?> shape="diamond"]    
+
+    startextrude [label=<extrude( )>, shape="ellipse" ]
+
+    checkparams [label=<angle or<br/>distance<br/>specified?> shape="diamond"]    
+
     checkextruding [label=<extrusion<br/>specified?> shape="diamond"]    
     
-    unretract [label=<unretract> shape="rect"]
-
-    //error [label=<throw error> shape="doubleoctagon"]
-    
-    // wait [label=<wait for<br/>
-    // response from<br/>
-    // printer>]
-
-    quit [shape="octagon"]
-
+    "printer\nmovement" [label="printer\nmovement:\nextrudeto( )", shape="house"]
 
     /* Relationships */
-    start -> checkextruding
+    
+    //start -> {startgo startextrude startmove}
 
-    checkextruding -> unretract [label=<yes<br/>(printing)>]
 
-    checkextruding -> unretract [label=<no<br/>(traveling)>]
+    startmove -> checkparamsmove 
+    checkparamsmove -> startgo [label="yes"]
+    checkparamsmove -> calcmovedist [label="no"]
+    calcmovedist -> "set\nextrusion\nto 0"
+    //"set\nextrusion\nto 0" -> "set\ntravel speed"
+
+    "set\nextrusion\nto 0" -> "printer\nmovement"
+
+    startmoveto -> "set\nextrusion\nto 0"
+    
+    ////// EXTRUDE () --------------------
+    
+    startextrude -> checkparams
+
+    checkparams -> startgo [label=<yes>]
+
+    checkparams -> "calculate\nrelative\nextrusion" [label=<no>]
+
+    "calculate\nrelative\nextrusion" -> "printer\nmovement"
+
+
+    ////// GO () -------------------------
+
+    startgo -> checkwait
+
+    checkwait -> "calculate\nrelative\nmove"
+
+    "calculate\nrelative\nmove" -> checkextruding
+
+    checkwait -> "printer\nwaits"  [label="yes"]
+
+    checkextruding -> "printer\nmovement" [label=<yes<br/>(printing)>]
+
+    checkextruding -> "set\nextrusion\nto 0" [label=<no<br/>(traveling)>]
+
+    //"set\nprint speed" -> "printer\nmovement"
+
+    //"set\ntravel speed" -> "printer\nmovement"
 
     //unretract -> error [label="printer error"]
 
@@ -59,5 +108,5 @@ digraph retract {
     //wait -> error[label="no response"]
 
     /* Ranks */
-    { rank=same; };
+    subgraph start { rank=same; startgo; startextrude; startmove; startmoveto};
 }

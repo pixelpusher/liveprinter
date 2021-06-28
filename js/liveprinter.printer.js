@@ -547,57 +547,65 @@ class Printer {
     }
 
     /**
-     * Perform current operations (extrusion) based on direction/elevation/distance.
+     * Execute a movement (extrusion or travel) based on the internally-set 
+     *  direction/elevation/distance.
      * @param {Boolean} extruding Whether to extrude whilst moving (true if yes, false if not)
-     * @param {Boolean} retract Whether to retract at end (usually true). Set to 0 if executing a few moves in a row
+     * @param {Boolean} retract Whether to retract at end (usually automatic). Set to 0 or false 
+     *  if executing a few moves in a sequence
      * @returns {Printer} reference to this object for chaining
      */
-    async go(extruding = false, retract) {
+    async go(extruding = false, retract) 
+    {
+        let params = {}; // params for passing to extrudeto
+
         // wait, if necessary
         if (this._waitTime > 0) {
             return this.wait();
         }
-        else {
-            let horizDist = this._distance;
-            // add projection of vertical distance into horizontal plane.
-            // vertical distances are specified absolutely, so we need to find corresponding
-            // horizontal distance using the tangent
-            if (Math.abs(this._zdistance) > Number.EPSILON) {
-                let horizProjection = this._zdistance / Math.tan(this._elevation);
-                if (Math.abs(horizProjection) > 0.001) // smallest moveable unit, in mm
-                    horizDist += horizProjection;
-            }
-            const vertDist = this._zdistance;
+        
+        // retraction can be forced, or is automagic if undefined
+        params.retract = retract;
 
-            const _x = horizDist * Math.cos(this._heading);
-            const _y = horizDist * Math.sin(this._heading);
-            const _z = vertDist; // this is set separately in tiltup
-            const _e = extruding ? undefined : 0; // no filament extrusion
+        // take into account stored distance, angle, elevation and
+        // add to current position (cartesian), then clear and
+        // run extrudeto function
 
-            // debugging
-            //let _div = Math.sqrt(_x * _x + _y * _y);
-            //let _normx = _x / _div;
-            //let _normy = _y / _div;
-
-            /* for debugging -- test if start and end are same
-            console.log("[go] end position:" + (this.x + _x) + "," + (this.y + _y) + "," + (this.z + _z) + "," + _e);
-            console.log("[go] move vec:" + _normx + ", " + _normy);
-            */
-
-            // reset distance to 0 because we've traveled
-            this._distance = 0;
-            this._zdistance = 0;
-            this._elevation = 0;
-
-            //first, no matter what, if we are retracted then unretract!
-            // makes no sense to start printing when still retracted
-            if (extruding && this.currentRetraction > 0) await this.unretract();
-
-            return this.extrude({ x: _x, y: _y, z: _z, e: _e, 'retract': retract, speed: extruding ? this._printSpeed : this._travelSpeed });
+        let horizDist = this._distance;
+        // add projection of vertical distance into horizontal plane.
+        // vertical distances are specified absolutely, so we need to find corresponding
+        // horizontal distance using the tangent
+        if (Math.abs(this._zdistance) > Number.EPSILON) {
+            let horizProjection = this._zdistance / Math.tan(this._elevation);
+            if (Math.abs(horizProjection) > 0.001) // smallest moveable unit, in mm
+                horizDist += horizProjection;
         }
-        // never reached
-        return this;
+        const vertDist = this._zdistance;
 
+        params.x = this.x + horizDist * Math.cos(this._heading);
+        params.y = this.y + horizDist * Math.sin(this._heading);
+        params.z = this.z + vertDist; // this is set separately in tiltup
+        if (!extruding) params.e = 0; // don't specify (calc automatically), or 0 for travel move
+
+        // debugging
+        //let _div = Math.sqrt(params.x * params.x + params.y * params.y);
+        //let _normx = params.x / _div;
+        //let _normy = params.y / _div;
+
+        /* for debugging -- test if start and end are same
+        console.log("[go] end position:" + (this.x + params.x) + "," + (this.y + params.y) + "," + (this.z + params.z) + "," + params.e);
+        console.log("[go] move vec:" + _normx + ", " + _normy);
+        */
+
+        // reset distance to 0 because we've used in calculating new position
+        this._distance = 0;
+        this._zdistance = 0;
+        this._elevation = 0;
+
+        // Travel or printing (extrusion): travel has no filament  (stay current)
+        params.e = extruding ? undefined : this._e;
+
+        //everything else handled in extrudeto
+        return this.extrudeto(params);
     }
 
     /**
@@ -927,23 +935,50 @@ class Printer {
     * @returns {Printer} reference to this object for chaining
     */
     async extrudeto(params) {
-        let extrusionSpecified = (params.e !== undefined);
-        // set retract, but if only e given don't retract (that would be dumb)
-        // remember that a retract setting here overrides internal autoretract!
-        let retract = (params.retract === undefined) ? !extrusionSpecified && this._autoRetract : params.retract; // don't retract if given e value alone, no matter what
+        const extrusionNotSpecified = (params.e === undefined); // if not, auto calculate
+        const __x = (params.x !== undefined) ? parseFloat(params.x) : this.x;
+        const __y = (params.y !== undefined) ? parseFloat(params.y) : this.y;
+        const __z = (params.z !== undefined) ? parseFloat(params.z) : this.z;
+        const __e = (params.e !== undefined) ? parseFloat(params.e) : this.e;
 
-        let __x = (params.x !== undefined) ? parseFloat(params.x) : this.x;
-        let __y = (params.y !== undefined) ? parseFloat(params.y) : this.y;
-        let __z = (params.z !== undefined) ? parseFloat(params.z) : this.z;
-        let __e = (extrusionSpecified) ? parseFloat(params.e) : this.e;
-        if (Math.abs(__e - this.e) > 0.01) 
+        const extrusionNotZero = Math.abs(__e - this.e) > EPSILON;
+
+        // only extrude if there is something to extrude!
+        const extruding = extrusionNotSpecified || extrusionNotZero; 
+        // if not, traveling 
+
+        // Set retract true, but if only if extrusion wasn't specified, because
+        // specifying it implies overriding retraction. Otherwise, use 
+        // autoretraction.
+        let retract = (params.retract === undefined) 
+            ? extrusionNotSpecified && this._autoRetract 
+            : params.retract;
+
+        // clear retraction if filament is manually being moved
+        if (extrusionNotZero) 
         {
             this.currentRetraction = 0; //clear retraction if we go manual
+            retract = false;
         }
+
+        // calculate movement properties
+
         let newPosition = new Vector({ x: __x, y: __y, z: __z, e: __e });
 
-        let _speed = parseFloat((params.speed !== undefined) ? params.speed : this._printSpeed);
-        this.layerHeight = parseFloat((params.thickness !== undefined) ? params.thickness : this.layerHeight);
+        // try travel speed by default
+        let _speed = parseFloat(
+            (params.speed !== undefined) 
+                ? params.speed 
+                : this._travelSpeed
+            );
+
+        // if auto extrusion, or some extrusion was specified, speed is print speed
+        if (extruding) _speed =  parseFloat(this._printSpeed);
+
+        // update layer height if necessary
+        this.layerHeight = parseFloat((params.thickness !== undefined) 
+            ? params.thickness 
+            : this.layerHeight);
 
         //////////////////////////////////////
         /// START CALCULATIONS      //////////
@@ -952,13 +987,15 @@ class Printer {
         let distanceVec = Vector.sub(newPosition, this.position);
         let distanceMag = 1; // calculated later
 
-        let printing = false; // whether we are actually extruding plastic (e.g. travel or print)
-
         // FYI:
         //  nozzle_speed{mm/s} = (radius_filament^2) * PI * filament_speed{mm/s} / layer_height^2
         //  filament_speed{mm/s} = layer_height^2 * nozzle_speed{mm/s}/(radius_filament^2)*PI
 
-        if (!extrusionSpecified) {
+
+        // only calculate filament distance if we are not traveling and filament
+        // length wasn't specified
+
+        if (extrusionNotSpecified) {
             // distance is purely 3D movement, not filament movement
             distanceMag = Math.sqrt(distanceVec.axes.x * distanceVec.axes.x + distanceVec.axes.y * distanceVec.axes.y + distanceVec.axes.z * distanceVec.axes.z);
 
@@ -991,7 +1028,6 @@ class Printer {
         else {
             // distance is 3D movement PLUS filament movement
             distanceMag = distanceVec.mag();
-            printing = true;
         }
         // note: velocity in 'e' direction is always layerHeight^2
         const velocity = Vector.div(distanceVec, distanceMag);
@@ -999,7 +1035,7 @@ class Printer {
 
         this.totalMoveTime += moveTime; // update total movement time for the printer
 
-        //this._elevation = Math.asin(velocity.axes.z); // removed because it was non-intuitive
+        //this._elevation = Math.asin(velocity.axes.z); // removed because it was non-intuitive!!!
 
         //console.log("time: " + moveTime + " / dist:" + distanceMag);
 
@@ -1014,7 +1050,7 @@ class Printer {
         //
         // safety checks
         //
-        if (printing) {
+        if (extruding) {
             if (nozzleSpeed.axes.x > Printer.maxPrintSpeed[this._model]["x"]) {
                 throw Error("X travel too fast:" + nozzleSpeed.axes.x);
             }
@@ -1112,39 +1148,38 @@ class Printer {
     //        that.moveCallback(that);
 
     /**
-     * Extrude plastic from the printer head, relative to the current print head position, within printer bounds
-     * @param {Object} params Parameters dictionary containing either x,y,z keys or direction/angle (radians) keys and retract setting (true/false).
+     * Extrude plastic from the printer head, relative to the current print head position, 
+     *  within printer bounds
+     * @param {Object} params Parameters dictionary containing either x,y,z keys or 
+     *  direction/angle (radians) keys and retract setting (true/false).
      * @returns {Printer} reference to this object for chaining
      */
     async extrude(params) {
-        // first, handle distance/angle mode
-        if (params.dist !== undefined) {
-            params.dist = parseFloat(params.dist);
 
-            if (params.angle === undefined) {
-                params.angle = this._heading; // use current heading angle
+        // First, handle distance/angle mode. If set, overrides everything else.
+        // uses stored values and is actually handled by go() --> extrudeto()
+        if (params.dist || params.angle)
+        {
+            if (params.dist !== undefined) {
+                this._distance += parseFloat(params.dist);
             }
-            else {
-                params.angle = parseFloat(params.angle);
+            if (params.angle !== undefined) {
+                this._heading = parseFloat(params.angle);
             }
-            params.x = params.dist * Math.cos(params.angle);
-            params.y = params.dist * Math.sin(params.angle);
-            if (params.elev === undefined) {
-                params.elev = this.elevation; // use current elevation angle
-            }
-            params.z = params.dist * Math.sin(parseFloat(params.elev));
-            params.e = (params.e !== undefined) ? parseFloat(params.e) + this.e : undefined;
-        }
-        //otherwise, handle cartesian coordinates mode
-        else {
-            params.x = (params.x !== undefined) ? parseFloat(params.x) + this.x : this.x;
-            params.y = (params.y !== undefined) ? parseFloat(params.y) + this.y : this.y;
-            params.z = (params.z !== undefined) ? parseFloat(params.z) + this.z : this.z;
-            params.e = (params.e !== undefined) ? parseFloat(params.e) + this.e : undefined;
+            return this.go(true, params.retract); // go, with extrusion
         }
 
+        //otherwise, handle cartesian coordinates mode, relative to current position
+        let newparams = {};
+        newparams.x = (params.x !== undefined) ? parseFloat(params.x) + this.x : this.x;
+        newparams.y = (params.y !== undefined) ? parseFloat(params.y) + this.y : this.y;
+        newparams.z = (params.z !== undefined) ? parseFloat(params.z) + this.z : this.z;
+        newparams.e = (params.e !== undefined) ? parseFloat(params.e) + this.e : undefined;
+        newparams.retract = params.retract;
+    
         // extrude using absolute cartesian coords
-        return this.extrudeto(params);
+        return this.extrudeto(newparams);
+
     } // end extrude
 
 
@@ -1154,21 +1189,42 @@ class Printer {
      * @returns {Printer} reference to this object for chaining
      */
     async move(params) {
-        params.e = 0; // no filament extrusion
-        params.retract = false;
-        params.speed = (params.speed === undefined) ? this._travelSpeed : parseFloat(params.speed);
-        return this.extrude(params);
-    }
+        // first, handle distance/angle mode
+        // uses stored values, handled in go()
+        if (params.dist || params.angle)
+        {
+            if (params.dist !== undefined) {
+                this._distance += parseFloat(params.dist);
+            }
+            if (params.angle !== undefined) {
+                this._heading = parseFloat(params.angle);
+            }
+            return this.go(false); // go, with extrusion
+        }
+
+        //otherwise, handle cartesian coordinates mode
+        let newparams = {};
+        newparams.x = (params.x !== undefined) ? parseFloat(params.x) + this.x : this.x;
+        newparams.y = (params.y !== undefined) ? parseFloat(params.y) + this.y : this.y;
+        newparams.z = (params.z !== undefined) ? parseFloat(params.z) + this.z : this.z;
+        newparams.e = this.e;
+        newparams.speed = (params.speed === undefined) ? this._travelSpeed : parseFloat(params.speed);
+        this._travelSpeed = newparams.speed; // update travel speed
+
+        // extrude using absolute cartesian coords
+        return this.extrudeto(params);
+    } // end move
+    
 
     /**
      * Absolute movement.
-     * @param {any} params Can be specified as x,y,z,e. All in mm.
+     * @param {any} params Can be specified as x,y,z. All in mm.
      * @returns {Printer} reference to this object for chaining
      */
     async moveto(params) {
-        params.e = this.e; // keep filament at current position
-        params.retract = false;
+        params.e = this.e;
         params.speed = (params.speed === undefined) ? this._travelSpeed : parseFloat(params.speed);
+        this._travelSpeed = params.speed; // update travel speed
         return this.extrudeto(params);
     }
 
