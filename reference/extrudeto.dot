@@ -1,0 +1,121 @@
+
+
+digraph movement {
+
+    splines="TRUE";
+
+    /* Entities */
+
+    start [label=<extrudeto( )>, shape="ellipse" ]
+
+    //checkwait [label="waiting\ntime set?" shape="diamond"]    
+
+    //"printer\nwaits" [shape="house"]
+
+    "no retraction\nspecified, no\nextrusion position" [shape="rect"]
+
+    /* Relationships */
+    
+    start ->  "retraction\nspecified?"
+
+    start -> "extrusion\nposition\nspecified?"
+
+    "retraction\nspecified?" -> "retraction\nargument is:" [label="yes"]
+
+    "retraction\nspecified?" -> "no retraction\nspecified, no\nextrusion position" [label="no"]
+
+    "extrusion\nposition\nspecified?" -> "printing\nmode (auto)" [label="no"]
+
+    "printing\nmode (auto)" -> "no retraction\nspecified, no\nextrusion position" [label="no"]
+
+    "no retraction\nspecified, no\nextrusion position" -> "using automatic\nretraction?" [label="true"]
+
+    "no retraction\nspecified, no\nextrusion position" -> "not using\nretraction" [label="false"]
+    
+     "using automatic\nretraction?" -> "using\nretraction"  [label="yes"]
+
+    "retraction\nargument is:" -> "using\nretraction"  [label="true"]
+    "retraction\nargument is:" -> "not using\nretraction"  [label="false"]
+    
+
+//"using automatic\nretraction?" [label="no\n(calculate based\non movement\n length)"]
+
+    "using automatic\nretraction?" -> "not using\nretraction" [label="no"]
+    
+    "extrusion\nposition\nspecified?" -> "extrusion position\nis current\nposition?" [label="yes"]
+
+    "extrusion position\nis current\nposition?" -> "traveling mode" [label="yes"]
+    
+    "traveling mode" -> "not using\nretraction" 
+
+    "extrusion position\nis current\nposition?" -> "clear current\nretraction" [label="no"]
+    
+    "clear current\nretraction" -> "printing\nmode (manual)"
+
+    "printing\nmode (manual)" -> "not using\nretraction" 
+ 
+    "not using\nretraction" -> "tool speed\nspecified?"
+
+    "using\nretraction" -> "tool speed\nspecified?"
+
+    "tool speed\nspecified?" -> "set speed" [label="yes"]
+
+    "tool speed\nspecified?" -> "printing or\ntraveling mode?" [label="no"]
+
+    "printing or\ntraveling mode?" -> "set speed to\ntraveling speed"
+
+    "printing or\ntraveling mode?" -> "set speed to\nprinting speed"
+
+    "set speed" -> "using auto\nprinting mode?"
+    "set speed to\nprinting speed" -> "using auto\nprinting mode?"
+    "set speed to\ntraveling speed" -> "using auto\nprinting mode?"
+    
+    "using auto\nprinting mode?" -> "calculate new\ntool position\n(without filament\nlength)" [label="yes"]
+
+    "using auto\nprinting mode?" -> "calculate new\ntool position\n(with filament\nlength)" [label="no"]
+
+    "calculate new\ntool position\n(with filament\nlength)" -> "calculate\nper-axis\ntool speed"
+
+    "calculate new\ntool position\n(without filament\nlength)" -> "calculate\nnew filament\nposition, update\ninternally"
+
+    "calculate\nnew filament\nposition, update\ninternally" -> "too much or little\nfilament used?"
+
+    "too much or little\nfilament used?" -> "throw error" [label="yes"]
+    
+    "too much or little\nfilament used?" -> "calculate\nper-axis\ntool speed" [label="no"]
+
+    "calculate\nper-axis\ntool speed" -> "is tool speed\nwithin printer\nlimits?"
+
+    "is tool speed\nwithin printer\nlimits?" -> "throw error" [label="no"]
+
+    "is tool speed\nwithin printer\nlimits?" -> "unretract\n(as needed)"[label="yes"]
+
+    "unretract\n(as needed)" -> "send GCode to\nprinter"
+
+    "send GCode to\nprinter" -> "using retraction?"
+
+    "using retraction?" -> "retract" [label="yes"]
+    "retract" -> "update internal\nposition"
+    "using retraction?" -> "update internal\nposition" [label="no"]
+    
+
+
+   
+
+    //unretract -> error [label="printer error"]
+
+    //unretract -> "printing"
+
+    //wait -> quit[label="response received"]
+    //wait -> error[label="no response"]
+
+    /* Ranks */
+    subgraph start { rank=same; "retraction\nspecified?"; "extrusion\nposition\nspecified?"; "extrusion position\nis current\nposition?"};
+
+    subgraph { rank=same;}
+
+    subgraph { rank=same; "printing\nmode (auto)";"printing\nmode (manual)"; "traveling mode" }
+
+    subgraph { rank=same; "set speed";  "set speed to\nprinting speed"; "set speed to\ntraveling speed"}
+
+}

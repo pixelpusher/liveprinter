@@ -67,7 +67,9 @@ class Printer {
         this.totalMoveTime = 0; // time spent moving/extruding
 
         this.maxFilamentPerOperation = 30; // safety check to keep from using all filament, in mm
-        this.maxTimePerOperation = 10; // prevent very long operations, by accident - this is in seconds
+        this.minFilamentPerOperation = 0.005; // sanity check to keep from grinding filament, in mm
+        
+        this.maxTimePerOperation = 15; // prevent very long operations, by accident - this is in seconds
 
         // NOTE: disabled for now to use hardware retraction settings
         this.currentRetraction = 0; // length currently retracted
@@ -935,16 +937,21 @@ class Printer {
     * @returns {Printer} reference to this object for chaining
     */
     async extrudeto(params) {
-        const extrusionNotSpecified = (params.e === undefined); // if not, auto calculate
+
+        // if no extrusion specified, auto calculate
+        const extrusionNotSpecified = (params.e === undefined); 
+
         const __x = (params.x !== undefined) ? parseFloat(params.x) : this.x;
         const __y = (params.y !== undefined) ? parseFloat(params.y) : this.y;
         const __z = (params.z !== undefined) ? parseFloat(params.z) : this.z;
         const __e = (params.e !== undefined) ? parseFloat(params.e) : this.e;
 
+        // did we specify a length of filament to extrude?
         const extrusionNotZero = Math.abs(__e - this.e) > EPSILON;
 
         // only extrude if there is something to extrude!
         const extruding = extrusionNotSpecified || extrusionNotZero; 
+
         // if not, traveling 
 
         // Set retract true, but if only if extrusion wasn't specified, because
@@ -965,15 +972,13 @@ class Printer {
 
         let newPosition = new Vector({ x: __x, y: __y, z: __z, e: __e });
 
-        // try travel speed by default
+        // check if speed is passed in
+        // if auto extrusion, or some extrusion was specified, speed is print speed
         let _speed = parseFloat(
             (params.speed !== undefined) 
                 ? params.speed 
-                : this._travelSpeed
+                : extruding ? this._printSpeed : this._travelSpeed
             );
-
-        // if auto extrusion, or some extrusion was specified, speed is print speed
-        if (extruding) _speed =  parseFloat(this._printSpeed);
 
         // update layer height if necessary
         this.layerHeight = parseFloat((params.thickness !== undefined) 
@@ -1023,7 +1028,10 @@ class Printer {
             distanceVec.axes.e = filamentLength;
             newPosition.axes.e = this.e + distanceVec.axes.e;
 
-            printing = (filamentLength > 0.005); // smallest printable length
+            // arbitrary smallest printable length
+            if (filamentLength < this.minFilamentPerOperation) {
+                throw new Error("filament length too short: " + filamentLength);
+            } 
         }
         else {
             // distance is 3D movement PLUS filament movement
@@ -1052,16 +1060,16 @@ class Printer {
         //
         if (extruding) {
             if (nozzleSpeed.axes.x > Printer.maxPrintSpeed[this._model]["x"]) {
-                throw Error("X travel too fast:" + nozzleSpeed.axes.x);
+                throw Error("X printing speed too fast:" + nozzleSpeed.axes.x);
             }
             if (nozzleSpeed.axes.y > Printer.maxPrintSpeed[this._model]["y"]) {
-                throw Error("Y travel too fast:" + nozzleSpeed.axes.y);
+                throw Error("Y printing speed too fast:" + nozzleSpeed.axes.y);
             }
             if (nozzleSpeed.axes.z > Printer.maxPrintSpeed[this._model]["z"]) {
-                throw Error("Z travel too fast:" + nozzleSpeed.axes.z);
+                throw Error("Z printing speed too fast:" + nozzleSpeed.axes.z);
             }
             if (nozzleSpeed.axes.e > Printer.maxPrintSpeed[this._model]["e"]) {
-                throw Error("E travel too fast:" + nozzleSpeed.axes.e);
+                throw Error("E printing speed too fast:" + nozzleSpeed.axes.e);
             }
         } else {
             // just traveling
@@ -1091,21 +1099,9 @@ class Printer {
      * @param {boolean} retract if true (default) add GCode for retraction/unretraction. Will use either hardware or software retraction if set in Printer object
      * */
     async sendExtrusionGCode(speed, retract = true) {
-        if (retract && this.currentRetraction > 0.01) {
-            //unretract manually first if needed
-            this.e += this.currentRetraction + this.extraUnretract;
-            let newE = this.e.toFixed(4);
-            if (!this.firmwareRetract) {
-                // account for previous retraction
-                await this.gcodeEvent("G1 " + "E" + newE + " F" + this._retractSpeed.toFixed(4));
-            } else {
-                // unretract via firmware otherwise
-                await this.gcodeEvent("G11");
-            }
-            this.e = parseFloat(newE);
-            loginfo('current extrusion gcode retact clear');
-            this.currentRetraction = 0;
-        }
+
+        // always try to unretract, it's automatic
+        await this.unretract();
 
         // G1 - Coordinated Movement X Y Z E
         let moveCode = ["G1"];
@@ -1116,18 +1112,8 @@ class Printer {
         moveCode.push("F" + (speed * 60).toFixed(4)); // mm/s to mm/min
         await this.gcodeEvent(moveCode.join(" "));
 
-        // RETRACT
-        if (retract && this.retractLength > 0 && this.currentRetraction < 0.01) {
-            this.currentRetraction = this.retractLength;
-            this.e -= this.currentRetraction;
+        if (retract) await this.retract();
 
-            if (this.firmwareRetract) {
-                await this.gcodeEvent("G10");
-                // this is handled in hardware                       
-            } else {
-                await this.gcodeEvent("G1 " + "E" + this.e.toFixed(4) + " F" + this._retractSpeed.toFixed(4));
-            }
-        }
         // account for errors in decimal precision
         this.e = parseFloat(this.e.toFixed(4));
         this.x = parseFloat(this.x.toFixed(4));
