@@ -327,7 +327,7 @@ $("#log-requests-btn").on("click", async function (e) {
  * @returns {Object} JsonRPC response object
  */
 async function requestRepeat(gcode, activeElem, delay, func, priority = 1) {
-    const result = await scheduleGCode(gcode, priority);
+    const result = await liveprintercomms.scheduleGCode(gcode, priority);
     func(result);
 
     const running = activeElem.hasClass("active");
@@ -875,7 +875,7 @@ const init = async function (_printer, _scheduler) {
                         'method': 'close-serial-port',
                         'params': []
                     };
-                    const response = await sendJSONRPC(message);
+                    const response = await liveprintercomms.sendJSONRPC(message);
 
                     if (response.result.length > 0 && response.result[0] === "closed") {
                         me.text("connect");
@@ -933,7 +933,7 @@ const init = async function (_printer, _scheduler) {
         }
         else {
             try {
-                const portsList = await getSerialPorts();
+                const portsList = await liveprintercomms.getSerialPorts();
                 await portsListHandler(portsList);
             }
             catch (err) {
