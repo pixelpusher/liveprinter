@@ -1,111 +1,75 @@
-/*
-
-go: 
-
-wait 
-or
-use stored vars to convert to cartesian
-run extrudeto
-
-*/
-
-
-
-/*
-extrudeto
-let extrusionSpecified = (params.e !== undefined);
-        // set retract, but if only e given don't retract (that would be dumb)
-        // remember that a retract setting here overrides internal autoretract!
-        let retract = (params.retract === undefined) ? !extrusionSpecified && this._autoRetract : params.retract; // don't retract if given e value alone, no matter what
-
-        if (Math.abs(__e - this.e) > 0.01) 
-        {
-            this.currentRetraction = 0; //clear retraction if we go manual
-        }
-
-*/
-
 digraph movement {
 
     splines="TRUE";
 
+
+    node [style="filled", fillcolor="lightcyan2", fontsize="10", fontname="Arial"]
+
+    edge [style="filled", fillcolor="lightcyan2", fontsize="10", fontname="Arial", compound=true]
+
     /* Entities */
 
-    //start [shape="point"]
+    startgo [label=<go( )>, shape="invhouse" ]
 
-    startgo [label=<go( )>, shape="ellipse" ]
+    checkwait [label="waiting\ntime set?" shape="diamond",style=filled, fillcolor="cyan2"]    
 
-    checkwait [label="waiting\ntime set?" shape="diamond"]    
-
-    "printer\nwaits" [shape="house"]
+    "printer\nwaits" [shape="octagon",style="filled",fillcolor="lightcoral"]
 
     calcmovedist  [label="calculate\nrelative\nmove"]
 
-    startmoveto [label=<moveto( )>, shape="ellipse" ]
+    startmoveto [label=<moveto( )>, shape="invhouse" ]
 
 
-    startmove [label=<move( )>, shape="ellipse" ]
+    startmove [label=<move( )>, shape="invhouse" ]
 
-    checkparamsmove [label=<angle or<br/>distance<br/>specified?> shape="diamond"]    
+    checkparamsmove [label=<angle or<br/>distance<br/>specified?> shape="diamond",style=filled, fillcolor="cyan2"]    
 
-    startextrude [label=<extrude( )>, shape="ellipse" ]
+    startextrude [label=<extrude( )>, shape="invhouse" ]
 
-    checkparams [label=<angle or<br/>distance<br/>specified?> shape="diamond"]    
+    checkparams [label=<angle or<br/>distance<br/>specified?>, shape="diamond",style=filled, fillcolor="cyan2"]
 
-    checkextruding [label=<extrusion<br/>specified?> shape="diamond"]    
+    checkextruding [label=<extrusion<br/>specified?>, shape="diamond",style=filled, fillcolor="cyan2"]    
     
-    "printer\nmovement" [label="printer\nmovement:\nextrudeto( )", shape="house"]
+    "printer\nmovement" [label="call\nextrudeto( )", shape="parallelogram",style="filled",fillcolor="lemonchiffon"]
+
+    "set\nextrusion\nto 0" [shape="rect",style=filled, fillcolor="darkolivegreen1"]
 
     /* Relationships */
-    
-    //start -> {startgo startextrude startmove}
 
-
-    startmove -> checkparamsmove 
-    checkparamsmove -> startgo [label="yes"]
-    checkparamsmove -> calcmovedist [label="no"]
+    startmove:s -> checkparamsmove:n
+    checkparamsmove:s -> startgo:n [label="yes"]
+    checkparamsmove:w -> calcmovedist:n [label="no"]
     calcmovedist -> "set\nextrusion\nto 0"
-    //"set\nextrusion\nto 0" -> "set\ntravel speed"
 
     "set\nextrusion\nto 0" -> "printer\nmovement"
 
-    startmoveto -> "set\nextrusion\nto 0"
+    startmoveto:s -> "set\nextrusion\nto 0"
     
     ////// EXTRUDE () --------------------
     
-    startextrude -> checkparams
+    startextrude:s -> checkparams
 
-    checkparams -> startgo [label=<yes>]
+    checkparams:s -> startgo:n [label=<yes>]
 
-    checkparams -> "calculate\nrelative\nextrusion" [label=<no>]
+    checkparams:w -> "calculate\nrelative\nextrusion":n [label=<no>]
 
     "calculate\nrelative\nextrusion" -> "printer\nmovement"
 
 
     ////// GO () -------------------------
 
-    startgo -> checkwait
+    startgo:s -> checkwait:n
 
-    checkwait -> "calculate\nrelative\nmove"
+    checkwait:w -> "calculate\nrelative\nmove" [label="no"]
 
     "calculate\nrelative\nmove" -> checkextruding
 
-    checkwait -> "printer\nwaits"  [label="yes"]
+    checkwait:s -> "printer\nwaits":n  [label="yes"]
 
-    checkextruding -> "printer\nmovement" [label=<yes<br/>(printing)>]
+    checkextruding:s -> "printer\nmovement":n [label=<yes<br/>(printing)>]
 
-    checkextruding -> "set\nextrusion\nto 0" [label=<no<br/>(traveling)>]
+    checkextruding:w -> "set\nextrusion\nto 0":n [label=<no<br/>(traveling)>]
 
-    //"set\nprint speed" -> "printer\nmovement"
-
-    //"set\ntravel speed" -> "printer\nmovement"
-
-    //unretract -> error [label="printer error"]
-
-    //unretract -> "printing"
-
-    //wait -> quit[label="response received"]
-    //wait -> error[label="no response"]
 
     /* Ranks */
     subgraph start { rank=same; startgo; startextrude; startmove; startmoveto};
