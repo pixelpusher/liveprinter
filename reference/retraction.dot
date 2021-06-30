@@ -1,65 +1,64 @@
 digraph retract {
     splines="TRUE";
 
+    node [style="filled", fillcolor="lightcyan2", fontsize="10", fontname="Arial"]
+
+    edge [style="filled", fillcolor="lightcyan2", fontsize="10", fontname="Arial", compound=true]
+
     /* Entities */
-    start [label=<start<br/>retraction>, shape="circle" ]
+    start [label=<retract( )>, shape="invhouse" ]
     
     check [label=<is filament<br/>
-    retracted?> shape="diamond"]
+    retracted?> shape="diamond",style=filled, fillcolor="cyan2"]
     
     speedcheck[label=<is speed<br/>too fast or<br/>
-    too slow?> shape="diamond"]
+    too slow?> shape="diamond",style=filled, fillcolor="cyan2"]
     
     updatelength [label=<subtract retraction<br/>length from filament> shape="ellipse"]
 
-    firmwarecheck [label=<using firmware<br/>retraction?> shape="diamond"]
+    firmwarecheck [label=<using firmware<br/>retraction?> shape="diamond",style=filled, fillcolor="cyan2"]
 
-    speedchangecheck[label=<has retraction<br/>speed or<br/>length changed?> shape="diamond"]
+    speedchangecheck[label=<has<br/>retraction speed or<br/>length changed?> shape="diamond",style=filled, fillcolor="cyan2"]
 
-    manualretraction[label=<send GCode<br/>to move filament<br/>back by retraction<br/>length> shape="rarrow"]
+    manualretraction[label=<send GCode<br/>to move filament<br/>back by retraction<br/>length>, shape="parallelogram",style="filled",fillcolor="lemonchiffon"]
 
-    sendfirmwareupdate[label=<send GCode<br/>to update<br/>firmware settings<br/>length> shape="rarrow"]
+    sendfirmwareupdate[label=<send GCode<br/>to update<br/>firmware settings<br/>length>, shape="parallelogram",style="filled",fillcolor="lemonchiffon"]
 
-    sendfirmware [label=<send GCode<br/>for firmware retract<br/>(G10)> shape="rarrow"]
+    sendfirmware [label=<send GCode<br/>for firmware retract<br/>(G10)> , shape="parallelogram",style="filled",fillcolor="lemonchiffon"]
 
-    wait [label=<wait for<br/>
-    response from<br/>
-    printer>]
+    quit [shape="octagon",style=filled, fillcolor="lightcoral"]
 
-    quit [shape="octagon"]
+    error [shape="doubleoctagon",style=filled, fillcolor="firebrick1"]
 
 
     /* Relationships */
     start -> check [label=<check current<br/>
     retraction state>]
     
-    check -> quit [label="yes"]
+    check:s -> quit [label="  yes"]
 
-    check -> speedcheck [label="no"]
+    check:e -> speedcheck:n [label="  no"]
 
-    speedcheck -> error [label="yes"]
+    speedcheck:s -> error:n [label="  yes"]
 
-    speedcheck -> updatelength
+    speedcheck:e -> updatelength:n
 
     updatelength -> firmwarecheck
 
-    firmwarecheck -> speedchangecheck[label="yes"]
+    firmwarecheck:s -> speedchangecheck:n [label="  yes"]
 
-    firmwarecheck -> manualretraction[label="no"]
+    firmwarecheck:e -> manualretraction:n [label=" no"]
 
-    manualretraction -> wait
+    manualretraction:s -> quit
 
-    speedchangecheck -> sendfirmwareupdate[label="yes"]
+    speedchangecheck:s -> sendfirmwareupdate:n [label="  yes"]
 
     sendfirmwareupdate -> sendfirmware
 
-    sendfirmware -> wait
+    sendfirmware:s -> quit
 
-    speedchangecheck -> sendfirmware[label="no"]
-
-    wait -> quit[label="response received"]
-    wait -> error[label="no response"]
+    speedchangecheck:e -> sendfirmware:n [label="  no"]
 
     /* Ranks */
-    { rank=same; };
+    { rank=same; sendfirmwareupdate; sendfirmware;manualretraction};
 }
