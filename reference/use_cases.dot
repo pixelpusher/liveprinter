@@ -1,76 +1,115 @@
+/**
+ * 
+ # Use cases
+
+ ## Moving (e.g. traveling)
+
+ Moving the print head into position to start printing; moving out of the way after finishing a print; or moving in order to make a sound.
+
+ 1. moving the print head from the current position to a _specific location_ (x,y,z) in the print cavity
+ 2. moving the print head a specific amount from the current position in the x,y,z direction (e.g. 10mm to the right, 2mm up )
+ 3. moving the print head a specific amount from the current position and at a specific 2D angle, possibly also with an angle of elevation (i.e. either upwards or downwards)
+ 
+ ## Printing (e.g. extruding)
+
+ Extruding filament to build up plastic forms on the print bed (e.g. building up a form 2D layer-by-layer, or in a single extruded blog), or in the air (like WirePrint); reversing (retracting) filament to prevent leakage or perform maintenance like changing the filament; forwarding filament in the tube until it is inside the print head and ready for further printing operations
+
+ 1. printing a line from the current position to a _specific location_ (x,y,z) in the print cavity
+ 2.  printing a line with the length of a specific amount from the current position in the x,y,z direction (e.g. 10mm to the right, 2mm up )
+ 3. printing a line with the length of a specific amount from the current position and at a specific 2D angle, possibly also with an angle of elevation (i.e. either upwards or downwards)
+ 4. moving the filament backwards into the tube and then changing it, or cleaning the head, and then forwards again until it is prinedin the print head
+ 
+## Waiting
+
+Pausing printing and traveling for a specific amount of time
+
+1. waiting for the extruded plastic to cool after a print move
+2. in a musical sense, waiting a few "beats" as part of a melody
+
+ **/
+
+
+ /*
+
+test cases: 
+
+1. retract -> travel -> travel  (should stay retracted)
+2. unretract -> travel -> travel (should retract at start and stay retracted)
+3. retract -> extrude manual (e value only) -> shouldn't retract at start or at end
+4. retract -> extrude normal (should be retracted at end)
+5. retract -> extrude normal -> travel (should be retracted at end)
+6. retract -> unretract -> extrude normal (should be retracted at end)
+7. retract -> extrude normal w/retraction disabled (should unretract before and be unretracted at end)
+
+ */
+
+
+// example case of printing a square on the print bed
+
 digraph movement {
+    fontname="Arial"
+    labelloc="t"
+    label="Retraction handling explained\nfor drawing a 2D square"
+    splines=true
 
-    splines="TRUE";
+    node [shape=rect, style="filled, rounded", fillcolor="lightblue", fontsize="10", fontname="Arial", color="#444455"]
 
-
-    node [style="filled", fillcolor="lightcyan2", fontsize="10", fontname="Arial"]
-
-    edge [style="filled", fillcolor="lightcyan2", fontsize="10", fontname="Arial", compound=true]
+    edge [color="#444455",fontsize="10", fontname="Arial", compound=true]
 
     /* Entities */
 
-    startgo [label=<go( )>, shape="invhouse" ]
+    start [label ="begin with retraction\nstate uncertain; goal is to\ndraw a square with side\nlength 20mm starting\n at (x,y) of (20mm,30mm)", shape="note", fillcolor="#fefeea"]
 
-    checkwait [label="waiting\ntime set?" shape="diamond",style=filled, fillcolor="cyan2"]    
+    "prime filament" [label ="1. Manual extrude:\nno retraction;\nclear previous\nretraction;\notherwise would\nunretract before\nand after", shape="note", fillcolor="#fefeea", labeljust=l]
 
-    "printer\nwaits" [shape="octagon",style="filled",fillcolor="lightcoral"]
+    extrude [label="prime filament:\nextrude 10mm\nfilament"]
 
-    calcmovedist  [label="calculate\nrelative\nmove"]
+    printline [label="print 20mm line in\nthe current direction,\nretraction disabled"]
 
-    startmoveto [label=<moveto( )>, shape="invhouse" ]
+    printlinenote [label="3. don't want retraction\nbetween successive\ndrawing operations\nto speed up printing\nand prevent\nfilament grinding", shape=note, fillcolor="#fefeea"]
+ 
+    move [label="move to print bed\nstart location"]
 
+    movenote [label="2. does not retract before\nor after travel moves", shape=note, fillcolor="#fefeea"]
 
-    startmove [label=<move( )>, shape="invhouse" ]
+    turnnote [label="4. no retraction\nfor turns, purely\nvirtual operation", shape=note, fillcolor="#fefeea"]
+ 
+    retractnote [label="5. manually retract to prevent\nleakage, because it was\ndisabled before", shape=note, fillcolor="#fefeea"]
 
-    checkparamsmove [label=<angle or<br/>distance<br/>specified?> shape="diamond",style=filled, fillcolor="cyan2"]    
+    endnote [label="6. no retraction for moves", shape=note, fillcolor="#fefeea"]
 
-    startextrude [label=<extrude( )>, shape="invhouse" ]
+    turn [label="turn 90 degrees"]
 
-    checkparams [label=<angle or<br/>distance<br/>specified?>, shape="diamond",style=filled, fillcolor="cyan2"]
+    up [label="move up 100mm"]
 
-    checkextruding [label=<extrusion<br/>specified?>, shape="diamond",style=filled, fillcolor="cyan2"]    
-    
-    "printer\nmovement" [label="call\nextrudeto( )", shape="parallelogram",style="filled",fillcolor="lemonchiffon"]
+    repeat [shape=diamond, label="repeated\n4 times?", fillcolor="#ffee88"]
 
-    "set\nextrusion\nto 0" [shape="rect",style=filled, fillcolor="darkolivegreen1"]
+    //moveto [label=<go( )>, shape="invhouse" ]
+
 
     /* Relationships */
+    start -> unretract  [arrowhead="none",style=dotted]
+    unretract-> extrude 
+    extrude -> move
+    move -> printline 
+    move -> movenote [arrowhead=none,style=dashed];
+    printline -> printlinenote [arrowhead=none,style=dashed];
+    printline:s -> turn:n
+    turn -> turnnote [arrowhead=none,style=dashed]
+    turn:s -> repeat:n
+    repeat:e -> printline:n [label=" no"]  
+    repeat:s -> retract [label=" yes"]
+    retract -> up
+    retract -> retractnote:w [arrowhead=none,style=dashed];
+    up -> endnote [arrowhead=none];
 
-    startmove:s -> checkparamsmove:n
-    checkparamsmove:s -> startgo:n [label="yes"]
-    checkparamsmove:w -> calcmovedist:n [label="no"]
-    calcmovedist -> "set\nextrusion\nto 0"
-
-    "set\nextrusion\nto 0" -> "printer\nmovement"
-
-    startmoveto:s -> "set\nextrusion\nto 0"
-    
-    ////// EXTRUDE () --------------------
-    
-    startextrude:s -> checkparams
-
-    checkparams:s -> startgo:n [label=<yes>]
-
-    checkparams:w -> "calculate\nrelative\nextrusion":n [label=<no>]
-
-    "calculate\nrelative\nextrusion" -> "printer\nmovement"
-
-
-    ////// GO () -------------------------
-
-    startgo:s -> checkwait:n
-
-    checkwait:w -> "calculate\nrelative\nmove" [label="no"]
-
-    "calculate\nrelative\nmove" -> checkextruding
-
-    checkwait:s -> "printer\nwaits":n  [label="yes"]
-
-    checkextruding:s -> "printer\nmovement":n [label=<yes<br/>(printing)>]
-
-    checkextruding:w -> "set\nextrusion\nto 0":n [label=<no<br/>(traveling)>]
-
+    extrude:e -> "prime filament":w [arrowhead=none,style=dashed];
 
     /* Ranks */
-    subgraph start { rank=same; startgo; startextrude; startmove; startmoveto};
+    subgraph { rank=same; extrude; "prime filament"};
+    subgraph { rank=same; printline; printlinenote};
+    subgraph {rank=same; move; movenote}
+    subgraph {rank=same; up; endnote}
+    subgraph {rank=same; turn; turnnote}
+    subgraph {rank=same; retract; retractnote}
 }

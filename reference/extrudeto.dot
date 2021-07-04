@@ -16,6 +16,7 @@ digraph movement {
     "extrusion\nposition\nspecified?"  [shape="diamond",style=filled, fillcolor="cyan2"]
     "extrusion position\nis current\nposition?" [shape="diamond",style=filled, fillcolor="cyan2"]
     "using automatic\nretraction?" [shape="diamond",style=filled, fillcolor="cyan2"]
+    "no retraction\nspecified, no\nextrusion position" [label="no retraction\nspecified, no\nextrusion position?"shape="diamond", fillcolor=cyan2]
     "tool speed\nspecified?" [shape="diamond",style=filled, fillcolor="cyan2"]
     "too much or little\nfilament used?" [shape="diamond",style=filled, fillcolor="cyan2"]
     "is tool speed\nwithin printer\nlimits?" [shape="diamond",style=filled, fillcolor="cyan2"]
@@ -34,13 +35,14 @@ digraph movement {
     "using\nretraction" [shape="rect",style=filled, fillcolor="darkolivegreen1"]
     "not using\nretraction" [shape="rect",style=filled, fillcolor="darkolivegreen1"]
     
-    "unretract\n(as needed)"[shape="parallelogram",style=filled, fillcolor="lemonchiffon"] //lemonchiffon
+    "unretract\n(as needed)"[label="unretract\n(as needed)", shape="parallelogram",style=filled, fillcolor="lemonchiffon"] //lemonchiffon
     "send GCode to\nprinter"[shape="parallelogram",style=filled, fillcolor="lemonchiffon"]
     "retract" [shape="parallelogram",style=filled, fillcolor="lemonchiffon"]
+    
 
     "update internal\nposition" [shape="cylinder"]
 
-    "no retraction\nspecified, no\nextrusion position" [shape="square"]
+
     "throw error" [shape="doubleoctagon", style=filled, fillcolor="firebrick1" ]
 
     "finished" [shape="octagon",style="filled",fillcolor="lightcoral"]
@@ -55,15 +57,16 @@ digraph movement {
 
     "retraction\nspecified?":e -> "no retraction\nspecified, no\nextrusion position" [label=" no"]
 
-    "extrusion\nposition\nspecified?":w -> "printing\nmode (auto)" [label=" no"]
+    "extrusion\nposition\nspecified?":w -> "unretract\n(as needed)" [label=" no"]
+     "unretract\n(as needed)" -> "printing\nmode (auto)" 
 
     "printing\nmode (auto)" -> "no retraction\nspecified, no\nextrusion position"
 
     "no retraction\nspecified, no\nextrusion position" -> "using automatic\nretraction?" [label=" true"]
 
-    "no retraction\nspecified, no\nextrusion position" -> "not using\nretraction" [label=" false"]
+    "no retraction\nspecified, no\nextrusion position":e -> "not using\nretraction" [label=" false"]
     
-     "using automatic\nretraction?":s -> "using\nretraction"  [label=" yes"]
+     "using automatic\nretraction?":s -> "using\nretraction"  [label="  yes"]
 
     "retraction\nargument is:" -> "using\nretraction"  [label=" true"]
     "retraction\nargument is:" -> "not using\nretraction"  [label=" false"]
@@ -116,9 +119,7 @@ digraph movement {
 
     "is tool speed\nwithin printer\nlimits?":w -> "throw error" [label=" no"]
 
-    "is tool speed\nwithin printer\nlimits?" -> "unretract\n(as needed)"[label=" yes"]
-
-    "unretract\n(as needed)" -> "send GCode to\nprinter"
+    "is tool speed\nwithin printer\nlimits?" -> "send GCode to\nprinter" [label=" yes"]
 
     "send GCode to\nprinter" -> "using\nretraction?"
 
@@ -142,8 +143,6 @@ digraph movement {
     subgraph {rank="same";"tool speed\nspecified?";"printing or\ntraveling mode?"}
 
     subgraph {rank="same"; "too much or little\nfilament used?"; "calculate\nper-axis\ntool speed"}
-
-    subgraph {rank="same"; "send GCode to\nprinter"; "unretract\n(as needed)"}
     
     subgraph {rank="same"; "update internal\nposition"; "retract";"finished"}
 

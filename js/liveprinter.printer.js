@@ -967,6 +967,11 @@ class Printer {
             this.currentRetraction = 0; //clear retraction if we go manual
             retract = false;
         }
+        else {
+            // not a travel or manual extrusion so try
+            // to unretract if needed
+            await this.unretract();
+        }
 
         // calculate movement properties
 
@@ -1100,9 +1105,6 @@ class Printer {
      * */
     async sendExtrusionGCode(speed, retract = true) {
 
-        // always try to unretract, it's automatic
-        await this.unretract();
-
         // G1 - Coordinated Movement X Y Z E
         let moveCode = ["G1"];
         moveCode.push("X" + this.x.toFixed(4));
@@ -1111,8 +1113,6 @@ class Printer {
         moveCode.push("E" + this.e.toFixed(4));
         moveCode.push("F" + (speed * 60).toFixed(4)); // mm/s to mm/min
         await this.gcodeEvent(moveCode.join(" "));
-
-        if (retract) await this.retract();
 
         // account for errors in decimal precision
         this.e = parseFloat(this.e.toFixed(4));
@@ -1823,9 +1823,13 @@ class Printer {
         //console.log("next pos:");
         //console.log(nextPosition);
         //console.log(that.position);
-        //console.log(that);
+        //console.log(that);        
 
         await this.sendExtrusionGCode(speed, retract);
+
+        if (retract)
+            await this.retract();
+
 
         // handle cases where velocity is 0 (might be movement up or down)
 
