@@ -1,0 +1,36 @@
+// see https://marlinfw.org/docs/gcode/G000-G001.html
+
+
+digraph movement {
+    fontname="Arial"
+    fontsize=20
+    labelloc="t"
+    label="GCode Tool Operations"
+    splines=true
+    rankdir="LR"
+
+    node [shape=rect, style="filled, rounded", fillcolor="lightblue", fontsize="10", fontname="Arial", color="#444455"]
+
+    edge [color="#444455",fontsize="10", fontname="Arial", compound=true]
+
+    // Nodes-------------------
+
+    operation [label="user-initiated\ntool operation"]
+    interpreter [label="GCode generator"]
+    firmware [label="Marlin firmware"]
+    controllers [label="controller chips"]
+    actuators [label="actuators:\nphysical motors,\nheaters,\n etc."]
+
+
+    // Connections-------------
+
+    operation -> interpreter [label="parameters"]
+    interpreter -> firmware [label="GCode"]
+    firmware -> controllers [label="ttl, serial, etc."]
+    controllers -> actuators [label="electronic   pulses"]
+    
+
+    // Ranks-------------------
+
+    subgraph {rank=same;firmware; controllers; actuators}
+}
