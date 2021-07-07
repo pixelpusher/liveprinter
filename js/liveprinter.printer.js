@@ -220,6 +220,16 @@ class Printer {
         return this.printspeed(s);
     }
 
+    // for consistency when using "draw" functions
+    drawspeed(s) {
+        return this.printspeed(s);
+    }
+    // shortcut
+    dsp(s) {
+        return this.printspeed(s);
+    }
+
+
     get maxspeed() { return Printer.maxPrintSpeed[this._model].x; } // in mm/s
 
     travelspeed(s) {
@@ -932,8 +942,12 @@ class Printer {
 
     /**
     * Extrude plastic from the printer head to specific coordinates, within printer bounds
-    * @param {Object} params Parameters dictionary containing either x,y,z keys or direction/angle (radians) keys and retract setting (true/false).
-    *      Optional bounce (Boolean) key if movement should bounce off sides.
+    * @param {Object} params Parameters dictionary containing either:
+    * - x,y,z,e keys referring to movement and filament position
+    * - 'retract' for manual retract setting (true/false)
+    * - 'speed' for the print or travel speed of this and subsequent operations
+    * - 'thickness' or 'thick' for setting/updating layer height
+    * - 'bounce' if movement should bounce off sides (true/false), not currently implemented properly
     * @returns {Printer} reference to this object for chaining
     */
     async extrudeto(params) {
@@ -990,6 +1004,12 @@ class Printer {
             ? params.thickness 
             : this.layerHeight);
 
+        // update layer height if necessary
+        if (params.thick !== undefined) {
+            this.layerHeight = parseFloat(params.thick);
+        } 
+    
+
         //////////////////////////////////////
         /// START CALCULATIONS      //////////
         //////////////////////////////////////
@@ -1015,7 +1035,7 @@ class Printer {
             // for extrusion into free space
             // apparently, some printers take the filament into account (so this is in mm3)
             // this was helpful: https://github.com/Ultimaker/GCodeGenJS/blob/master/js/gcode.js
-            const filamentLength = distanceMag * this.layerHeight * this.layerHeight;//(Math.PI*filamentRadius*filamentRadius);
+            let filamentLength = distanceMag * this.layerHeight * this.layerHeight;//(Math.PI*filamentRadius*filamentRadius);
 
             //
             // safety check:
