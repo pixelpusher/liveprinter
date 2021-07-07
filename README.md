@@ -33,7 +33,11 @@ The web server (tornado 6) runs on Python 3 (3.6 and 3.7 tested) so you will nee
 Here is a short video demonstrating the python installation on Windows (on OS X it's the same, just use Terminal instead of Command Prompt):
 https://youtu.be/ejlaQhOCUHw
 
-Run the server using your Python environment of choice * it's in the liveprinter folder, called LivePrinterServer.py.  By default, the server runs on port 8888 so open a web browser to http://localhost:8888 (or [change it](https://github.com/pixelpusher/liveprinter/blob/master/liveprinter/LivePrinterServer.py#L28)).  It can run without a printer using a "fake" serial port.
+Run the server using your Python environment of choice. The server script is in the ``liveprinter`` subfolder and is called ```LivePrinterServer.py```, so change to that folder and run:
+
+```python LivePrinterServer.py```
+
+By default, the server runs on port 8888 so open a web browser to <http://localhost:8888> (or [change it](https://github.com/pixelpusher/liveprinter/blob/master/liveprinter/LivePrinterServer.py#L28)).  It can be run without an actual 3D printer using a "fake" serial port, check the videos or look for the _dummy_ printer in the drop down menu when you've got it running.
 
 ## Using LivePrinter
 
@@ -90,20 +94,20 @@ If you fire up the server and then navigate a browser to http://localhost:8888/j
 
 ### API Documentation
 
-This is what the API looks like currently:
+This is what the API looks like, currently:
 
-#### get list of serial ports 
+#### get list of serial ports
 
-* **send:** { "jsonrpc": "2.0", "id": 6, "method": "get-serial-ports","params": []}
+* **send (no params):** { "jsonrpc": "2.0", "id": 6, "method": "get-serial-ports","params": []}
 * **receive back array of port names:** {"jsonrpc":"2.0","id":6,"result":{"ports":["COM3","dummy"],"time":1568371926204.6528}}
 
 #### set printer serial port and connection speed
-* **send port name (e.g. "COM3") and speed (e.g. 25000):** { "jsonrpc": "2.0", "id": 5, "method": "set-serial-port","params": [ "COM3", 250000]}
+* **send parameters array with port name (e.g. "COM3") and speed (e.g. 25000):** { "jsonrpc": "2.0", "id": 5, "method": "set-serial-port","params": [ "COM3", 250000]}
 * **receive back connection results from printer (if any):** {"jsonrpc":"2.0","id":5,"result":[{"time":1568375167280.751,"port":["COM3",250000],"messages":["start","echo:Marlin 1.0.0","echo: Last Updated: Dec 8 2018 13:25:37 | Author: Version DEV","Compiled: Dec 8 2018","echo: Free Memory: 2123 PlannerBufferBytes: 1232","echo:Stored settings retrieved","echo:Steps per unit:","echo: M92 X80.00 Y80.00 Z200.00 E282.00","echo:Maximum feedrates (mm/s):","echo: M203 X300.00 Y300.00 Z40.00 E45.00","echo:Maximum Acceleration (mm/s2):","echo: M201 X9000 Y9000 Z100 E10000","echo:Acceleration: S=acceleration, T=retract acceleration","echo: M204 S3000.00 T3000.00","echo:Advanced variables: S=Min feedrate (mm/s), T=Min travel feedrate (mm/s), B=minimum segment time (ms), X=maximum XY jerk (mm/s), Z=maximum Z jerk (mm/s), E=maximum E jerk (mm/s)","echo: M205 S0.00 T0.00 B20000 X20.00 Z0.40 E5.00","echo:Home offset (mm):","echo: M206 X0.00 Y0.00 Z-12.15","echo:PID settings:","echo: M301 P10.00 I2.50 D100.00"]}]}
 
 #### send arbitrary GCODE (must be connected first otherwise get exception back)
 
-* **send any GCode (e.g. "G28"):** { "jsonrpc": "2.0", "id": 4, "method": "send-gcode","params": ["G28"]}
+* **send any line of GCode (e.g. "G28") in the parameters as a string. NOTE: only send one command so you receive the proper response for that command. For multiple commands, send multiple jsonrpc requests:** { "jsonrpc": "2.0", "id": 4, "method": "send-gcode","params": ["G28"]}
 * **receive back results from printer (e.g. "ok")**: {"jsonrpc":"2.0","id":4,"result":["ok"]}
 
 #### get printer connection state (port name and state e.g. closed or connected)
@@ -113,7 +117,7 @@ This is what the API looks like currently:
 
 #### close printer serial port
 
-* **send:** { "jsonrpc": "2.0", "id": 2, "method": "close-serial-port","params": []}
+* **send (no params):** { "jsonrpc": "2.0", "id": 2, "method": "close-serial-port","params": []}
 * **receive back:** {"jsonrpc":"2.0","id":2,"result":["closed"]}
 
 ### Key files

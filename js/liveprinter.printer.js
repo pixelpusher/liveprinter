@@ -862,15 +862,15 @@ class Printer {
     }
 
     /**
-     * Shortcut to travel (no extrusion) the current set distance, in the direction of movement
+     * Shortcut to draw (extrusion) the current set distance, in the direction of movement
      * @param {float} d distance to extrude (draw) (if not given, the current set distance)
      * @returns {Printer} reference to this object for chaining
      */
-    async draw(d) {
+    async draw(d, retract) {
         if (d !== undefined) {
             this._distance = d;
         }
-        return this.go(1);
+        return this.go(1, retract);
     }
 
     /**
