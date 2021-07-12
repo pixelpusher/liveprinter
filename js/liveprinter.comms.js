@@ -425,7 +425,9 @@ function handleGCodeResponse(res) {
             break;
         default: liveprinterui.loginfo(res.id + " received");
     }
-    liveprinterui.updateGUI();
+    // delay slightly to make sure we are updated first
+    setTimeout(liveprinterui.updateGUI, 150)
+    
     return handled;
 }
 exports.handleGCodeResponse = handleGCodeResponse;

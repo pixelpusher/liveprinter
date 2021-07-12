@@ -961,7 +961,7 @@ class Printer {
         const __e = (params.e !== undefined) ? parseFloat(params.e) : this.e;
 
         // did we specify a length of filament to extrude?
-        const extrusionNotZero = Math.abs(__e - this.e) > EPSILON;
+        const extrusionNotZero = Math.abs(__e - this.e) > Number.EPSILON;
 
         // only extrude if there is something to extrude!
         const extruding = extrusionNotSpecified || extrusionNotZero; 
@@ -1025,6 +1025,8 @@ class Printer {
         // only calculate filament distance if we are not traveling and filament
         // length wasn't specified
 
+        let filamentLength = __e; 
+
         if (extrusionNotSpecified) {
             // distance is purely 3D movement, not filament movement
             distanceMag = Math.sqrt(distanceVec.axes.x * distanceVec.axes.x + distanceVec.axes.y * distanceVec.axes.y + distanceVec.axes.z * distanceVec.axes.z);
@@ -1035,7 +1037,7 @@ class Printer {
             // for extrusion into free space
             // apparently, some printers take the filament into account (so this is in mm3)
             // this was helpful: https://github.com/Ultimaker/GCodeGenJS/blob/master/js/gcode.js
-            let filamentLength = distanceMag * this.layerHeight * this.layerHeight;//(Math.PI*filamentRadius*filamentRadius);
+            filamentLength = distanceMag * this.layerHeight * this.layerHeight;//(Math.PI*filamentRadius*filamentRadius);
 
             //
             // safety check:
@@ -1094,7 +1096,7 @@ class Printer {
                 throw Error("Z printing speed too fast:" + nozzleSpeed.axes.z);
             }
             if (nozzleSpeed.axes.e > Printer.maxPrintSpeed[this._model]["e"]) {
-                throw Error("E printing speed too fast:" + nozzleSpeed.axes.e);
+                throw Error("E printing speed too fast:" + nozzleSpeed.axes.e + "/" + Printer.maxPrintSpeed[this._model]["e"]);
             }
         } else {
             // just traveling
@@ -1106,9 +1108,6 @@ class Printer {
             }
             if (nozzleSpeed.axes.z > Printer.maxTravelSpeed[this._model]["z"]) {
                 throw Error("Z travel too fast:" + nozzleSpeed.axes.z);
-            }
-            if (nozzleSpeed.axes.e > Printer.maxTravelSpeed[this._model]["e"]) {
-                throw Error("E travel too fast:" + nozzleSpeed.axes.e);
             }
         }
         // Handle movements outside printer boundaries if there's a need.
@@ -1181,8 +1180,11 @@ class Printer {
         newparams.y = (params.y !== undefined) ? parseFloat(params.y) + this.y : this.y;
         newparams.z = (params.z !== undefined) ? parseFloat(params.z) + this.z : this.z;
         newparams.e = (params.e !== undefined) ? parseFloat(params.e) + this.e : undefined;
+
+        // pass through
         newparams.retract = params.retract;
-    
+        newparams.speed = params.speed;
+        
         // extrude using absolute cartesian coords
         return this.extrudeto(newparams);
 
@@ -1214,8 +1216,9 @@ class Printer {
         newparams.y = (params.y !== undefined) ? parseFloat(params.y) + this.y : this.y;
         newparams.z = (params.z !== undefined) ? parseFloat(params.z) + this.z : this.z;
         newparams.e = this.e;
-        newparams.speed = (params.speed === undefined) ? this._travelSpeed : parseFloat(params.speed);
-        this._travelSpeed = newparams.speed; // update travel speed
+        if (params.speed !== undefined) 
+            this.travelSpeed(parseFloat(params.speed));
+        newparams.speed = this._travelSpeed; // update travel speed
 
         // extrude using absolute cartesian coords
         return this.extrudeto(params);
