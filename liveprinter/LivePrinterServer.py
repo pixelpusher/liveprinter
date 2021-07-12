@@ -42,19 +42,16 @@ import tornado.httpserver
 import tornado.ioloop
 import tornado.options
 import tornado.web
-from tornado import gen
-from serial import Serial, SerialException, SerialTimeoutException, portNotOpenError, writeTimeoutError
+from serial import SerialException
 import serial.tools.list_ports
 import dummyserial
+from ConnectionState import ConnectionState
+from SerialDevice import SerialDevice
 from tornado.options import define, options
 import functools
 from tornado_jsonrpc2.handler import JSONRPCHandler
-from tornado_jsonrpc2.exceptions import MethodNotFound
 import time
-import re
-from typing import Union, Optional, List
-from ConnectionState import ConnectionState
-from SerialDevice import SerialDevice
+from typing import Union
 import logging
 import tornado.log
 
@@ -139,7 +136,7 @@ async def list_ports():
 
 
 def use_dummy_serial_port(printer:SerialDevice):
-    if printer._serial_port is not "/dev/null" and printer._serial is None:
+    if printer._serial_port != "/dev/null" and printer._serial is None:
 
         # FIXME
         # not great, should be async!!!
@@ -182,7 +179,7 @@ async def json_handle_gcode(printer, *args):
 
     gcode = args[0]
     parse_results = False
-    if len(args) is 2:
+    if len(args) == 2:
         parse_results = args[1]
 
     try:
@@ -259,7 +256,7 @@ async def json_handle_set_serial_port(printer, *args):
 async def json_handle_close_serial(printer, *args):  
     response = ""
     if printer._serial is not None and printer._serial.is_open:
-        if printer._serial_port is "/dev/null":
+        if printer._serial_port == "/dev/null":
             printer._serial.close()
             printer.connection_state = ConnectionState.closed
             response = printer.connection_state.name
@@ -289,7 +286,7 @@ async def json_handle_portslist():
         result = [{'ports': ports, 'time': time.time() * 1000 }]
     return result
 
-
+#
 #
 # return the name of the serial port and connection state
 #
@@ -300,7 +297,7 @@ async def json_handle_printer_state(printer):
     connectionState = printer.connection_state
     serial_port_name = printer._serial_port
 
-    if printer._serial_port is "/dev/null":
+    if printer._serial_port == "/dev/null":
         serial_port_name = "dummy"
     response.append({
         'time': time.time() * 1000,
