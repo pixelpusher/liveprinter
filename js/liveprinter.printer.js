@@ -206,6 +206,11 @@ class Printer {
     }
     get model() { return this._model; }
 
+    /**
+     * Set printing speed.
+     * @param {Number} s speed 
+     * @returns Number
+     */
     printspeed(s) {
         if (s !== undefined) {
             let maxs = Printer.maxPrintSpeed[this._model];
@@ -213,13 +218,27 @@ class Printer {
         }
         return this._printSpeed;
     }
-    // shortcut
+    /**
+     * Set drawing speed (synonym for printspeed).
+     * @param {Number} s speed 
+     * @returns Number drawing speed
+     */
+    drawspeed(s) {
+        
+        return this.printspeed(s);
+    }
+
+    // shortcuts
     psp(s) {
         return this.printspeed(s);
     }
 
     get maxspeed() { return Printer.maxPrintSpeed[this._model].x; } // in mm/s
-
+    /**
+     * Set travel speed.
+     * @param {Number} s speed 
+     * @returns Number travel speed
+     */
     travelspeed(s) {
         if (s !== undefined) {
             let maxs = Printer.maxTravelSpeed[this._model];
@@ -235,7 +254,11 @@ class Printer {
     get extents() {
         return this.maxPosition.axes;
     }
-
+    /**
+     * Set automatic retraction state
+     * @param {Boolean} state 
+     * @returns Boolean automatic retraction state
+     */
     autoretract(state = true) {
         if (state) {
             this._autoRetract = state;
@@ -243,19 +266,6 @@ class Printer {
             this._autoRetract = false;
         }
         return this._autoRetract;
-    }
-
-    ///
-    /// this is dangerous because retraction could get out of sync and likely should never be used.
-    ///
-
-    async retractlength(len) {
-        if (len < 0) throw new Error("retract length can't be less than 0: " + len);
-        let lengthUpdated = false;
-        if (len !== this.retractLength) lengthUpdated = true;
-        this.retractLength = len;
-
-        if (lengthUpdated) await this.sendFirmwareRetractSettings();// might slow things
     }
 
     /**
