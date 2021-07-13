@@ -5,10 +5,10 @@
 # See main license for details.
 #
 from tornado import gen
-from serial import Serial, SerialException, SerialTimeoutException, portNotOpenError, writeTimeoutError
+from serial import Serial, SerialException, SerialTimeoutException
 import time
 import re
-from typing import Union, Optional, List
+from typing import Union
 import functools
 from ConnectionState import ConnectionState
 import logging

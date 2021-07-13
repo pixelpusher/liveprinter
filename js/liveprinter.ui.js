@@ -932,6 +932,8 @@ const init = async function (_printer, _scheduler) {
             this.working = true;
         }
         else {
+            loginfo("Getting serial ports...");
+
             try {
                 const portsList = await liveprintercomms.getSerialPorts();
                 await portsListHandler(portsList);
