@@ -61,7 +61,7 @@ class Printer {
         this._zdistance = 0; // next up/down distance to move
         this._waitTime = 0;
         this._autoRetract = true; // automatically unretract/retract - see get/set autoretract
-
+        this._bpm = 120; // for beat-based movements
         ////////////////////////////////////////////
 
         this.totalMoveTime = 0; // time spent moving/extruding
@@ -355,6 +355,20 @@ class Printer {
         this._heading = ang;
     }
 
+    /**
+     * set bpm for printer, for calculating beat-based movements
+     */
+    bpm(beats) {
+        this._bpm = beats;
+    } 
+
+    /**
+     * set bpm for printer, for calculating beat-based movements
+     */
+    bpm() {
+        return this._bpm;
+    } 
+    
     /**
      * Retraction speed - updates firmware on printer too
      * @param {Number} s Option speed in mm/s to set, otherwise just get
@@ -1374,7 +1388,7 @@ class Printer {
      * @returns {Printer} reference to this object for chaining
      */
     t2d(time, speed = this._travelSpeed) {
-        this._distance = speed * time / 1000; // time in ms
+        this._distance = this.t2mm(time, speed); // time in ms
         return this;
     }
 
@@ -1385,6 +1399,25 @@ class Printer {
      */
     t2mm(time, speed = this._printSpeed) {
         return speed * time / 1000; // time in ms
+    }
+
+    /**
+     * Set the movement distance based on number of beats (uses bpm to calculate)
+     * @param {Number} beats Time to move in whole or partial beats
+     * @returns {Printer} reference to this object for chaining
+     */
+    b2d(beats, speed = this._travelSpeed) {
+        this._distance = this.b2t(beats,speed); // speed is in ms already
+        return this;
+    }
+
+    /**
+     * Get the time in ms based on number of beats (uses bpm to calculate)
+     * @param {Number} beats In whole or partial beats
+     * @returns {Number} Time in ms equivalent to the number of beats
+     */
+    b2t(beats, speed = this._travelSpeed) {
+        return speed * (beats*60/this._bpm); // speed is in ms already
     }
 
     /**
