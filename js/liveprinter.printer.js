@@ -1605,7 +1605,7 @@ class Printer {
 
 
     /**
-         * Print paths 
+         * Print paths using drawFill. NEVER TESTED!
          * @param {Array} paths List of paths (lists of coordinates in x,y) to print
          * @param {Object} settings Settings for the scaling, etc. of this object. useaspect means respect aspect ratio (width/height). A width or height
          * of 0 means to use the original paths' width/height.
