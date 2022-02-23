@@ -313,6 +313,8 @@ async function sendGCodeRPC(gcode) {
                 return response;
             }
         }));
+        liveprinterui.updateGUI();
+
         //Logger.debug("finish array gcode[" + codeLine + "]");
     } else {
         //Logger.debug("single line gcode");
@@ -321,6 +323,8 @@ async function sendGCodeRPC(gcode) {
             gcodeObj.params = [gcode];
             const response = await sendJSONRPC(JSON.stringify(gcodeObj));
             handleGCodeResponse(response);
+            liveprinterui.updateGUI();
+
         }
     }
     if (vars.logAjax) liveprinterui.commandsHandler.log(`DONE gcode ${gcode}`);
@@ -374,7 +378,11 @@ exports.scheduleGCode = scheduleGCode;
 //////////////////////////////////////////////////////////////////////
 
 
-
+/**
+ * Handles logging of a GCode response from the server
+ * @param {Object} res 
+ * @returns Boolean whether handled or not
+ */
 function handleGCodeResponse(res) {
     let handled = true;
 
@@ -425,9 +433,6 @@ function handleGCodeResponse(res) {
             break;
         default: liveprinterui.loginfo(res.id + " received");
     }
-    // delay slightly to make sure we are updated first
-    setTimeout(liveprinterui.updateGUI, 150)
-    
     return handled;
 }
 exports.handleGCodeResponse = handleGCodeResponse;

@@ -25,19 +25,19 @@
     "nearley": "^2.19.3",
     "popper.js": "^1.16.1",
     "svgjs": "^2.6.2",
-    "watchify": "^3.11.1"
+    "watchify": "^4.0.0"
   },
   "devDependencies": {
     "@babel/core": "^7.9.6",
     "@babel/plugin-transform-modules-commonjs": "^7.9.6",
     "babelify": "^10.0.0",
     "browserify": "^16.5.1",
+    "esdoc": "^1.0.4",
+    "esdoc-standard-plugin": "^1.0.0",
     "jshint": "^2.11.0",
+    "minami": "^1.2.3",
     "stylelint": "^13.3.3",
     "stylelint-config-standard": "^20.0.0",
-    "esdoc": "^1.1.0",
-    "esdoc-standard-plugin": "^1.0.0",
-    "minami": "^1.2.3",
     "tidy-jsdoc": "^0.2.1"
   },
   "scripts": {
