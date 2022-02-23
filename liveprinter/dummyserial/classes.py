@@ -9,7 +9,7 @@ import sys
 import time
 import re
 
-from serial.serialutil import SerialException, portNotOpenError
+from serial.serialutil import SerialException
 
 import dummyserial.constants
 
@@ -106,7 +106,7 @@ class Serial(object):
         self._logger.debug('Writing (%s): "%s"', len(data), data)
 
         if not self.is_open:
-            raise portNotOpenError
+            raise SerialException("could not open dummy serial port: port not open")
 
         if sys.version_info[0] > 2:
             if not isinstance(data, bytes):
