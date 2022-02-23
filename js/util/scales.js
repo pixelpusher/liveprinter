@@ -1,3 +1,13 @@
+/**
+ * 
+ * @param {Number} bpm beats per minute
+ * @returns {Number} time in ms for a single beat 
+ */
+function beatLen(bpm) {
+    return 60000/bpm; // 60000 ms per minute
+}
+
+
 const majPattern = [0,//root
     2, //1
     4,//3rd
