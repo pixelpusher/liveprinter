@@ -113,7 +113,7 @@ module.exports = compile;
 },{"../util":13,"./lpgrammar":3,"nearley":83}],3:[function(require,module,exports){
 "use strict";
 
-// Generated automatically by nearley, version 2.18.0
+// Generated automatically by nearley, version undefined
 // http://github.com/Hardmath123/nearley
 (function () {
   function id(x) {
@@ -127,9 +127,9 @@ module.exports = compile;
       "symbols": ["EOL"]
     }, {
       "name": "Main$ebnf$1",
-      "symbols": ["Main$ebnf$1", "EOL"],
-      "postprocess": function arrpush(d) {
-        return d[0].concat([d[1]]);
+      "symbols": ["EOL", "Main$ebnf$1"],
+      "postprocess": function arrconcat(d) {
+        return [d[0]].concat(d[1]);
       }
     }, {
       "name": "Main",
@@ -264,9 +264,9 @@ module.exports = compile;
       "symbols": ["Letter"]
     }, {
       "name": "ObjArg$ebnf$1",
-      "symbols": ["ObjArg$ebnf$1", "Letter"],
-      "postprocess": function arrpush(d) {
-        return d[0].concat([d[1]]);
+      "symbols": ["Letter", "ObjArg$ebnf$1"],
+      "postprocess": function arrconcat(d) {
+        return [d[0]].concat(d[1]);
       }
     }, {
       "name": "ObjArg",
@@ -280,14 +280,45 @@ module.exports = compile;
       "symbols": ["ParenthesisStatement"]
     }, {
       "name": "AnyArg",
-      "symbols": ["StringLiteral"]
+      "symbols": ["MathFuncs"]
     }, {
-      "name": "AnyArg",
-      "symbols": ["MathFunc"]
+      "name": "ParenthesisStatement",
+      "symbols": [{
+        "literal": "(",
+        "pos": 188
+      }, "Space", "BasicStatement", "Space", {
+        "literal": ")",
+        "pos": 196
+      }],
+      "postprocess": ([lparen, sp, statement, sp2, rparen]) => lparen + statement + rparen
+    }, {
+      "name": "BasicStatement",
+      "symbols": ["AnyVar"]
+    }, {
+      "name": "BasicStatement",
+      "symbols": ["MathFuncs"]
+    }, {
+      "name": "MathFuncs",
+      "symbols": ["MathFunc", "Space", "MathFuncs"],
+      "postprocess": ([arg, ws, args]) => [arg].concat(args).join('')
+    }, {
+      "name": "MathFuncs",
+      "symbols": ["MathFunc"],
+      "postprocess": id
+    }, {
+      "name": "MathFunc$ebnf$1",
+      "symbols": ["AnyVar"],
+      "postprocess": id
+    }, {
+      "name": "MathFunc$ebnf$1",
+      "symbols": [],
+      "postprocess": function (d) {
+        return null;
+      }
     }, {
       "name": "MathFunc",
-      "symbols": ["AnyVar", "Space", "MathOps", "Space", "AnyVar"],
-      "postprocess": ([var1, sp1, op, sp2, var2]) => "" + var1 + op + var2
+      "symbols": ["MathFunc$ebnf$1", "Space", "MathOps", "Space", "AnyVar"],
+      "postprocess": ([var1, sp1, op, sp2, var2]) => (var1 ? var1 : "") + op + var2
     }, {
       "name": "AnyVar",
       "symbols": ["Number"]
@@ -298,6 +329,12 @@ module.exports = compile;
       "name": "AnyVar",
       "symbols": ["ObjectVariable"]
     }, {
+      "name": "AnyVar",
+      "symbols": ["StringLiteral"]
+    }, {
+      "name": "AnyVar",
+      "symbols": ["ParenthesisStatement"]
+    }, {
       "name": "ObjectVariable",
       "symbols": ["PlainVariable", "DOT", "PlainVariable"],
       "postprocess": ([pv1, dot, pv2]) => pv1 + dot + pv2
@@ -306,9 +343,9 @@ module.exports = compile;
       "symbols": []
     }, {
       "name": "PlainVariable$ebnf$1",
-      "symbols": ["PlainVariable$ebnf$1", "AnyValidCharacter"],
-      "postprocess": function arrpush(d) {
-        return d[0].concat([d[1]]);
+      "symbols": ["AnyValidCharacter", "PlainVariable$ebnf$1"],
+      "postprocess": function arrconcat(d) {
+        return [d[0]].concat(d[1]);
       }
     }, {
       "name": "PlainVariable",
@@ -337,9 +374,9 @@ module.exports = compile;
       "symbols": [/[()\s]/]
     }, {
       "name": "StringLiteral$ebnf$1",
-      "symbols": ["StringLiteral$ebnf$1", "StringLiteral$ebnf$1$subexpression$2"],
-      "postprocess": function arrpush(d) {
-        return d[0].concat([d[1]]);
+      "symbols": ["StringLiteral$ebnf$1$subexpression$2", "StringLiteral$ebnf$1"],
+      "postprocess": function arrconcat(d) {
+        return [d[0]].concat(d[1]);
       }
     }, {
       "name": "StringLiteral",
@@ -364,14 +401,15 @@ module.exports = compile;
       "symbols": [/[0-9]/]
     }, {
       "name": "Float$ebnf$1",
-      "symbols": ["Float$ebnf$1", /[0-9]/],
-      "postprocess": function arrpush(d) {
-        return d[0].concat([d[1]]);
+      "symbols": [/[0-9]/, "Float$ebnf$1"],
+      "postprocess": function arrconcat(d) {
+        return [d[0]].concat(d[1]);
       }
     }, {
       "name": "Float",
       "symbols": ["Float$subexpression$1", {
-        "literal": "."
+        "literal": ".",
+        "pos": 353
       }, "Float$ebnf$1"],
       "postprocess": ([num1, dot, num2]) => num1 + dot + num2.join('')
     }, {
@@ -380,7 +418,8 @@ module.exports = compile;
     }, {
       "name": "Integer$ebnf$1",
       "symbols": [{
-        "literal": "-"
+        "literal": "-",
+        "pos": 368
       }],
       "postprocess": id
     }, {
@@ -394,67 +433,28 @@ module.exports = compile;
       "symbols": []
     }, {
       "name": "Integer$ebnf$2",
-      "symbols": ["Integer$ebnf$2", "Digit"],
-      "postprocess": function arrpush(d) {
-        return d[0].concat([d[1]]);
+      "symbols": ["Digit", "Integer$ebnf$2"],
+      "postprocess": function arrconcat(d) {
+        return [d[0]].concat(d[1]);
       }
     }, {
       "name": "Integer",
       "symbols": ["Integer$ebnf$1", "NonzeroNumber", "Integer$ebnf$2"],
       "postprocess": ([sign, num1, num2]) => (sign ? "-" : "") + num1 + num2.join('')
     }, {
-      "name": "ParenthesisStatement$ebnf$1$subexpression$1",
-      "symbols": ["AnyValidCharacter"]
-    }, {
-      "name": "ParenthesisStatement$ebnf$1$subexpression$1",
-      "symbols": ["DOT"]
-    }, {
-      "name": "ParenthesisStatement$ebnf$1$subexpression$1",
-      "symbols": ["MathOps"]
-    }, {
-      "name": "ParenthesisStatement$ebnf$1$subexpression$1",
-      "symbols": [/[()\s]/]
-    }, {
-      "name": "ParenthesisStatement$ebnf$1",
-      "symbols": ["ParenthesisStatement$ebnf$1$subexpression$1"]
-    }, {
-      "name": "ParenthesisStatement$ebnf$1$subexpression$2",
-      "symbols": ["AnyValidCharacter"]
-    }, {
-      "name": "ParenthesisStatement$ebnf$1$subexpression$2",
-      "symbols": ["DOT"]
-    }, {
-      "name": "ParenthesisStatement$ebnf$1$subexpression$2",
-      "symbols": ["MathOps"]
-    }, {
-      "name": "ParenthesisStatement$ebnf$1$subexpression$2",
-      "symbols": [/[()\s]/]
-    }, {
-      "name": "ParenthesisStatement$ebnf$1",
-      "symbols": ["ParenthesisStatement$ebnf$1", "ParenthesisStatement$ebnf$1$subexpression$2"],
-      "postprocess": function arrpush(d) {
-        return d[0].concat([d[1]]);
-      }
-    }, {
-      "name": "ParenthesisStatement",
-      "symbols": [{
-        "literal": "("
-      }, "ParenthesisStatement$ebnf$1", {
-        "literal": ")"
-      }],
-      "postprocess": ([lparen, statement, rparen]) => statement.join('')
-    }, {
       "name": "MathOps",
       "symbols": [/[*+-/]/]
     }, {
       "name": "ArgSeparator",
       "symbols": [{
-        "literal": ":"
+        "literal": ":",
+        "pos": 390
       }]
     }, {
       "name": "Zero",
       "symbols": [{
-        "literal": "0"
+        "literal": "0",
+        "pos": 396
       }]
     }, {
       "name": "AnyValidCharacter",
@@ -486,12 +486,14 @@ module.exports = compile;
     }, {
       "name": "ObjectLeftBrace",
       "symbols": [{
-        "literal": "{"
+        "literal": "{",
+        "pos": 452
       }]
     }, {
       "name": "ObjectRightBrace",
       "symbols": [{
-        "literal": "}"
+        "literal": "}",
+        "pos": 458
       }]
     }, {
       "name": "EOLPIPE",
@@ -505,26 +507,29 @@ module.exports = compile;
     }, {
       "name": "PIPE",
       "symbols": [{
-        "literal": "|"
+        "literal": "|",
+        "pos": 476
       }]
     }, {
       "name": "DOT",
       "symbols": [{
-        "literal": "."
+        "literal": ".",
+        "pos": 482
       }]
     }, {
       "name": "QUOTE",
       "symbols": [{
-        "literal": "\""
+        "literal": "\"",
+        "pos": 488
       }]
     }, {
       "name": "_$ebnf$1",
       "symbols": []
     }, {
       "name": "_$ebnf$1",
-      "symbols": ["_$ebnf$1", /[\s]/],
-      "postprocess": function arrpush(d) {
-        return d[0].concat([d[1]]);
+      "symbols": [/[\s]/, "_$ebnf$1"],
+      "postprocess": function arrconcat(d) {
+        return [d[0]].concat(d[1]);
       }
     }, {
       "name": "_",
@@ -537,9 +542,9 @@ module.exports = compile;
       "symbols": [/[\s]/]
     }, {
       "name": "__$ebnf$1",
-      "symbols": ["__$ebnf$1", /[\s]/],
-      "postprocess": function arrpush(d) {
-        return d[0].concat([d[1]]);
+      "symbols": [/[\s]/, "__$ebnf$1"],
+      "postprocess": function arrconcat(d) {
+        return [d[0]].concat(d[1]);
       }
     }, {
       "name": "__",
@@ -558,9 +563,9 @@ module.exports = compile;
       "symbols": []
     }, {
       "name": "Space$ebnf$1",
-      "symbols": ["Space$ebnf$1", /[ ]/],
-      "postprocess": function arrpush(d) {
-        return d[0].concat([d[1]]);
+      "symbols": [/[ ]/, "Space$ebnf$1"],
+      "postprocess": function arrconcat(d) {
+        return [d[0]].concat(d[1]);
       }
     }, {
       "name": "Space",
@@ -573,9 +578,9 @@ module.exports = compile;
       "symbols": [/[ ]/]
     }, {
       "name": "Spaces$ebnf$1",
-      "symbols": ["Spaces$ebnf$1", /[ ]/],
-      "postprocess": function arrpush(d) {
-        return d[0].concat([d[1]]);
+      "symbols": [/[ ]/, "Spaces$ebnf$1"],
+      "postprocess": function arrconcat(d) {
+        return [d[0]].concat(d[1]);
       }
     }, {
       "name": "Spaces",

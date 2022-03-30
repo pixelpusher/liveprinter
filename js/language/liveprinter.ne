@@ -74,16 +74,26 @@ ObjArg	-> Letter:+ Space ArgSeparator Space AnyArg {% ([argname, ws1, separator,
 # valid arguments for functions
 AnyArg -> AnyVar
 	| ParenthesisStatement # these are for passing js directly in brackets
-	| StringLiteral
-	| MathFunc
+	| MathFuncs
+
+ParenthesisStatement -> "(" Space BasicStatement Space ")" {% ([lparen, sp, statement, sp2, rparen]) => lparen+statement+rparen %}
+# "(" (AnyValidCharacter | DOT | MathOps | [()\s]):+ ")" {% ([lparen, statement, rparen]) => statement.join('') %}
+
+BasicStatement -> AnyVar | MathFuncs
+
+MathFuncs -> MathFunc Space MathFuncs {% ([arg, ws, args]) => [arg].concat(args).join('') %} 
+	| MathFunc {% id %}
 
 # math functions
-MathFunc -> AnyVar Space MathOps Space AnyVar {% ([var1,sp1,op,sp2,var2]) => ("" + var1 + op + var2) %}
+MathFunc -> AnyVar:? Space MathOps Space AnyVar {% ([var1,sp1,op,sp2,var2]) => (var1 ? var1 : "")+op+var2 %}
+#{% ([var1,sp1,op,sp2,var2]) => (var1 ? var1 : "") + op + var2 }  %}
 
 # valid variable types for math ops etc
 AnyVar -> Number # int or float
 	| PlainVariable # named variable
 	| ObjectVariable # something.something
+	| StringLiteral
+	| ParenthesisStatement
 
 ObjectVariable -> PlainVariable DOT PlainVariable {% ([pv1, dot, pv2])=> pv1 + dot + pv2 %} 
 
@@ -99,8 +109,6 @@ Float -> (Zero | Integer) "." [0-9]:+		{% ([num1, dot, num2]) => num1 + dot + nu
 Integer -> Zero |
 		"-":? NonzeroNumber Digit:*   {% ([sign, num1, num2]) => (sign ? "-" : "") + num1 + num2.join('') %}
 		#{% d => ({ d:d[0] + d[1].join(''), v: parseInt(d[0] + d[1].join('')) }) %}
-
-ParenthesisStatement -> "(" (AnyValidCharacter | DOT | MathOps | [()\s]):+ ")" {% ([lparen, statement, rparen]) => statement.join('') %}
 
 MathOps -> [*+-/]
 
