@@ -104,9 +104,9 @@ StringLiteral -> QUOTE (AnyValidCharacter | DOT | [()\s]):+ QUOTE {% ([lquote, s
 Number -> Integer 	{% id %}
 	| Float 		{% id %}
 	
-Float -> (Zero | Integer) "." [0-9]:+		{% ([num1, dot, num2]) => num1 + dot + num2.join('') %}
+Float -> Integer "." [0-9]:+		{% ([num1, dot, num2]) => num1 + dot + num2.join('') %}
 
-Integer -> Zero |
+Integer -> "-":? Zero {% ([sign, num1]) => (sign ? "-" : "") + num1 %} | 
 		"-":? NonzeroNumber Digit:*   {% ([sign, num1, num2]) => (sign ? "-" : "") + num1 + num2.join('') %}
 		#{% d => ({ d:d[0] + d[1].join(''), v: parseInt(d[0] + d[1].join('')) }) %}
 
