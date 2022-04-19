@@ -57,6 +57,8 @@ target/
 docs/
 node_modules/
 
+.parcel-cache/
+
 # npm/nodejs
 
 *.lock

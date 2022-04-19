@@ -22,7 +22,7 @@
  * under the License.
  */
 
-const Vector = require('./util').Vector;
+import { Vector } from 'liveprinter-utils';
 
 class Printer {
 

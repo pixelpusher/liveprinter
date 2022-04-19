@@ -17,8 +17,9 @@
 * under the License.
 */
 const MarlinParsers = require('./parsers/MarlinParsers');
-const util = require('./util'); // utility functions
-const Logger = util.Logger;
+import { Logger } from 'liveprinter-utils';
+
+const logger = new Logger();
 
 const compile = require('./language/compile'); // minigrammar compile function
 
@@ -41,7 +42,7 @@ function clearError() {
     $("#modal-errors").empty();
 }
 
-exports.clearError = clearError;
+module.exports.clearError = clearError;
 
 /**
  * Show an error in the HTML GUI  
@@ -75,21 +76,21 @@ function doError(e) {
                 + '<span aria-hidden="true">&times;</span></button>'
                 + "</div>");
 
-            Logger.log(err);
+            logger.error(err);
         }
     }
 
     /*
-    Logger.log("SyntaxError? " + (e instanceof SyntaxError)); // true
-    Logger.log(e); // true
-    Logger.log("SyntaxError? " + (e instanceof SyntaxError)); // true
-    Logger.log("ReferenceError? " + (e instanceof ReferenceError)); // true
-    Logger.log(e.message);                // "missing ; before statement"
-    Logger.log(e.name);                   // "SyntaxError"
-    Logger.log(e.fileName);               // "Scratchpad/1"
-    Logger.log(e.lineNumber);             // 1
-    Logger.log(e.columnNumber);           // 4
-    Logger.log(e.stack);                  // "@Scratchpad/1:2:3\n"
+    logger.log("SyntaxError? " + (e instanceof SyntaxError)); // true
+    logger.log(e); // true
+    logger.log("SyntaxError? " + (e instanceof SyntaxError)); // true
+    logger.log("ReferenceError? " + (e instanceof ReferenceError)); // true
+    logger.log(e.message);                // "missing ; before statement"
+    logger.log(e.name);                   // "SyntaxError"
+    logger.log(e.fileName);               // "Scratchpad/1"
+    logger.log(e.lineNumber);             // 1
+    logger.log(e.columnNumber);           // 4
+    logger.log(e.stack);                  // "@Scratchpad/1:2:3\n"
     */
 
     // this sucked because of coding... jst highlight instead!
@@ -100,6 +101,7 @@ function doError(e) {
     }
     */
 }
+module.exports.doError = doError;
 window.doError = doError;
 
 /**
@@ -137,7 +139,7 @@ const updatePrinterState = function (state, interval = 20000) {
         }
     }
 };
-exports.updatePrinterState = updatePrinterState;
+module.exports.updatePrinterState = updatePrinterState;
 
 /**
 * json-rpc printer state (connected/disconnected) event handler
@@ -194,7 +196,7 @@ const printerStateHandler = function (stateEvent) {
     }
 };
 
-exports.printerStateHandler = printerStateHandler;
+module.exports.printerStateHandler = printerStateHandler;
 
 /**
  * json-rpc serial ports list event handler
@@ -215,8 +217,8 @@ const portsListHandler = function (event) {
 
     vars.serialPorts = []; // reset serial ports list
     let portsDropdown = $("#serial-ports-list");
-    //Logger.log("list of serial ports:");
-    //Logger.log(event);
+    //logger.log("list of serial ports:");
+    //logger.log(event);
     portsDropdown.empty();
     if (ports.length === 0) {
         appendLoggingNode($("#info > ul"), Date.now(), "<li>no serial ports found</li > ");
@@ -233,7 +235,7 @@ const portsListHandler = function (event) {
     }
 
     vars.serialPorts.forEach(function (port) {
-        //Logger.log("PORT:" + port);
+        //logger.log("PORT:" + port);
         let newButton = $('<button class="dropdown-item" type="button" data-port-name="' + port + '">' + port + '</button>');
         //newButton.data("portName", port);
         newButton.click(async function (e) {
@@ -242,8 +244,8 @@ const portsListHandler = function (event) {
             loginfo("opening serial port " + me.html());
             const baudRate = $("#baudrates-list .active").data("rate");
 
-            Logger.log("baudRate:");
-            Logger.log(baudRate);
+            logger.log("baudRate:");
+            logger.log(baudRate);
 
             // disable changing baudrate and port
             //$("#baudrates-list > button").addClass("disabled");
@@ -275,7 +277,7 @@ const portsListHandler = function (event) {
     const allBaudRates = [115200, 250000, 230400, 57600, 38400, 19200, 9600];
 
     allBaudRates.forEach(rate => {
-        //Logger.log("PORT:" + port);
+        //logger.log("PORT:" + port);
         let newButton = $('<button class="dropdown-item" type="button" data-rate="' + rate + '">' + rate + '</button>');
 
         // handle click
@@ -299,7 +301,7 @@ const portsListHandler = function (event) {
     return;
 };
 
-exports.portsListHandler = portsListHandler;
+module.exports.portsListHandler = portsListHandler;
 
 $("#log-requests-btn").on("click", async function (e) {
     let me = $(this);
@@ -412,7 +414,7 @@ const tempHandler = (data) => {
     }
     return parsed;
 };
-exports.tempHandler = tempHandler;
+module.exports.tempHandler = tempHandler;
 
 async function updateTemperature(interval = 5000) {
     return requestRepeat("M105", //get temp
@@ -434,7 +436,7 @@ const errorHandler = {
     }
 };
 
-exports.errorHandler = errorHandler;
+module.exports.errorHandler = errorHandler;
 
 /**
  * json-rpc info event handler
@@ -452,7 +454,7 @@ const infoHandler = {
     }
 };
 
-exports.infoHandler = infoHandler;
+module.exports.infoHandler = infoHandler;
 
 /**
  * json-rpc general event handler
@@ -465,7 +467,7 @@ const commandsHandler = {
     },
 };
 
-exports.commandsHandler = commandsHandler;
+module.exports.commandsHandler = commandsHandler;
 
 /**
  * json-rpc move event handler
@@ -479,7 +481,7 @@ const moveHandler = (response) => {
     return moveParser(response);
 };
 
-exports.moveHandler = moveHandler;
+module.exports.moveHandler = moveHandler;
 
 
 const moveParser = (data) => {
@@ -534,21 +536,21 @@ function appendLoggingNode(elem, time, message) {
         + "</li>");
 }
 
-exports.appendLoggingNode = appendLoggingNode;
+module.exports.appendLoggingNode = appendLoggingNode;
 
 
 
 const taskListenerUI =
 {
     EventRemoved: function (task) {
-        Logger.log("event removed:");
-        Logger.log(task);
+        logger.debug("event removed:");
+        logger.debug(task);
         if (task != null) $('#task-' + task.name).remove();
     },
 
     EventAdded: function (task) {
-        Logger.log("event added:");
-        Logger.log(task);
+        logger.debug("event added:");
+        logger.debug(task);
 
         $("#tasks > ul").prepend("<li id='task-" + task.name + "' class='alert alert-success alert-dismissible fade show' role='alert'>"
             + task.name
@@ -564,8 +566,8 @@ const taskListenerUI =
     },
 
     EventsCleared: function (task) {
-        Logger.log("events cleared:");
-        Logger.log(task);
+        logger.debug("events cleared:");
+        logger.debug(task);
         $("#tasks > ul").empty();
     },
 
@@ -582,8 +584,8 @@ const taskListenerUI =
  * @memberOf LivePrinter
 */
 function loginfo(text) {
-    //Logger.debug("LOGINFO-----------");
-    Logger.debug(text);
+    //logger.debug("LOGINFO-----------");
+    logger.debug(text);
 
     if (Array.isArray(text)) {
         infoHandler.info({ time: Date.now(), message: '[' + text.toString() + ']' });
@@ -599,7 +601,7 @@ function loginfo(text) {
     }
 }
 
-exports.loginfo = loginfo;
+module.exports.loginfo = loginfo;
 window.loginfo = loginfo; //cheat, for livecoding...
 
 /**
@@ -608,8 +610,8 @@ window.loginfo = loginfo; //cheat, for livecoding...
  * @memberOf LivePrinter
 */
 function logerror(text) {
-    Logger.log("LOGERROR-----------");
-    Logger.log(text);
+    logger.error("LOGERROR-----------");
+    logger.error(text);
 
     if (typeof text === "string")
         errorHandler.error({ time: Date.now(), message: text });
@@ -626,7 +628,7 @@ function logerror(text) {
 
 
 // make global
-exports.logerror = logerror;
+module.exports.logerror = logerror;
 window.logerror = logerror;  //cheat, for livecoding...
 
 /**
@@ -653,7 +655,7 @@ function attachScript(url) {
         doError(err);
     }
 }
-exports.attachScript = attachScript;
+module.exports.attachScript = attachScript;
 window.attachScript = attachScript;  //cheat, for livecoding...
 
 
@@ -682,7 +684,7 @@ async function downloadFile(data, filename, type) {
     }
 }
 
-exports.downloadFile = downloadFile;
+module.exports.downloadFile = downloadFile;
 
 
 
@@ -699,7 +701,7 @@ function updateGUI() {
     $("input[name='speed']").val(printer.printSpeed);
     $("input[name='retract']").val(printer.currentRetraction);
 }
-exports.updateGUI = updateGUI;
+module.exports.updateGUI = updateGUI;
 window.updateGUI = updateGUI;  //cheat, for livecoding...
 
 /**
@@ -726,7 +728,7 @@ function blinkElem($elem, speed, callback) {
     }
 }
 
-exports.blinkElem = blinkElem;
+module.exports.blinkElem = blinkElem;
 
 /**
   * Evaluate the code in local (within closure) or global space according to the current editor mode (javascript/python).
@@ -747,9 +749,9 @@ async function globalEval(code, line, globally = false) {
     // replace globals in js
     code = code.replace(/^[ ]*global[ ]+/gm, "window.");
 
-    Logger.debug("code before pre-processing-------------------------------");
-    Logger.debug(code);
-    Logger.debug("========================= -------------------------------");
+    logger.debug("code before pre-processing-------------------------------");
+    logger.debug(code);
+    logger.debug("========================= -------------------------------");
 
     //
     // compile in minigrammar
@@ -774,7 +776,7 @@ async function globalEval(code, line, globally = false) {
             brython(); // re-run brython
 
             //code = __BRYTHON__.py2js(code + "", "newcode", "newcode").to_js();
-            // Logger.log(code);
+            // logger.log(code);
             // eval(code);
         }
         else {
@@ -789,7 +791,7 @@ async function globalEval(code, line, globally = false) {
                 "\nif (vars.logAjax) loginfo(`starting code ${codeIndex}`);\n" +
                 code + '\n' +
                 "if (vars.logAjax) loginfo(`finished with ${codeIndex}`);\n" +
-                '} catch (e) { lastErrorMessage = null;e.lineNumber=' + line + ';Logger.log(e);window.doError(e); }';
+                '} catch (e) { lastErrorMessage = null;e.lineNumber=' + line + ';logger.log(e);window.doError(e); }';
 
             // prefix with locals to give quick access to liveprinter API
             code = "let stop = window.restartLimiter;" +
@@ -800,10 +802,10 @@ async function globalEval(code, line, globally = false) {
                 code +
                 "\n}";
 
-            Logger.debug(code);
+            logger.debug(code);
         }
 
-        //Logger.log("adding code:" + code);
+        //logger.log("adding code:" + code);
         const script = document.createElement("script");
         script.async = true;
         script.onerror = doError;
@@ -813,7 +815,7 @@ async function globalEval(code, line, globally = false) {
 
         try {
             const scriptTag = document.head.appendChild(script);
-            Logger.debug("script tag created");
+            logger.debug("script tag created");
             const didIt = await window.codeToRun(); // run code
             scriptTag.parentNode.removeChild(script);
         } catch (e) {
@@ -824,7 +826,7 @@ async function globalEval(code, line, globally = false) {
 }
 // end globalEval
 
-exports.globalEval = globalEval;
+module.exports.globalEval = globalEval;
 
 
 /**
@@ -909,11 +911,11 @@ const init = async function (_printer, _scheduler) {
     // redirect error to browser GUI
     //
     $(window).on("error", function (evt) {
-        //Logger.log("jQuery error event:");
-        //Logger.log(evt);
+        //logger.log("jQuery error event:");
+        //logger.log(evt);
 
         const e = evt.originalEvent.error; // get the javascript event
-        //Logger.log("original event:", e);
+        //logger.log("original event:", e);
         doError(e);
     });
 
@@ -962,4 +964,4 @@ const init = async function (_printer, _scheduler) {
     updatePrinterState(true);
 };
 
-exports.init = init;
+module.exports.init = init;

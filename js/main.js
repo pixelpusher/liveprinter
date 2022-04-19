@@ -1,17 +1,17 @@
-"use strict";
-
 window.$ = window.jquery = require('jquery');
 
-const util = require('./util');
-
-window.repeat = util.repeat;
-window.numrange = util.numrange;
-window.countto = util.countto;
+import { repeat, numrange, countto, Scheduler } from 'liveprinter-utils';
+window.repeat = repeat;
+window.numrange = numrange;
+window.countto = countto;
 
 const Printer = require('./liveprinter.printer'); // printer API object
 const editors = require('./liveprinter.editor'); // code editors and functions
 const liveprinterui = require('./liveprinter.ui'); // main ui
 const liveprintercomms = require('./liveprinter.comms'); // browser-to-server communications
+
+import { lp_FunctionMap as functionMap} from "grammardraw/modules/functionmaps.jsx";
+
 
 //console.log(scales.majPattern); // test
 
@@ -44,7 +44,7 @@ const liveprintercomms = require('./liveprinter.comms'); // browser-to-server co
     window.lp = printer; // make available to all scripts later on and livecoding... not great
 
     // start task scheduler!
-    const scheduler = new util.Scheduler();
+    const scheduler = new Scheduler();
 
     // register GUI handler for scheduled tasks events 
     scheduler.addEventsListener(liveprinterui.taskListener);
@@ -113,7 +113,13 @@ const liveprintercomms = require('./liveprinter.comms'); // browser-to-server co
     ///
 
     // get serial ports, to start things
+    liveprinterui.loginfo("Hang on, getting serial ports list...");
+    const timeOutID = setInterval(liveprinterui.loginfo, 100, "...");
+
     const portsReponse = await liveprintercomms.getSerialPorts();
+    clearInterval(timeOutID);
+    
+    liveprinterui.loginfo("Received serial ports!");
     liveprinterui.portsListHandler(portsReponse);
 
 })(global).catch(err => {

@@ -1,6 +1,0 @@
-{
-    "name": "LivePrinter utils",
-    "description": "LivePrinter util classes",
-    "version": "1.0.0",
-    "main": "./index.js"
-}

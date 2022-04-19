@@ -2,7 +2,7 @@
   "name": "LivePrinter",
   "description": "LivePrinter livecoding system for 3D printing and CNC manufacturing",
   "version": "1.0.0",
-  "main": "./js/main.js",
+  "outputFormat": "global",
   "keywords": [
     "3DPrinting, livecoding"
   ],
@@ -14,35 +14,43 @@
   "repository": "https://github.com/pixelpusher/liveprinter",
   "license": "AGPL-3.0-or-later",
   "author": "Evan Raskob",
+  "source": "js/main.js",
+  "targets": {
+    "default": {
+      "distDir": "./liveprinter/static/lib/",
+      "context": "browser",
+      "outputFormat": "global"
+    }
+  },
   "dependencies": {
+    "@swc/helpers": "^0.3.8",
     "bootstrap": "^4.4.1",
     "bottleneck": "^2.19.5",
     "brython": "^3.8.8",
     "codemirror": "^5.53.2",
-    "csslint": "^1.0.5",
+    "grammardraw": "github:pixelpusher/grammardraw",
     "jquery": "^3.5.0",
-    "json-lint": "^0.1.0",
+    "jshint": "^2.13.4",
+    "liveprinter-utils": "github:pixelpusher/lp-utils",
     "nearley": "^2.19.3",
     "popper.js": "^1.16.1",
+    "regenerator-runtime": "^0.13.9",
     "svgjs": "^2.6.2",
-    "watchify": "^4.0.0"
+    "tonal": "^2.2.2"
   },
   "devDependencies": {
-    "@babel/core": "^7.9.6",
-    "@babel/plugin-transform-modules-commonjs": "^7.9.6",
-    "babelify": "^10.0.0",
-    "browserify": "^16.5.1",
-    "esdoc": "^1.0.4",
-    "esdoc-standard-plugin": "^1.0.0",
-    "jshint": "^2.11.0",
+    "assert": "^2.0.0",
+    "events": "^3.3.0",
     "minami": "^1.2.3",
-    "stylelint": "^13.3.3",
-    "stylelint-config-standard": "^20.0.0",
-    "tidy-jsdoc": "^0.2.1"
+    "parcel": "^2.4.1",
+    "process": "^0.11.10",
+    "util": "^0.12.4"
   },
+  "browserslist": "> 0.5%, last 2 versions, not dead",
   "scripts": {
-    "build": "browserify js/main.js -t [ babelify --presets [ ] --plugins [ @babel/plugin-transform-modules-commonjs ] ] -o liveprinter/static/lib/liveprinter.js",
+    "build": "parcel build",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "watch": "watchify js/main.js -o liveprinter/static/lib/liveprinter.js --debug --verbose"
+    "watch": "parcel watch",
+    "run": "python3 liveprinter/LivePrinterServer.py"
   }
 }

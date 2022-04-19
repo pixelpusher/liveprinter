@@ -1,4 +1,7 @@
-const Logger = require('../util').Logger;
+import { Logger  } from "liveprinter-utils";
+
+const logger = new Logger();
+
 const nearley = require('nearley'); // grammar parser
 const grammar = require('./lpgrammar');
 
@@ -25,7 +28,7 @@ function compile(code) {
     const blockparser = new nearley.Parser(nearley.Grammar.fromCompiled(grammar)); // parser for entire block
 
     code = code.replace(grammarBlockRegex, (match, p1) => {
-        //Logger.log("Match: " + p1);
+        //logger.log("Match: " + p1);
 
         let result = "";
         let fail = false; // if not successful
@@ -43,7 +46,7 @@ function compile(code) {
                     blockparser.feed(line + '\n'); // EOL terminates command
                 } catch (e) { // SyntaxError on parse
                     doError(e);
-                    Logger.log(e);
+                    logger.log(e);
                     fail = e.message;
                 }
 
@@ -59,9 +62,9 @@ function compile(code) {
         return ' ' + result + "\n"; // need leading space
     });
 
-    Logger.log("code AFTER block-grammar processing -------------------------------");
-    Logger.log(code);
-    Logger.log("========================= -------------------------------");
+    logger.log("code AFTER block-grammar processing -------------------------------");
+    logger.log(code);
+    logger.log("========================= -------------------------------");
 
 
     //
@@ -72,37 +75,37 @@ function compile(code) {
     code = code.replace(grammarOneLineRegex, (match, p1, p2) => {
         const lineparser = new nearley.Parser(nearley.Grammar.fromCompiled(grammar));
 
-        //Logger.log("!!!"+match+"!!!");
-        //Logger.log("!!!"+p2+"!!!");
+        //logger.log("!!!"+match+"!!!");
+        //logger.log("!!!"+p2+"!!!");
         grammarFound = true; // found!
         let result = "";
         let fail = false; // if not successful
         // .replace(/(^[\s]+)/, "")
         let line = p1.replace(/([\r\n]+)/gm, "").replace(/([\s]+)$/, "");
 
-        //Logger.log("LINE::" + line + "::LINE");
+        //logger.log("LINE::" + line + "::LINE");
         if (line) {
             try {
                 lineparser.feed(line + '\n');
             } catch (e) { // SyntaxError on parse
                 doError(e);
-                Logger.log(e);
+                logger.log(e);
                 fail = e.message;
-                Logger.log("offending code:[" + line + "]");
+                logger.log("offending code:[" + line + "]");
             }
 
             if (fail !== false)
                 result += "/*ERROR IN PARSE: [" + fail + "] + offending code: [" + line + "]" + "*/\n";
             else
                 result = lineparser.results[0];
-            //Logger.log(result);
+            //logger.log(result);
         }
         return ' ' + result;
     });
 
-    Logger.log("code AFTER one-line-grammar processing -------------------------------");
-    Logger.log(code);
-    Logger.log("========================= -------------------------------");
+    logger.log("code AFTER one-line-grammar processing -------------------------------");
+    logger.log(code);
+    logger.log("========================= -------------------------------");
  
     return code;
 }

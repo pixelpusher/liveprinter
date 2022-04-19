@@ -5,15 +5,16 @@
 const $ = require('jquery');
 
 const liveprinterUI = require('./liveprinter.ui');
-const util = require('./util');
+
+import { cleanGCode, } from 'liveprinter-utils';
 
 /// Code Mirror stuff
 const CodeMirror = require('codemirror');
 require('codemirror/mode/css/css');
-console.log('css');
+//console.log('css');
 require('codemirror/addon/lint/lint');
 require('codemirror/addon/lint/css-lint');
-console.log('js');
+//console.log('js');
 require('jshint');
 require('codemirror/mode/javascript/javascript');
 require('codemirror/addon/lint/javascript-lint');
@@ -39,7 +40,7 @@ require('codemirror/addon/search/searchcursor');
 // liveprinter editor linting mode
 require('./language/lpmode');
 
-console.log('codemirror loaded');
+//console.log('codemirror loaded');
 
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -132,7 +133,6 @@ function recordGCode(editor, gcode) {
     return usefulGCode;
 }
 
-exports.recordGCode = recordGCode;
 
 /**
  * This function takes the highlighted "local" code from the editor and runs the compiling and error-checking functions.
@@ -330,20 +330,20 @@ const init = async function () {
             "Ctrl-Enter":
                 async (cm) => await runCode(cm,
                     async (gcode) => await liveprinterUI.scheduleGCode(
-                        recordGCode(cm, util.cleanGCode(gcode))
+                        recordGCode(cm, cleanGCode(gcode))
                     )
                 ), // handles aync
             "Shift-Enter":
                 async (cm) => await runCode(cm,
                     async (gcode) => await liveprinterUI.scheduleGCode(
-                        recordGCode(cm, util.cleanGCode(gcode))
+                        recordGCode(cm, cleanGCode(gcode))
                     )
                 ), // handles aync
 
             "Cmd-Enter":
                 async (cm) => await runCode(cm,
                     async (gcode) => await liveprinterUI.scheduleGCode(
-                        recordGCode(cm, util.cleanGCode(gcode))
+                        recordGCode(cm, cleanGCode(gcode))
                     )
                 ), // handles aync
 
@@ -355,11 +355,10 @@ const init = async function () {
 
     GCodeEditor.storageKey = "storedGCodeEditor";
     GCodeEditor.saveStorageKey = "savedGCodeEditor";
-    exports.GCodeEditor = GCodeEditor;
     
     // cheeky shortcut function...
     // window.gcode = async (gc) => liveprinterUI.scheduleGCode(
-    //     recordGCode(GCodeEditor, util.cleanGCode(gc))
+    //     recordGCode(GCodeEditor, cleanGCode(gc))
     // );
 
     function clearEditor(cm, opts) {
@@ -614,6 +613,11 @@ const init = async function () {
     else {
         liveprinterUI.doError({ name: "save error", message: "no local storage available for saving files!" });
     }
+
+    // TODO: clean this up!
+    module.exports.recordGCode = recordGCode;
+    module.exports.GCodeEditor = GCodeEditor;
+
 
     return;
 }

@@ -20,7 +20,10 @@
 const Bottleneck = require('bottleneck');
 
 const MarlinParsers = require('./parsers/MarlinParsers');
-const Logger = require('./util').Logger;
+
+import { Logger  } from "liveprinter-utils";
+
+const logger = new Logger();
 
 const liveprinterui = require('./liveprinter.ui');
 const doError = liveprinterui.doError;
@@ -73,7 +76,7 @@ function initLimiter() {
     // Listen to the "failed" event
     _limiter.on("failed", async (error, jobInfo) => {
         const id = jobInfo.options.id;
-        Logger.warn(`Job ${id} failed: ${error}`);
+        logger.warn(`Job ${id} failed: ${error}`);
         liveprinterui.logerror(`Job ${id} failed: ${error}`);
         if (jobInfo.retryCount === 0) { // Here we only retry once
             liveprinterui.logerror(`Retrying job ${id} in 20ms!`);
@@ -83,8 +86,8 @@ function initLimiter() {
     });
 
     _limiter.on("dropped", (dropped) => {
-        Logger.warn("limiter dropped:");
-        Logger.warn(dropped);
+        logger.warn("limiter dropped:");
+        logger.warn(dropped);
         let errorTxt = "";
         try {
             errorTxt = `${JSON.stringify(dropped)}`;
@@ -125,7 +128,7 @@ async function stopLimiter() {
         liveprinterui.loginfo("Limiter stopped.");
     }
     limiter = null;
-    Logger.log("Shutdown completed!");
+    logger.log("Shutdown completed!");
     return;
 }
 
@@ -147,10 +150,10 @@ exports.restartLimiter = restartLimiter;
  */
 
 async function sendJSONRPC(request) {
-    //Logger.log(request)
+    //logger.log(request)
     let args = typeof request === "string" ? JSON.parse(request) : request;
     //args._xsrf = getCookie("_xsrf");
-    //Logger.log(args);
+    //logger.log(args);
     let reqId = "req" + vars.requestId++; // shared with limiter - see above
 
     if (vars.logAjax) liveprinterui.commandsHandler.log(`SENDING ${reqId}::${request}`);
@@ -297,15 +300,15 @@ async function sendGCodeRPC(gcode) {
     if (vars.logAjax) liveprinterui.commandsHandler.log(`SENDING gcode ${gcode}`);
 
     if (Array.isArray(gcode)) {
-        //Logger.debug("start array gcode[" + codeLine + "]");
+        //logger.debug("start array gcode[" + codeLine + "]");
 
         const results = await Promise.all(gcode.map(async (_gcode) => {
             if (!_gcode.startsWith(';')) // don't send comments
             {
                 gcodeObj.params = [_gcode];
-                //Logger.log(gcodeObj);
+                //logger.log(gcodeObj);
                 let response = sendJSONRPC(JSON.stringify(gcodeObj));
-                response.then((result) => { Logger.debug(result); handleGCodeResponse(result) }).catch(err => {
+                response.then((result) => { logger.debug(result); handleGCodeResponse(result) }).catch(err => {
                     liveprinterui.logerror(err);
                     doError(err);
                     response = Promise.reject(err.message);
@@ -315,9 +318,9 @@ async function sendGCodeRPC(gcode) {
         }));
         liveprinterui.updateGUI();
 
-        //Logger.debug("finish array gcode[" + codeLine + "]");
+        //logger.debug("finish array gcode[" + codeLine + "]");
     } else {
-        //Logger.debug("single line gcode");
+        //logger.debug("single line gcode");
         if (!gcode.startsWith(';')) // don't send comments
         {
             gcodeObj.params = [gcode];
@@ -328,7 +331,7 @@ async function sendGCodeRPC(gcode) {
         }
     }
     if (vars.logAjax) liveprinterui.commandsHandler.log(`DONE gcode ${gcode}`);
-    //Logger.debug(`DONE gcode ${codeLine}`);
+    //logger.debug(`DONE gcode ${codeLine}`);
     return 1;
 }
 
@@ -410,14 +413,14 @@ function handleGCodeResponse(res) {
                     // try move handler
                     else if (liveprinterui.moveHandler(rr)) {
                         // move/position update handled
-                        Logger.debug('position event handled');
+                        logger.debug('position event handled');
                     }
                     else if (liveprinterui.tempHandler(rr)) {
-                        Logger.debug('temperature event handled');
+                        logger.debug('temperature event handled');
                     }
                     else if (!rr.match(/ok/i)) liveprinterui.loginfo('gcode response: ' + rr); // other response
                     else {
-                        Logger.debug('unhandled gcode response: ' + rr);
+                        logger.debug('unhandled gcode response: ' + rr);
                         handled = false;
                     }
                 }
