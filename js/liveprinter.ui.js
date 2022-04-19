@@ -16,10 +16,11 @@
 * License for the specific language governing permissions and limitations
 * under the License.
 */
-const MarlinParsers = require('./parsers/MarlinParsers');
 import { Logger } from 'liveprinter-utils';
 
 const logger = new Logger();
+
+import { MarlinLineParserResultPosition, MarlinLineParserResultTemperature } from './parsers/MarlinParsers.js';
 
 const compile = require('./language/compile'); // minigrammar compile function
 
@@ -396,7 +397,7 @@ const tempHandler = (data) => {
         }
     }
     else {
-        const result = MarlinParsers.MarlinLineParserResultTemperature.parse(data);
+        const result = MarlinLineParserResultTemperature.parse(data);
         if (!result) parsed = false;
         else {
             if (undefined !== result.payload.extruder) {
@@ -485,7 +486,7 @@ module.exports.moveHandler = moveHandler;
 
 
 const moveParser = (data) => {
-    let result = MarlinParsers.MarlinLineParserResultPosition.parse(data);
+    let result = MarlinLineParserResultPosition.parse(data);
 
     if (!result) return false;
 

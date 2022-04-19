@@ -234,19 +234,19 @@ const init = async function () {
         extraKeys: {
             "Ctrl-Enter":
                 async (cm) =>
-                    await runCode(cm,
+                     runCode(cm,
                         async (code) =>
-                            await liveprinterUI.globalEval(recordCode(HistoryCodeEditor, code))
+                             liveprinterUI.globalEval(recordCode(HistoryCodeEditor, code))
                     ),
             "Shift-Enter": async (cm) =>
-                await runCode(cm,
+                 runCode(cm,
                     async (code) =>
-                        await liveprinterUI.globalEval(recordCode(HistoryCodeEditor, code))
+                         liveprinterUI.globalEval(recordCode(HistoryCodeEditor, code))
                 ),
             "Cmd-Enter": async (cm) =>
-                await runCode(cm,
+                 runCode(cm,
                     async (code) =>
-                        await liveprinterUI.globalEval(recordCode(HistoryCodeEditor, code))
+                         liveprinterUI.globalEval(recordCode(HistoryCodeEditor, code))
                 ),
             "Ctrl-Space": "autocomplete",
             "Ctrl-Q": function (cm) { cm.foldCode(cm.getCursor()); },

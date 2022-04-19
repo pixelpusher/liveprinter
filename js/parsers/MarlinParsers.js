@@ -2,7 +2,7 @@ import { decimalPlaces } from "liveprinter-utils";
 
 // from https://github.com/cncjs/cncjs/blob/30c294f0ffb304441304aaa6b75a728f3a096827/src/server/controllers/Marlin/MarlinLineParserResultPosition.js
 
-class MarlinLineParserResultPosition {
+export class MarlinLineParserResultPosition {
     // X:0.00 Y:0.00 Z:0.00 E:0.00 Count X:0 Y:0 Z:0
     static parse(line) {
         const r = line.match(/^(?:(?:X|Y|Z|E):[0-9\.\-]+\s*)+/i);
@@ -34,7 +34,7 @@ class MarlinLineParserResultPosition {
 }
 
 //  from https://github.com/cncjs/cncjs/blob/f33e6464e93de65b53aa4160676b8ee51ed4dcc6/src/server/controllers/Marlin/MarlinLineParserResultTemperature.js
-class MarlinLineParserResultTemperature {
+export class MarlinLineParserResultTemperature {
     // ok T:0
     // ok T:293.0 /0.0 B:25.9 /0.0 @:0 B@:0
     // ok T:293.0 /0.0 B:25.9 /0.0 T0:293.0 /0.0 T1:100.0 /0.0 @:0 B@:0 @0:0 @1:0
@@ -99,7 +99,3 @@ class MarlinLineParserResultTemperature {
         };
     }
 };
-
-
-exports.MarlinLineParserResultPosition = MarlinLineParserResultPosition;
-exports.MarlinLineParserResultTemperature = MarlinLineParserResultTemperature;

@@ -14433,17 +14433,13 @@ var init = function() {
                                     return _regeneratorRuntimeDefault.default.wrap(function _callee$(_ctx2) {
                                         while(1)switch(_ctx2.prev = _ctx2.next){
                                             case 0:
-                                                _ctx2.next = 2;
-                                                return runCode(cm, function() {
+                                                return _ctx2.abrupt("return", runCode(cm, function() {
                                                     var _ref = _helpers.asyncToGenerator(_regeneratorRuntimeDefault.default.mark(function _callee(code) {
                                                         return _regeneratorRuntimeDefault.default.wrap(function _callee$(_ctx) {
                                                             while(1)switch(_ctx.prev = _ctx.next){
                                                                 case 0:
-                                                                    _ctx.next = 2;
-                                                                    return liveprinterUI.globalEval(recordCode(HistoryCodeEditor, code));
-                                                                case 2:
-                                                                    return _ctx.abrupt("return", _ctx.sent);
-                                                                case 3:
+                                                                    return _ctx.abrupt("return", liveprinterUI.globalEval(recordCode(HistoryCodeEditor, code)));
+                                                                case 1:
                                                                 case "end":
                                                                     return _ctx.stop();
                                                             }
@@ -14452,10 +14448,8 @@ var init = function() {
                                                     return function(code) {
                                                         return _ref.apply(this, arguments);
                                                     };
-                                                }());
-                                            case 2:
-                                                return _ctx2.abrupt("return", _ctx2.sent);
-                                            case 3:
+                                                }()));
+                                            case 1:
                                             case "end":
                                                 return _ctx2.stop();
                                         }
@@ -14470,17 +14464,13 @@ var init = function() {
                                     return _regeneratorRuntimeDefault.default.wrap(function _callee$(_ctx3) {
                                         while(1)switch(_ctx3.prev = _ctx3.next){
                                             case 0:
-                                                _ctx3.next = 2;
-                                                return runCode(cm, function() {
+                                                return _ctx3.abrupt("return", runCode(cm, function() {
                                                     var _ref = _helpers.asyncToGenerator(_regeneratorRuntimeDefault.default.mark(function _callee(code) {
                                                         return _regeneratorRuntimeDefault.default.wrap(function _callee$(_ctx) {
                                                             while(1)switch(_ctx.prev = _ctx.next){
                                                                 case 0:
-                                                                    _ctx.next = 2;
-                                                                    return liveprinterUI.globalEval(recordCode(HistoryCodeEditor, code));
-                                                                case 2:
-                                                                    return _ctx.abrupt("return", _ctx.sent);
-                                                                case 3:
+                                                                    return _ctx.abrupt("return", liveprinterUI.globalEval(recordCode(HistoryCodeEditor, code)));
+                                                                case 1:
                                                                 case "end":
                                                                     return _ctx.stop();
                                                             }
@@ -14489,10 +14479,8 @@ var init = function() {
                                                     return function(code) {
                                                         return _ref.apply(this, arguments);
                                                     };
-                                                }());
-                                            case 2:
-                                                return _ctx3.abrupt("return", _ctx3.sent);
-                                            case 3:
+                                                }()));
+                                            case 1:
                                             case "end":
                                                 return _ctx3.stop();
                                         }
@@ -14507,17 +14495,13 @@ var init = function() {
                                     return _regeneratorRuntimeDefault.default.wrap(function _callee$(_ctx4) {
                                         while(1)switch(_ctx4.prev = _ctx4.next){
                                             case 0:
-                                                _ctx4.next = 2;
-                                                return runCode(cm, function() {
+                                                return _ctx4.abrupt("return", runCode(cm, function() {
                                                     var _ref = _helpers.asyncToGenerator(_regeneratorRuntimeDefault.default.mark(function _callee(code) {
                                                         return _regeneratorRuntimeDefault.default.wrap(function _callee$(_ctx) {
                                                             while(1)switch(_ctx.prev = _ctx.next){
                                                                 case 0:
-                                                                    _ctx.next = 2;
-                                                                    return liveprinterUI.globalEval(recordCode(HistoryCodeEditor, code));
-                                                                case 2:
-                                                                    return _ctx.abrupt("return", _ctx.sent);
-                                                                case 3:
+                                                                    return _ctx.abrupt("return", liveprinterUI.globalEval(recordCode(HistoryCodeEditor, code)));
+                                                                case 1:
                                                                 case "end":
                                                                     return _ctx.stop();
                                                             }
@@ -14526,10 +14510,8 @@ var init = function() {
                                                     return function(code) {
                                                         return _ref.apply(this, arguments);
                                                     };
-                                                }());
-                                            case 2:
-                                                return _ctx4.abrupt("return", _ctx4.sent);
-                                            case 3:
+                                                }()));
+                                            case 1:
                                             case "end":
                                                 return _ctx4.stop();
                                         }
@@ -14964,7 +14946,6 @@ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 var _helpers = require("@swc/helpers");
 var _regeneratorRuntime = require("regenerator-runtime");
 var _regeneratorRuntimeDefault = parcelHelpers.interopDefault(_regeneratorRuntime);
-var _liveprinterUtils = require("liveprinter-utils");
 /**
  * @file Main liveprinter system file for a livecoding system for live CNC manufacturing.
  * @author Evan Raskob <evanraskob+nosp4m@gmail.com>
@@ -14982,7 +14963,8 @@ var _liveprinterUtils = require("liveprinter-utils");
 * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 * License for the specific language governing permissions and limitations
 * under the License.
-*/ var MarlinParsers = require('./parsers/MarlinParsers');
+*/ var _liveprinterUtils = require("liveprinter-utils");
+var _marlinParsersJs = require("./parsers/MarlinParsers.js");
 var logger = new _liveprinterUtils.Logger();
 var compile = require('./language/compile'); // minigrammar compile function
 var $ = require('jquery');
@@ -15425,7 +15407,7 @@ $("#temp-display-btn").on("click", function() {
         parsed = false;
     }
     else {
-        var result = MarlinParsers.MarlinLineParserResultTemperature.parse(data);
+        var result = _marlinParsersJs.MarlinLineParserResultTemperature.parse(data);
         if (!result) parsed = false;
         else {
             if (undefined !== result.payload.extruder) {
@@ -15512,7 +15494,7 @@ module.exports.commandsHandler = commandsHandler;
 };
 module.exports.moveHandler = moveHandler;
 var moveParser = function(data) {
-    var result = MarlinParsers.MarlinLineParserResultPosition.parse(data);
+    var result = _marlinParsersJs.MarlinLineParserResultPosition.parse(data);
     if (!result) return false;
     printer.x = parseFloat(result.payload.pos.x);
     printer.y = parseFloat(result.payload.pos.y);
@@ -16031,130 +16013,7 @@ module.exports.globalEval = globalEval;
 }();
 module.exports.init = init;
 
-},{"@swc/helpers":"erO4s","regenerator-runtime":"12Ae8","./parsers/MarlinParsers":"6cjs2","./language/compile":"82OZL","jquery":"HtqFp","./liveprinter.comms":"6Yn3N","@parcel/transformer-js/src/esmodule-helpers.js":"5oERU","liveprinter-utils":"5Ti02"}],"6cjs2":[function(require,module,exports) {
-var _helpers = require("@swc/helpers");
-var _liveprinterUtils = require("liveprinter-utils");
-// from https://github.com/cncjs/cncjs/blob/30c294f0ffb304441304aaa6b75a728f3a096827/src/server/controllers/Marlin/MarlinLineParserResultPosition.js
-var MarlinLineParserResultPosition = /*#__PURE__*/ function() {
-    "use strict";
-    function MarlinLineParserResultPosition() {
-        _helpers.classCallCheck(this, MarlinLineParserResultPosition);
-    }
-    _helpers.createClass(MarlinLineParserResultPosition, null, [
-        {
-            key: "parse",
-            value: // X:0.00 Y:0.00 Z:0.00 E:0.00 Count X:0 Y:0 Z:0
-            function parse(line) {
-                var r = line.match(/^(?:(?:X|Y|Z|E):[0-9\.\-]+\s*)+/i);
-                if (!r) return null;
-                var payload = {
-                    pos: {}
-                };
-                var pattern = /((X|Y|Z|E):[0-9\.\-]+)/gi;
-                var params = r[0].match(pattern);
-                var _iteratorNormalCompletion = true, _didIteratorError = false, _iteratorError = undefined;
-                try {
-                    for(var _iterator = params[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true){
-                        var param = _step.value;
-                        var nv = param.match(/([a-z]+):([0-9\.\-]+)/i);
-                        if (nv) {
-                            var axis = nv[1].toLowerCase();
-                            var pos = nv[2];
-                            var digits = _liveprinterUtils.decimalPlaces(pos);
-                            payload.pos[axis] = Number(pos).toFixed(digits);
-                        }
-                    }
-                } catch (err) {
-                    _didIteratorError = true;
-                    _iteratorError = err;
-                } finally{
-                    try {
-                        if (!_iteratorNormalCompletion && _iterator.return != null) {
-                            _iterator.return();
-                        }
-                    } finally{
-                        if (_didIteratorError) {
-                            throw _iteratorError;
-                        }
-                    }
-                }
-                return {
-                    type: MarlinLineParserResultPosition,
-                    payload: payload
-                };
-            }
-        }
-    ]);
-    return MarlinLineParserResultPosition;
-}();
-//  from https://github.com/cncjs/cncjs/blob/f33e6464e93de65b53aa4160676b8ee51ed4dcc6/src/server/controllers/Marlin/MarlinLineParserResultTemperature.js
-var MarlinLineParserResultTemperature = /*#__PURE__*/ function() {
-    "use strict";
-    function MarlinLineParserResultTemperature() {
-        _helpers.classCallCheck(this, MarlinLineParserResultTemperature);
-    }
-    _helpers.createClass(MarlinLineParserResultTemperature, null, [
-        {
-            key: "parse",
-            value: // ok T:0
-            // ok T:293.0 /0.0 B:25.9 /0.0 @:0 B@:0
-            // ok T:293.0 /0.0 B:25.9 /0.0 T0:293.0 /0.0 T1:100.0 /0.0 @:0 B@:0 @0:0 @1:0
-            // ok T:293.0 /0.0 (0.0) B:25.9 /0.0 T0:293.0 /0.0 (0.0) T1:100.0 /0.0 (0.0) @:0 B@:0 @0:0 @1:0
-            // ok T:293.0 /0.0 (0.0) B:25.9 /0.0 T0:293.0 /0.0 (0.0) T1:100.0 /0.0 (0.0) @:0 B@:0 @0:0 @1:0 W:?
-            // ok T:293.0 /0.0 (0.0) B:25.9 /0.0 T0:293.0 /0.0 (0.0) T1:100.0 /0.0 (0.0) @:0 B@:0 @0:0 @1:0 W:0
-            //  T:293.0 /0.0 B:25.9 /0.0 @:0 B@:0
-            //  T:293.0 /0.0 B:25.9 /0.0 T0:293.0 /0.0 T1:100.0 /0.0 @:0 B@:0 @0:0 @1:0
-            //  T:293.0 /0.0 (0.0) B:25.9 /0.0 T0:293.0 /0.0 (0.0) T1:100.0 /0.0 (0.0) @:0 B@:0 @0:0 @1:0
-            function parse(line) {
-                var r = line.match(/^(ok)?\s+T:[0-9\.\-]+/i);
-                if (!r) return null;
-                var payload = {
-                    ok: line.startsWith('ok'),
-                    extruder: {},
-                    heatedBed: {}
-                };
-                var re = /(?:(?:(T|B|T\d+):([0-9\.\-]+)\s+\/([0-9\.\-]+)(?:\s+\((?:[0-9\.\-]+)\))?)|(?:(@|B@|@\d+):([0-9\.\-]+))|(?:(W):(\?|[0-9]+)))/ig;
-                while(r = re.exec(line)){
-                    var key = r[1] || r[4] || r[6];
-                    if (key === 'T') {
-                        payload.extruder.deg = r[2];
-                        payload.extruder.degTarget = r[3];
-                        continue;
-                    }
-                    if (key === 'B') {
-                        payload.heatedBed.deg = r[2];
-                        payload.heatedBed.degTarget = r[3];
-                        continue;
-                    }
-                    if (key === '@') {
-                        payload.extruder.power = r[5];
-                        continue;
-                    }
-                    if (key === 'B@') {
-                        payload.heatedBed.power = r[5];
-                        continue;
-                    }
-                    // M109, M190: Print temp & remaining time every 1s while waiting
-                    if (key === 'W') {
-                        payload.wait = r[7];
-                        continue;
-                    }
-                // Hotends: T0, T1, ...
-                // TODO
-                }
-                return {
-                    type: MarlinLineParserResultTemperature,
-                    payload: payload
-                };
-            }
-        }
-    ]);
-    return MarlinLineParserResultTemperature;
-}();
-exports.MarlinLineParserResultPosition = MarlinLineParserResultPosition;
-exports.MarlinLineParserResultTemperature = MarlinLineParserResultTemperature;
-
-},{"@swc/helpers":"erO4s","liveprinter-utils":"5Ti02"}],"82OZL":[function(require,module,exports) {
+},{"@swc/helpers":"erO4s","regenerator-runtime":"12Ae8","./language/compile":"82OZL","jquery":"HtqFp","./liveprinter.comms":"6Yn3N","@parcel/transformer-js/src/esmodule-helpers.js":"5oERU","liveprinter-utils":"5Ti02","./parsers/MarlinParsers.js":"6cjs2"}],"82OZL":[function(require,module,exports) {
 var _liveprinterUtils = require("liveprinter-utils");
 var logger = new _liveprinterUtils.Logger();
 var nearley = require('nearley'); // grammar parser
@@ -22052,7 +21911,134 @@ Batcher = (function() {
 }).call(void 0);
 module.exports = Batcher;
 
-},{"@swc/helpers":"erO4s","./parser":"a5FL5","./Events":"8Ual1"}],"kaahn":[function(require,module,exports) {
+},{"@swc/helpers":"erO4s","./parser":"a5FL5","./Events":"8Ual1"}],"6cjs2":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "MarlinLineParserResultPosition", function() {
+    return MarlinLineParserResultPosition;
+});
+parcelHelpers.export(exports, "MarlinLineParserResultTemperature", function() {
+    return MarlinLineParserResultTemperature;
+});
+var _helpers = require("@swc/helpers");
+var _liveprinterUtils = require("liveprinter-utils");
+var MarlinLineParserResultPosition = /*#__PURE__*/ function() {
+    "use strict";
+    function MarlinLineParserResultPosition() {
+        _helpers.classCallCheck(this, MarlinLineParserResultPosition);
+    }
+    _helpers.createClass(MarlinLineParserResultPosition, null, [
+        {
+            key: "parse",
+            value: // X:0.00 Y:0.00 Z:0.00 E:0.00 Count X:0 Y:0 Z:0
+            function parse(line) {
+                var r = line.match(/^(?:(?:X|Y|Z|E):[0-9\.\-]+\s*)+/i);
+                if (!r) return null;
+                var payload = {
+                    pos: {}
+                };
+                var pattern = /((X|Y|Z|E):[0-9\.\-]+)/gi;
+                var params = r[0].match(pattern);
+                var _iteratorNormalCompletion = true, _didIteratorError = false, _iteratorError = undefined;
+                try {
+                    for(var _iterator = params[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true){
+                        var param = _step.value;
+                        var nv = param.match(/([a-z]+):([0-9\.\-]+)/i);
+                        if (nv) {
+                            var axis = nv[1].toLowerCase();
+                            var pos = nv[2];
+                            var digits = _liveprinterUtils.decimalPlaces(pos);
+                            payload.pos[axis] = Number(pos).toFixed(digits);
+                        }
+                    }
+                } catch (err) {
+                    _didIteratorError = true;
+                    _iteratorError = err;
+                } finally{
+                    try {
+                        if (!_iteratorNormalCompletion && _iterator.return != null) {
+                            _iterator.return();
+                        }
+                    } finally{
+                        if (_didIteratorError) {
+                            throw _iteratorError;
+                        }
+                    }
+                }
+                return {
+                    type: MarlinLineParserResultPosition,
+                    payload: payload
+                };
+            }
+        }
+    ]);
+    return MarlinLineParserResultPosition;
+}();
+var MarlinLineParserResultTemperature = /*#__PURE__*/ function() {
+    "use strict";
+    function MarlinLineParserResultTemperature() {
+        _helpers.classCallCheck(this, MarlinLineParserResultTemperature);
+    }
+    _helpers.createClass(MarlinLineParserResultTemperature, null, [
+        {
+            key: "parse",
+            value: // ok T:0
+            // ok T:293.0 /0.0 B:25.9 /0.0 @:0 B@:0
+            // ok T:293.0 /0.0 B:25.9 /0.0 T0:293.0 /0.0 T1:100.0 /0.0 @:0 B@:0 @0:0 @1:0
+            // ok T:293.0 /0.0 (0.0) B:25.9 /0.0 T0:293.0 /0.0 (0.0) T1:100.0 /0.0 (0.0) @:0 B@:0 @0:0 @1:0
+            // ok T:293.0 /0.0 (0.0) B:25.9 /0.0 T0:293.0 /0.0 (0.0) T1:100.0 /0.0 (0.0) @:0 B@:0 @0:0 @1:0 W:?
+            // ok T:293.0 /0.0 (0.0) B:25.9 /0.0 T0:293.0 /0.0 (0.0) T1:100.0 /0.0 (0.0) @:0 B@:0 @0:0 @1:0 W:0
+            //  T:293.0 /0.0 B:25.9 /0.0 @:0 B@:0
+            //  T:293.0 /0.0 B:25.9 /0.0 T0:293.0 /0.0 T1:100.0 /0.0 @:0 B@:0 @0:0 @1:0
+            //  T:293.0 /0.0 (0.0) B:25.9 /0.0 T0:293.0 /0.0 (0.0) T1:100.0 /0.0 (0.0) @:0 B@:0 @0:0 @1:0
+            function parse(line) {
+                var r = line.match(/^(ok)?\s+T:[0-9\.\-]+/i);
+                if (!r) return null;
+                var payload = {
+                    ok: line.startsWith('ok'),
+                    extruder: {},
+                    heatedBed: {}
+                };
+                var re = /(?:(?:(T|B|T\d+):([0-9\.\-]+)\s+\/([0-9\.\-]+)(?:\s+\((?:[0-9\.\-]+)\))?)|(?:(@|B@|@\d+):([0-9\.\-]+))|(?:(W):(\?|[0-9]+)))/ig;
+                while(r = re.exec(line)){
+                    var key = r[1] || r[4] || r[6];
+                    if (key === 'T') {
+                        payload.extruder.deg = r[2];
+                        payload.extruder.degTarget = r[3];
+                        continue;
+                    }
+                    if (key === 'B') {
+                        payload.heatedBed.deg = r[2];
+                        payload.heatedBed.degTarget = r[3];
+                        continue;
+                    }
+                    if (key === '@') {
+                        payload.extruder.power = r[5];
+                        continue;
+                    }
+                    if (key === 'B@') {
+                        payload.heatedBed.power = r[5];
+                        continue;
+                    }
+                    // M109, M190: Print temp & remaining time every 1s while waiting
+                    if (key === 'W') {
+                        payload.wait = r[7];
+                        continue;
+                    }
+                // Hotends: T0, T1, ...
+                // TODO
+                }
+                return {
+                    type: MarlinLineParserResultTemperature,
+                    payload: payload
+                };
+            }
+        }
+    ]);
+    return MarlinLineParserResultTemperature;
+}();
+
+},{"@swc/helpers":"erO4s","liveprinter-utils":"5Ti02","@parcel/transformer-js/src/esmodule-helpers.js":"5oERU"}],"kaahn":[function(require,module,exports) {
 // CodeMirror, copyright (c) by Marijn Haverbeke and others
 // Distributed under an MIT license: https://codemirror.net/LICENSE
 // This is CodeMirror (https://codemirror.net), a code editor
