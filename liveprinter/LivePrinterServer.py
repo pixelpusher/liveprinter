@@ -42,7 +42,8 @@ import tornado.httpserver
 import tornado.ioloop
 import tornado.options
 import tornado.web
-from serial import SerialException
+from tornado import gen
+from serial import Serial, SerialException, SerialTimeoutException
 import serial.tools.list_ports
 import dummyserial
 from ConnectionState import ConnectionState
@@ -237,7 +238,8 @@ async def json_handle_set_serial_port(printer, *args):
     try:
         received = await printer.async_connect()
 
-    except SerialException:
+    except SerialException as se:
+        logger.error(str(se))
         response = ["ERROR: could not connect to serial port {}".format(port)]
         logger.error(response[0])
         # raise Exception(response)

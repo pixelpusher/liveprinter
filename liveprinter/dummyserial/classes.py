@@ -106,7 +106,7 @@ class Serial(object):
         self._logger.debug('Writing (%s): "%s"', len(data), data)
 
         if not self.is_open:
-            raise PortNotOpenError
+            raise PortNotOpenError()
 
         if sys.version_info[0] > 2:
             if not isinstance(data, bytes):

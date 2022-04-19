@@ -3,34 +3,52 @@
 
 digraph movement {
     fontname="Arial"
-    fontsize=20
-    labelloc="t"
-    label="GCode Tool Operations"
     splines=true
-    rankdir="LR"
+    rankdir="TB"
 
-    node [shape=rect, style="filled, rounded", fillcolor="lightblue", fontsize="10", fontname="Arial", color="#444455"]
+    node [shape=rect, style="filled, rounded", fillcolor="aquamarine", fontsize="9", fontname="Arial", color=mediumaquamarine,
+    fontcolor=darkslategrey]
 
-    edge [color="#444455",fontsize="10", fontname="Arial", compound=true]
+    edge [color=mediumaquamarine,
+        fontsize="9", 
+        fontname="Arial",
+        fontcolor=darkslategray,
+        compound=true]
 
     // Nodes-------------------
-
-    operation [label="user-initiated\ntool operation"]
-    interpreter [label="GCode generator"]
-    firmware [label="Marlin firmware"]
-    controllers [label="controller chips"]
-    actuators [label="actuators:\nphysical motors,\nheaters,\n etc."]
-
+    subgraph cluster_lp {
+        fillcolor=paleturquoise1
+        fontcolor=paleturquoise4
+        style="filled,rounded"
+        color=paleturquoise3
+      label=<LivePrinter Software>
+      operation [label=<livecoded<br/>tool operation>]
+      interpreter [label=<GCode generator>]
+    }
+    subgraph cluster_marlin {
+        fillcolor=paleturquoise1
+        color=paleturquoise3
+        fontcolor=paleturquoise4
+        style="filled,rounded"
+        label=<Firmware>
+        firmware [label="Marlin firmware"]
+        controllers [label="controller chips"]
+    }
+    subgraph cluster_printer {
+        fillcolor=paleturquoise1
+        color=paleturquoise3
+        fontcolor=paleturquoise4
+        style="filled,rounded"
+        label=<Printer>
+        actuators [label=<actuators:<br/>physical motors,<br/>heaters,<br/> etc.>]
+    }
 
     // Connections-------------
 
-    operation -> interpreter [label="parameters"]
-    interpreter -> firmware [label="GCode"]
-    firmware -> controllers [label="ttl, serial, etc."]
-    controllers -> actuators [label="electronic   pulses"]
-    
+    operation -> interpreter [label=<  interpreted<br/>JavaScript>]
+    interpreter -> firmware [label=<  GCode over<br/> serial>, fontcolor=darkslategray]
+    firmware -> controllers [label=""]
+    controllers -> actuators [label=<  electronic<br/> signals>]
 
     // Ranks-------------------
-
-    subgraph {rank=same;firmware; controllers; actuators}
 }

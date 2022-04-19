@@ -415,7 +415,7 @@ const init = async function () {
             const txt = cm.getDoc().getValue();
             localStorage.setItem(cm.saveStorageKey, txt);
             liveprinterUI.blinkElem($(".CodeMirror"), "fast", () => {
-                cm.on("changes", handleChanges);
+                cm.on("changes", () => handleChanges(cm));
             });
         });
         // mark as reload-able
@@ -437,7 +437,7 @@ const init = async function () {
                             newFile, mode
                         )
                     );
-                    cm.on("changes", handleChanges);
+                    cm.on("changes", () => handleChanges(cm));
                 });
             }
         });
@@ -550,8 +550,8 @@ const init = async function () {
                 liveprinterUI.blinkElem($(".CodeMirror"), "slow", () => {
                     CodeEditor.swapDoc(newDoc);
                     CodeEditor.refresh();
-                    CodeEditor.on('changes', handleChanges);
-                    CodeEditor.on('blur', handleChanges);
+                    CodeEditor.on('changes', () => handleChanges(CodeEditor));
+                    CodeEditor.on('blur', () => handleChanges(CodeEditor));
                 });
             })
             .fail(function () {
@@ -603,8 +603,8 @@ const init = async function () {
     });
 
     // set up events
-    editors.map(cm => cm.on("changes", handleChanges));
-    editors.map(cm => cm.on("blur", handleChanges));
+    editors.map(cm => cm.on("changes", () => handleChanges(cm)));
+    editors.map(cm => cm.on("blur", () => handleChanges(cm)));
 
     if (storageAvailable('localStorage')) {
         // finally, load the last stored session:

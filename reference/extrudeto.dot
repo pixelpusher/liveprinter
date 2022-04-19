@@ -2,46 +2,51 @@
 
 digraph movement {
 
-    splines="TRUE";
+    splines=true;
 
-    node [style="filled", fillcolor="lightcyan2", fontsize="10", fontname="Arial"]
+    node [style="filled", fillcolor="lightcyan2", fontsize="8.5", fontname="Arial"]
 
-    edge [style="filled", fillcolor="lightcyan2", fontsize="10", fontname="Arial", compound=true]
+    edge [style="filled", fillcolor="lightcyan2", fontsize="8.5", fontname="Arial", compound=true]
 
     /* Entities */
 
     start [label=<extrudeto( )>, shape="invhouse" ]
 
-    "retraction\nspecified?" [shape="diamond",style=filled, fillcolor="cyan2"]
-    "extrusion\nposition\nspecified?"  [shape="diamond",style=filled, fillcolor="cyan2"]
-    "extrusion position\nis current\nposition?" [shape="diamond",style=filled, fillcolor="cyan2"]
-    "using automatic\nretraction?" [shape="diamond",style=filled, fillcolor="cyan2"]
-    "no retraction\nspecified, no\nextrusion position" [label="no retraction\nspecified, no\nextrusion position?"shape="diamond", fillcolor=cyan2]
-    "tool speed\nspecified?" [shape="diamond",style=filled, fillcolor="cyan2"]
-    "too much or little\nfilament used?" [shape="diamond",style=filled, fillcolor="cyan2"]
-    "is tool speed\nwithin printer\nlimits?" [shape="diamond",style=filled, fillcolor="cyan2"]
-    "using\nretraction?" [shape="diamond",style=filled, fillcolor="cyan2"]
-    "using auto\nprinting mode?"  [shape="diamond",style=filled, fillcolor="cyan2"]
-    "printing or\ntraveling mode?" [shape="diamond",style=filled, fillcolor="cyan2"]
+    retraction_specified [shape=diamond,style=filled, fillcolor="cyan2", label=<retraction<br/>specified?>]
+    extrusion_specified  [shape=diamond,style=filled, fillcolor="cyan2", label=<extrusion<br/>position<br/>specified?>]
+    extrusion_current [shape=diamond,style=filled, fillcolor="cyan2", label=<extrusion position<br/>is current<br/>position?>]
+    autoretraction [shape=diamond,style=filled, fillcolor="cyan2", label=<using automatic<br/>retraction?>]
+    no_retract_extrusion [label=<no retraction<br/>specified, no<br/>extrusion position?>, shape=diamond, fillcolor=cyan2]
+    is_toolspeed_set [shape=diamond,style=filled, fillcolor="cyan2", label=<tool speed<br/>specified?>]
+    filamentused [shape=diamond,style=filled, fillcolor="cyan2", label=<too much or little<br/>filament used?>]
+    toolspeedok [shape=diamond,style=filled, fillcolor="cyan2", label=<is tool speed<br/>within printer<br/>limits?>]
+    using_retraction [shape=diamond,style=filled, fillcolor="cyan2",label=<using<br/>retraction?>]
+    is_auto_printing  [shape=diamond,style=filled, fillcolor="cyan2", label=<using auto<br/>printing mode?>]
+    printing_or_traveling [shape=diamond,style=filled, fillcolor="cyan2", label=<printing or<br/>traveling mode?>]
+    retraction_argument [shape=diamond,style=filled, fillcolor="cyan2",label=<retraction<br/>argument is:>]
 
-    "set speed to\nprinting speed" [shape="rect",style=filled, fillcolor="darkolivegreen1"]
-    "set speed to\ntraveling speed" [shape="rect",style=filled, fillcolor="darkolivegreen1"]
-    "set speed" [shape="rect",style=filled, fillcolor="darkolivegreen1"]
-
-    "printing\nmode (auto)" [shape="rect",style=filled, fillcolor="darkolivegreen1"]
-    "printing\nmode (manual)" [shape="rect",style=filled, fillcolor="darkolivegreen1"]
-    "traveling mode" [shape="rect",style=filled, fillcolor="darkolivegreen1"]
-
-    "using\nretraction" [shape="rect",style=filled, fillcolor="darkolivegreen1"]
-    "not using\nretraction" [shape="rect",style=filled, fillcolor="darkolivegreen1"]
-    
-    "unretract\n(as needed)"[label="unretract\n(as needed)", shape="parallelogram",style=filled, fillcolor="lemonchiffon"] //lemonchiffon
-    "send GCode to\nprinter"[shape="parallelogram",style=filled, fillcolor="lemonchiffon"]
-    "retract" [shape="parallelogram",style=filled, fillcolor="lemonchiffon"]
+    printing_speed [shape=rect,style=filled, fillcolor="darkolivegreen1", label=<set speed to<br/>printing speed>]
+    travel_speed [shape=rect,style=filled, fillcolor="darkolivegreen1", label=<set speed to<br/>traveling speed>]
+    "set speed" [shape=rect,style=filled, fillcolor="darkolivegreen1"]
+    auto_printing [shape=rect,style=filled, fillcolor="darkolivegreen1", label=<printing<br/>mode (auto)>]
+    manual_printing [shape=rect,style=filled, fillcolor="darkolivegreen1", label=<printing<br/>mode (manual)>]
+    "traveling mode" [shape=rect,style=filled, fillcolor="darkolivegreen1"]
+    clear_retraction [shape=rect,style=filled, fillcolor="darkolivegreen1", label=<clear current<br/>retraction>]
+    using_retraction2 [shape=rect,style=filled, fillcolor="darkolivegreen1", label=<using<br/>retraction>]
+    no_retraction [shape=rect,style=filled, fillcolor="darkolivegreen1", label=<not using<br/>retraction>]
     
 
-    "update internal\nposition" [shape="cylinder"]
+    new_tool_position_wo_length [label=<calculate new<br/>tool position<br/>(without filament<br/>length)>]
+    new_tool_position_with_length [label=<calculate new<br/>tool position<br/>(with filament<br/>length)>]
+    new_filament_position [label=<calculate<br/>new filament<br/>position, update<br/>internally>]
+    calc_toolspeed [label=<calculate<br/>per-axis<br/>tool speed>]
 
+
+    unretract [shape=parallelogram,style=filled, fillcolor="lemonchiffon", label=<unretract<br/>(as needed)>] //lemonchiffon
+    send_GCode [shape=parallelogram,style=filled, fillcolor="lemonchiffon", label=<send GCode to<br/>printer>]
+    "retract" [shape=parallelogram,style=filled, fillcolor="lemonchiffon", label=<retract>]
+    
+    update_pos [shape="cylinder", label=<update internal<br/>position>]
 
     "throw error" [shape="doubleoctagon", style=filled, fillcolor="firebrick1" ]
 
@@ -49,101 +54,100 @@ digraph movement {
 
     /* Relationships */
     
-    start:s ->  "retraction\nspecified?":n
+    start:s ->  retraction_specified:n
 
-    start:s -> "extrusion\nposition\nspecified?":n
+    start:s -> extrusion_specified:n
 
-    "retraction\nspecified?":s -> "retraction\nargument is:" [label=" yes"]
+    retraction_specified:s -> retraction_argument:n [label=" yes"]
 
-    "retraction\nspecified?":e -> "no retraction\nspecified, no\nextrusion position" [label=" no"]
+    retraction_specified:e -> no_retract_extrusion [label=" no"]
 
-    "extrusion\nposition\nspecified?":w -> "unretract\n(as needed)" [label=" no"]
-     "unretract\n(as needed)" -> "printing\nmode (auto)" 
+    extrusion_specified:w -> unretract [label=" no"]
+     unretract -> auto_printing 
 
-    "printing\nmode (auto)" -> "no retraction\nspecified, no\nextrusion position"
+    auto_printing -> no_retract_extrusion
 
-    "no retraction\nspecified, no\nextrusion position" -> "using automatic\nretraction?" [label=" true"]
+    no_retract_extrusion -> autoretraction [label=" true"]
 
-    "no retraction\nspecified, no\nextrusion position":e -> "not using\nretraction" [label=" false"]
+    no_retract_extrusion:e -> no_retraction [label=" false"]
     
-     "using automatic\nretraction?":s -> "using\nretraction"  [label="  yes"]
+     autoretraction:s -> using_retraction  [label="  yes"]
 
-    "retraction\nargument is:" -> "using\nretraction"  [label=" true"]
-    "retraction\nargument is:" -> "not using\nretraction"  [label=" false"]
+    retraction_argument:s -> using_retraction  [label=" true"]
+    retraction_argument:e -> no_retraction  [label=" false"]
     
-    "using automatic\nretraction?":e -> "not using\nretraction" [label=" no"]
+    autoretraction:e -> no_retraction [label=" no"]
     
-    "extrusion\nposition\nspecified?":s -> "extrusion position\nis current\nposition?":n [label=" yes"]
+    extrusion_specified:s -> extrusion_current:n [label=" yes"]
 
-    "extrusion position\nis current\nposition?":s -> "traveling mode" [label=" yes"]
+    extrusion_current:s -> "traveling mode" [label=" yes"]
     
-    "traveling mode" -> "not using\nretraction" 
+    "traveling mode" -> no_retraction 
 
-    "extrusion position\nis current\nposition?":e -> "clear current\nretraction" [label=" no"]
+    extrusion_current:e -> clear_retraction [label=" no"]
     
-    "clear current\nretraction" -> "printing\nmode (manual)"
+    clear_retraction -> manual_printing
 
-    "printing\nmode (manual)" -> "not using\nretraction" 
+    manual_printing -> no_retraction 
  
-    "not using\nretraction" -> "tool speed\nspecified?"
+    no_retraction -> is_toolspeed_set:n
 
-    "using\nretraction" -> "tool speed\nspecified?"
+    using_retraction:s -> is_toolspeed_set:n
 
-    "tool speed\nspecified?":s -> "set speed" [label=" yes"]
+    is_toolspeed_set:s -> "set speed" [label=" yes"]
 
-    "tool speed\nspecified?":e -> "printing or\ntraveling mode?":n [label=" no"]
+    is_toolspeed_set:e -> printing_or_traveling:n [label=" no"]
 
-    "printing or\ntraveling mode?":s -> "set speed to\ntraveling speed" [label=" traveling"]
+    printing_or_traveling:s -> travel_speed [label=" traveling"]
 
-    "printing or\ntraveling mode?":e -> "set speed to\nprinting speed" [label=" printing"]
+    printing_or_traveling:e -> printing_speed [label=" printing"]
 
-    "set speed" -> "using auto\nprinting mode?"
-    "set speed to\nprinting speed" -> "using auto\nprinting mode?"
-    "set speed to\ntraveling speed" -> "using auto\nprinting mode?"
+    "set speed" -> is_auto_printing
+    printing_speed -> is_auto_printing
+    travel_speed -> is_auto_printing
     
-    "using auto\nprinting mode?":s -> "calculate new\ntool position\n(without filament\nlength)":n [label=" yes"]
+    is_auto_printing:s -> new_tool_position_wo_length:n [label=" yes"]
 
-    "using auto\nprinting mode?":e -> "calculate new\ntool position\n(with filament\nlength)" [label=" no"]
+    is_auto_printing:e -> new_tool_position_with_length [label=" no"]
 
-    "calculate new\ntool position\n(with filament\nlength)" -> "calculate\nper-axis\ntool speed"
+    new_tool_position_with_length -> calc_toolspeed
 
-    "calculate new\ntool position\n(without filament\nlength)" -> "calculate\nnew filament\nposition, update\ninternally"
+    new_tool_position_wo_length -> new_filament_position
 
-    "calculate\nnew filament\nposition, update\ninternally" -> "too much or little\nfilament used?"
+    new_filament_position -> filamentused
 
-    "too much or little\nfilament used?":s -> "throw error" [label=" yes"]
+    filamentused:s -> "throw error" [label=" yes"]
     
-    "too much or little\nfilament used?":e -> "calculate\nper-axis\ntool speed" [label=" no"]
+    filamentused:e -> calc_toolspeed [label=" no"]
 
-    "calculate\nper-axis\ntool speed" -> "is tool speed\nwithin printer\nlimits?"
+    calc_toolspeed -> toolspeedok
 
-    "is tool speed\nwithin printer\nlimits?":w -> "throw error" [label=" no"]
+    toolspeedok:w -> "throw error" [label=" no"]
 
-    "is tool speed\nwithin printer\nlimits?" -> "send GCode to\nprinter" [label=" yes"]
+    toolspeedok -> send_GCode [label=" yes"]
 
-    "send GCode to\nprinter" -> "using\nretraction?"
+    send_GCode -> using_retraction2
 
-    "using\nretraction?":s -> "retract" [label=" yes"]
-    "retract" -> "update internal\nposition"
-    "using\nretraction?":e -> "update internal\nposition":n [label=" no"]
+    using_retraction2:s -> "retract" [label=" yes"]
+    "retract" -> update_pos
+    using_retraction2:e -> update_pos:n [label=" no"]
 
-    "update internal\nposition" -> "finished"
+    update_pos -> "finished"
 
     /* Ranks */
-    subgraph start { rank=same; "retraction\nspecified?"; "extrusion\nposition\nspecified?"; };
+    subgraph start { rank=same; retraction_specified; extrusion_specified; };
 
     subgraph { rank=same;}
 
-    subgraph { rank=same; "printing\nmode (auto)";"printing\nmode (manual)"; "traveling mode" }
+    subgraph { rank=same; auto_printing;manual_printing; "traveling mode" }
 
-    subgraph { rank=same; "set speed";  "set speed to\nprinting speed"; "set speed to\ntraveling speed"}
+    subgraph { rank=same; "set speed";  printing_speed; travel_speed}
 
-    subgraph {rank=same; "calculate new\ntool position\n(without filament\nlength)"; "calculate new\ntool position\n(with filament\nlength)"; "calculate\nnew filament\nposition, update\ninternally"}
+    subgraph {rank=same; new_tool_position_wo_length; new_tool_position_with_length; new_filament_position}
 
-    subgraph {rank="same";"tool speed\nspecified?";"printing or\ntraveling mode?"}
+    subgraph {rank="same";is_toolspeed_set;printing_or_traveling}
 
-    subgraph {rank="same"; "too much or little\nfilament used?"; "calculate\nper-axis\ntool speed"}
+    subgraph {rank="same"; filamentused; calc_toolspeed}
     
-    subgraph {rank="same"; "update internal\nposition"; "retract";"finished"}
-
+    subgraph {rank="same"; update_pos; "retract";"finished"}
 }
