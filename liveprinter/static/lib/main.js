@@ -10142,6 +10142,7 @@ var Printer = /*#__PURE__*/ function() {
         this._zdistance = 0; // next up/down distance to move
         this._waitTime = 0;
         this._autoRetract = true; // automatically unretract/retract - see get/set autoretract
+        this._bpm = 120; // for beat-based movements
         ////////////////////////////////////////////
         this.totalMoveTime = 0; // time spent moving/extruding
         this.maxFilamentPerOperation = 30; // safety check to keep from using all filament, in mm
@@ -10575,6 +10576,16 @@ var Printer = /*#__PURE__*/ function() {
      * @param {float} ang Angle of movement (in xy plane) in radians
      */ function set(ang) {
                 this._heading = ang;
+            }
+        },
+        {
+            /**
+     * set bpm for printer, for calculating beat-based movements
+     */ key: "bpm",
+            value: /**
+     * set bpm for printer, for calculating beat-based movements
+     */ function bpm() {
+                return this._bpm;
             }
         },
         {
@@ -11754,6 +11765,48 @@ var Printer = /*#__PURE__*/ function() {
             }
         },
         {
+            key: "sendArcExtrusionGCode",
+            value: /**
+     * Send movement update GCode to printer based on current position (this.x,y,z).
+     * @param {Int} speed print speed in mm/s
+     * @param {boolean} retract if true (default) add GCode for retraction/unretraction. Will use either hardware or software retraction if set in Printer object
+     * */ function sendArcExtrusionGCode(speed) {
+                var clockWise = arguments.length > 1 && arguments[1] !== void 0 ? arguments[1] : true, retract = arguments.length > 2 && arguments[2] !== void 0 ? arguments[2] : true;
+                var _this = this;
+                return _helpers.asyncToGenerator(_regeneratorRuntimeDefault.default.mark(function _callee() {
+                    var moveCode;
+                    return _regeneratorRuntimeDefault.default.wrap(function _callee$(_ctx) {
+                        while(1)switch(_ctx.prev = _ctx.next){
+                            case 0:
+                                moveCode = clockwise ? [
+                                    "G2"
+                                ] : [
+                                    "G3"
+                                ];
+                                moveCode.push("X" + _this.x.toFixed(4));
+                                moveCode.push("Y" + _this.y.toFixed(4));
+                                moveCode.push("Z" + _this.z.toFixed(4));
+                                moveCode.push("E" + _this.e.toFixed(4));
+                                moveCode.push("F" + (speed * 60).toFixed(4)); // mm/s to mm/min
+                                _ctx.next = 8;
+                                return _this.gcodeEvent(moveCode.join(" "));
+                            case 8:
+                                // account for errors in decimal precision
+                                _this.e = parseFloat(_this.e.toFixed(4));
+                                _this.x = parseFloat(_this.x.toFixed(4));
+                                _this.y = parseFloat(_this.y.toFixed(4));
+                                _this.z = parseFloat(_this.z.toFixed(4));
+                                return _ctx.abrupt("return", _this);
+                            case 13:
+                            case "end":
+                                return _ctx.stop();
+                        }
+                    }, _callee);
+                } // end sendArcExtrusionGCode
+                ))();
+            }
+        },
+        {
             key: "extrude",
             value: // TODO: have this chop up moves and call a callback function each time,
             // like in _extrude
@@ -12066,7 +12119,7 @@ var Printer = /*#__PURE__*/ function() {
      */ key: "t2d",
             value: function t2d(time) {
                 var speed = arguments.length > 1 && arguments[1] !== void 0 ? arguments[1] : this._travelSpeed;
-                this._distance = speed * time / 1000; // time in ms
+                this._distance = this.t2mm(time, speed); // time in ms
                 return this;
             }
         },
@@ -12079,6 +12132,29 @@ var Printer = /*#__PURE__*/ function() {
             value: function t2mm(time) {
                 var speed = arguments.length > 1 && arguments[1] !== void 0 ? arguments[1] : this._printSpeed;
                 return speed * time / 1000; // time in ms
+            }
+        },
+        {
+            /**
+     * Set the movement distance based on number of beats (uses bpm to calculate)
+     * @param {Number} beats Time to move in whole or partial beats
+     * @returns {Printer} reference to this object for chaining
+     */ key: "b2d",
+            value: function b2d(beats) {
+                var speed = arguments.length > 1 && arguments[1] !== void 0 ? arguments[1] : this._travelSpeed;
+                this._distance = this.b2t(beats, speed); // speed is in ms already
+                return this;
+            }
+        },
+        {
+            /**
+     * Get the time in ms based on number of beats (uses bpm to calculate)
+     * @param {Number} beats In whole or partial beats
+     * @returns {Number} Time in ms equivalent to the number of beats
+     */ key: "b2t",
+            value: function b2t(beats) {
+                var speed = arguments.length > 1 && arguments[1] !== void 0 ? arguments[1] : this._travelSpeed;
+                return speed * (beats * 60 / this._bpm); // speed is in ms already
             }
         },
         {
@@ -12439,7 +12515,7 @@ var Printer = /*#__PURE__*/ function() {
         {
             key: "printPathsThick",
             value: /**
-         * Print paths 
+         * Print paths using drawFill. NEVER TESTED!
          * @param {Array} paths List of paths (lists of coordinates in x,y) to print
          * @param {Object} settings Settings for the scaling, etc. of this object. useaspect means respect aspect ratio (width/height). A width or height
          * of 0 means to use the original paths' width/height.
@@ -12764,6 +12840,299 @@ var Printer = /*#__PURE__*/ function() {
                             ,
                             27,
                             31
+                        ]
+                    ]);
+                } // end _extrude 
+                ))();
+            }
+        },
+        {
+            key: "arcextrudeto",
+            value: /**
+    * Extrude plastic from the printer head to specific coordinates, within printer bounds
+    * @param {Object} params Parameters dictionary containing either:
+    * - x,y,z,i,j,e keys referring to movement and filament position
+    * - 'retract' for manual retract setting (true/false)
+    * - 'speed' for the print or travel speed of this and subsequent operations
+    * - 'thickness' or 'thick' for setting/updating layer height
+    * - 'bounce' if movement should bounce off sides (true/false), not currently implemented properly
+    * @returns {Printer} reference to this object for chaining
+    */ function arcextrudeto(params) {
+                var _this = this;
+                return _helpers.asyncToGenerator(_regeneratorRuntimeDefault.default.mark(function _callee() {
+                    var extrusionNotSpecified, __x, __y, __z, __e, __i, __j, extrusionNotZero, extruding, retract, newPosition, _speed, distanceVec, distanceMag, filamentLength, filamentRadius, velocity, moveTime, nozzleSpeed;
+                    return _regeneratorRuntimeDefault.default.wrap(function _callee$(_ctx) {
+                        while(1)switch(_ctx.prev = _ctx.next){
+                            case 0:
+                                extrusionNotSpecified = params.e === undefined;
+                                __x = params.x !== undefined ? parseFloat(params.x) : _this.x;
+                                __y = params.y !== undefined ? parseFloat(params.y) : _this.y;
+                                __z = params.z !== undefined ? parseFloat(params.z) : _this.z;
+                                __e = params.e !== undefined ? parseFloat(params.e) : _this.e;
+                                __i = params.i !== undefined ? parseFloat(params.i) : 0;
+                                __j = params.j !== undefined ? parseFloat(params.j) : 0;
+                                if (!(__i + __j < 0.1)) {
+                                    _ctx.next = 9;
+                                    break;
+                                }
+                                throw new ValueError("arcextrude needs both i and j specified!");
+                            case 9:
+                                extrusionNotZero = Math.abs(__e - _this.e) > Number.EPSILON;
+                                extruding = extrusionNotSpecified || extrusionNotZero;
+                                retract = params.retract === undefined ? extrusionNotSpecified && _this._autoRetract : params.retract;
+                                if (!extrusionNotZero) {
+                                    _ctx.next = 16;
+                                    break;
+                                }
+                                {
+                                    _this.currentRetraction = 0; //clear retraction if we go manual
+                                    retract = false;
+                                }
+                                _ctx.next = 18;
+                                break;
+                            case 16:
+                                _ctx.next = 18;
+                                return _this.unretract();
+                            case 18:
+                                newPosition = new _liveprinterUtils.Vector({
+                                    x: __x,
+                                    y: __y,
+                                    z: __z,
+                                    e: __e
+                                });
+                                _speed = parseFloat(params.speed !== undefined ? params.speed : extruding ? _this._printSpeed : _this._travelSpeed);
+                                // update layer height if necessary
+                                _this.layerHeight = parseFloat(params.thickness !== undefined ? params.thickness : _this.layerHeight);
+                                // update layer height if necessary
+                                if (params.thick !== undefined) _this.layerHeight = parseFloat(params.thick);
+                                distanceVec = _liveprinterUtils.Vector.sub(newPosition, _this.position);
+                                distanceMag = 1; // calculated later
+                                filamentLength = __e;
+                                if (!extrusionNotSpecified) {
+                                    _ctx.next = 38;
+                                    break;
+                                }
+                                // distance is purely 3D movement, not filament movement
+                                distanceMag = Math.sqrt(distanceVec.axes.x * distanceVec.axes.x + distanceVec.axes.y * distanceVec.axes.y + distanceVec.axes.z * distanceVec.axes.z);
+                                filamentRadius = Printer.filamentDiameter[_this._model] / 2;
+                                // for extrusion into free space
+                                // apparently, some printers take the filament into account (so this is in mm3)
+                                // this was helpful: https://github.com/Ultimaker/GCodeGenJS/blob/master/js/gcode.js
+                                filamentLength = distanceMag * _this.layerHeight * _this.layerHeight; //(Math.PI*filamentRadius*filamentRadius);
+                                if (!(filamentLength > _this.maxFilamentPerOperation)) {
+                                    _ctx.next = 31;
+                                    break;
+                                }
+                                throw Error("Too much filament in move:" + filamentLength);
+                            case 31:
+                                if (!Printer.extrusionInmm3[_this._model]) filamentLength /= filamentRadius * filamentRadius * Math.PI;
+                                //console.log("filament speed: " + filamentSpeed);
+                                //console.log("filament distance : " + filamentLength + "/" + dist);
+                                distanceVec.axes.e = filamentLength;
+                                newPosition.axes.e = _this.e + distanceVec.axes.e;
+                                if (!(filamentLength < _this.minFilamentPerOperation)) {
+                                    _ctx.next = 36;
+                                    break;
+                                }
+                                throw new Error("filament length too short: " + filamentLength);
+                            case 36:
+                                _ctx.next = 39;
+                                break;
+                            case 38:
+                                // distance is 3D movement PLUS filament movement
+                                distanceMag = distanceVec.mag();
+                            case 39:
+                                velocity = _liveprinterUtils.Vector.div(distanceVec, distanceMag);
+                                moveTime = distanceMag / _speed; // in sec, doesn't matter that new 'e' not taken into account because it's not in firmware
+                                _this.totalMoveTime += moveTime; // update total movement time for the printer
+                                if (!(moveTime > _this.maxTimePerOperation)) {
+                                    _ctx.next = 44;
+                                    break;
+                                }
+                                throw new Error("move time too long:" + moveTime);
+                            case 44:
+                                nozzleSpeed = _liveprinterUtils.Vector.div(distanceVec, moveTime);
+                                if (!extruding) {
+                                    _ctx.next = 56;
+                                    break;
+                                }
+                                if (!(nozzleSpeed.axes.x > Printer.maxPrintSpeed[_this._model]["x"])) {
+                                    _ctx.next = 48;
+                                    break;
+                                }
+                                throw Error("X printing speed too fast:" + nozzleSpeed.axes.x);
+                            case 48:
+                                if (!(nozzleSpeed.axes.y > Printer.maxPrintSpeed[_this._model]["y"])) {
+                                    _ctx.next = 50;
+                                    break;
+                                }
+                                throw Error("Y printing speed too fast:" + nozzleSpeed.axes.y);
+                            case 50:
+                                if (!(nozzleSpeed.axes.z > Printer.maxPrintSpeed[_this._model]["z"])) {
+                                    _ctx.next = 52;
+                                    break;
+                                }
+                                throw Error("Z printing speed too fast:" + nozzleSpeed.axes.z);
+                            case 52:
+                                if (!(nozzleSpeed.axes.e > Printer.maxPrintSpeed[_this._model]["e"])) {
+                                    _ctx.next = 54;
+                                    break;
+                                }
+                                throw Error("E printing speed too fast:" + nozzleSpeed.axes.e + "/" + Printer.maxPrintSpeed[_this._model]["e"]);
+                            case 54:
+                                _ctx.next = 62;
+                                break;
+                            case 56:
+                                if (!(nozzleSpeed.axes.x > Printer.maxTravelSpeed[_this._model]["x"])) {
+                                    _ctx.next = 58;
+                                    break;
+                                }
+                                throw Error("X travel too fast:" + nozzleSpeed.axes.x);
+                            case 58:
+                                if (!(nozzleSpeed.axes.y > Printer.maxTravelSpeed[_this._model]["y"])) {
+                                    _ctx.next = 60;
+                                    break;
+                                }
+                                throw Error("Y travel too fast:" + nozzleSpeed.axes.y);
+                            case 60:
+                                if (!(nozzleSpeed.axes.z > Printer.maxTravelSpeed[_this._model]["z"])) {
+                                    _ctx.next = 62;
+                                    break;
+                                }
+                                throw Error("Z travel too fast:" + nozzleSpeed.axes.z);
+                            case 62:
+                                return _ctx.abrupt("return", _this._extrude(_speed, velocity, distanceMag, retract));
+                            case 63:
+                            case "end":
+                                return _ctx.stop();
+                        }
+                    }, _callee);
+                } // end extrudeto
+                ))();
+            }
+        },
+        {
+            key: "_arcExtrude",
+            value: function _arcExtrude(speed, newPosition, clockwise, retract) {
+                var _this = this;
+                return _helpers.asyncToGenerator(_regeneratorRuntimeDefault.default.mark(function _callee() {
+                    var amountMoved, nextPosition, moved, outsideBounds, axis, shortestAxisTime, shortestAxes, axis3, amountMovedVec, _iteratorNormalCompletion, _didIteratorError, _iteratorError, _iterator, _step, axis4;
+                    return _regeneratorRuntimeDefault.default.wrap(function _callee$(_ctx) {
+                        while(1)switch(_ctx.prev = _ctx.next){
+                            case 0:
+                                amountMoved = Math.min(leftToMove, _this.maxMovePerCycle);
+                                nextPosition = _liveprinterUtils.Vector.add(_this.position, _liveprinterUtils.Vector.mult(moveVector, amountMoved));
+                                if (!(_this.boundaryMode === "bounce")) {
+                                    _ctx.next = 32;
+                                    break;
+                                }
+                                moved = new _liveprinterUtils.Vector();
+                                outsideBounds = false;
+                                // calculate movement time per axis, based on printer bounds
+                                for(axis in nextPosition.axes)// TODO:
+                                // for each axis, see where it intersects the printer bounds
+                                // then, using velocity, get other axes positions at that point
+                                // if any of them are over, skip to next axis
+                                if (axis !== "e") {
+                                    if (nextPosition.axes[axis] > _this.maxPosition.axes[axis]) {
+                                        // hit - calculate up to min position
+                                        moved.axes[axis] = (_this.maxPosition.axes[axis] - _this.position.axes[axis]) / moveVector.axes[axis];
+                                        outsideBounds = true;
+                                    } else if (nextPosition.axes[axis] < _this.minPosition.axes[axis]) {
+                                        // hit - calculate up to min position
+                                        moved.axes[axis] = (_this.minPosition.axes[axis] - _this.position.axes[axis]) / moveVector.axes[axis];
+                                        outsideBounds = true;
+                                    }
+                                } //else {
+                                if (!outsideBounds) {
+                                    _ctx.next = 30;
+                                    break;
+                                }
+                                shortestAxisTime = 99999;
+                                shortestAxes = [];
+                                // find shortest time before an axis was hit
+                                // if it hits two (or more?) at the same time, mark both
+                                for(axis3 in moved.axes){
+                                    if (moved.axes[axis3] === shortestAxisTime) shortestAxes.push(axis3);
+                                    else if (moved.axes[axis3] < shortestAxisTime) {
+                                        shortestAxes = [
+                                            axis3
+                                        ];
+                                        shortestAxisTime = moved.axes[axis3];
+                                    }
+                                }
+                                amountMovedVec = _liveprinterUtils.Vector.mult(moveVector, shortestAxisTime);
+                                amountMoved = amountMovedVec.mag();
+                                //console.log("amt moved:" + amountMoved + " / " + leftToMove);
+                                //console.log("next:");
+                                //console.log(nextPosition);
+                                nextPosition.axes = _this.clipToPrinterBounds(_liveprinterUtils.Vector.add(_this.position, amountMovedVec).axes);
+                                _iteratorNormalCompletion = true, _didIteratorError = false, _iteratorError = undefined;
+                                _ctx.prev = 14;
+                                //console.log(nextPosition);
+                                // reverse velocity if axis bounds hit, for shortest axis
+                                for(_iterator = shortestAxes[Symbol.iterator](); !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true){
+                                    axis4 = _step.value;
+                                    moveVector.axes[axis4] = moveVector.axes[axis4] * -1;
+                                }
+                                _ctx.next = 22;
+                                break;
+                            case 18:
+                                _ctx.prev = 18;
+                                _ctx.t0 = _ctx["catch"](14);
+                                _didIteratorError = true;
+                                _iteratorError = _ctx.t0;
+                            case 22:
+                                _ctx.prev = 22;
+                                _ctx.prev = 23;
+                                if (!_iteratorNormalCompletion && _iterator.return != null) {
+                                    _iterator.return();
+                                }
+                            case 25:
+                                _ctx.prev = 25;
+                                if (!_didIteratorError) {
+                                    _ctx.next = 28;
+                                    break;
+                                }
+                                throw _iteratorError;
+                            case 28:
+                                return _ctx.finish(25);
+                            case 29:
+                                return _ctx.finish(22);
+                            case 30:
+                                _ctx.next = 33;
+                                break;
+                            case 32:
+                                _this.clipToPrinterBounds(nextPosition.axes);
+                            case 33:
+                                leftToMove -= amountMoved;
+                                // update current position
+                                _this.position.set(nextPosition);
+                                _ctx.next = 37;
+                                return _this.sendExtrusionGCode(speed, retract);
+                            case 37:
+                                if (!retract) {
+                                    _ctx.next = 40;
+                                    break;
+                                }
+                                _ctx.next = 40;
+                                return _this.retract();
+                            case 40:
+                            case "end":
+                                return _ctx.stop();
+                        }
+                    }, _callee, null, [
+                        [
+                            14,
+                            18,
+                            22,
+                            30
+                        ],
+                        [
+                            23,
+                            ,
+                            25,
+                            29
                         ]
                     ]);
                 } // end _extrude 
@@ -14437,7 +14806,9 @@ var init = function() {
                             var txt = cm.getDoc().getValue();
                             localStorage.setItem(cm.saveStorageKey, txt);
                             liveprinterUI.blinkElem($(".CodeMirror"), "fast", function() {
-                                cm.on("changes", handleChanges);
+                                cm.on("changes", function() {
+                                    return handleChanges(cm);
+                                });
                             });
                         });
                         // mark as reload-able
@@ -14452,7 +14823,9 @@ var init = function() {
                             var newFile = localStorage.getItem(cm.saveStorageKey);
                             if (newFile !== undefined && newFile) liveprinterUI.blinkElem($(".CodeMirror"), "slow", function() {
                                 cm.swapDoc(CodeMirror.Doc(newFile, mode));
-                                cm.on("changes", handleChanges);
+                                cm.on("changes", function() {
+                                    return handleChanges(cm);
+                                });
                             });
                         });
                     });
@@ -14487,8 +14860,12 @@ var init = function() {
                                         liveprinterUI.blinkElem($(".CodeMirror"), "slow", function() {
                                             CodeEditor.swapDoc(newDoc);
                                             CodeEditor.refresh();
-                                            CodeEditor.on('changes', handleChanges);
-                                            CodeEditor.on('blur', handleChanges);
+                                            CodeEditor.on('changes', function() {
+                                                return handleChanges(CodeEditor);
+                                            });
+                                            CodeEditor.on('blur', function() {
+                                                return handleChanges(CodeEditor);
+                                            });
                                         });
                                     }).fail(function() {
                                         doError({
@@ -14549,10 +14926,14 @@ var init = function() {
                     })));
                     // set up events
                     editors.map(function(cm) {
-                        return cm.on("changes", handleChanges);
+                        return cm.on("changes", function() {
+                            return handleChanges(cm);
+                        });
                     });
                     editors.map(function(cm) {
-                        return cm.on("blur", handleChanges);
+                        return cm.on("blur", function() {
+                            return handleChanges(cm);
+                        });
                     });
                     if (storageAvailable('localStorage')) // finally, load the last stored session:
                     editors.map(function(cm) {
@@ -16428,7 +16809,7 @@ var _helpers = require("@swc/helpers");
                 ],
                 "postprocess": function(param) {
                     var _param = _helpers.slicedToArray(param, 1), name = _param[0];
-                    var asyncFunctionsInAPIRegex = /^(setRetractSpeed|sendFirmwareRetractSettings|retract|unretract|ret|unret|start|temp|bed|fan|go|fwretract|retractspeed|polygon|rect|extrudeto|sendExtrusionGCode|travel|draw|drawfill|extrude|move|moveto|mov|mov2|ext|ext2|up|upto|drawup|dup|drawdown|ddown|down|downto|fillDirection|fillDirectionH|sync|fill|wait|pause|resume|printPaths|printPathsThick|_extrude)$/;
+                    var asyncFunctionsInAPIRegex = /^(setRetractSpeed|sendFirmwareRetractSettings|retract|unretract|ret|unret|start|temp|bed|fan|go|fwretract|retractspeed|polygon|rect|extrudeto|sendExtrusionGCode|travel|draw|drawfill|extrude|move|moveto|mov|mov2|ext|ext2|up|upto|drawup|dup|drawdown|ddown|down|downto|fillDirection|fillDirectionH|sync|fill|wait|pause|resume|printPaths|printPathsThick|_extrude|gcode)$/;
                     var asyncFuncCall = asyncFunctionsInAPIRegex.test(name);
                     if (asyncFuncCall) name = "await lp." + name;
                     else name = "lp." + name;
