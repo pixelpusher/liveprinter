@@ -142,7 +142,7 @@
       this[globalName] = mainExports;
     }
   }
-})({"im8Fz":[function(require,module,exports) {
+})({"154xk":[function(require,module,exports) {
 "use strict";
 var HMR_HOST = null;
 var HMR_PORT = 1234;
@@ -223,7 +223,7 @@ function _arrayLikeToArray(arr, len) {
     for(var i = 0, arr2 = new Array(len); i < len; i++)arr2[i] = arr[i];
     return arr2;
 }
-/* global HMR_HOST, HMR_PORT, HMR_ENV_HASH, HMR_SECURE */ /*::
+/* global HMR_HOST, HMR_PORT, HMR_ENV_HASH, HMR_SECURE, chrome, browser */ /*::
 import type {
   HMRAsset,
   HMRMessage,
@@ -250,11 +250,18 @@ interface ParcelModule {
     _disposeCallbacks: Array<(mixed) => void>,
   |};
 }
+interface ExtensionContext {
+  runtime: {|
+    reload(): void,
+  |};
+}
 declare var module: {bundle: ParcelRequire, ...};
 declare var HMR_HOST: string;
 declare var HMR_PORT: string;
 declare var HMR_ENV_HASH: string;
 declare var HMR_SECURE: boolean;
+declare var chrome: ExtensionContext;
+declare var browser: ExtensionContext;
 */ var OVERLAY_ID = '__parcel__error__overlay__';
 var OldModule = module.bundle.Module;
 function Module(moduleName) {
@@ -309,7 +316,12 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
                     var id = assetsToAccept[i][1];
                     if (!acceptedAssets[id]) hmrAcceptRun(assetsToAccept[i][0], id);
                 }
-            } else window.location.reload();
+            } else if ('reload' in location) location.reload();
+            else {
+                // Web extension context
+                var ext = typeof chrome === 'undefined' ? typeof browser === 'undefined' ? null : browser : chrome;
+                if (ext && ext.runtime && ext.runtime.reload) ext.runtime.reload();
+            }
         }
         if (data.type === 'error') {
             // Log parcel errors to console
@@ -403,7 +415,7 @@ function reloadCSS() {
             var href = links[i].getAttribute('href');
             var hostname = getHostname();
             var servedFromHMRServer = hostname === 'localhost' ? new RegExp('^(https?:\\/\\/(0.0.0.0|127.0.0.1)|localhost):' + getPort()).test(href) : href.indexOf(hostname + ':' + getPort());
-            var absolute = /^https?:\/\//i.test(href) && href.indexOf(window.location.origin) !== 0 && !servedFromHMRServer;
+            var absolute = /^https?:\/\//i.test(href) && href.indexOf(location.origin) !== 0 && !servedFromHMRServer;
             if (!absolute) updateLink(links[i]);
         }
         cssTimeout = null;
@@ -667,7 +679,7 @@ var liveprintercomms = require('./liveprinter.comms'); // browser-to-server comm
     console.error(err);
 });
 
-},{"@swc/helpers":"erO4s","regenerator-runtime":"12Ae8","grammardraw/modules/functionmaps.jsx":"2PqyG","jquery":"HtqFp","./liveprinter.printer":"AhSxf","./liveprinter.editor":"l1Zrz","./liveprinter.ui":"lyO7f","./liveprinter.comms":"6Yn3N","popper.js":"gYNHe","bootstrap":"6wZDd","@parcel/transformer-js/src/esmodule-helpers.js":"5oERU","liveprinter-utils":"5Ti02"}],"erO4s":[function(require,module,exports) {
+},{"@swc/helpers":"erO4s","regenerator-runtime":"12Ae8","liveprinter-utils":"5Ti02","grammardraw/modules/functionmaps.jsx":"2PqyG","jquery":"HtqFp","./liveprinter.printer":"AhSxf","./liveprinter.editor":"l1Zrz","./liveprinter.ui":"lyO7f","./liveprinter.comms":"6Yn3N","popper.js":"gYNHe","bootstrap":"6wZDd","@parcel/transformer-js/src/esmodule-helpers.js":"5oERU"}],"erO4s":[function(require,module,exports) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 parcelHelpers.export(exports, "applyDecoratedDescriptor", ()=>_applyDecoratedDescriptorDefault.default
@@ -828,6 +840,12 @@ parcelHelpers.export(exports, "wrapAsyncGenerator", ()=>_wrapAsyncGeneratorDefau
 );
 parcelHelpers.export(exports, "wrapNativeSuper", ()=>_wrapNativeSuperDefault.default
 );
+parcelHelpers.export(exports, "__decorate", ()=>_tslib.__decorate
+);
+parcelHelpers.export(exports, "__metadata", ()=>_tslib.__metadata
+);
+parcelHelpers.export(exports, "__param", ()=>_tslib.__param
+);
 var _applyDecoratedDescriptor = require("./_apply_decorated_descriptor");
 var _applyDecoratedDescriptorDefault = parcelHelpers.interopDefault(_applyDecoratedDescriptor);
 var _arrayLikeToArray = require("./_array_like_to_array");
@@ -986,8 +1004,9 @@ var _wrapAsyncGenerator = require("./_wrap_async_generator");
 var _wrapAsyncGeneratorDefault = parcelHelpers.interopDefault(_wrapAsyncGenerator);
 var _wrapNativeSuper = require("./_wrap_native_super");
 var _wrapNativeSuperDefault = parcelHelpers.interopDefault(_wrapNativeSuper);
+var _tslib = require("tslib");
 
-},{"./_apply_decorated_descriptor":"c9NX1","./_array_like_to_array":"9gDZj","./_array_with_holes":"f2RVY","./_array_without_holes":"9G5hu","./_assert_this_initialized":"hb0Uz","./_async_generator":"3e3Cq","./_async_generator_delegate":"aFowE","./_async_iterator":"kDn5G","./_async_to_generator":"69ywl","./_await_async_generator":"47kVK","./_await_value":"kOPdt","./_check_private_redeclaration":"3VjCv","./_class_apply_descriptor_destructure":"3DAxP","./_class_apply_descriptor_get":"4chdp","./_class_apply_descriptor_set":"PDrmh","./_class_call_check":"5thSN","./_class_check_private_static_field_descriptor":"lcbN3","./_class_check_private_static_access":"8285v","./_class_name_tdz_error":"kLeIP","./_class_private_field_destructure":"czvQw","./_class_private_field_get":"hiZIF","./_class_private_field_init":"dBi4n","./_class_private_field_loose_base":"iIxKI","./_class_private_field_loose_key":"u4WsB","./_class_private_field_set":"3aItm","./_class_private_method_get":"gKMrA","./_class_private_method_init":"dE2Q4","./_class_private_method_set":"jDhxx","./_class_static_private_field_destructure":"5VQU7","./_class_static_private_field_spec_get":"79XlC","./_class_static_private_field_spec_set":"hKsVp","./_construct":"bLTlt","./_create_class":"cMLkg","./_create_super":"inTdM","./_decorate":"5M3uX","./_defaults":"jPoWh","./_define_enumerable_properties":"8xWnI","./_define_property":"c7yiB","./_extends":"by2GU","./_get":"d3ZpD","./_get_prototype_of":"4Z2sn","./_inherits":"hoEyE","./_inherits_loose":"bpWmo","./_initializer_define_property":"5WZDp","./_initializer_warning_helper":"GCE4p","./_instanceof":"j6WhW","./_interop_require_default":"9sQ50","./_interop_require_wildcard":"ejKpM","./_is_native_function":"8d7fi","./_is_native_reflect_construct":"b8vXc","./_iterable_to_array":"lY6Yg","./_iterable_to_array_limit":"61jYg","./_iterable_to_array_limit_loose":"bvfpN","./_jsx":"9hq6e","./_new_arrow_check":"4VyBi","./_non_iterable_rest":"d6ywz","./_non_iterable_spread":"29F6O","./_object_spread":"jaxa1","./_object_without_properties":"eJaOZ","./_object_without_properties_loose":"6eqIr","./_possible_constructor_return":"cWetj","./_read_only_error":"3xmWo","./_set":"kehyh","./_set_prototype_of":"hkEkh","./_skip_first_generator_next":"lqj0R","./_sliced_to_array":"k8UMw","./_sliced_to_array_loose":"7tjhK","./_super_prop_base":"lGKRS","./_tagged_template_literal":"d3FCJ","./_tagged_template_literal_loose":"fbTUf","./_throw":"89Ibv","./_to_array":"lrbT1","./_to_consumable_array":"3TaI4","./_to_primitive":"aO5VI","./_to_property_key":"d5hF2","./_type_of":"hGmQp","./_unsupported_iterable_to_array":"33Ojc","./_wrap_async_generator":"kfhw9","./_wrap_native_super":"2wCpr","@parcel/transformer-js/src/esmodule-helpers.js":"5oERU"}],"c9NX1":[function(require,module,exports) {
+},{"./_apply_decorated_descriptor":"c9NX1","./_array_like_to_array":"9gDZj","./_array_with_holes":"f2RVY","./_array_without_holes":"9G5hu","./_assert_this_initialized":"hb0Uz","./_async_generator":"3e3Cq","./_async_generator_delegate":"aFowE","./_async_iterator":"kDn5G","./_async_to_generator":"69ywl","./_await_async_generator":"47kVK","./_await_value":"kOPdt","./_check_private_redeclaration":"3VjCv","./_class_apply_descriptor_destructure":"3DAxP","./_class_apply_descriptor_get":"4chdp","./_class_apply_descriptor_set":"PDrmh","./_class_call_check":"5thSN","./_class_check_private_static_field_descriptor":"lcbN3","./_class_check_private_static_access":"8285v","./_class_name_tdz_error":"kLeIP","./_class_private_field_destructure":"czvQw","./_class_private_field_get":"hiZIF","./_class_private_field_init":"dBi4n","./_class_private_field_loose_base":"iIxKI","./_class_private_field_loose_key":"u4WsB","./_class_private_field_set":"3aItm","./_class_private_method_get":"gKMrA","./_class_private_method_init":"dE2Q4","./_class_private_method_set":"jDhxx","./_class_static_private_field_destructure":"5VQU7","./_class_static_private_field_spec_get":"79XlC","./_class_static_private_field_spec_set":"hKsVp","./_construct":"bLTlt","./_create_class":"cMLkg","./_create_super":"inTdM","./_decorate":"5M3uX","./_defaults":"jPoWh","./_define_enumerable_properties":"8xWnI","./_define_property":"c7yiB","./_extends":"by2GU","./_get":"d3ZpD","./_get_prototype_of":"4Z2sn","./_inherits":"hoEyE","./_inherits_loose":"bpWmo","./_initializer_define_property":"5WZDp","./_initializer_warning_helper":"GCE4p","./_instanceof":"j6WhW","./_interop_require_default":"9sQ50","./_interop_require_wildcard":"ejKpM","./_is_native_function":"8d7fi","./_is_native_reflect_construct":"b8vXc","./_iterable_to_array":"lY6Yg","./_iterable_to_array_limit":"61jYg","./_iterable_to_array_limit_loose":"bvfpN","./_jsx":"9hq6e","./_new_arrow_check":"4VyBi","./_non_iterable_rest":"d6ywz","./_non_iterable_spread":"29F6O","./_object_spread":"jaxa1","./_object_without_properties":"eJaOZ","./_object_without_properties_loose":"6eqIr","./_possible_constructor_return":"cWetj","./_read_only_error":"3xmWo","./_set":"kehyh","./_set_prototype_of":"hkEkh","./_skip_first_generator_next":"lqj0R","./_sliced_to_array":"k8UMw","./_sliced_to_array_loose":"7tjhK","./_super_prop_base":"lGKRS","./_tagged_template_literal":"d3FCJ","./_tagged_template_literal_loose":"fbTUf","./_throw":"89Ibv","./_to_array":"lrbT1","./_to_consumable_array":"3TaI4","./_to_primitive":"aO5VI","./_to_property_key":"d5hF2","./_type_of":"hGmQp","./_unsupported_iterable_to_array":"33Ojc","./_wrap_async_generator":"kfhw9","./_wrap_native_super":"2wCpr","tslib":"edJ4f","@parcel/transformer-js/src/esmodule-helpers.js":"5oERU"}],"c9NX1":[function(require,module,exports) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 function _applyDecoratedDescriptor(target, property, decorators, descriptor, context) {
@@ -1001,9 +1020,15 @@ function _applyDecoratedDescriptor(target, property, decorators, descriptor, con
     desc1 = decorators.slice().reverse().reduce(function(desc, decorator) {
         return decorator ? decorator(target, property, desc) || desc : desc;
     }, desc1);
-    if (context && desc1.initializer !== void 0) {
+    var hasAccessor = Object.prototype.hasOwnProperty.call(desc1, 'get') || Object.prototype.hasOwnProperty.call(desc1, 'set');
+    if (context && desc1.initializer !== void 0 && !hasAccessor) {
         desc1.value = desc1.initializer ? desc1.initializer.call(context) : void 0;
         desc1.initializer = undefined;
+    }
+    if (hasAccessor) {
+        delete desc1.writable;
+        delete desc1.initializer;
+        delete desc1.value;
     }
     if (desc1.initializer === void 0) {
         Object["defineProperty"](target, property, desc1);
@@ -2109,8 +2134,8 @@ function get(target1, property1, receiver1) {
     };
     return get(target1, property1, receiver1);
 }
-function _get(target, property, reciever) {
-    return get(target, property, reciever);
+function _get(target, property, receiver) {
+    return get(target, property, receiver);
 }
 exports.default = _get;
 
@@ -2200,20 +2225,31 @@ exports.default = _interopRequireDefault;
 },{"@parcel/transformer-js/src/esmodule-helpers.js":"5oERU"}],"ejKpM":[function(require,module,exports) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
+function _getRequireWildcardCache() {
+    if (typeof WeakMap !== "function") return null;
+    var cache = new WeakMap();
+    _getRequireWildcardCache = function() {
+        return cache;
+    };
+    return cache;
+}
 function _interopRequireWildcard(obj) {
     if (obj && obj.__esModule) return obj;
-    else {
-        var newObj = {};
-        if (obj != null) {
-            for(var key in obj)if (Object.prototype.hasOwnProperty.call(obj, key)) {
-                var desc = Object.defineProperty && Object.getOwnPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : {};
-                if (desc.get || desc.set) Object.defineProperty(newObj, key, desc);
-                else newObj[key] = obj[key];
-            }
-        }
-        newObj.default = obj;
-        return newObj;
+    if (obj === null || typeof obj !== "object" && typeof obj !== "function") return {
+        default: obj
+    };
+    var cache = _getRequireWildcardCache();
+    if (cache && cache.has(obj)) return cache.get(obj);
+    var newObj = {};
+    var hasPropertyDescriptor = Object.defineProperty && Object.getOwnPropertyDescriptor;
+    for(var key in obj)if (Object.prototype.hasOwnProperty.call(obj, key)) {
+        var desc = hasPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : null;
+        if (desc && (desc.get || desc.set)) Object.defineProperty(newObj, key, desc);
+        else newObj[key] = obj[key];
     }
+    newObj.default = obj;
+    if (cache) cache.set(obj, newObj);
+    return newObj;
 }
 exports.default = _interopRequireWildcard;
 
@@ -2274,7 +2310,7 @@ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 var REACT_ELEMENT_TYPE;
 function _createRawReactElement(type, props, key, children) {
-    if (!REACT_ELEMENT_TYPE) REACT_ELEMENT_TYPE = typeof Symbol === "function" && Symbol.for && Symbol.for("react.element") || 60103;
+    if (!REACT_ELEMENT_TYPE) REACT_ELEMENT_TYPE = typeof Symbol === "function" && Symbol.for && Symbol.for("react.element") || 0xeac7;
     var defaultProps = type && type.defaultProps;
     var childrenLength = arguments.length - 3;
     if (!props && childrenLength !== 0) props = {
@@ -2562,7 +2598,462 @@ function _wrapNativeSuper(Class) {
 }
 exports.default = _wrapNativeSuper;
 
-},{"./_construct":"bLTlt","./_is_native_function":"8d7fi","./_get_prototype_of":"4Z2sn","./_set_prototype_of":"hkEkh","@parcel/transformer-js/src/esmodule-helpers.js":"5oERU"}],"12Ae8":[function(require,module,exports) {
+},{"./_construct":"bLTlt","./_is_native_function":"8d7fi","./_get_prototype_of":"4Z2sn","./_set_prototype_of":"hkEkh","@parcel/transformer-js/src/esmodule-helpers.js":"5oERU"}],"edJ4f":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "__extends", function() {
+    return __extends;
+});
+parcelHelpers.export(exports, "__assign", function() {
+    return __assign;
+});
+parcelHelpers.export(exports, "__rest", function() {
+    return __rest;
+});
+parcelHelpers.export(exports, "__decorate", function() {
+    return __decorate;
+});
+parcelHelpers.export(exports, "__param", function() {
+    return __param;
+});
+parcelHelpers.export(exports, "__metadata", function() {
+    return __metadata;
+});
+parcelHelpers.export(exports, "__awaiter", function() {
+    return __awaiter;
+});
+parcelHelpers.export(exports, "__generator", function() {
+    return __generator;
+});
+parcelHelpers.export(exports, "__createBinding", function() {
+    return __createBinding;
+});
+parcelHelpers.export(exports, "__exportStar", function() {
+    return __exportStar;
+});
+parcelHelpers.export(exports, "__values", function() {
+    return __values;
+});
+parcelHelpers.export(exports, "__read", function() {
+    return __read;
+});
+/** @deprecated */ parcelHelpers.export(exports, "__spread", function() {
+    return __spread;
+});
+/** @deprecated */ parcelHelpers.export(exports, "__spreadArrays", function() {
+    return __spreadArrays;
+});
+parcelHelpers.export(exports, "__spreadArray", function() {
+    return __spreadArray;
+});
+parcelHelpers.export(exports, "__await", function() {
+    return __await;
+});
+parcelHelpers.export(exports, "__asyncGenerator", function() {
+    return __asyncGenerator;
+});
+parcelHelpers.export(exports, "__asyncDelegator", function() {
+    return __asyncDelegator;
+});
+parcelHelpers.export(exports, "__asyncValues", function() {
+    return __asyncValues;
+});
+parcelHelpers.export(exports, "__makeTemplateObject", function() {
+    return __makeTemplateObject;
+});
+parcelHelpers.export(exports, "__importStar", function() {
+    return __importStar;
+});
+parcelHelpers.export(exports, "__importDefault", function() {
+    return __importDefault;
+});
+parcelHelpers.export(exports, "__classPrivateFieldGet", function() {
+    return __classPrivateFieldGet;
+});
+parcelHelpers.export(exports, "__classPrivateFieldSet", function() {
+    return __classPrivateFieldSet;
+});
+parcelHelpers.export(exports, "__classPrivateFieldIn", function() {
+    return __classPrivateFieldIn;
+});
+/******************************************************************************
+Copyright (c) Microsoft Corporation.
+
+Permission to use, copy, modify, and/or distribute this software for any
+purpose with or without fee is hereby granted.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
+REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
+INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE.
+***************************************************************************** */ /* global Reflect, Promise */ var extendStatics = function(d1, b1) {
+    extendStatics = Object.setPrototypeOf || ({
+        __proto__: []
+    }) instanceof Array && function(d, b) {
+        d.__proto__ = b;
+    } || function(d, b) {
+        for(var p in b)if (Object.prototype.hasOwnProperty.call(b, p)) d[p] = b[p];
+    };
+    return extendStatics(d1, b1);
+};
+function __extends(d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
+    extendStatics(d, b);
+    function __() {
+        this.constructor = d;
+    }
+    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
+}
+var __assign = function() {
+    __assign = Object.assign || function __assign(t) {
+        for(var s, i = 1, n = arguments.length; i < n; i++){
+            s = arguments[i];
+            for(var p in s)if (Object.prototype.hasOwnProperty.call(s, p)) t[p] = s[p];
+        }
+        return t;
+    };
+    return __assign.apply(this, arguments);
+};
+function __rest(s, e) {
+    var t = {};
+    for(var p in s)if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0) t[p] = s[p];
+    if (s != null && typeof Object.getOwnPropertySymbols === "function") {
+        for(var i = 0, p = Object.getOwnPropertySymbols(s); i < p.length; i++)if (e.indexOf(p[i]) < 0 && Object.prototype.propertyIsEnumerable.call(s, p[i])) t[p[i]] = s[p[i]];
+    }
+    return t;
+}
+function __decorate(decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for(var i = decorators.length - 1; i >= 0; i--)if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+}
+function __param(paramIndex, decorator) {
+    return function(target, key) {
+        decorator(target, key, paramIndex);
+    };
+}
+function __metadata(metadataKey, metadataValue) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(metadataKey, metadataValue);
+}
+function __awaiter(thisArg, _arguments, P, generator) {
+    function adopt(value) {
+        return value instanceof P ? value : new P(function(resolve) {
+            resolve(value);
+        });
+    }
+    return new (P || (P = Promise))(function(resolve, reject) {
+        function fulfilled(value) {
+            try {
+                step(generator.next(value));
+            } catch (e) {
+                reject(e);
+            }
+        }
+        function rejected(value) {
+            try {
+                step(generator["throw"](value));
+            } catch (e) {
+                reject(e);
+            }
+        }
+        function step(result) {
+            result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected);
+        }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+}
+function __generator(thisArg, body) {
+    var _ = {
+        label: 0,
+        sent: function sent() {
+            if (t[0] & 1) throw t[1];
+            return t[1];
+        },
+        trys: [],
+        ops: []
+    }, f, y, t, g;
+    return g = {
+        next: verb(0),
+        "throw": verb(1),
+        "return": verb(2)
+    }, typeof Symbol === "function" && (g[Symbol.iterator] = function() {
+        return this;
+    }), g;
+    function verb(n) {
+        return function(v) {
+            return step([
+                n,
+                v
+            ]);
+        };
+    }
+    function step(op) {
+        if (f) throw new TypeError("Generator is already executing.");
+        while(_)try {
+            if (f = 1, y && (t = op[0] & 2 ? y["return"] : op[0] ? y["throw"] || ((t = y["return"]) && t.call(y), 0) : y.next) && !(t = t.call(y, op[1])).done) return t;
+            if (y = 0, t) op = [
+                op[0] & 2,
+                t.value
+            ];
+            switch(op[0]){
+                case 0:
+                case 1:
+                    t = op;
+                    break;
+                case 4:
+                    _.label++;
+                    return {
+                        value: op[1],
+                        done: false
+                    };
+                case 5:
+                    _.label++;
+                    y = op[1];
+                    op = [
+                        0
+                    ];
+                    continue;
+                case 7:
+                    op = _.ops.pop();
+                    _.trys.pop();
+                    continue;
+                default:
+                    if (!(t = _.trys, t = t.length > 0 && t[t.length - 1]) && (op[0] === 6 || op[0] === 2)) {
+                        _ = 0;
+                        continue;
+                    }
+                    if (op[0] === 3 && (!t || op[1] > t[0] && op[1] < t[3])) {
+                        _.label = op[1];
+                        break;
+                    }
+                    if (op[0] === 6 && _.label < t[1]) {
+                        _.label = t[1];
+                        t = op;
+                        break;
+                    }
+                    if (t && _.label < t[2]) {
+                        _.label = t[2];
+                        _.ops.push(op);
+                        break;
+                    }
+                    if (t[2]) _.ops.pop();
+                    _.trys.pop();
+                    continue;
+            }
+            op = body.call(thisArg, _);
+        } catch (e) {
+            op = [
+                6,
+                e
+            ];
+            y = 0;
+        } finally{
+            f = t = 0;
+        }
+        if (op[0] & 5) throw op[1];
+        return {
+            value: op[0] ? op[1] : void 0,
+            done: true
+        };
+    }
+}
+var __createBinding = Object.create ? function __createBinding(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) desc = {
+        enumerable: true,
+        get: function get() {
+            return m[k];
+        }
+    };
+    Object.defineProperty(o, k2, desc);
+} : function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+};
+function __exportStar(m, o) {
+    for(var p in m)if (p !== "default" && !Object.prototype.hasOwnProperty.call(o, p)) __createBinding(o, m, p);
+}
+function __values(o) {
+    var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
+    if (m) return m.call(o);
+    if (o && typeof o.length === "number") return {
+        next: function next() {
+            if (o && i >= o.length) o = void 0;
+            return {
+                value: o && o[i++],
+                done: !o
+            };
+        }
+    };
+    throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
+}
+function __read(o, n) {
+    var m = typeof Symbol === "function" && o[Symbol.iterator];
+    if (!m) return o;
+    var i = m.call(o), r, ar = [], e;
+    try {
+        while((n === void 0 || n-- > 0) && !(r = i.next()).done)ar.push(r.value);
+    } catch (error) {
+        e = {
+            error: error
+        };
+    } finally{
+        try {
+            if (r && !r.done && (m = i["return"])) m.call(i);
+        } finally{
+            if (e) throw e.error;
+        }
+    }
+    return ar;
+}
+function __spread() {
+    for(var ar = [], i = 0; i < arguments.length; i++)ar = ar.concat(__read(arguments[i]));
+    return ar;
+}
+function __spreadArrays() {
+    for(var s = 0, i = 0, il = arguments.length; i < il; i++)s += arguments[i].length;
+    for(var r = Array(s), k = 0, i = 0; i < il; i++)for(var a = arguments[i], j = 0, jl = a.length; j < jl; j++, k++)r[k] = a[j];
+    return r;
+}
+function __spreadArray(to, from, pack) {
+    if (pack || arguments.length === 2) {
+        for(var i = 0, l = from.length, ar; i < l; i++)if (ar || !(i in from)) {
+            if (!ar) ar = Array.prototype.slice.call(from, 0, i);
+            ar[i] = from[i];
+        }
+    }
+    return to.concat(ar || Array.prototype.slice.call(from));
+}
+function __await(v) {
+    return this instanceof __await ? (this.v = v, this) : new __await(v);
+}
+function __asyncGenerator(thisArg, _arguments, generator) {
+    if (!Symbol.asyncIterator) throw new TypeError("Symbol.asyncIterator is not defined.");
+    var g = generator.apply(thisArg, _arguments || []), i, q = [];
+    return i = {}, verb("next"), verb("throw"), verb("return"), i[Symbol.asyncIterator] = function() {
+        return this;
+    }, i;
+    function verb(n) {
+        if (g[n]) i[n] = function(v) {
+            return new Promise(function(a, b) {
+                q.push([
+                    n,
+                    v,
+                    a,
+                    b
+                ]) > 1 || resume(n, v);
+            });
+        };
+    }
+    function resume(n, v) {
+        try {
+            step(g[n](v));
+        } catch (e) {
+            settle(q[0][3], e);
+        }
+    }
+    function step(r) {
+        r.value instanceof __await ? Promise.resolve(r.value.v).then(fulfill, reject) : settle(q[0][2], r);
+    }
+    function fulfill(value) {
+        resume("next", value);
+    }
+    function reject(value) {
+        resume("throw", value);
+    }
+    function settle(f, v) {
+        if (f(v), q.shift(), q.length) resume(q[0][0], q[0][1]);
+    }
+}
+function __asyncDelegator(o) {
+    var i, p;
+    return i = {}, verb("next"), verb("throw", function(e) {
+        throw e;
+    }), verb("return"), i[Symbol.iterator] = function() {
+        return this;
+    }, i;
+    function verb(n, f) {
+        i[n] = o[n] ? function(v) {
+            return (p = !p) ? {
+                value: __await(o[n](v)),
+                done: n === "return"
+            } : f ? f(v) : v;
+        } : f;
+    }
+}
+function __asyncValues(o) {
+    if (!Symbol.asyncIterator) throw new TypeError("Symbol.asyncIterator is not defined.");
+    var m = o[Symbol.asyncIterator], i;
+    return m ? m.call(o) : (o = typeof __values === "function" ? __values(o) : o[Symbol.iterator](), i = {}, verb("next"), verb("throw"), verb("return"), i[Symbol.asyncIterator] = function() {
+        return this;
+    }, i);
+    function verb(n) {
+        i[n] = o[n] && function(v) {
+            return new Promise(function(resolve, reject) {
+                v = o[n](v), settle(resolve, reject, v.done, v.value);
+            });
+        };
+    }
+    function settle(resolve, reject, d, v1) {
+        Promise.resolve(v1).then(function(v) {
+            resolve({
+                value: v,
+                done: d
+            });
+        }, reject);
+    }
+}
+function __makeTemplateObject(cooked, raw) {
+    if (Object.defineProperty) Object.defineProperty(cooked, "raw", {
+        value: raw
+    });
+    else cooked.raw = raw;
+    return cooked;
+}
+var __setModuleDefault = Object.create ? function __setModuleDefault(o, v) {
+    Object.defineProperty(o, "default", {
+        enumerable: true,
+        value: v
+    });
+} : function(o, v) {
+    o["default"] = v;
+};
+function __importStar(mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) {
+        for(var k in mod)if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    }
+    __setModuleDefault(result, mod);
+    return result;
+}
+function __importDefault(mod) {
+    return mod && mod.__esModule ? mod : {
+        default: mod
+    };
+}
+function __classPrivateFieldGet(receiver, state, kind, f) {
+    if (kind === "a" && !f) throw new TypeError("Private accessor was defined without a getter");
+    if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot read private member from an object whose class did not declare it");
+    return kind === "m" ? f : kind === "a" ? f.call(receiver) : f ? f.value : state.get(receiver);
+}
+function __classPrivateFieldSet(receiver, state, value, kind, f) {
+    if (kind === "m") throw new TypeError("Private method is not writable");
+    if (kind === "a" && !f) throw new TypeError("Private accessor was defined without a setter");
+    if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot write private member to an object whose class did not declare it");
+    return kind === "a" ? f.call(receiver, value) : f ? f.value = value : state.set(receiver, value), value;
+}
+function __classPrivateFieldIn(state, receiver) {
+    if (receiver === null || typeof receiver !== "object" && typeof receiver !== "function") throw new TypeError("Cannot use 'in' operator on non-object");
+    return typeof state === "function" ? receiver === state : state.has(receiver);
+}
+
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"5oERU"}],"12Ae8":[function(require,module,exports) {
 /**
  * Copyright (c) 2014-present, Facebook, Inc.
  *
@@ -3128,7 +3619,726 @@ try {
     else Function("r", "regeneratorRuntime = r")(runtime);
 }
 
-},{}],"2PqyG":[function(require,module,exports) {
+},{}],"5Ti02":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "Logger", function() {
+    return _loggerJsDefault.default;
+});
+parcelHelpers.export(exports, "Vector", function() {
+    return _vectorJsDefault.default;
+});
+parcelHelpers.export(exports, "Scheduler", function() {
+    return _schedulerJsDefault.default;
+});
+var _helpers = require("@swc/helpers");
+var _regeneratorRuntime = require("regenerator-runtime");
+var _regeneratorRuntimeDefault = parcelHelpers.interopDefault(_regeneratorRuntime);
+var _schedulerJs = require("./scheduler.js");
+var _schedulerJsDefault = parcelHelpers.interopDefault(_schedulerJs);
+var _loggerJs = require("./logger.js");
+var _loggerJsDefault = parcelHelpers.interopDefault(_loggerJs);
+var _vectorJs = require("./vector.js");
+var _vectorJsDefault = parcelHelpers.interopDefault(_vectorJs);
+'use strict';
+/**
+ * Strip GCode comments from text. Comments can be embedded in a line using parentheses () or for the remainder of a lineusing a semi-colon.
+ * The semi-colon is not treated as the start of a comment when enclosed in parentheses.
+ * Borrowed from {@link https://github.com/cncjs/gcode-parser/blob/master/src/index.js} (MIT License)
+ * See {@link http://linuxcnc.org/docs/html/gcode/overview.html#gcode:comments}
+ * @param {String} line Line of GCode to strip comments from 
+ * @returns {String} line without comments
+ * @memberOf LivePrinter
+ */ var stripComments = function(line) {
+    var re1 = new RegExp(/\s*\([^\)]*\)/g); // Remove anything inside the parentheses
+    var re2 = new RegExp(/\s*;.*/g); // Remove anything after a semi-colon to the end of the line, including preceding spaces
+    //const re3 = new RegExp(/\s+/g);
+    return line.replace(re1, '').replace(re2, ''); //.replace(re3, ''));
+};
+module.exports.stripComments = stripComments;
+/**
+ * Clean up GCode (remove comments, extra spaces, etc.)
+ * @param {String} gcode 
+ */ function cleanGCode(gcode) {
+    // remove all comments from lines and reconstruct
+    var gcodeLines = gcode.replace(new RegExp(/\n+/g), '\n').split('\n');
+    var _$cleanGCode = gcodeLines.map(function(l) {
+        return stripComments(l);
+    }).filter(function(l) {
+        return l !== '\n';
+    });
+    return _$cleanGCode;
+}
+module.exports.cleanGCode = cleanGCode;
+// http://stackoverflow.com/questions/10454518/javascript-how-to-retrieve-the-number-of-decimals-of-a-string-number
+var decimalPlaces = function(num) {
+    var match = ('' + num).match(/(?:\.(\d+))?(?:[eE]([+-]?\d+))?$/);
+    if (!match) return 0;
+    // Number of digits right of decimal point.
+    var digits = match[1] ? match[1].length : 0;
+    // Adjust for scientific notation.
+    var E = match[2] ? +match[2] : 0;
+    return Math.max(0, digits - E);
+};
+module.exports.decimalPlaces = decimalPlaces; // export
+/**
+ * Make an iterator from an iterable - run the returned func to iterate
+ * @param {any} iterable
+ * @returns {Function} Iterator function that iterates iterable, returns resulting value or false when run
+ */ var makeIterator = function(iterable) {
+    var iter = iterable[Symbol.iterator]();
+    return _regeneratorRuntimeDefault.default.mark(function makeIterator() {
+        var result, retVal;
+        return _regeneratorRuntimeDefault.default.wrap(function makeIterator$(_ctx) {
+            while(1)switch(_ctx.prev = _ctx.next){
+                case 0:
+                    result = iter.next();
+                    retVal = result.value;
+                    if (result.done || result.value === "done") {
+                        loginfo("DONE");
+                        retVal = false;
+                    }
+                    return _ctx.abrupt("return", retVal);
+                case 4:
+                case "end":
+                    return _ctx.stop();
+            }
+        }, makeIterator);
+    });
+};
+// export
+module.exports.makeIterator = makeIterator;
+/**
+ * Make an infinite Array iterator from an iterable - return a function that takes step size as arg 
+ 
+  * @returns {Function} Iterator function that iterates iterable, returns resulting value in infinite loop
+ * @example 
+ * global notes = Array.from({length:12}, (_,n) => majScale(n,0));
+ * global note = infiter(notes);
+ * loginfo(note());
+ */ var infiter = function(iterableArray) {
+    var step = arguments.length > 1 && arguments[1] !== void 0 ? arguments[1] : 1;
+    if (!Array.isArray(iterableArray)) throw new TypeError("infstep: needs type array, got type " + (typeof iterableArray === "undefined" ? "undefined" : _helpers.typeOf(iterableArray)));
+    var iter = _regeneratorRuntimeDefault.default.mark(function _callee(_step) {
+        var pos, reset;
+        return _regeneratorRuntimeDefault.default.wrap(function _callee$(_ctx) {
+            while(1)switch(_ctx.prev = _ctx.next){
+                case 0:
+                    pos = -1;
+                case 1:
+                    if (!true) {
+                        _ctx.next = 9;
+                        break;
+                    }
+                    pos = (pos + _step) % iterableArray.length;
+                    _ctx.next = 5;
+                    return iterableArray[pos];
+                case 5:
+                    reset = _ctx.sent;
+                    if (reset) pos = -1;
+                    _ctx.next = 1;
+                    break;
+                case 9:
+                case "end":
+                    return _ctx.stop();
+            }
+        }, _callee);
+    })(step);
+    function getIt(v) {
+        return iter.next(v).value;
+    }
+    return getIt;
+};
+module.exports.infiter = infiter;
+/**
+ * makeMapping :: (Num, Num) -> (Num, Num) -> Num -> Num
+ * Create a map function that converts a number from one range to within another
+ * from http://rosettacode.org/wiki/Map_range#JavaScript
+ * @namespace LivePrinter
+ * @param {Array} a 2-element array range
+ * @param {Array} b 2-element array range
+ * @returns {Function} mapping function
+ * @example const mapping = makeMapping([0, 10], [-1, 0]);
+ *          let result = mapping(5);
+ */ var makeMapping = function(a, b) {
+    return function(s) {
+        var _a = _helpers.slicedToArray(a, 2), a1 = _a[0], a2 = _a[1];
+        var _b = _helpers.slicedToArray(b, 2), b1 = _b[0], b2 = _b[1];
+        // Scaling up an order, and then down, to bypass a potential,
+        // precision issue with negative numbers.
+        return ((b2 - b1) * (s - a1) / (a2 - a1) * 10 + 10 * b1) / 10;
+    };
+};
+module.exports.makeMapping = makeMapping;
+/**
+ * numrange: return an array range of numbers quickly
+ * based on http://rosettacode.org/wiki/Map_range#JavaScript 
+ * @namespace LivePrinter
+ * @param {Int} m minimum value of range
+ * @param {Int} n maximum value of range
+ * @param {Int} c number to increment each value of range by
+ * @returns {Array} range of numbers
+ */ var numrange = function(m, n) {
+    var c = arguments.length > 2 && arguments[2] !== void 0 ? arguments[2] : 1;
+    return Array.from({
+        length: 1 + Math.floor((n - m) / c)
+    }, function(_, i) {
+        return m + i * c;
+    });
+};
+module.exports.numrange = numrange;
+/**
+ * Quick shorthand for counting from 1 to a number
+ * @param {Int} num Number to count from 1 to
+ * @returns {Array} an array of numbers from 1..num
+ */ var countto = function(num) {
+    return numrange(1, num);
+};
+module.exports.countto = countto;
+/**
+ * Do something a few times (shorthand)
+ * @param {Int} num Number of times to repeat
+ * @param {Function} func Async function to repeat
+ */ var repeat = function() {
+    var _ref = _helpers.asyncToGenerator(_regeneratorRuntimeDefault.default.mark(function _callee(num, func) {
+        var i;
+        return _regeneratorRuntimeDefault.default.wrap(function _callee$(_ctx) {
+            while(1)switch(_ctx.prev = _ctx.next){
+                case 0:
+                    i = 0;
+                case 1:
+                    if (!(i < num)) {
+                        _ctx.next = 13;
+                        break;
+                    }
+                    _ctx.prev = 2;
+                    _ctx.next = 5;
+                    return func(i);
+                case 5:
+                    _ctx.next = 10;
+                    break;
+                case 7:
+                    _ctx.prev = 7;
+                    _ctx.t0 = _ctx["catch"](2);
+                    throw _ctx.t0; // re-throw
+                case 10:
+                    i++;
+                    _ctx.next = 1;
+                    break;
+                case 13:
+                    return _ctx.abrupt("return", 1);
+                case 14:
+                case "end":
+                    return _ctx.stop();
+            }
+        }, _callee, null, [
+            [
+                2,
+                7
+            ]
+        ]);
+    }));
+    return function repeat(num, func) {
+        return _ref.apply(this, arguments);
+    };
+}();
+module.exports.repeat = repeat;
+// defined outside closure because affects all String objects:
+// string reversal in javascript - adapted from https://github.com/mathiasbynens/esrever/blob/master/esrever.js
+String.prototype.reverse = function() {
+    var regexSymbolWithCombiningMarks = /([\0-\u02FF\u0370-\u1AAF\u1B00-\u1DBF\u1E00-\u20CF\u2100-\uD7FF\uE000-\uFE1F\uFE30-\uFFFF]|[\uD800-\uDBFF][\uDC00-\uDFFF]|[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?:[^\uD800-\uDBFF]|^)[\uDC00-\uDFFF])([\u0300-\u036F\u1AB0-\u1AFF\u1DC0-\u1DFF\u20D0-\u20FF\uFE20-\uFE2F]+)/g;
+    var regexSurrogatePair = /([\uD800-\uDBFF])([\uDC00-\uDFFF])/g;
+    // Step 1: deal with combining marks and astral symbols (surrogate pairs)
+    var string = this// Swap symbols with their combining marks so the combining marks go first
+    .replace(regexSymbolWithCombiningMarks, function($0, $1, $2) {
+        // Reverse the combining marks so they will end up in the same order
+        // later on (after another round of reversing)
+        return $2.reverse() + $1;
+    })// Swap high and low surrogates so the low surrogates go first
+    .replace(regexSurrogatePair, '$2$1');
+    // Step 2: reverse the code units in the string
+    var result = '';
+    var index = string.length;
+    while(index--)result += string.charAt(index);
+    return result;
+};
+
+},{"@swc/helpers":"erO4s","regenerator-runtime":"12Ae8","./scheduler.js":"7RTA9","./logger.js":"1nWE4","./vector.js":"NP42i","@parcel/transformer-js/src/esmodule-helpers.js":"5oERU"}],"7RTA9":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+/**
+ * Handy object for scheduling events at intervals, etc.
+ * @class 
+ * @constructor 
+ * @inner
+ */ parcelHelpers.export(exports, "default", function() {
+    return Scheduler;
+});
+var _helpers = require("@swc/helpers");
+var _regeneratorRuntime = require("regenerator-runtime");
+var _regeneratorRuntimeDefault = parcelHelpers.interopDefault(_regeneratorRuntime);
+var Scheduler = /*#__PURE__*/ function() {
+    "use strict";
+    function Scheduler() {
+        var logger = arguments.length > 0 && arguments[0] !== void 0 ? arguments[0] : window.console;
+        _helpers.classCallCheck(this, Scheduler);
+        this.logger = logger;
+        this.ScheduledEvents = [];
+        this.schedulerInterval = 10;
+        this.timerID = null;
+        this.startTime = Date.now();
+        this.eventsToRemove = []; // list to be handed on update cycle
+        this.eventsToAdd = []; // list to be handed on update cycle
+        this.eventsListeners = []; // subscribed listeners for add/remove events    
+    }
+    _helpers.createClass(Scheduler, [
+        {
+            /**
+     * Events: EventsCleared, EventAdded(event), EventRemoved(event)
+     * @param {Object} listener Listener object with implemented listener methods to be called
+     */ key: "addEventsListener",
+            value: function addEventsListener(listener) {
+                if (!this.eventsListeners.includes(listener)) this.eventsListeners.push(listener);
+            }
+        },
+        {
+            key: "removeEventsListener",
+            value: function removeEventsListener(listener) {
+                this.eventsListeners = this.eventsListeners.filter(function(e) {
+                    return e !== listener;
+                });
+            }
+        },
+        {
+            key: "clearEventsListeners",
+            value: function clearEventsListeners() {
+                this.eventsListeners = [];
+            }
+        },
+        {
+            /**
+     * Clear all scheduled events.
+     * */ key: "clearEvents",
+            value: function clearEvents() {
+                this.ScheduledEvents = [];
+                this.eventsListeners.map(function(listener) {
+                    if (listener.EventsCleared !== undefined) listener.EventsCleared();
+                });
+            }
+        },
+        {
+            /**
+    * Schedule a function to run (and optionally repeat).
+    * @param {Object} args Object with delay: ms offset to schedule this for, run: function, repeat: true/false whether to reschedule
+    * @return {Object} event that was added for future use
+    */ key: "scheduleEvent",
+            value: function scheduleEvent(args) {
+                args.time = Date.now() - this.startTime;
+                this.eventsToAdd.push(args);
+                return args; // return event for further usage
+            }
+        },
+        {
+            /**
+     * Remove an event using the name property of that event
+     * @param {string} name of the event to remove
+     */ key: "removeEventByName",
+            value: function removeEventByName(name) {
+                this.eventsToRemove.push(name);
+            }
+        },
+        {
+            /**
+     * Get first event with matching name field
+     * @param {String} name Name of this event
+     * @returns {Task} event object
+     */ key: "getEventByName",
+            value: function getEventByName(name) {
+                return this.ScheduledEvents.find(function(e) {
+                    return e.name === name;
+                });
+            }
+        },
+        {
+            /**
+     * Start the Scheduler running events.
+     */ key: "startScheduler",
+            value: function startScheduler() {
+                if (!this.timerID) window.clearInterval(this.timerID);
+                loggerer.loginfo("scheduler starting at time: " + this.startTime);
+                var me = this; //local reference for this closure
+                function scheduler(nextTime) {
+                    var time = Date.now() - me.startTime; // in ms
+                    // remove old events
+                    me.eventsToRemove.map(function(name) {
+                        var event = null;
+                        while(event = me.ScheduledEvents.find(function(e) {
+                            return e.name == name;
+                        }))if (event) {
+                            me.ScheduledEvents = me.ScheduledEvents.filter(function(e) {
+                                return e !== event;
+                            });
+                            me.eventsListeners.map(function(listener) {
+                                if (listener.EventRemoved !== undefined) listener.EventRemoved(event);
+                            });
+                        }
+                    });
+                    me.eventsToRemove = [];
+                    // add any new events
+                    me.eventsToAdd.map(function(event) {
+                        if (!me.ScheduledEvents.includes(event)) {
+                            me.ScheduledEvents.push(event);
+                            me.eventsListeners.map(function(listener) {
+                                if (listener.EventAdded !== undefined) listener.EventAdded(event);
+                            });
+                        }
+                    });
+                    me.eventsToAdd = [];
+                    // run events 
+                    me.ScheduledEvents.filter(function() {
+                        var _ref = _helpers.asyncToGenerator(_regeneratorRuntimeDefault.default.mark(function _callee(event) {
+                            var keep, tdiff;
+                            return _regeneratorRuntimeDefault.default.wrap(function _callee$(_ctx) {
+                                while(1)switch(_ctx.prev = _ctx.next){
+                                    case 0:
+                                        if (!event.running) {
+                                            _ctx.next = 2;
+                                            break;
+                                        }
+                                        return _ctx.abrupt("return", true);
+                                    case 2:
+                                        keep = true;
+                                        tdiff = event.time - time;
+                                        if (!(tdiff < 1)) {
+                                            _ctx.next = 11;
+                                            break;
+                                        }
+                                        //if (!event.system) loggerer.log("running event at time:" + time);
+                                        // if we're behind, don't run this one...
+                                        //if (!event.ignorable && tdiff > -event.delay * 2) {
+                                        //if (!event.ignorable) {
+                                        event.running = true;
+                                        _ctx.next = 8;
+                                        return event.run(event.time);
+                                    case 8:
+                                        if (!event.system) me.eventsListeners.map(function(listener) {
+                                            if (listener.EventRun !== undefined) listener.EventRun(event);
+                                        });
+                                        //}
+                                        if (event.repeat) {
+                                            // try to keep to original time
+                                            // TODO: might be an issue if events run over in time!!
+                                            event.time = event.time + event.delay;
+                                            keep = true;
+                                        } else {
+                                            keep = false;
+                                            me.eventsListeners.map(function(listener) {
+                                                if (listener.EventRemoved !== undefined) listener.EventRemoved(event);
+                                            });
+                                        }
+                                        event.running = false;
+                                    case 11:
+                                        return _ctx.abrupt("return", keep);
+                                    case 12:
+                                    case "end":
+                                        return _ctx.stop();
+                                }
+                            }, _callee);
+                        }));
+                        return function(event) {
+                            return _ref.apply(this, arguments);
+                        };
+                    }());
+                }
+                this.timerID = window.setInterval(scheduler, this.schedulerInterval);
+            }
+        }
+    ]);
+    return Scheduler;
+}();
+
+},{"@swc/helpers":"erO4s","regenerator-runtime":"12Ae8","@parcel/transformer-js/src/esmodule-helpers.js":"5oERU"}],"1nWE4":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+//
+// for console debugging, super lightweight
+//
+parcelHelpers.export(exports, "default", function() {
+    return Logger;
+});
+var _helpers = require("@swc/helpers");
+var Logger = /*#__PURE__*/ function() {
+    "use strict";
+    function Logger() {
+        var level = arguments.length > 0 && arguments[0] !== void 0 ? arguments[0] : Logger.DEBUG_LEVEL.info;
+        _helpers.classCallCheck(this, Logger);
+        this.debugLevel = level;
+    }
+    _helpers.createClass(Logger, [
+        {
+            key: "log",
+            value: function log(text) {
+                var level = arguments.length > 1 && arguments[1] !== void 0 ? arguments[1] : Logger.debugLevel;
+                if (level <= Logger.debugLevel) console.log(text);
+            }
+        },
+        {
+            key: "info",
+            value: function info(t) {
+                this.log(t, Logger.DEBUG_LEVEL.info);
+            }
+        },
+        {
+            key: "debug",
+            value: function debug(t) {
+                this.log(t, Logger.DEBUG_LEVEL.debug);
+            }
+        },
+        {
+            key: "warning",
+            value: function warning(t) {
+                this.log(t, Logger.DEBUG_LEVEL.warning);
+            }
+        },
+        {
+            key: "error",
+            value: function error(t) {
+                this.log(t, Logger.DEBUG_LEVEL.error);
+            }
+        }
+    ]);
+    return Logger;
+}();
+_helpers.defineProperty(Logger, "DEBUG_LEVEL", {
+    error: 0,
+    warning: 1,
+    info: 2,
+    debug: 3
+});
+
+},{"@swc/helpers":"erO4s","@parcel/transformer-js/src/esmodule-helpers.js":"5oERU"}],"NP42i":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+/**
+ * A Vector object with optional fields (ex: x,y,z,e)
+ * @class 
+ * @constructor
+ * @param {any} mapping object with fields to deep copy into this Vector
+ */ parcelHelpers.export(exports, "default", function() {
+    return Vector;
+});
+var _helpers = require("@swc/helpers");
+var Vector = /*#__PURE__*/ function() {
+    "use strict";
+    function Vector(mapping) {
+        _helpers.classCallCheck(this, Vector);
+        this.axes = {};
+        if (arguments.length > 1) {
+            this.axes.x = arguments[0];
+            this.axes.y = arguments[1];
+            if (arguments.length > 2) this.axes.z = arguments[2];
+            if (arguments.length > 3) this.axes.e = arguments[3];
+        } else if (mapping !== undefined) {
+            if (mapping instanceof Vector) // deep copy axes
+            for(var axis in mapping.axes)this.axes[axis] = mapping.axes[axis];
+            else if (mapping instanceof Object) for(var axis1 in mapping)this.axes[axis1] = mapping[axis1];
+        } else {
+            this.axes.x = 0;
+            this.axes.y = 0;
+            this.axes.z = 0;
+        }
+    }
+    _helpers.createClass(Vector, [
+        {
+            /**
+     * Subtract a vector object (x,y,z,e or whatever) from another and return a new vector.
+     * TODO: Consider using toxiclibs or other Vector lib
+     * @param {Vector} v0 first vector 
+     * @returns {object} reference to this for chaining
+     */ key: "subSelf",
+            value: function subSelf(v0) {
+                try {
+                    for(var axis in v0.axes)this.axes[axis] = this.axes[axis] - v0.axes[axis];
+                } catch (e) {
+                    // rethrow, caught in GUI
+                    throw e;
+                }
+                return this;
+            }
+        },
+        {
+            /**
+     * Add a vector object (x,y,z,e or whatever) to another and return itself.
+     * @param {Vector} v0 amount to add
+     * @returns {object} reference to this for chaining
+     */ key: "addSelf",
+            value: function addSelf(v0) {
+                try {
+                    for(var axis in v0.axes)this.axes[axis] = this.axes[axis] + v0[axis];
+                } catch (e) {
+                    // rethrow, caught in GUI
+                    throw e;
+                }
+                return this;
+            }
+        },
+        {
+            /**
+     * Magnitude squared of this vector as a scalar.
+     * @returns {float} magnitude
+     */ key: "magSq",
+            value: function magSq(v0) {
+                var v1 = v0 === undefined ? this : v0;
+                var sumAxes = 0;
+                for(var v in v1.axes)sumAxes += v1.axes[v] * v1.axes[v];
+                return sumAxes;
+            }
+        },
+        {
+            /**
+     * Magnitude of this vector as a scalar.
+     * @param {float} v0 new length of vector
+     * @returns {float} magnitude
+     */ key: "mag",
+            value: function mag(v0) {
+                var v1 = v0 === undefined ? this : v0;
+                return Math.sqrt(v1.magSq());
+            }
+        },
+        {
+            /**
+     * Scalar distance between Vectors.
+     * @param {Vector} v0 (required) first vector 
+     * @param {Vector} v1 (optional) second vector (if not included, will use this)
+     * @returns {float} scalar vector
+     */ key: "dist",
+            value: function dist(v0, v1) {
+                var v2 = v1 === undefined ? this : v1;
+                return Vector.sub(v0, v2).mag();
+            }
+        },
+        {
+            /**
+     * Divide a vector by a scalar
+     * @param {Number} amt to divide by
+     * @returns {Vector} this object for chaining
+     */ key: "divSelf",
+            value: function divSelf(amt) {
+                for(var axis in this.axes)this.axes[axis] /= amt;
+                return this;
+            }
+        },
+        {
+            /**
+     * Multiply a vector by a scalar
+     * @param {Number} amt to multiply by
+     * @returns {Vector} this object for chaining
+     */ key: "multSelf",
+            value: function multSelf(amt) {
+                for(var axis in this.axes)this.axes[axis] *= amt;
+                return this;
+            }
+        },
+        {
+            /**
+     * Set the properties of this Vector based on another or a mapping object
+     * @param {object} mapping object with fields to deep copy into this Vector
+     * @returns {Vector} this object for chaining
+     */ key: "set",
+            value: function set(mapping) {
+                if (mapping !== undefined) {
+                    if (mapping instanceof Vector) // deep copy axes
+                    for(var axis in mapping.axes)this.axes[axis] = mapping.axes[axis];
+                    else if (mapping instanceof Object) for(var axis2 in mapping)this.axes[axis2] = mapping[axis2];
+                }
+                return this;
+            }
+        }
+    ], [
+        {
+            key: "add",
+            value: /**
+     * Add a vector object (x,y,z,e or whatever) to another and return a new Vector.
+     * TODO: Consider using toxiclibs or other Vector lib
+     * @param {Vector} v0 first vector 
+     * @param {Vector} v1 amount to add
+     * @returns {object} reference to this for chaining
+     */ function add(v0, v1) {
+                var v2 = new Vector();
+                try {
+                    for(var axis in v0.axes)v2.axes[axis] = v0.axes[axis] + v1.axes[axis];
+                } catch (e) {
+                    // rethrow, caught in GUI
+                    throw e;
+                }
+                return v2;
+            }
+        },
+        {
+            key: "div",
+            value: /**
+    * Divide a vector object (x,y,z,e or whatever) by an amount and return a new one.
+    * @param {Vector} v0 first vector 
+    * @param {number} amt amount to divide by
+    * @returns {Vector} new Vector
+    */ function div(v0, amt) {
+                var v1 = new Vector();
+                try {
+                    for(var axis in v0.axes)v1.axes[axis] = v0.axes[axis] / amt;
+                } catch (e) {
+                    // rethrow, caught in GUI
+                    throw e;
+                }
+                return v1;
+            }
+        },
+        {
+            key: "sub",
+            value: /**
+    * Subtract a vector object (x,y,z,e or whatever) from another and return a new vector.
+    * @param {Vector} v0 first vector 
+    * @param {Vector} v1 amount to subtract
+    * @returns {Vector} result vector
+    */ function sub(v0, v1) {
+                var v2 = new Vector();
+                try {
+                    for(var axis in v0.axes)v2.axes[axis] = v0.axes[axis] - v1.axes[axis];
+                } catch (e) {
+                    // rethrow, caught in GUI
+                    throw e;
+                }
+                return v2;
+            }
+        },
+        {
+            key: "mult",
+            value: /**
+    * Multiply a vector object (x,y,z,e or whatever) to another and return a new vector.
+    * @param {Vector} v0 first vector 
+    * @param {Vector} v1 second vector
+    * @returns {Vector} result vector 
+    */ function mult(v0, v1) {
+                var v2 = new Vector();
+                if (typeof v1 === "object") try {
+                    for(var axis in v0.axes)v2.axes[axis] = v0.axes[axis] * v1.axes[axis];
+                } catch (e) {
+                    // rethrow, caught in GUI
+                    throw e;
+                }
+                else if (typeof v1 === "number") try {
+                    for(var axis3 in v0.axes)v2.axes[axis3] = v0.axes[axis3] * v1;
+                } catch (e1) {
+                    // rethrow, caught in GUI
+                    throw e1;
+                }
+                return v2;
+            }
+        }
+    ]);
+    return Vector;
+}();
+
+},{"@swc/helpers":"erO4s","@parcel/transformer-js/src/esmodule-helpers.js":"5oERU"}],"2PqyG":[function(require,module,exports) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 parcelHelpers.export(exports, "lp_functionMap", function() {
@@ -3283,8 +4493,8 @@ var ant_functionMap = {
                 //console.log(`Moved: ${moved}`)
                 ant.x = newx;
                 ant.y = newy;
-                // update grid
-                grid.set(newx, newy, Grid.FULL);
+                // update grid -- use args.grid??
+                //grid.set(newx, newy, Grid.FULL);
                 // update path
                 ant.currentLife++;
                 ant.path[ant.currentLife] = [
@@ -3729,13 +4939,13 @@ var _helpers = require("@swc/helpers");
         rquickExpr = /^(?:#([\w-]+)|(\w+)|\.([\w-]+))$/, rsibling = /[+~]/, // CSS escapes
         // http://www.w3.org/TR/CSS21/syndata.html#escaped-characters
         runescape = new RegExp("\\\\[\\da-fA-F]{1,6}" + whitespace + "?|\\\\([^\\r\\n\\f])", "g"), funescape = function funescape(escape, nonHex) {
-            var high = "0x" + escape.slice(1) - 65536;
+            var high = "0x" + escape.slice(1) - 0x10000;
             return nonHex ? // Strip the backslash prefix from a non-hex escape sequence
             nonHex : // Replace a hexadecimal escape sequence with the encoded Unicode code point
             // Support: IE <=11+
             // For values outside the Basic Multilingual Plane (BMP), manually construct a
             // surrogate pair
-            high < 0 ? String.fromCharCode(high + 65536) : String.fromCharCode(high >> 10 | 55296, high & 1023 | 56320);
+            high < 0 ? String.fromCharCode(high + 0x10000) : String.fromCharCode(high >> 10 | 0xD800, high & 0x3FF | 0xDC00);
         }, // CSS string/identifier serialization
         // https://drafts.csswg.org/cssom/#common-serializing-idioms
         rcssescape = /([\0-\x1f\x7f]|^-?\d)|^-$|[^\0-\x1f\x7f-\uFFFF\w-]/g, fcssescape = function fcssescape(ch, asCodePoint) {
@@ -10678,7 +11888,7 @@ var Printer = /*#__PURE__*/ function() {
                                     _ctx.next = 4;
                                     break;
                                 }
-                                throw new Error("retract length can't be less than 0: " + len);
+                                throw new Error("[API] retract length can't be less than 0: " + len);
                             case 4:
                                 lengthUpdated = false;
                                 if (len !== _this.retractLength) lengthUpdated = true;
@@ -10692,13 +11902,13 @@ var Printer = /*#__PURE__*/ function() {
                                     _ctx.next = 11;
                                     break;
                                 }
-                                throw new Error("retract speed can't be 0 or less: " + speed);
+                                throw new Error("[API] retract speed can't be 0 or less: " + speed);
                             case 11:
                                 if (!(speed > Printer.maxPrintSpeed["e"])) {
                                     _ctx.next = 13;
                                     break;
                                 }
-                                throw new Error("retract speed to high: " + speed);
+                                throw new Error("[API] retract speed to high: " + speed);
                             case 13:
                                 speedUpdated = true;
                                 _this._retractSpeed = speed * 60; // avoid calling next line twice
@@ -10762,7 +11972,7 @@ var Printer = /*#__PURE__*/ function() {
                                     _ctx.next = 4;
                                     break;
                                 }
-                                throw new Error("retract length can't be less than 0: " + len);
+                                throw new Error("[API] retract length can't be less than 0: " + len);
                             case 4:
                                 lengthUpdated = false;
                                 if (len !== _this.retractLength) lengthUpdated = true;
@@ -10776,13 +11986,13 @@ var Printer = /*#__PURE__*/ function() {
                                     _ctx.next = 11;
                                     break;
                                 }
-                                throw new Error("retract speed can't be 0 or less: " + speed);
+                                throw new Error("[API] retract speed can't be 0 or less: " + speed);
                             case 11:
                                 if (!(speed > Printer.maxPrintSpeed["e"])) {
                                     _ctx.next = 13;
                                     break;
                                 }
-                                throw new Error("retract speed too high: " + speed);
+                                throw new Error("[API] retract speed too high: " + speed);
                             case 13:
                                 speedUpdated = true;
                                 _this._retractSpeed = speed * 60;
@@ -11099,7 +12309,7 @@ var Printer = /*#__PURE__*/ function() {
                         var cmd = _step.value;
                         //console.log(cmd);
                         var matches = cmd.match(subCmdRegExp);
-                        if (matches.length !== 3) throw new Error("Error in command string: " + found);
+                        if (matches.length !== 3) throw new Error("[API] Error in command string: " + found);
                         var cmdChar = matches[1].toUpperCase();
                         var value = parseFloat(matches[2]);
                         switch(cmdChar){
@@ -11128,7 +12338,7 @@ var Printer = /*#__PURE__*/ function() {
                                 this.unretract(value);
                                 break;
                             default:
-                                throw new Error("Error in command - unknown command char: " + cmdChar);
+                                throw new Error("[API] Error in command - unknown command char: " + cmdChar);
                         }
                     }
                 } catch (err) {
@@ -11590,7 +12800,7 @@ var Printer = /*#__PURE__*/ function() {
                                 __y = params.y !== undefined ? parseFloat(params.y) : _this.y;
                                 __z = params.z !== undefined ? parseFloat(params.z) : _this.z;
                                 __e = params.e !== undefined ? parseFloat(params.e) : _this.e;
-                                extrusionNotZero = Math.abs(__e - _this.e) > Number.EPSILON;
+                                extrusionNotZero = Math.abs(__e - _this.e) > 0.001;
                                 extruding = extrusionNotSpecified || extrusionNotZero;
                                 retract = params.retract === undefined ? extrusionNotSpecified && _this._autoRetract : params.retract;
                                 if (!extrusionNotZero) {
@@ -11636,7 +12846,7 @@ var Printer = /*#__PURE__*/ function() {
                                     _ctx.next = 27;
                                     break;
                                 }
-                                throw Error("Too much filament in move:" + filamentLength);
+                                throw Error("[API] Too much filament in move:" + filamentLength);
                             case 27:
                                 if (!Printer.extrusionInmm3[_this._model]) filamentLength /= filamentRadius * filamentRadius * Math.PI;
                                 //console.log("filament speed: " + filamentSpeed);
@@ -11647,7 +12857,7 @@ var Printer = /*#__PURE__*/ function() {
                                     _ctx.next = 32;
                                     break;
                                 }
-                                throw new Error("filament length too short: " + filamentLength);
+                                throw new Error("[API] Filament length too short (same position?): " + filamentLength);
                             case 32:
                                 _ctx.next = 35;
                                 break;
@@ -11662,7 +12872,7 @@ var Printer = /*#__PURE__*/ function() {
                                     _ctx.next = 40;
                                     break;
                                 }
-                                throw new Error("move time too long:" + moveTime);
+                                throw new Error("[API] move time too long:" + moveTime);
                             case 40:
                                 nozzleSpeed = _liveprinterUtils.Vector.div(distanceVec, moveTime);
                                 if (!extruding) {
@@ -11673,25 +12883,25 @@ var Printer = /*#__PURE__*/ function() {
                                     _ctx.next = 44;
                                     break;
                                 }
-                                throw Error("X printing speed too fast:" + nozzleSpeed.axes.x);
+                                throw Error("[API] X printing speed too fast:" + nozzleSpeed.axes.x);
                             case 44:
                                 if (!(nozzleSpeed.axes.y > Printer.maxPrintSpeed[_this._model]["y"])) {
                                     _ctx.next = 46;
                                     break;
                                 }
-                                throw Error("Y printing speed too fast:" + nozzleSpeed.axes.y);
+                                throw Error("[API] Y printing speed too fast:" + nozzleSpeed.axes.y);
                             case 46:
                                 if (!(nozzleSpeed.axes.z > Printer.maxPrintSpeed[_this._model]["z"])) {
                                     _ctx.next = 48;
                                     break;
                                 }
-                                throw Error("Z printing speed too fast:" + nozzleSpeed.axes.z);
+                                throw Error("[API] Z printing speed too fast:" + nozzleSpeed.axes.z);
                             case 48:
                                 if (!(nozzleSpeed.axes.e > Printer.maxPrintSpeed[_this._model]["e"])) {
                                     _ctx.next = 50;
                                     break;
                                 }
-                                throw Error("E printing speed too fast:" + nozzleSpeed.axes.e + "/" + Printer.maxPrintSpeed[_this._model]["e"]);
+                                throw Error("[API] E printing speed too fast:" + nozzleSpeed.axes.e + "/" + Printer.maxPrintSpeed[_this._model]["e"]);
                             case 50:
                                 _ctx.next = 58;
                                 break;
@@ -11700,19 +12910,19 @@ var Printer = /*#__PURE__*/ function() {
                                     _ctx.next = 54;
                                     break;
                                 }
-                                throw Error("X travel too fast:" + nozzleSpeed.axes.x);
+                                throw Error("[API] X travel too fast:" + nozzleSpeed.axes.x);
                             case 54:
                                 if (!(nozzleSpeed.axes.y > Printer.maxTravelSpeed[_this._model]["y"])) {
                                     _ctx.next = 56;
                                     break;
                                 }
-                                throw Error("Y travel too fast:" + nozzleSpeed.axes.y);
+                                throw Error("[API] Y travel too fast:" + nozzleSpeed.axes.y);
                             case 56:
                                 if (!(nozzleSpeed.axes.z > Printer.maxTravelSpeed[_this._model]["z"])) {
                                     _ctx.next = 58;
                                     break;
                                 }
-                                throw Error("Z travel too fast:" + nozzleSpeed.axes.z);
+                                throw Error("[API] Z travel too fast:" + nozzleSpeed.axes.z);
                             case 58:
                                 return _ctx.abrupt("return", _this._extrude(_speed, velocity, distanceMag, retract));
                             case 59:
@@ -12217,7 +13427,7 @@ var Printer = /*#__PURE__*/ function() {
                 // Ultimaker:
                 // 47.069852, 47.069852, 160.0,
                 //freq_xyz[j] = Math.pow(2.0, (note-69)/12.0)*440.0 
-                var freq = Math.pow(2, (note - 69) / 12) * 440;
+                var freq = Math.pow(2.0, (note - 69) / 12.0) * 440.0;
                 var speed = freq / parseFloat(this.speedScale()[axis]);
                 return speed;
             }
@@ -12875,7 +14085,7 @@ var Printer = /*#__PURE__*/ function() {
                                     _ctx.next = 9;
                                     break;
                                 }
-                                throw new ValueError("arcextrude needs both i and j specified!");
+                                throw new ValueError("[API] arcextrude needs both i and j specified!");
                             case 9:
                                 extrusionNotZero = Math.abs(__e - _this.e) > Number.EPSILON;
                                 extruding = extrusionNotSpecified || extrusionNotZero;
@@ -12923,7 +14133,7 @@ var Printer = /*#__PURE__*/ function() {
                                     _ctx.next = 31;
                                     break;
                                 }
-                                throw Error("Too much filament in move:" + filamentLength);
+                                throw Error("[API] Too much filament in move:" + filamentLength);
                             case 31:
                                 if (!Printer.extrusionInmm3[_this._model]) filamentLength /= filamentRadius * filamentRadius * Math.PI;
                                 //console.log("filament speed: " + filamentSpeed);
@@ -12934,7 +14144,7 @@ var Printer = /*#__PURE__*/ function() {
                                     _ctx.next = 36;
                                     break;
                                 }
-                                throw new Error("filament length too short: " + filamentLength);
+                                throw new Error("[API] filament length too short: " + filamentLength);
                             case 36:
                                 _ctx.next = 39;
                                 break;
@@ -12949,7 +14159,7 @@ var Printer = /*#__PURE__*/ function() {
                                     _ctx.next = 44;
                                     break;
                                 }
-                                throw new Error("move time too long:" + moveTime);
+                                throw new Error("[API] move time too long:" + moveTime);
                             case 44:
                                 nozzleSpeed = _liveprinterUtils.Vector.div(distanceVec, moveTime);
                                 if (!extruding) {
@@ -12960,25 +14170,25 @@ var Printer = /*#__PURE__*/ function() {
                                     _ctx.next = 48;
                                     break;
                                 }
-                                throw Error("X printing speed too fast:" + nozzleSpeed.axes.x);
+                                throw Error("[API] X printing speed too fast:" + nozzleSpeed.axes.x);
                             case 48:
                                 if (!(nozzleSpeed.axes.y > Printer.maxPrintSpeed[_this._model]["y"])) {
                                     _ctx.next = 50;
                                     break;
                                 }
-                                throw Error("Y printing speed too fast:" + nozzleSpeed.axes.y);
+                                throw Error("[API] Y printing speed too fast:" + nozzleSpeed.axes.y);
                             case 50:
                                 if (!(nozzleSpeed.axes.z > Printer.maxPrintSpeed[_this._model]["z"])) {
                                     _ctx.next = 52;
                                     break;
                                 }
-                                throw Error("Z printing speed too fast:" + nozzleSpeed.axes.z);
+                                throw Error("[API] Z printing speed too fast:" + nozzleSpeed.axes.z);
                             case 52:
                                 if (!(nozzleSpeed.axes.e > Printer.maxPrintSpeed[_this._model]["e"])) {
                                     _ctx.next = 54;
                                     break;
                                 }
-                                throw Error("E printing speed too fast:" + nozzleSpeed.axes.e + "/" + Printer.maxPrintSpeed[_this._model]["e"]);
+                                throw Error("[API] E printing speed too fast:" + nozzleSpeed.axes.e + "/" + Printer.maxPrintSpeed[_this._model]["e"]);
                             case 54:
                                 _ctx.next = 62;
                                 break;
@@ -12987,19 +14197,19 @@ var Printer = /*#__PURE__*/ function() {
                                     _ctx.next = 58;
                                     break;
                                 }
-                                throw Error("X travel too fast:" + nozzleSpeed.axes.x);
+                                throw Error("[API] X travel too fast:" + nozzleSpeed.axes.x);
                             case 58:
                                 if (!(nozzleSpeed.axes.y > Printer.maxTravelSpeed[_this._model]["y"])) {
                                     _ctx.next = 60;
                                     break;
                                 }
-                                throw Error("Y travel too fast:" + nozzleSpeed.axes.y);
+                                throw Error("[API] Y travel too fast:" + nozzleSpeed.axes.y);
                             case 60:
                                 if (!(nozzleSpeed.axes.z > Printer.maxTravelSpeed[_this._model]["z"])) {
                                     _ctx.next = 62;
                                     break;
                                 }
-                                throw Error("Z travel too fast:" + nozzleSpeed.axes.z);
+                                throw Error("[API] Z travel too fast:" + nozzleSpeed.axes.z);
                             case 62:
                                 return _ctx.abrupt("return", _this._extrude(_speed, velocity, distanceMag, retract));
                             case 63:
@@ -13386,736 +14596,17 @@ Printer.speedScale = {};
 Printer.speedScale[Printer.UM2] = {
     'x': 47.069852,
     'y': 47.069852,
-    'z': 160
+    'z': 160.0
 };
 Printer.speedScale[Printer.UM2plus] = {
     'x': 47.069852,
     'y': 47.069852,
-    'z': 160
+    'z': 160.0
 };
 //////////////////////////////////////////////////////////
 module.exports = Printer;
 
-},{"@swc/helpers":"erO4s","regenerator-runtime":"12Ae8","@parcel/transformer-js/src/esmodule-helpers.js":"5oERU","liveprinter-utils":"5Ti02"}],"5Ti02":[function(require,module,exports) {
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "Logger", function() {
-    return _loggerJsDefault.default;
-});
-parcelHelpers.export(exports, "Vector", function() {
-    return _vectorJsDefault.default;
-});
-parcelHelpers.export(exports, "Scheduler", function() {
-    return _schedulerJsDefault.default;
-});
-var _helpers = require("@swc/helpers");
-var _regeneratorRuntime = require("regenerator-runtime");
-var _regeneratorRuntimeDefault = parcelHelpers.interopDefault(_regeneratorRuntime);
-var _schedulerJs = require("./scheduler.js");
-var _schedulerJsDefault = parcelHelpers.interopDefault(_schedulerJs);
-var _loggerJs = require("./logger.js");
-var _loggerJsDefault = parcelHelpers.interopDefault(_loggerJs);
-var _vectorJs = require("./vector.js");
-var _vectorJsDefault = parcelHelpers.interopDefault(_vectorJs);
-'use strict';
-/**
- * Strip GCode comments from text. Comments can be embedded in a line using parentheses () or for the remainder of a lineusing a semi-colon.
- * The semi-colon is not treated as the start of a comment when enclosed in parentheses.
- * Borrowed from {@link https://github.com/cncjs/gcode-parser/blob/master/src/index.js} (MIT License)
- * See {@link http://linuxcnc.org/docs/html/gcode/overview.html#gcode:comments}
- * @param {String} line Line of GCode to strip comments from 
- * @returns {String} line without comments
- * @memberOf LivePrinter
- */ var stripComments = function(line) {
-    var re1 = new RegExp(/\s*\([^\)]*\)/g); // Remove anything inside the parentheses
-    var re2 = new RegExp(/\s*;.*/g); // Remove anything after a semi-colon to the end of the line, including preceding spaces
-    //const re3 = new RegExp(/\s+/g);
-    return line.replace(re1, '').replace(re2, ''); //.replace(re3, ''));
-};
-module.exports.stripComments = stripComments;
-/**
- * Clean up GCode (remove comments, extra spaces, etc.)
- * @param {String} gcode 
- */ function cleanGCode(gcode) {
-    // remove all comments from lines and reconstruct
-    var gcodeLines = gcode.replace(new RegExp(/\n+/g), '\n').split('\n');
-    var _$cleanGCode = gcodeLines.map(function(l) {
-        return stripComments(l);
-    }).filter(function(l) {
-        return l !== '\n';
-    });
-    return _$cleanGCode;
-}
-module.exports.cleanGCode = cleanGCode;
-// http://stackoverflow.com/questions/10454518/javascript-how-to-retrieve-the-number-of-decimals-of-a-string-number
-var decimalPlaces = function(num) {
-    var match = ('' + num).match(/(?:\.(\d+))?(?:[eE]([+-]?\d+))?$/);
-    if (!match) return 0;
-    // Number of digits right of decimal point.
-    var digits = match[1] ? match[1].length : 0;
-    // Adjust for scientific notation.
-    var E = match[2] ? +match[2] : 0;
-    return Math.max(0, digits - E);
-};
-module.exports.decimalPlaces = decimalPlaces; // export
-/**
- * Make an iterator from an iterable - run the returned func to iterate
- * @param {any} iterable
- * @returns {Function} Iterator function that iterates iterable, returns resulting value or false when run
- */ var makeIterator = function(iterable) {
-    var iter = iterable[Symbol.iterator]();
-    return _regeneratorRuntimeDefault.default.mark(function makeIterator() {
-        var result, retVal;
-        return _regeneratorRuntimeDefault.default.wrap(function makeIterator$(_ctx) {
-            while(1)switch(_ctx.prev = _ctx.next){
-                case 0:
-                    result = iter.next();
-                    retVal = result.value;
-                    if (result.done || result.value === "done") {
-                        loginfo("DONE");
-                        retVal = false;
-                    }
-                    return _ctx.abrupt("return", retVal);
-                case 4:
-                case "end":
-                    return _ctx.stop();
-            }
-        }, makeIterator);
-    });
-};
-// export
-module.exports.makeIterator = makeIterator;
-/**
- * Make an infinite Array iterator from an iterable - return a function that takes step size as arg 
- 
-  * @returns {Function} Iterator function that iterates iterable, returns resulting value in infinite loop
- * @example 
- * global notes = Array.from({length:12}, (_,n) => majScale(n,0));
- * global note = infiter(notes);
- * loginfo(note());
- */ var infiter = function(iterableArray) {
-    var step = arguments.length > 1 && arguments[1] !== void 0 ? arguments[1] : 1;
-    if (!Array.isArray(iterableArray)) throw new TypeError("infstep: needs type array, got type " + (typeof iterableArray === "undefined" ? "undefined" : _helpers.typeOf(iterableArray)));
-    var iter = _regeneratorRuntimeDefault.default.mark(function _callee(_step) {
-        var pos, reset;
-        return _regeneratorRuntimeDefault.default.wrap(function _callee$(_ctx) {
-            while(1)switch(_ctx.prev = _ctx.next){
-                case 0:
-                    pos = -1;
-                case 1:
-                    if (!true) {
-                        _ctx.next = 9;
-                        break;
-                    }
-                    pos = (pos + _step) % iterableArray.length;
-                    _ctx.next = 5;
-                    return iterableArray[pos];
-                case 5:
-                    reset = _ctx.sent;
-                    if (reset) pos = -1;
-                    _ctx.next = 1;
-                    break;
-                case 9:
-                case "end":
-                    return _ctx.stop();
-            }
-        }, _callee);
-    })(step);
-    function getIt(v) {
-        return iter.next(v).value;
-    }
-    return getIt;
-};
-module.exports.infiter = infiter;
-/**
- * makeMapping :: (Num, Num) -> (Num, Num) -> Num -> Num
- * Create a map function that converts a number from one range to within another
- * from http://rosettacode.org/wiki/Map_range#JavaScript
- * @namespace LivePrinter
- * @param {Array} a 2-element array range
- * @param {Array} b 2-element array range
- * @returns {Function} mapping function
- * @example const mapping = makeMapping([0, 10], [-1, 0]);
- *          let result = mapping(5);
- */ var makeMapping = function(a, b) {
-    return function(s) {
-        var _a = _helpers.slicedToArray(a, 2), a1 = _a[0], a2 = _a[1];
-        var _b = _helpers.slicedToArray(b, 2), b1 = _b[0], b2 = _b[1];
-        // Scaling up an order, and then down, to bypass a potential,
-        // precision issue with negative numbers.
-        return ((b2 - b1) * (s - a1) / (a2 - a1) * 10 + 10 * b1) / 10;
-    };
-};
-module.exports.makeMapping = makeMapping;
-/**
- * numrange: return an array range of numbers quickly
- * based on http://rosettacode.org/wiki/Map_range#JavaScript 
- * @namespace LivePrinter
- * @param {Int} m minimum value of range
- * @param {Int} n maximum value of range
- * @param {Int} c number to increment each value of range by
- * @returns {Array} range of numbers
- */ var numrange = function(m, n) {
-    var c = arguments.length > 2 && arguments[2] !== void 0 ? arguments[2] : 1;
-    return Array.from({
-        length: 1 + Math.floor((n - m) / c)
-    }, function(_, i) {
-        return m + i * c;
-    });
-};
-module.exports.numrange = numrange;
-/**
- * Quick shorthand for counting from 1 to a number
- * @param {Int} num Number to count from 1 to
- * @returns {Array} an array of numbers from 1..num
- */ var countto = function(num) {
-    return numrange(1, num);
-};
-module.exports.countto = countto;
-/**
- * Do something a few times (shorthand)
- * @param {Int} num Number of times to repeat
- * @param {Function} func Async function to repeat
- */ var repeat = function() {
-    var _ref = _helpers.asyncToGenerator(_regeneratorRuntimeDefault.default.mark(function _callee(num, func) {
-        var i;
-        return _regeneratorRuntimeDefault.default.wrap(function _callee$(_ctx) {
-            while(1)switch(_ctx.prev = _ctx.next){
-                case 0:
-                    i = 0;
-                case 1:
-                    if (!(i < num)) {
-                        _ctx.next = 13;
-                        break;
-                    }
-                    _ctx.prev = 2;
-                    _ctx.next = 5;
-                    return func(i);
-                case 5:
-                    _ctx.next = 10;
-                    break;
-                case 7:
-                    _ctx.prev = 7;
-                    _ctx.t0 = _ctx["catch"](2);
-                    throw _ctx.t0; // re-throw
-                case 10:
-                    i++;
-                    _ctx.next = 1;
-                    break;
-                case 13:
-                    return _ctx.abrupt("return", 1);
-                case 14:
-                case "end":
-                    return _ctx.stop();
-            }
-        }, _callee, null, [
-            [
-                2,
-                7
-            ]
-        ]);
-    }));
-    return function repeat(num, func) {
-        return _ref.apply(this, arguments);
-    };
-}();
-module.exports.repeat = repeat;
-// defined outside closure because affects all String objects:
-// string reversal in javascript - adapted from https://github.com/mathiasbynens/esrever/blob/master/esrever.js
-String.prototype.reverse = function() {
-    var regexSymbolWithCombiningMarks = /([\0-\u02FF\u0370-\u1AAF\u1B00-\u1DBF\u1E00-\u20CF\u2100-\uD7FF\uE000-\uFE1F\uFE30-\uFFFF]|[\uD800-\uDBFF][\uDC00-\uDFFF]|[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?:[^\uD800-\uDBFF]|^)[\uDC00-\uDFFF])([\u0300-\u036F\u1AB0-\u1AFF\u1DC0-\u1DFF\u20D0-\u20FF\uFE20-\uFE2F]+)/g;
-    var regexSurrogatePair = /([\uD800-\uDBFF])([\uDC00-\uDFFF])/g;
-    // Step 1: deal with combining marks and astral symbols (surrogate pairs)
-    var string = this// Swap symbols with their combining marks so the combining marks go first
-    .replace(regexSymbolWithCombiningMarks, function($0, $1, $2) {
-        // Reverse the combining marks so they will end up in the same order
-        // later on (after another round of reversing)
-        return $2.reverse() + $1;
-    })// Swap high and low surrogates so the low surrogates go first
-    .replace(regexSurrogatePair, '$2$1');
-    // Step 2: reverse the code units in the string
-    var result = '';
-    var index = string.length;
-    while(index--)result += string.charAt(index);
-    return result;
-};
-
-},{"@swc/helpers":"erO4s","regenerator-runtime":"12Ae8","./logger.js":"1nWE4","./vector.js":"NP42i","@parcel/transformer-js/src/esmodule-helpers.js":"5oERU","./scheduler.js":"7RTA9"}],"1nWE4":[function(require,module,exports) {
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-//
-// for console debugging, super lightweight
-//
-parcelHelpers.export(exports, "default", function() {
-    return Logger;
-});
-var _helpers = require("@swc/helpers");
-var Logger = /*#__PURE__*/ function() {
-    "use strict";
-    function Logger() {
-        var level = arguments.length > 0 && arguments[0] !== void 0 ? arguments[0] : Logger.DEBUG_LEVEL.info;
-        _helpers.classCallCheck(this, Logger);
-        this.debugLevel = level;
-    }
-    _helpers.createClass(Logger, [
-        {
-            key: "log",
-            value: function log(text) {
-                var level = arguments.length > 1 && arguments[1] !== void 0 ? arguments[1] : Logger.debugLevel;
-                if (level <= Logger.debugLevel) console.log(text);
-            }
-        },
-        {
-            key: "info",
-            value: function info(t) {
-                this.log(t, Logger.DEBUG_LEVEL.info);
-            }
-        },
-        {
-            key: "debug",
-            value: function debug(t) {
-                this.log(t, Logger.DEBUG_LEVEL.debug);
-            }
-        },
-        {
-            key: "warning",
-            value: function warning(t) {
-                this.log(t, Logger.DEBUG_LEVEL.warning);
-            }
-        },
-        {
-            key: "error",
-            value: function error(t) {
-                this.log(t, Logger.DEBUG_LEVEL.error);
-            }
-        }
-    ]);
-    return Logger;
-}();
-_helpers.defineProperty(Logger, "DEBUG_LEVEL", {
-    error: 0,
-    warning: 1,
-    info: 2,
-    debug: 3
-});
-
-},{"@swc/helpers":"erO4s","@parcel/transformer-js/src/esmodule-helpers.js":"5oERU"}],"NP42i":[function(require,module,exports) {
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-/**
- * A Vector object with optional fields (ex: x,y,z,e)
- * @class 
- * @constructor
- * @param {any} mapping object with fields to deep copy into this Vector
- */ parcelHelpers.export(exports, "default", function() {
-    return Vector;
-});
-var _helpers = require("@swc/helpers");
-var Vector = /*#__PURE__*/ function() {
-    "use strict";
-    function Vector(mapping) {
-        _helpers.classCallCheck(this, Vector);
-        this.axes = {};
-        if (arguments.length > 1) {
-            this.axes.x = arguments[0];
-            this.axes.y = arguments[1];
-            if (arguments.length > 2) this.axes.z = arguments[2];
-            if (arguments.length > 3) this.axes.e = arguments[3];
-        } else if (mapping !== undefined) {
-            if (mapping instanceof Vector) // deep copy axes
-            for(var axis in mapping.axes)this.axes[axis] = mapping.axes[axis];
-            else if (mapping instanceof Object) for(var axis1 in mapping)this.axes[axis1] = mapping[axis1];
-        } else {
-            this.axes.x = 0;
-            this.axes.y = 0;
-            this.axes.z = 0;
-        }
-    }
-    _helpers.createClass(Vector, [
-        {
-            /**
-     * Subtract a vector object (x,y,z,e or whatever) from another and return a new vector.
-     * TODO: Consider using toxiclibs or other Vector lib
-     * @param {Vector} v0 first vector 
-     * @returns {object} reference to this for chaining
-     */ key: "subSelf",
-            value: function subSelf(v0) {
-                try {
-                    for(var axis in v0.axes)this.axes[axis] = this.axes[axis] - v0.axes[axis];
-                } catch (e) {
-                    // rethrow, caught in GUI
-                    throw e;
-                }
-                return this;
-            }
-        },
-        {
-            /**
-     * Add a vector object (x,y,z,e or whatever) to another and return itself.
-     * @param {Vector} v0 amount to add
-     * @returns {object} reference to this for chaining
-     */ key: "addSelf",
-            value: function addSelf(v0) {
-                try {
-                    for(var axis in v0.axes)this.axes[axis] = this.axes[axis] + v0[axis];
-                } catch (e) {
-                    // rethrow, caught in GUI
-                    throw e;
-                }
-                return this;
-            }
-        },
-        {
-            /**
-     * Magnitude squared of this vector as a scalar.
-     * @returns {float} magnitude
-     */ key: "magSq",
-            value: function magSq(v0) {
-                var v1 = v0 === undefined ? this : v0;
-                var sumAxes = 0;
-                for(var v in v1.axes)sumAxes += v1.axes[v] * v1.axes[v];
-                return sumAxes;
-            }
-        },
-        {
-            /**
-     * Magnitude of this vector as a scalar.
-     * @param {float} v0 new length of vector
-     * @returns {float} magnitude
-     */ key: "mag",
-            value: function mag(v0) {
-                var v1 = v0 === undefined ? this : v0;
-                return Math.sqrt(v1.magSq());
-            }
-        },
-        {
-            /**
-     * Scalar distance between Vectors.
-     * @param {Vector} v0 (required) first vector 
-     * @param {Vector} v1 (optional) second vector (if not included, will use this)
-     * @returns {float} scalar vector
-     */ key: "dist",
-            value: function dist(v0, v1) {
-                var v2 = v1 === undefined ? this : v1;
-                return Vector.sub(v0, v2).mag();
-            }
-        },
-        {
-            /**
-     * Divide a vector by a scalar
-     * @param {Number} amt to divide by
-     * @returns {Vector} this object for chaining
-     */ key: "divSelf",
-            value: function divSelf(amt) {
-                for(var axis in this.axes)this.axes[axis] /= amt;
-                return this;
-            }
-        },
-        {
-            /**
-     * Multiply a vector by a scalar
-     * @param {Number} amt to multiply by
-     * @returns {Vector} this object for chaining
-     */ key: "multSelf",
-            value: function multSelf(amt) {
-                for(var axis in this.axes)this.axes[axis] *= amt;
-                return this;
-            }
-        },
-        {
-            /**
-     * Set the properties of this Vector based on another or a mapping object
-     * @param {object} mapping object with fields to deep copy into this Vector
-     * @returns {Vector} this object for chaining
-     */ key: "set",
-            value: function set(mapping) {
-                if (mapping !== undefined) {
-                    if (mapping instanceof Vector) // deep copy axes
-                    for(var axis in mapping.axes)this.axes[axis] = mapping.axes[axis];
-                    else if (mapping instanceof Object) for(var axis2 in mapping)this.axes[axis2] = mapping[axis2];
-                }
-                return this;
-            }
-        }
-    ], [
-        {
-            key: "add",
-            value: /**
-     * Add a vector object (x,y,z,e or whatever) to another and return a new Vector.
-     * TODO: Consider using toxiclibs or other Vector lib
-     * @param {Vector} v0 first vector 
-     * @param {Vector} v1 amount to add
-     * @returns {object} reference to this for chaining
-     */ function add(v0, v1) {
-                var v2 = new Vector();
-                try {
-                    for(var axis in v0.axes)v2.axes[axis] = v0.axes[axis] + v1.axes[axis];
-                } catch (e) {
-                    // rethrow, caught in GUI
-                    throw e;
-                }
-                return v2;
-            }
-        },
-        {
-            key: "div",
-            value: /**
-    * Divide a vector object (x,y,z,e or whatever) by an amount and return a new one.
-    * @param {Vector} v0 first vector 
-    * @param {number} amt amount to divide by
-    * @returns {Vector} new Vector
-    */ function div(v0, amt) {
-                var v1 = new Vector();
-                try {
-                    for(var axis in v0.axes)v1.axes[axis] = v0.axes[axis] / amt;
-                } catch (e) {
-                    // rethrow, caught in GUI
-                    throw e;
-                }
-                return v1;
-            }
-        },
-        {
-            key: "sub",
-            value: /**
-    * Subtract a vector object (x,y,z,e or whatever) from another and return a new vector.
-    * @param {Vector} v0 first vector 
-    * @param {Vector} v1 amount to subtract
-    * @returns {Vector} result vector
-    */ function sub(v0, v1) {
-                var v2 = new Vector();
-                try {
-                    for(var axis in v0.axes)v2.axes[axis] = v0.axes[axis] - v1.axes[axis];
-                } catch (e) {
-                    // rethrow, caught in GUI
-                    throw e;
-                }
-                return v2;
-            }
-        },
-        {
-            key: "mult",
-            value: /**
-    * Multiply a vector object (x,y,z,e or whatever) to another and return a new vector.
-    * @param {Vector} v0 first vector 
-    * @param {Vector} v1 second vector
-    * @returns {Vector} result vector 
-    */ function mult(v0, v1) {
-                var v2 = new Vector();
-                if (typeof v1 === "object") try {
-                    for(var axis in v0.axes)v2.axes[axis] = v0.axes[axis] * v1.axes[axis];
-                } catch (e) {
-                    // rethrow, caught in GUI
-                    throw e;
-                }
-                else if (typeof v1 === "number") try {
-                    for(var axis3 in v0.axes)v2.axes[axis3] = v0.axes[axis3] * v1;
-                } catch (e1) {
-                    // rethrow, caught in GUI
-                    throw e1;
-                }
-                return v2;
-            }
-        }
-    ]);
-    return Vector;
-}();
-
-},{"@swc/helpers":"erO4s","@parcel/transformer-js/src/esmodule-helpers.js":"5oERU"}],"7RTA9":[function(require,module,exports) {
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-/**
- * Handy object for scheduling events at intervals, etc.
- * @class 
- * @constructor 
- * @inner
- */ parcelHelpers.export(exports, "default", function() {
-    return Scheduler;
-});
-var _helpers = require("@swc/helpers");
-var _regeneratorRuntime = require("regenerator-runtime");
-var _regeneratorRuntimeDefault = parcelHelpers.interopDefault(_regeneratorRuntime);
-var Scheduler = /*#__PURE__*/ function() {
-    "use strict";
-    function Scheduler() {
-        var logger = arguments.length > 0 && arguments[0] !== void 0 ? arguments[0] : window.console;
-        _helpers.classCallCheck(this, Scheduler);
-        this.logger = logger;
-        this.ScheduledEvents = [];
-        this.schedulerInterval = 10;
-        this.timerID = null;
-        this.startTime = Date.now();
-        this.eventsToRemove = []; // list to be handed on update cycle
-        this.eventsToAdd = []; // list to be handed on update cycle
-        this.eventsListeners = []; // subscribed listeners for add/remove events    
-    }
-    _helpers.createClass(Scheduler, [
-        {
-            /**
-     * Events: EventsCleared, EventAdded(event), EventRemoved(event)
-     * @param {Object} listener Listener object with implemented listener methods to be called
-     */ key: "addEventsListener",
-            value: function addEventsListener(listener) {
-                if (!this.eventsListeners.includes(listener)) this.eventsListeners.push(listener);
-            }
-        },
-        {
-            key: "removeEventsListener",
-            value: function removeEventsListener(listener) {
-                this.eventsListeners = this.eventsListeners.filter(function(e) {
-                    return e !== listener;
-                });
-            }
-        },
-        {
-            key: "clearEventsListeners",
-            value: function clearEventsListeners() {
-                this.eventsListeners = [];
-            }
-        },
-        {
-            /**
-     * Clear all scheduled events.
-     * */ key: "clearEvents",
-            value: function clearEvents() {
-                this.ScheduledEvents = [];
-                this.eventsListeners.map(function(listener) {
-                    if (listener.EventsCleared !== undefined) listener.EventsCleared();
-                });
-            }
-        },
-        {
-            /**
-    * Schedule a function to run (and optionally repeat).
-    * @param {Object} args Object with delay: ms offset to schedule this for, run: function, repeat: true/false whether to reschedule
-    * @return {Object} event that was added for future use
-    */ key: "scheduleEvent",
-            value: function scheduleEvent(args) {
-                args.time = Date.now() - this.startTime;
-                this.eventsToAdd.push(args);
-                return args; // return event for further usage
-            }
-        },
-        {
-            /**
-     * Remove an event using the name property of that event
-     * @param {string} name of the event to remove
-     */ key: "removeEventByName",
-            value: function removeEventByName(name) {
-                this.eventsToRemove.push(name);
-            }
-        },
-        {
-            /**
-     * Get first event with matching name field
-     * @param {String} name Name of this event
-     * @returns {Task} event object
-     */ key: "getEventByName",
-            value: function getEventByName(name) {
-                return this.ScheduledEvents.find(function(e) {
-                    return e.name === name;
-                });
-            }
-        },
-        {
-            /**
-     * Start the Scheduler running events.
-     */ key: "startScheduler",
-            value: function startScheduler() {
-                if (!this.timerID) window.clearInterval(this.timerID);
-                loggerer.loginfo("scheduler starting at time: " + this.startTime);
-                var me = this; //local reference for this closure
-                function scheduler(nextTime) {
-                    var time = Date.now() - me.startTime; // in ms
-                    // remove old events
-                    me.eventsToRemove.map(function(name) {
-                        var event = null;
-                        while(event = me.ScheduledEvents.find(function(e) {
-                            return e.name == name;
-                        }))if (event) {
-                            me.ScheduledEvents = me.ScheduledEvents.filter(function(e) {
-                                return e !== event;
-                            });
-                            me.eventsListeners.map(function(listener) {
-                                if (listener.EventRemoved !== undefined) listener.EventRemoved(event);
-                            });
-                        }
-                    });
-                    me.eventsToRemove = [];
-                    // add any new events
-                    me.eventsToAdd.map(function(event) {
-                        if (!me.ScheduledEvents.includes(event)) {
-                            me.ScheduledEvents.push(event);
-                            me.eventsListeners.map(function(listener) {
-                                if (listener.EventAdded !== undefined) listener.EventAdded(event);
-                            });
-                        }
-                    });
-                    me.eventsToAdd = [];
-                    // run events 
-                    me.ScheduledEvents.filter(function() {
-                        var _ref = _helpers.asyncToGenerator(_regeneratorRuntimeDefault.default.mark(function _callee(event) {
-                            var keep, tdiff;
-                            return _regeneratorRuntimeDefault.default.wrap(function _callee$(_ctx) {
-                                while(1)switch(_ctx.prev = _ctx.next){
-                                    case 0:
-                                        if (!event.running) {
-                                            _ctx.next = 2;
-                                            break;
-                                        }
-                                        return _ctx.abrupt("return", true);
-                                    case 2:
-                                        keep = true;
-                                        tdiff = event.time - time;
-                                        if (!(tdiff < 1)) {
-                                            _ctx.next = 11;
-                                            break;
-                                        }
-                                        //if (!event.system) loggerer.log("running event at time:" + time);
-                                        // if we're behind, don't run this one...
-                                        //if (!event.ignorable && tdiff > -event.delay * 2) {
-                                        //if (!event.ignorable) {
-                                        event.running = true;
-                                        _ctx.next = 8;
-                                        return event.run(event.time);
-                                    case 8:
-                                        if (!event.system) me.eventsListeners.map(function(listener) {
-                                            if (listener.EventRun !== undefined) listener.EventRun(event);
-                                        });
-                                        //}
-                                        if (event.repeat) {
-                                            // try to keep to original time
-                                            // TODO: might be an issue if events run over in time!!
-                                            event.time = event.time + event.delay;
-                                            keep = true;
-                                        } else {
-                                            keep = false;
-                                            me.eventsListeners.map(function(listener) {
-                                                if (listener.EventRemoved !== undefined) listener.EventRemoved(event);
-                                            });
-                                        }
-                                        event.running = false;
-                                    case 11:
-                                        return _ctx.abrupt("return", keep);
-                                    case 12:
-                                    case "end":
-                                        return _ctx.stop();
-                                }
-                            }, _callee);
-                        }));
-                        return function(event) {
-                            return _ref.apply(this, arguments);
-                        };
-                    }());
-                }
-                this.timerID = window.setInterval(scheduler, this.schedulerInterval);
-            }
-        }
-    ]);
-    return Scheduler;
-}();
-
-},{"@swc/helpers":"erO4s","regenerator-runtime":"12Ae8","@parcel/transformer-js/src/esmodule-helpers.js":"5oERU"}],"l1Zrz":[function(require,module,exports) {
+},{"@swc/helpers":"erO4s","regenerator-runtime":"12Ae8","liveprinter-utils":"5Ti02","@parcel/transformer-js/src/esmodule-helpers.js":"5oERU"}],"l1Zrz":[function(require,module,exports) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 var _helpers = require("@swc/helpers");
 var _regeneratorRuntime = require("regenerator-runtime");
@@ -14289,6 +14780,8 @@ function _runCode() {
                     window.codeLine--; // go back 
                     doError(_ctx.t0);
                 case 24:
+                    return _ctx.abrupt("return", true);
+                case 25:
                 case "end":
                     return _ctx.stop();
             }
@@ -14433,13 +14926,17 @@ var init = function() {
                                     return _regeneratorRuntimeDefault.default.wrap(function _callee$(_ctx2) {
                                         while(1)switch(_ctx2.prev = _ctx2.next){
                                             case 0:
-                                                return _ctx2.abrupt("return", runCode(cm, function() {
+                                                _ctx2.next = 2;
+                                                return runCode(cm, function() {
                                                     var _ref = _helpers.asyncToGenerator(_regeneratorRuntimeDefault.default.mark(function _callee(code) {
                                                         return _regeneratorRuntimeDefault.default.wrap(function _callee$(_ctx) {
                                                             while(1)switch(_ctx.prev = _ctx.next){
                                                                 case 0:
-                                                                    return _ctx.abrupt("return", liveprinterUI.globalEval(recordCode(HistoryCodeEditor, code)));
-                                                                case 1:
+                                                                    _ctx.next = 2;
+                                                                    return liveprinterUI.globalEval(recordCode(HistoryCodeEditor, code));
+                                                                case 2:
+                                                                    return _ctx.abrupt("return", _ctx.sent);
+                                                                case 3:
                                                                 case "end":
                                                                     return _ctx.stop();
                                                             }
@@ -14448,8 +14945,10 @@ var init = function() {
                                                     return function(code) {
                                                         return _ref.apply(this, arguments);
                                                     };
-                                                }()));
-                                            case 1:
+                                                }());
+                                            case 2:
+                                                return _ctx2.abrupt("return", _ctx2.sent);
+                                            case 3:
                                             case "end":
                                                 return _ctx2.stop();
                                         }
@@ -14464,13 +14963,17 @@ var init = function() {
                                     return _regeneratorRuntimeDefault.default.wrap(function _callee$(_ctx3) {
                                         while(1)switch(_ctx3.prev = _ctx3.next){
                                             case 0:
-                                                return _ctx3.abrupt("return", runCode(cm, function() {
+                                                _ctx3.next = 2;
+                                                return runCode(cm, function() {
                                                     var _ref = _helpers.asyncToGenerator(_regeneratorRuntimeDefault.default.mark(function _callee(code) {
                                                         return _regeneratorRuntimeDefault.default.wrap(function _callee$(_ctx) {
                                                             while(1)switch(_ctx.prev = _ctx.next){
                                                                 case 0:
-                                                                    return _ctx.abrupt("return", liveprinterUI.globalEval(recordCode(HistoryCodeEditor, code)));
-                                                                case 1:
+                                                                    _ctx.next = 2;
+                                                                    return liveprinterUI.globalEval(recordCode(HistoryCodeEditor, code));
+                                                                case 2:
+                                                                    return _ctx.abrupt("return", _ctx.sent);
+                                                                case 3:
                                                                 case "end":
                                                                     return _ctx.stop();
                                                             }
@@ -14479,8 +14982,10 @@ var init = function() {
                                                     return function(code) {
                                                         return _ref.apply(this, arguments);
                                                     };
-                                                }()));
-                                            case 1:
+                                                }());
+                                            case 2:
+                                                return _ctx3.abrupt("return", _ctx3.sent);
+                                            case 3:
                                             case "end":
                                                 return _ctx3.stop();
                                         }
@@ -14495,13 +15000,17 @@ var init = function() {
                                     return _regeneratorRuntimeDefault.default.wrap(function _callee$(_ctx4) {
                                         while(1)switch(_ctx4.prev = _ctx4.next){
                                             case 0:
-                                                return _ctx4.abrupt("return", runCode(cm, function() {
+                                                _ctx4.next = 2;
+                                                return runCode(cm, function() {
                                                     var _ref = _helpers.asyncToGenerator(_regeneratorRuntimeDefault.default.mark(function _callee(code) {
                                                         return _regeneratorRuntimeDefault.default.wrap(function _callee$(_ctx) {
                                                             while(1)switch(_ctx.prev = _ctx.next){
                                                                 case 0:
-                                                                    return _ctx.abrupt("return", liveprinterUI.globalEval(recordCode(HistoryCodeEditor, code)));
-                                                                case 1:
+                                                                    _ctx.next = 2;
+                                                                    return liveprinterUI.globalEval(recordCode(HistoryCodeEditor, code));
+                                                                case 2:
+                                                                    return _ctx.abrupt("return", _ctx.sent);
+                                                                case 3:
                                                                 case "end":
                                                                     return _ctx.stop();
                                                             }
@@ -14510,8 +15019,10 @@ var init = function() {
                                                     return function(code) {
                                                         return _ref.apply(this, arguments);
                                                     };
-                                                }()));
-                                            case 1:
+                                                }());
+                                            case 2:
+                                                return _ctx4.abrupt("return", _ctx4.sent);
+                                            case 3:
                                             case "end":
                                                 return _ctx4.stop();
                                         }
@@ -14557,7 +15068,7 @@ var init = function() {
                                         while(1)switch(_ctx.prev = _ctx.next){
                                             case 0:
                                                 _ctx.next = 2;
-                                                return runCode(cm, globalEval);
+                                                return runCode(cm, liveprinterUI.globalEval);
                                             case 2:
                                                 return _ctx.abrupt("return", _ctx.sent);
                                             case 3:
@@ -14576,7 +15087,7 @@ var init = function() {
                                         while(1)switch(_ctx.prev = _ctx.next){
                                             case 0:
                                                 _ctx.next = 2;
-                                                return runCode(cm, globalEval);
+                                                return runCode(cm, liveprinterUI.globalEval);
                                             case 2:
                                                 return _ctx.abrupt("return", _ctx.sent);
                                             case 3:
@@ -14595,7 +15106,7 @@ var init = function() {
                                         while(1)switch(_ctx.prev = _ctx.next){
                                             case 0:
                                                 _ctx.next = 2;
-                                                return runCode(cm, globalEval);
+                                                return runCode(cm, liveprinterUI.globalEval);
                                             case 2:
                                                 return _ctx.abrupt("return", _ctx.sent);
                                             case 3:
@@ -14645,11 +15156,8 @@ var init = function() {
                                                         return _regeneratorRuntimeDefault.default.wrap(function _callee$(_ctx) {
                                                             while(1)switch(_ctx.prev = _ctx.next){
                                                                 case 0:
-                                                                    _ctx.next = 2;
-                                                                    return liveprinterUI.scheduleGCode(recordGCode(cm, _liveprinterUtils.cleanGCode(gcode)));
-                                                                case 2:
-                                                                    return _ctx.abrupt("return", _ctx.sent);
-                                                                case 3:
+                                                                    return _ctx.abrupt("return", liveprinterUI.scheduleGCode(recordGCode(cm, _liveprinterUtils.cleanGCode(gcode))));
+                                                                case 1:
                                                                 case "end":
                                                                     return _ctx.stop();
                                                             }
@@ -14682,11 +15190,8 @@ var init = function() {
                                                         return _regeneratorRuntimeDefault.default.wrap(function _callee$(_ctx) {
                                                             while(1)switch(_ctx.prev = _ctx.next){
                                                                 case 0:
-                                                                    _ctx.next = 2;
-                                                                    return liveprinterUI.scheduleGCode(recordGCode(cm, _liveprinterUtils.cleanGCode(gcode)));
-                                                                case 2:
-                                                                    return _ctx.abrupt("return", _ctx.sent);
-                                                                case 3:
+                                                                    return _ctx.abrupt("return", liveprinterUI.scheduleGCode(recordGCode(cm, _liveprinterUtils.cleanGCode(gcode))));
+                                                                case 1:
                                                                 case "end":
                                                                     return _ctx.stop();
                                                             }
@@ -14719,11 +15224,8 @@ var init = function() {
                                                         return _regeneratorRuntimeDefault.default.wrap(function _callee$(_ctx) {
                                                             while(1)switch(_ctx.prev = _ctx.next){
                                                                 case 0:
-                                                                    _ctx.next = 2;
-                                                                    return liveprinterUI.scheduleGCode(recordGCode(cm, _liveprinterUtils.cleanGCode(gcode)));
-                                                                case 2:
-                                                                    return _ctx.abrupt("return", _ctx.sent);
-                                                                case 3:
+                                                                    return _ctx.abrupt("return", liveprinterUI.scheduleGCode(recordGCode(cm, _liveprinterUtils.cleanGCode(gcode))));
+                                                                case 1:
                                                                 case "end":
                                                                     return _ctx.stop();
                                                             }
@@ -15487,9 +15989,9 @@ module.exports.commandsHandler = commandsHandler;
  * json-rpc move event handler
  * @memberOf LivePrinter
  */ var moveHandler = function(response) {
-    $("input[name='speed']").val(printer.printSpeed); // set speed, maybe reset below
+    $("input[name='speed']").val(printer.printspeed().toFixed(4)); // set speed, maybe reset below
     // update GUI
-    $("input[name='retract']")[0].value = printer.currentRetraction;
+    $("input[name='retract']")[0].value = printer.currentRetraction.toFixed();
     return moveParser(response);
 };
 module.exports.moveHandler = moveHandler;
@@ -15500,10 +16002,10 @@ var moveParser = function(data) {
     printer.y = parseFloat(result.payload.pos.y);
     printer.z = parseFloat(result.payload.pos.z);
     printer.e = parseFloat(result.payload.pos.e);
-    $("input[name='x']").val(result.payload.pos.x);
-    $("input[name='y']").val(result.payload.pos.y);
-    $("input[name='z']").val(result.payload.pos.z);
-    $("input[name='e']").val(result.payload.pos.e);
+    $("input[name='x']").val(printer.x.toFixed(4));
+    $("input[name='y']").val(printer.y.toFixed(4));
+    $("input[name='z']").val(printer.z.toFixed(4));
+    $("input[name='e']").val(printer.e.toFixed(4));
     return true;
 };
 ////////////////////////////////////////////////////////////////////////
@@ -15688,13 +16190,13 @@ module.exports.downloadFile = downloadFile;
 ///////////////// GUI SETUP ///////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 function updateGUI() {
-    $("input[name='x']").val(printer.x);
-    $("input[name='y']").val(printer.y);
-    $("input[name='z']").val(printer.z);
-    $("input[name='e']").val(printer.e);
-    $("input[name='angle']").val(printer.angle);
-    $("input[name='speed']").val(printer.printSpeed);
-    $("input[name='retract']").val(printer.currentRetraction);
+    $("input[name='x']").val(printer.x.toFixed(4));
+    $("input[name='y']").val(printer.y.toFixed(4));
+    $("input[name='z']").val(printer.z.toFixed(4));
+    $("input[name='e']").val(printer.e.toFixed(4));
+    $("input[name='angle']").val(printer.angle.toFixed(4));
+    $("input[name='speed']").val(printer.printspeed().toFixed(4));
+    $("input[name='retract']").val(printer.currentRetraction.toFixed(4));
 }
 module.exports.updateGUI = updateGUI;
 window.updateGUI = updateGUI; //cheat, for livecoding...
@@ -15746,7 +16248,7 @@ function _globalEval() {
                     //
                     code = compile(code);
                     if (!code) {
-                        _ctx.next = 29;
+                        _ctx.next = 28;
                         break;
                     }
                     if ($("#python-mode-btn").hasClass('active')) {
@@ -15762,10 +16264,12 @@ function _globalEval() {
                     // logger.log(code);
                     // eval(code);
                     } else {
+                        // wrap in try/catch block and debugging code
+                        code = 'try {\n' + code + '\n' + '} catch (e) { lastErrorMessage = null;e.lineNumber=' + line + ';console.log("async queue error:" + e);window.doError(e); return 1;}\n';
                         // wrap in async limiter/queue
                         code = 'const result = await codeLimiter.schedule({ priority:1,weight:1,id:codeIndex,expiration:maxCodeWaitTime},async()=>{ ' + code + "\nreturn 1;});\n";
                         // wrap in try/catch block and debugging code
-                        code = "try {\nlet codeIndex = " + window.codeLine + ';\n' + "\nif (vars.logAjax) loginfo(`starting code ${codeIndex}`);\n" + code + '\n' + "if (vars.logAjax) loginfo(`finished with ${codeIndex}`);\n" + '} catch (e) { lastErrorMessage = null;e.lineNumber=' + line + ';logger.log(e);window.doError(e); }';
+                        code = "try {\nlet codeIndex = " + window.codeLine + ';\n' + "\nif (vars.logAjax) loginfo(`starting code ${codeIndex}`);\n" + code + '\n' + "if (vars.logAjax) loginfo(`finished with ${codeIndex}`);\n" + '} catch (e) { lastErrorMessage = null;e.lineNumber=' + line + ';console.log("main:" + e);window.doError(e); throw(e);}';
                         // prefix with locals to give quick access to liveprinter API
                         code = "let stop = window.restartLimiter;" + code;
                         // wrap in global function call
@@ -15776,32 +16280,32 @@ function _globalEval() {
                     script1.async = true;
                     script1.onerror = doError;
                     script1.type = "text/javascript";
-                    script1.onerror = console.log;
+                    //script.onerror = console.log;
                     script1.text = code;
-                    _ctx.prev = 17;
+                    _ctx.prev = 16;
                     scriptTag = document.head.appendChild(script1);
                     logger.debug("script tag created");
-                    _ctx.next = 22;
+                    _ctx.next = 21;
                     return window.codeToRun();
-                case 22:
+                case 21:
                     didIt = _ctx.sent;
                     scriptTag.parentNode.removeChild(script1);
-                    _ctx.next = 29;
+                    _ctx.next = 28;
                     break;
-                case 26:
-                    _ctx.prev = 26;
-                    _ctx.t0 = _ctx["catch"](17);
+                case 25:
+                    _ctx.prev = 25;
+                    _ctx.t0 = _ctx["catch"](16);
                     doError(_ctx.t0);
+                case 28:
+                    return _ctx.abrupt("return", true);
                 case 29:
-                    return _ctx.abrupt("return");
-                case 30:
                 case "end":
                     return _ctx.stop();
             }
         }, _callee, null, [
             [
-                17,
-                26
+                16,
+                25
             ]
         ]);
     }));
@@ -16013,7 +16517,134 @@ module.exports.globalEval = globalEval;
 }();
 module.exports.init = init;
 
-},{"@swc/helpers":"erO4s","regenerator-runtime":"12Ae8","./language/compile":"82OZL","jquery":"HtqFp","./liveprinter.comms":"6Yn3N","@parcel/transformer-js/src/esmodule-helpers.js":"5oERU","liveprinter-utils":"5Ti02","./parsers/MarlinParsers.js":"6cjs2"}],"82OZL":[function(require,module,exports) {
+},{"@swc/helpers":"erO4s","regenerator-runtime":"12Ae8","liveprinter-utils":"5Ti02","./parsers/MarlinParsers.js":"6cjs2","./language/compile":"82OZL","jquery":"HtqFp","./liveprinter.comms":"6Yn3N","@parcel/transformer-js/src/esmodule-helpers.js":"5oERU"}],"6cjs2":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "MarlinLineParserResultPosition", function() {
+    return MarlinLineParserResultPosition;
+});
+parcelHelpers.export(exports, "MarlinLineParserResultTemperature", function() {
+    return MarlinLineParserResultTemperature;
+});
+var _helpers = require("@swc/helpers");
+var _liveprinterUtils = require("liveprinter-utils");
+var MarlinLineParserResultPosition = /*#__PURE__*/ function() {
+    "use strict";
+    function MarlinLineParserResultPosition() {
+        _helpers.classCallCheck(this, MarlinLineParserResultPosition);
+    }
+    _helpers.createClass(MarlinLineParserResultPosition, null, [
+        {
+            key: "parse",
+            value: // X:0.00 Y:0.00 Z:0.00 E:0.00 Count X:0 Y:0 Z:0
+            function parse(line) {
+                var r = line.match(/^(?:(?:X|Y|Z|E):[0-9\.\-]+\s*)+/i);
+                if (!r) return null;
+                var payload = {
+                    pos: {}
+                };
+                var pattern = /((X|Y|Z|E):[0-9\.\-]+)/gi;
+                var params = r[0].match(pattern);
+                var _iteratorNormalCompletion = true, _didIteratorError = false, _iteratorError = undefined;
+                try {
+                    for(var _iterator = params[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true){
+                        var param = _step.value;
+                        var nv = param.match(/([a-z]+):([0-9\.\-]+)/i);
+                        if (nv) {
+                            var axis = nv[1].toLowerCase();
+                            var pos = nv[2];
+                            var digits = _liveprinterUtils.decimalPlaces(pos);
+                            payload.pos[axis] = Number(pos).toFixed(digits);
+                        }
+                    }
+                } catch (err) {
+                    _didIteratorError = true;
+                    _iteratorError = err;
+                } finally{
+                    try {
+                        if (!_iteratorNormalCompletion && _iterator.return != null) {
+                            _iterator.return();
+                        }
+                    } finally{
+                        if (_didIteratorError) {
+                            throw _iteratorError;
+                        }
+                    }
+                }
+                return {
+                    type: MarlinLineParserResultPosition,
+                    payload: payload
+                };
+            }
+        }
+    ]);
+    return MarlinLineParserResultPosition;
+}();
+var MarlinLineParserResultTemperature = /*#__PURE__*/ function() {
+    "use strict";
+    function MarlinLineParserResultTemperature() {
+        _helpers.classCallCheck(this, MarlinLineParserResultTemperature);
+    }
+    _helpers.createClass(MarlinLineParserResultTemperature, null, [
+        {
+            key: "parse",
+            value: // ok T:0
+            // ok T:293.0 /0.0 B:25.9 /0.0 @:0 B@:0
+            // ok T:293.0 /0.0 B:25.9 /0.0 T0:293.0 /0.0 T1:100.0 /0.0 @:0 B@:0 @0:0 @1:0
+            // ok T:293.0 /0.0 (0.0) B:25.9 /0.0 T0:293.0 /0.0 (0.0) T1:100.0 /0.0 (0.0) @:0 B@:0 @0:0 @1:0
+            // ok T:293.0 /0.0 (0.0) B:25.9 /0.0 T0:293.0 /0.0 (0.0) T1:100.0 /0.0 (0.0) @:0 B@:0 @0:0 @1:0 W:?
+            // ok T:293.0 /0.0 (0.0) B:25.9 /0.0 T0:293.0 /0.0 (0.0) T1:100.0 /0.0 (0.0) @:0 B@:0 @0:0 @1:0 W:0
+            //  T:293.0 /0.0 B:25.9 /0.0 @:0 B@:0
+            //  T:293.0 /0.0 B:25.9 /0.0 T0:293.0 /0.0 T1:100.0 /0.0 @:0 B@:0 @0:0 @1:0
+            //  T:293.0 /0.0 (0.0) B:25.9 /0.0 T0:293.0 /0.0 (0.0) T1:100.0 /0.0 (0.0) @:0 B@:0 @0:0 @1:0
+            function parse(line) {
+                var r = line.match(/^(ok)?\s+T:[0-9\.\-]+/i);
+                if (!r) return null;
+                var payload = {
+                    ok: line.startsWith('ok'),
+                    extruder: {},
+                    heatedBed: {}
+                };
+                var re = /(?:(?:(T|B|T\d+):([0-9\.\-]+)\s+\/([0-9\.\-]+)(?:\s+\((?:[0-9\.\-]+)\))?)|(?:(@|B@|@\d+):([0-9\.\-]+))|(?:(W):(\?|[0-9]+)))/ig;
+                while(r = re.exec(line)){
+                    var key = r[1] || r[4] || r[6];
+                    if (key === 'T') {
+                        payload.extruder.deg = r[2];
+                        payload.extruder.degTarget = r[3];
+                        continue;
+                    }
+                    if (key === 'B') {
+                        payload.heatedBed.deg = r[2];
+                        payload.heatedBed.degTarget = r[3];
+                        continue;
+                    }
+                    if (key === '@') {
+                        payload.extruder.power = r[5];
+                        continue;
+                    }
+                    if (key === 'B@') {
+                        payload.heatedBed.power = r[5];
+                        continue;
+                    }
+                    // M109, M190: Print temp & remaining time every 1s while waiting
+                    if (key === 'W') {
+                        payload.wait = r[7];
+                        continue;
+                    }
+                // Hotends: T0, T1, ...
+                // TODO
+                }
+                return {
+                    type: MarlinLineParserResultTemperature,
+                    payload: payload
+                };
+            }
+        }
+    ]);
+    return MarlinLineParserResultTemperature;
+}();
+
+},{"@swc/helpers":"erO4s","liveprinter-utils":"5Ti02","@parcel/transformer-js/src/esmodule-helpers.js":"5oERU"}],"82OZL":[function(require,module,exports) {
 var _liveprinterUtils = require("liveprinter-utils");
 var logger = new _liveprinterUtils.Logger();
 var nearley = require('nearley'); // grammar parser
@@ -16096,7 +16727,7 @@ function compile(code) {
 }
 module.exports = compile;
 
-},{"nearley":"azMcF","./lpgrammar":"NVOVQ","liveprinter-utils":"5Ti02"}],"azMcF":[function(require,module,exports) {
+},{"liveprinter-utils":"5Ti02","nearley":"azMcF","./lpgrammar":"NVOVQ"}],"azMcF":[function(require,module,exports) {
 var _helpers = require("@swc/helpers");
 (function(root, factory) {
     if (module.exports) module.exports = factory();
@@ -17502,16 +18133,32 @@ function initLimiter() {
         minTime: 25,
         strategy: Bottleneck.strategy.LEAK // cancel lower-priority jobs if over highwater
     });
-    _limiter.on("error", function(error) {
-        /* handle errors here */ var errorTxt = error;
-        try {
-            errorTxt = "".concat(JSON.stringify(error));
-        } catch (err) {
-            errorTxt = error + "";
-        }
-        doError(Error(errorTxt));
-        liveprinterui.logerror("Limiter error: ".concat(errorTxt));
-    });
+    _limiter.on("error", function() {
+        var _ref = _helpers.asyncToGenerator(_regeneratorRuntimeDefault.default.mark(function _callee(error) {
+            var errorTxt;
+            return _regeneratorRuntimeDefault.default.wrap(function _callee$(_ctx) {
+                while(1)switch(_ctx.prev = _ctx.next){
+                    case 0:
+                        errorTxt = error;
+                        try {
+                            errorTxt = "".concat(JSON.stringify(error));
+                        } catch (err) {
+                            errorTxt = error + "";
+                        }
+                        doError(Error(errorTxt));
+                        liveprinterui.logerror("Limiter error: ".concat(errorTxt));
+                        _ctx.next = 6;
+                        return restartLimiter();
+                    case 6:
+                    case "end":
+                        return _ctx.stop();
+                }
+            }, _callee);
+        }));
+        return function(error) {
+            return _ref.apply(this, arguments);
+        };
+    }());
     // Listen to the "failed" event
     _limiter.on("failed", function() {
         var _ref = _helpers.asyncToGenerator(_regeneratorRuntimeDefault.default.mark(function _callee(error, jobInfo) {
@@ -17522,24 +18169,24 @@ function initLimiter() {
                         id = jobInfo.options.id;
                         logger.warn("Job ".concat(id, " failed: ").concat(error));
                         liveprinterui.logerror("Job ".concat(id, " failed: ").concat(error));
-                        if (!(jobInfo.retryCount === 0)) {
-                            _ctx.next = 6;
-                            break;
-                        }
-                        liveprinterui.logerror("Retrying job ".concat(id, " in 20ms!"));
-                        return _ctx.abrupt("return");
-                    case 6:
-                        return _ctx.abrupt("return", 0);
-                    case 7:
+                    case 3:
                     case "end":
                         return _ctx.stop();
                 }
             }, _callee);
+        // if (jobInfo.retryCount === 0) { // Here we only retry once
+        //     liveprinterui.logerror(`Retrying job ${id} in 5ms!`);
+        //     return 5;
+        // }
         }));
         return function(error, jobInfo) {
             return _ref.apply(this, arguments);
         };
     }());
+    // Listen to the "retry" event
+    _limiter.on("retry", function(error, jobInfo) {
+        return liveprinterui.logerror("Now retrying ".concat(jobInfo.options.id));
+    });
     _limiter.on("dropped", function(dropped) {
         logger.warn("limiter dropped:");
         logger.warn(dropped);
@@ -17561,15 +18208,12 @@ window.codeLine = 0; // limiter again
 var limiter = initLimiter(); // Bottleneck rate limiter for priority async queueing
 var scheduleReservior = function() {
     var _ref = _helpers.asyncToGenerator(_regeneratorRuntimeDefault.default.mark(function _callee() {
-        var reservoir;
         return _regeneratorRuntimeDefault.default.wrap(function _callee$(_ctx) {
             while(1)switch(_ctx.prev = _ctx.next){
                 case 0:
                     _ctx.next = 2;
                     return limiter.currentReservoir();
                 case 2:
-                    reservoir = _ctx.sent;
-                case 3:
                 case "end":
                     return _ctx.stop();
             }
@@ -17649,7 +18293,7 @@ function _sendJSONRPC() {
  * @param {Object} request JSON-RPC formatted request object
  * @returns {Object} response JSON-RPC response object
  */ _helpers.asyncToGenerator(_regeneratorRuntimeDefault.default.mark(function _callee(request) {
-        var args, reqId, response;
+        var args, reqId, response, statusText;
         return _regeneratorRuntimeDefault.default.wrap(function _callee$(_ctx) {
             while(1)switch(_ctx.prev = _ctx.next){
                 case 0:
@@ -17667,20 +18311,21 @@ function _sendJSONRPC() {
                     });
                 case 7:
                     response = _ctx.sent;
-                    _ctx.next = 15;
+                    _ctx.next = 16;
                     break;
                 case 10:
                     _ctx.prev = 10;
                     _ctx.t0 = _ctx["catch"](4);
                     // statusText field has error ("timeout" in this case)
                     response = JSON.stringify(_ctx.t0, null, 2);
-                    console.error(response);
-                    liveprinterui.logerror(response);
-                case 15:
-                    if (undefined !== response.error) liveprinterui.logerror(response);
+                    statusText = "JSON error response communicating with server:<br/>".concat(response, "<br/>Orig:").concat(request);
+                    console.error(statusText);
+                    liveprinterui.logerror(statusText);
+                case 16:
+                    if (undefined !== response.error) liveprinterui.logerror("JSON error response communicating with server:<br/>".concat(JSON.stringify(response.error, null, 2), "<br/>Orig:").concat(request));
                     if (vars.logAjax) liveprinterui.commandsHandler.log("RECEIVED ".concat(reqId, "::").concat(request));
                     return _ctx.abrupt("return", response);
-                case 18:
+                case 19:
                 case "end":
                     return _ctx.stop();
             }
@@ -18143,7 +18788,7 @@ exports.scheduleGCode = scheduleGCode;
 }
 exports.handleGCodeResponse = handleGCodeResponse;
 
-},{"@swc/helpers":"erO4s","regenerator-runtime":"12Ae8","bottleneck":"3V24B","./parsers/MarlinParsers":"6cjs2","./liveprinter.ui":"lyO7f","@parcel/transformer-js/src/esmodule-helpers.js":"5oERU","liveprinter-utils":"5Ti02"}],"3V24B":[function(require,module,exports) {
+},{"@swc/helpers":"erO4s","regenerator-runtime":"12Ae8","liveprinter-utils":"5Ti02","bottleneck":"3V24B","./parsers/MarlinParsers":"6cjs2","./liveprinter.ui":"lyO7f","@parcel/transformer-js/src/esmodule-helpers.js":"5oERU"}],"3V24B":[function(require,module,exports) {
 "use strict";
 module.exports = require("./Bottleneck");
 
@@ -21911,134 +22556,7 @@ Batcher = (function() {
 }).call(void 0);
 module.exports = Batcher;
 
-},{"@swc/helpers":"erO4s","./parser":"a5FL5","./Events":"8Ual1"}],"6cjs2":[function(require,module,exports) {
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "MarlinLineParserResultPosition", function() {
-    return MarlinLineParserResultPosition;
-});
-parcelHelpers.export(exports, "MarlinLineParserResultTemperature", function() {
-    return MarlinLineParserResultTemperature;
-});
-var _helpers = require("@swc/helpers");
-var _liveprinterUtils = require("liveprinter-utils");
-var MarlinLineParserResultPosition = /*#__PURE__*/ function() {
-    "use strict";
-    function MarlinLineParserResultPosition() {
-        _helpers.classCallCheck(this, MarlinLineParserResultPosition);
-    }
-    _helpers.createClass(MarlinLineParserResultPosition, null, [
-        {
-            key: "parse",
-            value: // X:0.00 Y:0.00 Z:0.00 E:0.00 Count X:0 Y:0 Z:0
-            function parse(line) {
-                var r = line.match(/^(?:(?:X|Y|Z|E):[0-9\.\-]+\s*)+/i);
-                if (!r) return null;
-                var payload = {
-                    pos: {}
-                };
-                var pattern = /((X|Y|Z|E):[0-9\.\-]+)/gi;
-                var params = r[0].match(pattern);
-                var _iteratorNormalCompletion = true, _didIteratorError = false, _iteratorError = undefined;
-                try {
-                    for(var _iterator = params[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true){
-                        var param = _step.value;
-                        var nv = param.match(/([a-z]+):([0-9\.\-]+)/i);
-                        if (nv) {
-                            var axis = nv[1].toLowerCase();
-                            var pos = nv[2];
-                            var digits = _liveprinterUtils.decimalPlaces(pos);
-                            payload.pos[axis] = Number(pos).toFixed(digits);
-                        }
-                    }
-                } catch (err) {
-                    _didIteratorError = true;
-                    _iteratorError = err;
-                } finally{
-                    try {
-                        if (!_iteratorNormalCompletion && _iterator.return != null) {
-                            _iterator.return();
-                        }
-                    } finally{
-                        if (_didIteratorError) {
-                            throw _iteratorError;
-                        }
-                    }
-                }
-                return {
-                    type: MarlinLineParserResultPosition,
-                    payload: payload
-                };
-            }
-        }
-    ]);
-    return MarlinLineParserResultPosition;
-}();
-var MarlinLineParserResultTemperature = /*#__PURE__*/ function() {
-    "use strict";
-    function MarlinLineParserResultTemperature() {
-        _helpers.classCallCheck(this, MarlinLineParserResultTemperature);
-    }
-    _helpers.createClass(MarlinLineParserResultTemperature, null, [
-        {
-            key: "parse",
-            value: // ok T:0
-            // ok T:293.0 /0.0 B:25.9 /0.0 @:0 B@:0
-            // ok T:293.0 /0.0 B:25.9 /0.0 T0:293.0 /0.0 T1:100.0 /0.0 @:0 B@:0 @0:0 @1:0
-            // ok T:293.0 /0.0 (0.0) B:25.9 /0.0 T0:293.0 /0.0 (0.0) T1:100.0 /0.0 (0.0) @:0 B@:0 @0:0 @1:0
-            // ok T:293.0 /0.0 (0.0) B:25.9 /0.0 T0:293.0 /0.0 (0.0) T1:100.0 /0.0 (0.0) @:0 B@:0 @0:0 @1:0 W:?
-            // ok T:293.0 /0.0 (0.0) B:25.9 /0.0 T0:293.0 /0.0 (0.0) T1:100.0 /0.0 (0.0) @:0 B@:0 @0:0 @1:0 W:0
-            //  T:293.0 /0.0 B:25.9 /0.0 @:0 B@:0
-            //  T:293.0 /0.0 B:25.9 /0.0 T0:293.0 /0.0 T1:100.0 /0.0 @:0 B@:0 @0:0 @1:0
-            //  T:293.0 /0.0 (0.0) B:25.9 /0.0 T0:293.0 /0.0 (0.0) T1:100.0 /0.0 (0.0) @:0 B@:0 @0:0 @1:0
-            function parse(line) {
-                var r = line.match(/^(ok)?\s+T:[0-9\.\-]+/i);
-                if (!r) return null;
-                var payload = {
-                    ok: line.startsWith('ok'),
-                    extruder: {},
-                    heatedBed: {}
-                };
-                var re = /(?:(?:(T|B|T\d+):([0-9\.\-]+)\s+\/([0-9\.\-]+)(?:\s+\((?:[0-9\.\-]+)\))?)|(?:(@|B@|@\d+):([0-9\.\-]+))|(?:(W):(\?|[0-9]+)))/ig;
-                while(r = re.exec(line)){
-                    var key = r[1] || r[4] || r[6];
-                    if (key === 'T') {
-                        payload.extruder.deg = r[2];
-                        payload.extruder.degTarget = r[3];
-                        continue;
-                    }
-                    if (key === 'B') {
-                        payload.heatedBed.deg = r[2];
-                        payload.heatedBed.degTarget = r[3];
-                        continue;
-                    }
-                    if (key === '@') {
-                        payload.extruder.power = r[5];
-                        continue;
-                    }
-                    if (key === 'B@') {
-                        payload.heatedBed.power = r[5];
-                        continue;
-                    }
-                    // M109, M190: Print temp & remaining time every 1s while waiting
-                    if (key === 'W') {
-                        payload.wait = r[7];
-                        continue;
-                    }
-                // Hotends: T0, T1, ...
-                // TODO
-                }
-                return {
-                    type: MarlinLineParserResultTemperature,
-                    payload: payload
-                };
-            }
-        }
-    ]);
-    return MarlinLineParserResultTemperature;
-}();
-
-},{"@swc/helpers":"erO4s","liveprinter-utils":"5Ti02","@parcel/transformer-js/src/esmodule-helpers.js":"5oERU"}],"kaahn":[function(require,module,exports) {
+},{"@swc/helpers":"erO4s","./parser":"a5FL5","./Events":"8Ual1"}],"kaahn":[function(require,module,exports) {
 // CodeMirror, copyright (c) by Marijn Haverbeke and others
 // Distributed under an MIT license: https://codemirror.net/LICENSE
 // This is CodeMirror (https://codemirror.net), a code editor
@@ -22392,12 +22910,12 @@ var MarlinLineParserResultTemperature = /*#__PURE__*/ function() {
         // Character types for codepoints 0x600 to 0x6f9
         var arabicTypes = "nnnnnnNNr%%r,rNNmmmmmmmmmmmrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrmmmmmmmmmmmmmmmmmmmmmnnnnnnnnnn%nnrrrmrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrmmmmmmmnNmmmmmmrrmmNmmmmrr1111111111";
         function charType(code) {
-            if (code <= 247) return lowTypes.charAt(code);
-            else if (1424 <= code && code <= 1524) return "R";
-            else if (1536 <= code && code <= 1785) return arabicTypes.charAt(code - 1536);
-            else if (1774 <= code && code <= 2220) return "r";
-            else if (8192 <= code && code <= 8203) return "w";
-            else if (code == 8204) return "b";
+            if (code <= 0xf7) return lowTypes.charAt(code);
+            else if (0x590 <= code && code <= 0x5f4) return "R";
+            else if (0x600 <= code && code <= 0x6f9) return arabicTypes.charAt(code - 0x600);
+            else if (0x6ee <= code && code <= 0x8ac) return "r";
+            else if (0x2000 <= code && code <= 0x200b) return "w";
+            else if (code == 0x200c) return "b";
             else return "L";
         }
         var bidiRE = /[\u0590-\u05f4\u0600-\u06ff\u0700-\u08ac]/;
@@ -23305,7 +23823,7 @@ var MarlinLineParserResultTemperature = /*#__PURE__*/ function() {
     // Add a span to a line.
     function addMarkedSpan(line, span, op) {
         var inThisOp = op && window.WeakSet && (op.markedSpans || (op.markedSpans = new WeakSet));
-        if (inThisOp && inThisOp.has(line.markedSpans)) line.markedSpans.push(span);
+        if (inThisOp && line.markedSpans && inThisOp.has(line.markedSpans)) line.markedSpans.push(span);
         else {
             line.markedSpans = line.markedSpans ? line.markedSpans.concat([
                 span
@@ -24761,7 +25279,7 @@ var MarlinLineParserResultTemperature = /*#__PURE__*/ function() {
             var endX = measureCharPrepared(cm, preparedMeasure, ltr ? Math.min(end, p.to) - 1 : Math.max(begin, p.from)).right;
             // Weigh against spans ending before this, so that they are only
             // picked if nothing ends after
-            var dist = endX < x ? x - endX + 1000000000 : endX - x;
+            var dist = endX < x ? x - endX + 1e9 : endX - x;
             if (!part || closestDist > dist) {
                 part = p;
                 closestDist = dist;
@@ -25056,7 +25574,7 @@ var MarlinLineParserResultTemperature = /*#__PURE__*/ function() {
             otherCursor.style.display = "";
             otherCursor.style.left = pos.other.left + "px";
             otherCursor.style.top = pos.other.top + "px";
-            otherCursor.style.height = (pos.other.bottom - pos.other.top) * 0.85 + "px";
+            otherCursor.style.height = (pos.other.bottom - pos.other.top) * .85 + "px";
         }
     }
     function cmpCoords(a, b) {
@@ -25231,7 +25749,7 @@ var MarlinLineParserResultTemperature = /*#__PURE__*/ function() {
                 if (!wrapping && cur.text.firstChild) width = cur.text.firstChild.getBoundingClientRect().right - box.left - 1;
             }
             var diff = cur.line.height - height;
-            if (diff > 0.005 || diff < -0.005) {
+            if (diff > .005 || diff < -0.005) {
                 if (oldHeight < viewTop) mustScroll -= diff;
                 updateLineHeight(cur.line, height);
                 updateWidgetHeight(cur.line);
@@ -30483,7 +31001,7 @@ var MarlinLineParserResultTemperature = /*#__PURE__*/ function() {
                 clearCaches(this);
                 scrollToCoords(this, this.doc.scrollLeft, this.doc.scrollTop);
                 updateGutterSpace(this.display);
-                if (oldHeight == null || Math.abs(oldHeight - textHeight(this.display)) > 0.5 || this.options.lineWrapping) estimateLineHeights(this);
+                if (oldHeight == null || Math.abs(oldHeight - textHeight(this.display)) > .5 || this.options.lineWrapping) estimateLineHeights(this);
                 signal(this, "refresh", this);
             }),
             swapDoc: methodOp(function(doc) {
@@ -30557,7 +31075,7 @@ var MarlinLineParserResultTemperature = /*#__PURE__*/ function() {
                 var ch = lineObj.text.charCodeAt(pos.ch + (dir > 0 ? 0 : -1));
                 if (isNaN(ch)) next = null;
                 else {
-                    var astral = dir > 0 ? ch >= 55296 && ch < 56320 : ch >= 56320 && ch < 57343;
+                    var astral = dir > 0 ? ch >= 0xD800 && ch < 0xDC00 : ch >= 0xDC00 && ch < 0xDFFF;
                     next = new Pos(pos.line, Math.max(0, Math.min(lineObj.text.length, pos.ch + dir * (astral ? 2 : 1))), -dir);
                 }
             } else if (visually) next = moveVisually(doc.cm, lineObj, pos, dir);
@@ -30601,7 +31119,7 @@ var MarlinLineParserResultTemperature = /*#__PURE__*/ function() {
         var doc = cm.doc, x = pos.left, y;
         if (unit == "page") {
             var pageSize = Math.min(cm.display.wrapper.clientHeight, window.innerHeight || document.documentElement.clientHeight);
-            var moveAmount = Math.max(pageSize - 0.5 * textHeight(cm.display), 3);
+            var moveAmount = Math.max(pageSize - .5 * textHeight(cm.display), 3);
             y = (dir > 0 ? pos.bottom : pos.top) + dir * moveAmount;
         } else if (unit == "line") y = dir > 0 ? pos.bottom + 3 : pos.top - 3;
         var target;
@@ -31329,8 +31847,8 @@ var MarlinLineParserResultTemperature = /*#__PURE__*/ function() {
         }
         if (cm.doc.sel == cm.display.selForContextMenu) {
             var first = text.charCodeAt(0);
-            if (first == 8203 && !prevInput) prevInput = "\u200b";
-            if (first == 8666) {
+            if (first == 0x200b && !prevInput) prevInput = "\u200b";
+            if (first == 0x21da) {
                 this.reset();
                 return this.cm.execCommand("undo");
             }
@@ -31575,7 +32093,7 @@ var MarlinLineParserResultTemperature = /*#__PURE__*/ function() {
     };
     CodeMirror1.fromTextArea = fromTextArea;
     addLegacyProps(CodeMirror1);
-    CodeMirror1.version = "5.65.2";
+    CodeMirror1.version = "5.65.3";
     return CodeMirror1;
 });
 
@@ -33557,10 +34075,7 @@ var MarlinLineParserResultTemperature = /*#__PURE__*/ function() {
         var options = state.options;
         clearMarks(cm);
         var annotations = groupByLine(annotationsNotSorted);
-        for(var line = 0; line < annotations.length; ++line){
-            var _ret = _loop(line);
-            if (_ret === "continue") continue;
-        }
+        for(var line = 0; line < annotations.length; ++line)_loop(line);
         if (options.onUpdateLinting) options.onUpdateLinting(annotationsNotSorted, annotations, cm);
     }
     function onChange(cm) {
@@ -38473,7 +38988,7 @@ var JSHINT = function() {
 // Make JSHINT a Node module, if possible.
 if (exports) exports.JSHINT = JSHINT;
 
-},{"lodash":"cZS9U","events":"1gPeD","./vars.js":"jNPyy","./messages.js":"1thGm","./lex.js":"dkEsP","./reg.js":"1W0uS","./state.js":"js9XA","./style.js":"c0Tl0","./options.js":"fF0c1","./scope-manager.js":"giaMt","./prod-params.js":"fkxqH","console-browserify":"9WP5q"}],"cZS9U":[function(require,module,exports) {
+},{"lodash":"cZS9U","events":"1gPeD","./vars.js":"jNPyy","./messages.js":"1thGm","./lex.js":"dkEsP","./reg.js":"1W0uS","./state.js":"js9XA","./style.js":"c0Tl0","./options.js":"fF0c1","./scope-manager.js":"giaMt","./prod-params.js":"fkxqH","console-browserify":"1MM0r"}],"cZS9U":[function(require,module,exports) {
 var _helpers = require("@swc/helpers");
 var global = arguments[3];
 (function() {
@@ -38490,7 +39005,7 @@ var global = arguments[3];
     /** Used as default options for `_.truncate`. */ var DEFAULT_TRUNC_LENGTH = 30, DEFAULT_TRUNC_OMISSION = '...';
     /** Used to detect hot functions by number of calls within a span of milliseconds. */ var HOT_COUNT = 800, HOT_SPAN = 16;
     /** Used to indicate the type of lazy iteratees. */ var LAZY_FILTER_FLAG = 1, LAZY_MAP_FLAG = 2, LAZY_WHILE_FLAG = 3;
-    /** Used as references for various `Number` constants. */ var INFINITY = 1 / 0, MAX_SAFE_INTEGER = 9007199254740991, MAX_INTEGER = 179769313486231570000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000, NAN = 0 / 0;
+    /** Used as references for various `Number` constants. */ var INFINITY = 1 / 0, MAX_SAFE_INTEGER = 9007199254740991, MAX_INTEGER = 1.7976931348623157e+308, NAN = 0 / 0;
     /** Used as references for the maximum length and index of an array. */ var MAX_ARRAY_LENGTH = 4294967295, MAX_ARRAY_INDEX = MAX_ARRAY_LENGTH - 1, HALF_MAX_ARRAY_LENGTH = MAX_ARRAY_LENGTH >>> 1;
     /** Used to associate wrap methods with their bit flags. */ var wrapFlags = [
         [
@@ -55416,7 +55931,7 @@ Lexer.prototype = {
             .replace(/\\u\{([0-9a-fA-F]+)\}|\\u([a-fA-F0-9]{4})/g, (function($0, $1, $2) {
                 var codePoint = parseInt($1 || $2, 16);
                 var literal;
-                if (codePoint > 1114111) {
+                if (codePoint > 0x10FFFF) {
                     malformed = true;
                     this.trigger("error", {
                         code: "E016",
@@ -55430,7 +55945,7 @@ Lexer.prototype = {
                 }
                 literal = String.fromCharCode(codePoint);
                 if (reg.regexpSyntaxChars.test(literal)) return $0;
-                if (codePoint <= 65535) return String.fromCharCode(codePoint);
+                if (codePoint <= 0xFFFF) return String.fromCharCode(codePoint);
                 return astralSubstitute;
             }).bind(this))// Replace each paired surrogate with a single ASCII symbol to avoid
             // throwing on regular expressions that are only valid in combination
@@ -58506,7 +59021,7 @@ module.exports = scopeManager;
    */ yield: 64
 };
 
-},{}],"9WP5q":[function(require,module,exports) {
+},{}],"1MM0r":[function(require,module,exports) {
 var global = arguments[3];
 /*global window, global*/ var util = require("util");
 var assert = require("assert");
@@ -63503,7 +64018,7 @@ function now() {
         }
     }
     function Widget(completion, data) {
-        this.id = "cm-complete-" + Math.floor(Math.random(1000000));
+        this.id = "cm-complete-" + Math.floor(Math.random(1e6));
         this.completion = completion;
         this.data = data;
         this.picked = false;
@@ -70659,6 +71174,6 @@ var _helpers = require("@swc/helpers");
     });
 });
 
-},{"@swc/helpers":"erO4s","jquery":"HtqFp","popper.js":"gYNHe"}]},["im8Fz","hddle"], "hddle", "parcelRequireebbb")
+},{"@swc/helpers":"erO4s","jquery":"HtqFp","popper.js":"gYNHe"}]},["154xk","hddle"], "hddle", "parcelRequireebbb")
 
 //# sourceMappingURL=main.js.map

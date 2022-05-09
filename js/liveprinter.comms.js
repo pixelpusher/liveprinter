@@ -60,7 +60,7 @@ function initLimiter() {
         strategy: Bottleneck.strategy.LEAK // cancel lower-priority jobs if over highwater
     });
 
-    _limiter.on("error", (error) => {
+    _limiter.on("error", async (error) => {
         /* handle errors here */
         let errorTxt = error;
         try {
@@ -71,6 +71,8 @@ function initLimiter() {
         }
         doError(Error(errorTxt));
         liveprinterui.logerror(`Limiter error: ${errorTxt}`);
+
+        await restartLimiter();
     });
 
     // Listen to the "failed" event
@@ -78,12 +80,15 @@ function initLimiter() {
         const id = jobInfo.options.id;
         logger.warn(`Job ${id} failed: ${error}`);
         liveprinterui.logerror(`Job ${id} failed: ${error}`);
-        if (jobInfo.retryCount === 0) { // Here we only retry once
-            liveprinterui.logerror(`Retrying job ${id} in 20ms!`);
-            return;
-        }
-        return 0;
+        // if (jobInfo.retryCount === 0) { // Here we only retry once
+        //     liveprinterui.logerror(`Retrying job ${id} in 5ms!`);
+        //     return 5;
+        // }
+    
     });
+
+    // Listen to the "retry" event
+    _limiter.on("retry", (error, jobInfo) => liveprinterui.logerror(`Now retrying ${jobInfo.options.id}`));
 
     _limiter.on("dropped", (dropped) => {
         logger.warn("limiter dropped:");
@@ -110,7 +115,7 @@ window.codeLine = 0; // limiter again
 let limiter = initLimiter(); // Bottleneck rate limiter for priority async queueing
 
 const scheduleReservior = async () => {
-    const reservoir = await limiter.currentReservoir();
+    await limiter.currentReservoir();
 };
 
 function getQueued() {
@@ -170,11 +175,12 @@ async function sendJSONRPC(request) {
     catch (error) {
         // statusText field has error ("timeout" in this case)
         response = JSON.stringify(error, null, 2);
-        console.error(response);
-        liveprinterui.logerror(response);
+        const statusText = `JSON error response communicating with server:<br/>${response}<br/>Orig:${request}`; 
+        console.error(statusText);
+        liveprinterui.logerror(statusText);
     }
     if (undefined !== response.error) {
-        liveprinterui.logerror(response);
+        liveprinterui.logerror(`JSON error response communicating with server:<br/>${JSON.stringify(response.error, null, 2)}<br/>Orig:${request}`);
     }
 
     if (vars.logAjax) liveprinterui.commandsHandler.log(`RECEIVED ${reqId}::${request}`);

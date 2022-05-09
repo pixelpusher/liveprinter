@@ -176,6 +176,7 @@ async function runCode(editor, callback) {
             doError(err);
         }
     }
+    return true;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -234,19 +235,19 @@ const init = async function () {
         extraKeys: {
             "Ctrl-Enter":
                 async (cm) =>
-                     runCode(cm,
+                     await runCode(cm,
                         async (code) =>
-                             liveprinterUI.globalEval(recordCode(HistoryCodeEditor, code))
+                             await liveprinterUI.globalEval(recordCode(HistoryCodeEditor, code))
                     ),
             "Shift-Enter": async (cm) =>
-                 runCode(cm,
+                 await runCode(cm,
                     async (code) =>
-                         liveprinterUI.globalEval(recordCode(HistoryCodeEditor, code))
+                         await liveprinterUI.globalEval(recordCode(HistoryCodeEditor, code))
                 ),
             "Cmd-Enter": async (cm) =>
-                 runCode(cm,
+                 await runCode(cm,
                     async (code) =>
-                         liveprinterUI.globalEval(recordCode(HistoryCodeEditor, code))
+                        await liveprinterUI.globalEval(recordCode(HistoryCodeEditor, code))
                 ),
             "Ctrl-Space": "autocomplete",
             "Ctrl-Q": function (cm) { cm.foldCode(cm.getCursor()); },
@@ -298,9 +299,9 @@ const init = async function () {
         enterMode: "indent", // or "keep", "flat"
         //autocomplete: true,
         extraKeys: {
-            "Ctrl-Enter": async (cm) => await runCode(cm, globalEval), // handles aync
-            "Shift-Enter": async (cm) => await runCode(cm, globalEval),
-            "Cmd-Enter": async (cm) => await runCode(cm, globalEval),
+            "Ctrl-Enter": async (cm) => await runCode(cm, liveprinterUI.globalEval), // handles aync
+            "Shift-Enter": async (cm) => await runCode(cm, liveprinterUI.globalEval),
+            "Cmd-Enter": async (cm) => await runCode(cm, liveprinterUI.globalEval),
             "Ctrl-Space": "autocomplete",
             "Ctrl-Q": function (cm) { cm.foldCode(cm.getCursor()); },
             "Ctrl-\\": clearEditor
@@ -329,20 +330,20 @@ const init = async function () {
         extraKeys: {
             "Ctrl-Enter":
                 async (cm) => await runCode(cm,
-                    async (gcode) => await liveprinterUI.scheduleGCode(
+                    async (gcode) => liveprinterUI.scheduleGCode(
                         recordGCode(cm, cleanGCode(gcode))
                     )
                 ), // handles aync
             "Shift-Enter":
                 async (cm) => await runCode(cm,
-                    async (gcode) => await liveprinterUI.scheduleGCode(
+                    async (gcode) => liveprinterUI.scheduleGCode(
                         recordGCode(cm, cleanGCode(gcode))
                     )
                 ), // handles aync
 
             "Cmd-Enter":
                 async (cm) => await runCode(cm,
-                    async (gcode) => await liveprinterUI.scheduleGCode(
+                    async (gcode) => liveprinterUI.scheduleGCode(
                         recordGCode(cm, cleanGCode(gcode))
                     )
                 ), // handles aync

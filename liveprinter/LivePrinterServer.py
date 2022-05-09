@@ -137,36 +137,33 @@ async def list_ports():
 
 
 def use_dummy_serial_port(printer:SerialDevice):
-    if printer._serial_port != "/dev/null" and printer._serial is None:
+    # FIXME
+    # not great, should be async!!!
 
-        # FIXME
-        # not great, should be async!!!
+    def delayed_string(result:Union[str,bytes]):
+        # print ("delayed string {}".format(time.time()))
+        time.sleep(random.uniform(0.05,0.5))
+        # print ("delayed string {}".format(time.time()))
+        return result
 
-        def delayed_string(result:Union[str,bytes]):
-            # print ("delayed string {}".format(time.time()))
-            time.sleep(random.uniform(0.05,0.5))
-            # print ("delayed string {}".format(time.time()))
-            return result
-
-        printer._serial_port = "/dev/null"
-        printer._serial = dummyserial.Serial(port= printer._serial_port,
-            baudrate= printer._baud_rate,
-            ds_responses={
-                'N?[0-9]*(M105).*': lambda : b'ok T:%.2f /190.0 B:%.2f /24.0 @:0 B@:0\nok\n' % (random.uniform(170,195),random.uniform(20,35)),
-                'N?[0-9]*M115.*': b'FIRMWARE_NAME:DUMMY\nok\n',
-                'N?[0-9]*M114.*': lambda : b'X:%.2fY:%.2fZ:%.2fE:%.2f Count X: 2.00Y:3.00Z:4.00\nok\n' % (random.uniform(0,200), random.uniform(0,200), random.uniform(0,200), random.uniform(0,200)),   # position request
-                'N?[0-9]*G.*': lambda : delayed_string(b'ok\n'),
-                'N?[0-9]*M400.*': lambda : delayed_string(b'ok\nok\n'),
-                'N?[0-9]*M207.*': lambda : delayed_string(b'ok\nok\n'),
-                'N?[0-9]*M208.*': lambda : delayed_string(b'ok\nok\n'),
-                'N?[0-9]*M10[0-46-9].*': lambda : delayed_string(b'ok\nok\n'),
-                "N?[0-9]*(M[0-9]+).*" : lambda : delayed_string(b'ok\nok\n'), # catch all M codes
-                '^XXX': b'!!\n',
-                })
-        if not printer._serial.is_open:
-            printer._serial.open()
+    printer._serial_port = "/dev/null"
+    printer._serial = dummyserial.Serial(port=printer._serial_port,
+        baudrate=printer._baud_rate,
+        ds_responses={
+            'N?[0-9]*(M105).*': lambda : b'ok T:%.2f /190.0 B:%.2f /24.0 @:0 B@:0\nok\n' % (random.uniform(170,195),random.uniform(20,35)),
+            'N?[0-9]*M115.*': b'FIRMWARE_NAME:DUMMY\nok\n',
+            'N?[0-9]*M114.*': lambda : b'X:%.2fY:%.2fZ:%.2fE:%.2f Count X: 2.00Y:3.00Z:4.00\nok\n' % (random.uniform(0,200), random.uniform(0,200), random.uniform(0,200), random.uniform(0,200)),   # position request
+            'N?[0-9]*G.*': lambda : delayed_string(b'ok\n'),
+            'N?[0-9]*M400.*': lambda : delayed_string(b'ok\nok\n'),
+            'N?[0-9]*M207.*': lambda : delayed_string(b'ok\nok\n'),
+            'N?[0-9]*M208.*': lambda : delayed_string(b'ok\nok\n'),
+            'N?[0-9]*M10[0-46-9].*': lambda : delayed_string(b'ok\nok\n'),
+            "N?[0-9]*(M[0-9]+).*" : lambda : delayed_string(b'ok\nok\n'), # catch all M codes
+            '^XXX': b'!!\n',
+            })
+    if not printer._serial.is_open:
+        printer._serial.open()
     printer.connection_state = ConnectionState.connected
-
 
     
 #
@@ -205,11 +202,13 @@ async def json_handle_line_number(printer, *args):
 # set the serial port of the printer and connect.
 # return the port name if successful, otherwise "error" as the port
 #
-async def json_handle_set_serial_port(printer, *args):  
+async def json_handle_set_serial_port(printer:SerialDevice, *args):  
     response = ""
+    received = ""  
+    logger.debug("json_handle_set_serial_port args:")
     for i in args:
         logger.debug("{}".format(i))
-    port = args[0]
+    port = args[0].lower()
     baud_rate = int(args[1])
     if baud_rate < 1: 
         baud_rate = options.baud_rate
@@ -218,37 +217,34 @@ async def json_handle_set_serial_port(printer, *args):
 
     printer._baud_rate = baud_rate
 
-    if port.lower().startswith("dummy"):
-        if (printer.connection_state is ConnectionState.connected):
-            printer.connection_state = ConnectionState.closed
-            printer._serial.close()
-        
-        logger.debug("setting dummy serial port: {}".format(port))
+    if (printer.connection_state is ConnectionState.connected):
+        await printer.disconnect()
 
-        printer._baud_rate = baud_rate
+    if port.startswith("dummy"):
+        logger.debug("[SERVER] setting dummy serial port: {}".format(port))
         use_dummy_serial_port(printer)
     else:
         # TODO: check if printer serial ports are different!!
-        if (printer.connection_state is ConnectionState.connected):
-            await printer.disconnect()
-        
+       
         printer._serial_port = port
         printer._baud_rate = baud_rate
 
-    try:
-        received = await printer.async_connect()
+        try:
+            received = await printer.async_connect()
 
-    except SerialException as se:
-        logger.error(str(se))
-        response = ["ERROR: could not connect to serial port {}".format(port)]
-        logger.error(response[0])
-        # raise Exception(response)
-    else:
-        response = [{
-                'time': time.time() * 1000,
-                'port': [port, baud_rate],
-                'messages': received
-                }]
+        except SerialException as se:
+            logger.error(str(se))
+            response = ["ERROR: could not connect to serial port {}".format(port)]
+            logger.error(response[0])
+            return response
+
+            # raise Exception(response)
+        # else:
+    response = [{
+            'time': time.time() * 1000,
+            'port': [port, baud_rate],
+            'messages': received
+            }]
     return response
 
 #
@@ -262,6 +258,8 @@ async def json_handle_close_serial(printer, *args):
             printer._serial.close()
             printer.connection_state = ConnectionState.closed
             response = printer.connection_state.name
+            logger.debug("closed serial port: {}".format(printer._serial_port))
+
         else:
             result = await printer.disconnect() # connection_state
             response = result.name

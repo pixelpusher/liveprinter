@@ -10,21 +10,8 @@
     <div class="lines"></div>
     <div class="container" id="body">
         <div class="row">
-            <div class="col-md-12">
-                <div class="container box">
-                    <div class="row">
-                        <div class="col-md-12">
-                            <h1>LivePrinter v.01</h1>
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-3"><a href="http://github.com/pixelpusher/liveprinter"><em>http://github.com/pixelpusher/liveprinter</em></a></div>
+                        <div class="col-md-3"><a href="http://github.com/pixelpusher/liveprinter"><em>LivePrinter v.01</em></a></div>
                         <div class="col-md-9" id="header"></div>
-                    </div>
-                </div>
-                <div class="panel-l"></div>
-                <div class="panel-b-l"></div>
-            </div>
         </div>
         <div class="row">
             <div class="col-9 col-md-8" id="printer-editor-col">
@@ -73,7 +60,7 @@
                         <form>
                             <div class="row">
                                 <div class="col-md-2">
-                                    <div class="input-group input-group-sm mb-3">
+                                    <div class="input-group input-group-sm mb-2">
                                         <div class="input-group-prepend">
                                             <span class="input-group-text" id="basic-addon-x">x</span>
                                         </div>
@@ -81,7 +68,7 @@
                                     </div>
                                 </div>
                                 <div class="col-md-2">
-                                    <div class="input-group input-group-sm mb-3">
+                                    <div class="input-group input-group-sm mb-2">
                                         <div class="input-group-prepend">
                                             <span class="input-group-text" id="basic-addon-y">y</span>
                                         </div>
@@ -89,7 +76,7 @@
                                     </div>
                                 </div>
                                 <div class="col-md-2">
-                                    <div class="input-group input-group-sm mb-3">
+                                    <div class="input-group input-group-sm mb-2">
                                         <div class="input-group-prepend">
                                             <span class="input-group-text" id="basic-addon-z">z</span>
                                         </div>
@@ -113,13 +100,14 @@
                                     </div>
                                 </div>
                                 <div class="col-md-2">
-                                    <div class="input-group input-group-sm mb-2">
+                                    <div class="input-group input-group-sm mb-3">
                                         <div class="input-group-prepend">
-                                            <span class="input-group-text" id="basic-addon-cq">q'd</span>
+                                            <button class="btn btn-secondary" id="basic-addon-angle" type="button">turn</button>
                                         </div>
-                                        <input name="cq" type="text" class="form-control form-control-sm" placeholder="0" aria-label="cq" aria-describedby="basic-addon-cq">
+                                        <input name="angle" type="text" class="form-control form-control-sm" placeholder="0.00" aria-label="angle" aria-describedby="basic-addon-angle">
                                     </div>
                                 </div>
+                                
                                 <!--<div class="col-md-2">
                                     <div class="input-group input-group-sm mb-2">
                                         <div class="input-group-prepend">
@@ -134,34 +122,6 @@
                                 <div class="col-md-3">
                                     <div class="input-group input-group-sm mb-3">
                                         <div class="input-group-prepend">
-                                            <button class="btn btn-secondary" id="basic-addon-retract" type="button">lp.retract</button>
-                                        </div>
-                                        <input name="retract" type="text" class="form-control form-control-sm" placeholder="0.00" aria-label="retract" aria-describedby="basic-addon-retract">
-                                    </div>
-                                </div>
-                                <div class="col-md-3">
-                                    <div class="input-group input-group-sm mb-3">
-                                        <div class="input-group-prepend">
-                                            <button class="btn btn-secondary" id="basic-addon-queued" type="button">queued</button>
-                                        </div>
-                                        <input name="queued" type="text" class="form-control form-control-sm" placeholder="0" aria-label="queued" aria-describedby="basic-addon-queued">
-                                    </div>
-                                </div>
-
-                                <div class="col-md-3">
-                                    <div class="input-group input-group-sm mb-3">
-                                        <div class="input-group-prepend">
-                                            <button class="btn btn-secondary" id="basic-addon-angle" type="button">lp.angle</button>
-                                        </div>
-                                        <input name="angle" type="text" class="form-control form-control-sm" placeholder="0.00" aria-label="angle" aria-describedby="basic-addon-angle">
-                                    </div>
-                                </div>
-
-                            </div>
-                            <div class="row" id="temperature">
-                                <div class="col-md-4">
-                                    <div class="input-group input-group-sm mb-3">
-                                        <div class="input-group-prepend">
                                             <button class="btn btn-secondary" id="basic-addon-temphot" type="button">head temp</button>
                                         </div>
                                         <input name="temphot" type="text" class="form-control form-control-sm" placeholder="0.00" aria-label="temphot" aria-describedby="basic-addon-temphot">
@@ -170,7 +130,7 @@
                                 <div class="col-md-2">
                                     <input type="text" name="temphot-target" readonly class="form-control form-control-sm" value="0.00">
                                 </div>
-                                <div class="col-md-4">
+                                <div class="col-md-3">
                                     <div class="input-group input-group-sm mb-3">
                                         <div class="input-group-prepend">
                                             <button class="btn btn-secondary" id="basic-addon-tempbed" type="button">bed temp</button>
@@ -181,7 +141,18 @@
                                 <div class="col-md-2">
                                     <input type="text" name="tempbed-target" readonly class="form-control form-control-sm" value="0.00">
                                 </div>
+                                
+                                <div class="col-md-2">
+                                    <div class="input-group input-group-sm mb-3">
+                                        <div class="input-group-prepend">
+                                            <button class="btn btn-secondary" id="basic-addon-retract" type="button">retract</button>
+                                        </div>
+                                        <input name="retract" type="text" class="form-control form-control-sm" placeholder="0.00" aria-label="retract" aria-describedby="basic-addon-retract">
+                                    </div>
+                                </div>
+                             
                             </div>
+                            
                         </form>
                     </div>
 

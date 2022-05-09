@@ -475,9 +475,9 @@ module.exports.commandsHandler = commandsHandler;
  * @memberOf LivePrinter
  */
 const moveHandler = (response) => {
-    $("input[name='speed']").val(printer.printSpeed); // set speed, maybe reset below
+    $("input[name='speed']").val(printer.printspeed().toFixed(4)); // set speed, maybe reset below
     // update GUI
-    $("input[name='retract']")[0].value = printer.currentRetraction;
+    $("input[name='retract']")[0].value = printer.currentRetraction.toFixed();
 
     return moveParser(response);
 };
@@ -495,10 +495,10 @@ const moveParser = (data) => {
     printer.z = parseFloat(result.payload.pos.z);
     printer.e = parseFloat(result.payload.pos.e);
 
-    $("input[name='x']").val(result.payload.pos.x);
-    $("input[name='y']").val(result.payload.pos.y);
-    $("input[name='z']").val(result.payload.pos.z);
-    $("input[name='e']").val(result.payload.pos.e);
+    $("input[name='x']").val(printer.x.toFixed(4));
+    $("input[name='y']").val(printer.y.toFixed(4));
+    $("input[name='z']").val(printer.z.toFixed(4));
+    $("input[name='e']").val(printer.e.toFixed(4));
     return true;
 };
 
@@ -694,13 +694,13 @@ module.exports.downloadFile = downloadFile;
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 function updateGUI() {
-    $("input[name='x']").val(printer.x);
-    $("input[name='y']").val(printer.y);
-    $("input[name='z']").val(printer.z);
-    $("input[name='e']").val(printer.e);
-    $("input[name='angle']").val(printer.angle);
-    $("input[name='speed']").val(printer.printSpeed);
-    $("input[name='retract']").val(printer.currentRetraction);
+    $("input[name='x']").val(printer.x.toFixed(4));
+    $("input[name='y']").val(printer.y.toFixed(4));
+    $("input[name='z']").val(printer.z.toFixed(4));
+    $("input[name='e']").val(printer.e.toFixed(4));
+    $("input[name='angle']").val(printer.angle.toFixed(4));
+    $("input[name='speed']").val(printer.printspeed().toFixed(4));
+    $("input[name='retract']").val(printer.currentRetraction.toFixed(4));
 }
 module.exports.updateGUI = updateGUI;
 window.updateGUI = updateGUI;  //cheat, for livecoding...
@@ -781,6 +781,12 @@ async function globalEval(code, line, globally = false) {
             // eval(code);
         }
         else {
+
+            // wrap in try/catch block and debugging code
+            code = 'try {\n' +
+            code + '\n' +
+            '} catch (e) { lastErrorMessage = null;e.lineNumber=' + line + ';console.log("async queue error:" + e);window.doError(e); return 1;}\n';
+             
             // wrap in async limiter/queue
             code =
                 'const result = await codeLimiter.schedule({ priority:1,weight:1,id:codeIndex,expiration:maxCodeWaitTime},async()=>{ ' +
@@ -792,7 +798,7 @@ async function globalEval(code, line, globally = false) {
                 "\nif (vars.logAjax) loginfo(`starting code ${codeIndex}`);\n" +
                 code + '\n' +
                 "if (vars.logAjax) loginfo(`finished with ${codeIndex}`);\n" +
-                '} catch (e) { lastErrorMessage = null;e.lineNumber=' + line + ';logger.log(e);window.doError(e); }';
+                '} catch (e) { lastErrorMessage = null;e.lineNumber=' + line + ';console.log("main:" + e);window.doError(e); throw(e);}';
 
             // prefix with locals to give quick access to liveprinter API
             code = "let stop = window.restartLimiter;" +
@@ -811,7 +817,7 @@ async function globalEval(code, line, globally = false) {
         script.async = true;
         script.onerror = doError;
         script.type = "text/javascript";
-        script.onerror = console.log;
+        //script.onerror = console.log;
         script.text = code;
 
         try {
@@ -823,7 +829,7 @@ async function globalEval(code, line, globally = false) {
             doError(e);
         }
     }
-    return;
+    return true;
 }
 // end globalEval
 

@@ -6,6 +6,7 @@
 #
 from tornado import gen
 from serial import Serial, SerialException, SerialTimeoutException
+# import dummyserial
 import time
 import re
 from typing import Union
@@ -50,14 +51,16 @@ class SerialDevice():
     async def async_connect(self):
         result = []
 
-        if self._serial_port == "/dev/null": # fake serial port
-            self.connection_state = ConnectionState.connected
-            result.append("FIRMWARE VERSION: DUMMY")
-            self.serial_logger.debug("DUMMY SERIAL OPEN")
+        # if self._serial_port == "/dev/null": # fake serial port
+        #     self._serial = dummyserial.Serial(str(self._serial_port), self._baud_rate, timeout=self._timeout, writeTimeout=self._timeout)
+        #     self.connection_state = ConnectionState.connected
+        #     result.append("FIRMWARE VERSION: DUMMY")
+        #     self.serial_logger.debug("[SerialDevice async connect] DUMMY SERIAL OPEN")
 
-            return result
-        else:
-            self.serial_logger.debug("self port: ::{}::".format(self._serial_port))
+        #     return result
+        # else:
+        
+        self.serial_logger.debug("self port: ::{}::".format(self._serial_port))
 
         self.commands_sent = 1 # reset on each connection
         try:
@@ -114,8 +117,9 @@ class SerialDevice():
         return result
 
     async def disconnect(self):
-        self._serial.close()
-        self.connection_state = ConnectionState.closed
+        if self.connection_state == ConnectionState.connected:
+            self._serial.close()
+            self.connection_state = ConnectionState.closed
         return self.connection_state
 
 

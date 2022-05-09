@@ -424,16 +424,16 @@ class Printer {
     async retract(len = this.retractLength, speed) {
         if (this.currentRetraction > 0) return; // don't retract twice!
 
-        if (len < 0) throw new Error("retract length can't be less than 0: " + len);
+        if (len < 0) throw new Error("[API] retract length can't be less than 0: " + len);
         let lengthUpdated = false;
         if (len !== this.retractLength) lengthUpdated = true;
         this.retractLength = len;
 
         let speedUpdated = false;
         if (speed !== undefined) {
-            if (speed <= 0) throw new Error("retract speed can't be 0 or less: " + speed);
+            if (speed <= 0) throw new Error("[API] retract speed can't be 0 or less: " + speed);
             // set speed safely!
-            if (speed > Printer.maxPrintSpeed["e"]) throw new Error("retract speed to high: " + speed);
+            if (speed > Printer.maxPrintSpeed["e"]) throw new Error("[API] retract speed to high: " + speed);
             speedUpdated = true;
             this._retractSpeed = speed * 60; // avoid calling next line twice
         }
@@ -467,7 +467,7 @@ class Printer {
             //loginfo('no unretract:' + len + '/' + this.currentRetraction);
             return; // don't unretract if we don't have to!
         }
-        if (len < 0) throw new Error("retract length can't be less than 0: " + len);
+        if (len < 0) throw new Error("[API] retract length can't be less than 0: " + len);
 
         let lengthUpdated = false;
         if (len !== this.retractLength) lengthUpdated = true;
@@ -475,9 +475,9 @@ class Printer {
 
         let speedUpdated = false;
         if (speed !== undefined) {
-            if (speed <= 0) throw new Error("retract speed can't be 0 or less: " + speed);
+            if (speed <= 0) throw new Error("[API] retract speed can't be 0 or less: " + speed);
             // set speed safely!
-            if (speed > Printer.maxPrintSpeed["e"]) throw new Error("retract speed too high: " + speed);
+            if (speed > Printer.maxPrintSpeed["e"]) throw new Error("[API] retract speed too high: " + speed);
             speedUpdated = true;
             this._retractSpeed = speed * 60;
         }
@@ -708,7 +708,7 @@ class Printer {
             //console.log(cmd);
             let matches = cmd.match(subCmdRegExp);
 
-            if (matches.length !== 3) throw new Error("Error in command string: " + found);
+            if (matches.length !== 3) throw new Error("[API] Error in command string: " + found);
 
             const cmdChar = matches[1].toUpperCase();
             const value = parseFloat(matches[2]);
@@ -731,7 +731,7 @@ class Printer {
                 case urtrChar: this.unretract(value);
                     break;
                 default:
-                    throw new Error("Error in command - unknown command char: " + cmdChar);
+                    throw new Error("[API] Error in command - unknown command char: " + cmdChar);
             }
         }
 
@@ -985,7 +985,7 @@ class Printer {
         const __e = (params.e !== undefined) ? parseFloat(params.e) : this.e;
 
         // did we specify a length of filament to extrude?
-        const extrusionNotZero = Math.abs(__e - this.e) > Number.EPSILON;
+        const extrusionNotZero = Math.abs(__e - this.e) > 0.001;
 
         // only extrude if there is something to extrude!
         const extruding = extrusionNotSpecified || extrusionNotZero; 
@@ -1067,7 +1067,7 @@ class Printer {
             // safety check:
             //
             if (filamentLength > this.maxFilamentPerOperation) {
-                throw Error("Too much filament in move:" + filamentLength);
+                throw Error("[API] Too much filament in move:" + filamentLength);
             }
             if (!Printer.extrusionInmm3[this._model]) {
                 filamentLength /= (filamentRadius * filamentRadius * Math.PI);
@@ -1081,7 +1081,7 @@ class Printer {
 
             // arbitrary smallest printable length
             if (filamentLength < this.minFilamentPerOperation) {
-                throw new Error("filament length too short: " + filamentLength);
+                throw new Error("[API] Filament length too short (same position?): " + filamentLength);
             } 
         }
         else {
@@ -1102,7 +1102,7 @@ class Printer {
         // BREAK AT LARGE MOVES
         //
         if (moveTime > this.maxTimePerOperation) {
-            throw new Error("move time too long:" + moveTime);
+            throw new Error("[API] move time too long:" + moveTime);
         }
 
         const nozzleSpeed = Vector.div(distanceVec, moveTime);
@@ -1111,27 +1111,27 @@ class Printer {
         //
         if (extruding) {
             if (nozzleSpeed.axes.x > Printer.maxPrintSpeed[this._model]["x"]) {
-                throw Error("X printing speed too fast:" + nozzleSpeed.axes.x);
+                throw Error("[API] X printing speed too fast:" + nozzleSpeed.axes.x);
             }
             if (nozzleSpeed.axes.y > Printer.maxPrintSpeed[this._model]["y"]) {
-                throw Error("Y printing speed too fast:" + nozzleSpeed.axes.y);
+                throw Error("[API] Y printing speed too fast:" + nozzleSpeed.axes.y);
             }
             if (nozzleSpeed.axes.z > Printer.maxPrintSpeed[this._model]["z"]) {
-                throw Error("Z printing speed too fast:" + nozzleSpeed.axes.z);
+                throw Error("[API] Z printing speed too fast:" + nozzleSpeed.axes.z);
             }
             if (nozzleSpeed.axes.e > Printer.maxPrintSpeed[this._model]["e"]) {
-                throw Error("E printing speed too fast:" + nozzleSpeed.axes.e + "/" + Printer.maxPrintSpeed[this._model]["e"]);
+                throw Error("[API] E printing speed too fast:" + nozzleSpeed.axes.e + "/" + Printer.maxPrintSpeed[this._model]["e"]);
             }
         } else {
             // just traveling
             if (nozzleSpeed.axes.x > Printer.maxTravelSpeed[this._model]["x"]) {
-                throw Error("X travel too fast:" + nozzleSpeed.axes.x);
+                throw Error("[API] X travel too fast:" + nozzleSpeed.axes.x);
             }
             if (nozzleSpeed.axes.y > Printer.maxTravelSpeed[this._model]["y"]) {
-                throw Error("Y travel too fast:" + nozzleSpeed.axes.y);
+                throw Error("[API] Y travel too fast:" + nozzleSpeed.axes.y);
             }
             if (nozzleSpeed.axes.z > Printer.maxTravelSpeed[this._model]["z"]) {
-                throw Error("Z travel too fast:" + nozzleSpeed.axes.z);
+                throw Error("[API] Z travel too fast:" + nozzleSpeed.axes.z);
             }
         }
         // Handle movements outside printer boundaries if there's a need.
@@ -1968,7 +1968,7 @@ class Printer {
     let __i = (params.i !== undefined) ? parseFloat(params.i) : 0;
     let __j = (params.j !== undefined) ? parseFloat(params.j) : 0;
 
-    if ((__i + __j) < 0.1) throw new ValueError("arcextrude needs both i and j specified!");
+    if ((__i + __j) < 0.1) throw new ValueError("[API] arcextrude needs both i and j specified!");
 
     // did we specify a length of filament to extrude?
     const extrusionNotZero = Math.abs(__e - this.e) > Number.EPSILON;
@@ -2053,7 +2053,7 @@ class Printer {
         // safety check:
         //
         if (filamentLength > this.maxFilamentPerOperation) {
-            throw Error("Too much filament in move:" + filamentLength);
+            throw Error("[API] Too much filament in move:" + filamentLength);
         }
         if (!Printer.extrusionInmm3[this._model]) {
             filamentLength /= (filamentRadius * filamentRadius * Math.PI);
@@ -2067,7 +2067,7 @@ class Printer {
 
         // arbitrary smallest printable length
         if (filamentLength < this.minFilamentPerOperation) {
-            throw new Error("filament length too short: " + filamentLength);
+            throw new Error("[API] filament length too short: " + filamentLength);
         } 
     }
     else {
@@ -2088,7 +2088,7 @@ class Printer {
     // BREAK AT LARGE MOVES
     //
     if (moveTime > this.maxTimePerOperation) {
-        throw new Error("move time too long:" + moveTime);
+        throw new Error("[API] move time too long:" + moveTime);
     }
 
     const nozzleSpeed = Vector.div(distanceVec, moveTime);
@@ -2097,27 +2097,27 @@ class Printer {
     //
     if (extruding) {
         if (nozzleSpeed.axes.x > Printer.maxPrintSpeed[this._model]["x"]) {
-            throw Error("X printing speed too fast:" + nozzleSpeed.axes.x);
+            throw Error("[API] X printing speed too fast:" + nozzleSpeed.axes.x);
         }
         if (nozzleSpeed.axes.y > Printer.maxPrintSpeed[this._model]["y"]) {
-            throw Error("Y printing speed too fast:" + nozzleSpeed.axes.y);
+            throw Error("[API] Y printing speed too fast:" + nozzleSpeed.axes.y);
         }
         if (nozzleSpeed.axes.z > Printer.maxPrintSpeed[this._model]["z"]) {
-            throw Error("Z printing speed too fast:" + nozzleSpeed.axes.z);
+            throw Error("[API] Z printing speed too fast:" + nozzleSpeed.axes.z);
         }
         if (nozzleSpeed.axes.e > Printer.maxPrintSpeed[this._model]["e"]) {
-            throw Error("E printing speed too fast:" + nozzleSpeed.axes.e + "/" + Printer.maxPrintSpeed[this._model]["e"]);
+            throw Error("[API] E printing speed too fast:" + nozzleSpeed.axes.e + "/" + Printer.maxPrintSpeed[this._model]["e"]);
         }
     } else {
         // just traveling
         if (nozzleSpeed.axes.x > Printer.maxTravelSpeed[this._model]["x"]) {
-            throw Error("X travel too fast:" + nozzleSpeed.axes.x);
+            throw Error("[API] X travel too fast:" + nozzleSpeed.axes.x);
         }
         if (nozzleSpeed.axes.y > Printer.maxTravelSpeed[this._model]["y"]) {
-            throw Error("Y travel too fast:" + nozzleSpeed.axes.y);
+            throw Error("[API] Y travel too fast:" + nozzleSpeed.axes.y);
         }
         if (nozzleSpeed.axes.z > Printer.maxTravelSpeed[this._model]["z"]) {
-            throw Error("Z travel too fast:" + nozzleSpeed.axes.z);
+            throw Error("[API] Z travel too fast:" + nozzleSpeed.axes.z);
         }
     }
     // Handle movements outside printer boundaries if there's a need.
