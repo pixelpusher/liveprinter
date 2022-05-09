@@ -5,6 +5,7 @@
 const $ = require('jquery');
 
 const liveprinterUI = require('./liveprinter.ui');
+const liveprintercomms = require('./liveprinter.comms');
 
 import { cleanGCode, } from 'liveprinter-utils';
 
@@ -251,7 +252,7 @@ const init = async function () {
                 ),
             "Ctrl-Space": "autocomplete",
             "Ctrl-Q": function (cm) { cm.foldCode(cm.getCursor()); },
-            "Ctrl-\\": clearEditor,
+            //"Ctrl-\\": clearEditor,
         },
         foldGutter: true,
         autoCloseBrackets: true,
@@ -299,12 +300,25 @@ const init = async function () {
         enterMode: "indent", // or "keep", "flat"
         //autocomplete: true,
         extraKeys: {
-            "Ctrl-Enter": async (cm) => await runCode(cm, liveprinterUI.globalEval), // handles aync
-            "Shift-Enter": async (cm) => await runCode(cm, liveprinterUI.globalEval),
-            "Cmd-Enter": async (cm) => await runCode(cm, liveprinterUI.globalEval),
+            "Ctrl-Enter":
+                async (cm) =>
+                     await runCode(cm,
+                        async (code) =>
+                             await liveprinterUI.globalEval(recordCode(HistoryCodeEditor, code))
+                    ),
+            "Shift-Enter": async (cm) =>
+                 await runCode(cm,
+                    async (code) =>
+                         await liveprinterUI.globalEval(recordCode(HistoryCodeEditor, code))
+                ),
+            "Cmd-Enter": async (cm) =>
+                 await runCode(cm,
+                    async (code) =>
+                        await liveprinterUI.globalEval(recordCode(HistoryCodeEditor, code))
+                ),
             "Ctrl-Space": "autocomplete",
             "Ctrl-Q": function (cm) { cm.foldCode(cm.getCursor()); },
-            "Ctrl-\\": clearEditor
+            //"Ctrl-\\": clearEditor
         },
         foldGutter: true,
         autoCloseBrackets: true,
@@ -330,20 +344,20 @@ const init = async function () {
         extraKeys: {
             "Ctrl-Enter":
                 async (cm) => await runCode(cm,
-                    async (gcode) => liveprinterUI.scheduleGCode(
+                    async (gcode) => await liveprintercomms.scheduleGCode(
                         recordGCode(cm, cleanGCode(gcode))
                     )
                 ), // handles aync
             "Shift-Enter":
                 async (cm) => await runCode(cm,
-                    async (gcode) => liveprinterUI.scheduleGCode(
+                    async (gcode) => await liveprintercomms.scheduleGCode(
                         recordGCode(cm, cleanGCode(gcode))
                     )
                 ), // handles aync
 
             "Cmd-Enter":
                 async (cm) => await runCode(cm,
-                    async (gcode) => liveprinterUI.scheduleGCode(
+                    async (gcode) => await liveprintercomms.scheduleGCode(
                         recordGCode(cm, cleanGCode(gcode))
                     )
                 ), // handles aync
@@ -357,11 +371,6 @@ const init = async function () {
     GCodeEditor.storageKey = "storedGCodeEditor";
     GCodeEditor.saveStorageKey = "savedGCodeEditor";
     
-    // cheeky shortcut function...
-    // window.gcode = async (gc) => liveprinterUI.scheduleGCode(
-    //     recordGCode(GCodeEditor, cleanGCode(gc))
-    // );
-
     function clearEditor(cm, opts) {
         cm.off("changes");
         cm.swapDoc(

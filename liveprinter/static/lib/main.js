@@ -14616,6 +14616,7 @@ var _liveprinterUtils = require("liveprinter-utils");
  * Editor functions
  */ var $ = require('jquery');
 var liveprinterUI = require('./liveprinter.ui');
+var liveprintercomms = require('./liveprinter.comms');
 /// Code Mirror stuff
 var CodeMirror = require('codemirror');
 require('codemirror/mode/css/css');
@@ -14826,10 +14827,6 @@ var init = function() {
         return _regeneratorRuntimeDefault.default.wrap(function _callee$(_ctx1) {
             while(1)switch(_ctx1.prev = _ctx1.next){
                 case 0:
-                    // cheeky shortcut function...
-                    // window.gcode = async (gc) => liveprinterUI.scheduleGCode(
-                    //     recordGCode(GCodeEditor, cleanGCode(gc))
-                    // );
                     clearEditor = function _clearEditor(cm, opts) {
                         cm.off("changes");
                         cm.swapDoc(CodeMirror.Doc("// Type some code here.  Hit CTRL-\\ to clear \n\n\n\n"));
@@ -15035,8 +15032,7 @@ var init = function() {
                             "Ctrl-Space": "autocomplete",
                             "Ctrl-Q": function(cm) {
                                 cm.foldCode(cm.getCursor());
-                            },
-                            "Ctrl-\\": clearEditor
+                            }
                         },
                         foldGutter: true,
                         autoCloseBrackets: true,
@@ -15063,107 +15059,27 @@ var init = function() {
                         //autocomplete: true,
                         extraKeys: {
                             "Ctrl-Enter": function() {
-                                var _ref = _helpers.asyncToGenerator(_regeneratorRuntimeDefault.default.mark(function _callee(cm) {
-                                    return _regeneratorRuntimeDefault.default.wrap(function _callee$(_ctx) {
-                                        while(1)switch(_ctx.prev = _ctx.next){
-                                            case 0:
-                                                _ctx.next = 2;
-                                                return runCode(cm, liveprinterUI.globalEval);
-                                            case 2:
-                                                return _ctx.abrupt("return", _ctx.sent);
-                                            case 3:
-                                            case "end":
-                                                return _ctx.stop();
-                                        }
-                                    }, _callee);
-                                }));
-                                return function(cm) {
-                                    return _ref.apply(this, arguments);
-                                };
-                            }(),
-                            "Shift-Enter": function() {
-                                var _ref = _helpers.asyncToGenerator(_regeneratorRuntimeDefault.default.mark(function _callee(cm) {
-                                    return _regeneratorRuntimeDefault.default.wrap(function _callee$(_ctx) {
-                                        while(1)switch(_ctx.prev = _ctx.next){
-                                            case 0:
-                                                _ctx.next = 2;
-                                                return runCode(cm, liveprinterUI.globalEval);
-                                            case 2:
-                                                return _ctx.abrupt("return", _ctx.sent);
-                                            case 3:
-                                            case "end":
-                                                return _ctx.stop();
-                                        }
-                                    }, _callee);
-                                }));
-                                return function(cm) {
-                                    return _ref.apply(this, arguments);
-                                };
-                            }(),
-                            "Cmd-Enter": function() {
-                                var _ref = _helpers.asyncToGenerator(_regeneratorRuntimeDefault.default.mark(function _callee(cm) {
-                                    return _regeneratorRuntimeDefault.default.wrap(function _callee$(_ctx) {
-                                        while(1)switch(_ctx.prev = _ctx.next){
-                                            case 0:
-                                                _ctx.next = 2;
-                                                return runCode(cm, liveprinterUI.globalEval);
-                                            case 2:
-                                                return _ctx.abrupt("return", _ctx.sent);
-                                            case 3:
-                                            case "end":
-                                                return _ctx.stop();
-                                        }
-                                    }, _callee);
-                                }));
-                                return function(cm) {
-                                    return _ref.apply(this, arguments);
-                                };
-                            }(),
-                            "Ctrl-Space": "autocomplete",
-                            "Ctrl-Q": function(cm) {
-                                cm.foldCode(cm.getCursor());
-                            },
-                            "Ctrl-\\": clearEditor
-                        },
-                        foldGutter: true,
-                        autoCloseBrackets: true,
-                        gutters: [
-                            "CodeMirror-lint-markers",
-                            "CodeMirror-linenumbers",
-                            "CodeMirror-foldgutter"
-                        ],
-                        mode: "lp",
-                        theme: "abcdef"
-                    });
-                    HistoryCodeEditor.storageKey = "storedHistoryCodeEditor";
-                    HistoryCodeEditor.saveStorageKey = "savedHistoryCodeEditor";
-                    GCodeEditor = CodeMirror.fromTextArea(document.getElementById("gcode-editor"), {
-                        lineNumbers: true,
-                        scrollbarStyle: "simple",
-                        styleActiveLine: true,
-                        lineWrapping: true,
-                        undoDepth: 20,
-                        //autocomplete: true,
-                        extraKeys: {
-                            "Ctrl-Enter": function() {
                                 var _ref5 = _helpers.asyncToGenerator(_regeneratorRuntimeDefault.default.mark(function _callee5(cm) {
                                     return _regeneratorRuntimeDefault.default.wrap(function _callee$(_ctx5) {
                                         while(1)switch(_ctx5.prev = _ctx5.next){
                                             case 0:
                                                 _ctx5.next = 2;
                                                 return runCode(cm, function() {
-                                                    var _ref = _helpers.asyncToGenerator(_regeneratorRuntimeDefault.default.mark(function _callee(gcode) {
+                                                    var _ref = _helpers.asyncToGenerator(_regeneratorRuntimeDefault.default.mark(function _callee(code) {
                                                         return _regeneratorRuntimeDefault.default.wrap(function _callee$(_ctx) {
                                                             while(1)switch(_ctx.prev = _ctx.next){
                                                                 case 0:
-                                                                    return _ctx.abrupt("return", liveprinterUI.scheduleGCode(recordGCode(cm, _liveprinterUtils.cleanGCode(gcode))));
-                                                                case 1:
+                                                                    _ctx.next = 2;
+                                                                    return liveprinterUI.globalEval(recordCode(HistoryCodeEditor, code));
+                                                                case 2:
+                                                                    return _ctx.abrupt("return", _ctx.sent);
+                                                                case 3:
                                                                 case "end":
                                                                     return _ctx.stop();
                                                             }
                                                         }, _callee);
                                                     }));
-                                                    return function(gcode) {
+                                                    return function(code) {
                                                         return _ref.apply(this, arguments);
                                                     };
                                                 }());
@@ -15186,18 +15102,21 @@ var init = function() {
                                             case 0:
                                                 _ctx6.next = 2;
                                                 return runCode(cm, function() {
-                                                    var _ref = _helpers.asyncToGenerator(_regeneratorRuntimeDefault.default.mark(function _callee(gcode) {
+                                                    var _ref = _helpers.asyncToGenerator(_regeneratorRuntimeDefault.default.mark(function _callee(code) {
                                                         return _regeneratorRuntimeDefault.default.wrap(function _callee$(_ctx) {
                                                             while(1)switch(_ctx.prev = _ctx.next){
                                                                 case 0:
-                                                                    return _ctx.abrupt("return", liveprinterUI.scheduleGCode(recordGCode(cm, _liveprinterUtils.cleanGCode(gcode))));
-                                                                case 1:
+                                                                    _ctx.next = 2;
+                                                                    return liveprinterUI.globalEval(recordCode(HistoryCodeEditor, code));
+                                                                case 2:
+                                                                    return _ctx.abrupt("return", _ctx.sent);
+                                                                case 3:
                                                                 case "end":
                                                                     return _ctx.stop();
                                                             }
                                                         }, _callee);
                                                     }));
-                                                    return function(gcode) {
+                                                    return function(code) {
                                                         return _ref.apply(this, arguments);
                                                     };
                                                 }());
@@ -15220,18 +15139,21 @@ var init = function() {
                                             case 0:
                                                 _ctx7.next = 2;
                                                 return runCode(cm, function() {
-                                                    var _ref = _helpers.asyncToGenerator(_regeneratorRuntimeDefault.default.mark(function _callee(gcode) {
+                                                    var _ref = _helpers.asyncToGenerator(_regeneratorRuntimeDefault.default.mark(function _callee(code) {
                                                         return _regeneratorRuntimeDefault.default.wrap(function _callee$(_ctx) {
                                                             while(1)switch(_ctx.prev = _ctx.next){
                                                                 case 0:
-                                                                    return _ctx.abrupt("return", liveprinterUI.scheduleGCode(recordGCode(cm, _liveprinterUtils.cleanGCode(gcode))));
-                                                                case 1:
+                                                                    _ctx.next = 2;
+                                                                    return liveprinterUI.globalEval(recordCode(HistoryCodeEditor, code));
+                                                                case 2:
+                                                                    return _ctx.abrupt("return", _ctx.sent);
+                                                                case 3:
                                                                 case "end":
                                                                     return _ctx.stop();
                                                             }
                                                         }, _callee);
                                                     }));
-                                                    return function(gcode) {
+                                                    return function(code) {
                                                         return _ref.apply(this, arguments);
                                                     };
                                                 }());
@@ -15245,6 +15167,142 @@ var init = function() {
                                 }));
                                 return function(cm) {
                                     return _ref7.apply(this, arguments);
+                                };
+                            }(),
+                            "Ctrl-Space": "autocomplete",
+                            "Ctrl-Q": function(cm) {
+                                cm.foldCode(cm.getCursor());
+                            }
+                        },
+                        foldGutter: true,
+                        autoCloseBrackets: true,
+                        gutters: [
+                            "CodeMirror-lint-markers",
+                            "CodeMirror-linenumbers",
+                            "CodeMirror-foldgutter"
+                        ],
+                        mode: "lp",
+                        theme: "abcdef"
+                    });
+                    HistoryCodeEditor.storageKey = "storedHistoryCodeEditor";
+                    HistoryCodeEditor.saveStorageKey = "savedHistoryCodeEditor";
+                    GCodeEditor = CodeMirror.fromTextArea(document.getElementById("gcode-editor"), {
+                        lineNumbers: true,
+                        scrollbarStyle: "simple",
+                        styleActiveLine: true,
+                        lineWrapping: true,
+                        undoDepth: 20,
+                        //autocomplete: true,
+                        extraKeys: {
+                            "Ctrl-Enter": function() {
+                                var _ref8 = _helpers.asyncToGenerator(_regeneratorRuntimeDefault.default.mark(function _callee8(cm) {
+                                    return _regeneratorRuntimeDefault.default.wrap(function _callee$(_ctx8) {
+                                        while(1)switch(_ctx8.prev = _ctx8.next){
+                                            case 0:
+                                                _ctx8.next = 2;
+                                                return runCode(cm, function() {
+                                                    var _ref = _helpers.asyncToGenerator(_regeneratorRuntimeDefault.default.mark(function _callee(gcode) {
+                                                        return _regeneratorRuntimeDefault.default.wrap(function _callee$(_ctx) {
+                                                            while(1)switch(_ctx.prev = _ctx.next){
+                                                                case 0:
+                                                                    _ctx.next = 2;
+                                                                    return liveprintercomms.scheduleGCode(recordGCode(cm, _liveprinterUtils.cleanGCode(gcode)));
+                                                                case 2:
+                                                                    return _ctx.abrupt("return", _ctx.sent);
+                                                                case 3:
+                                                                case "end":
+                                                                    return _ctx.stop();
+                                                            }
+                                                        }, _callee);
+                                                    }));
+                                                    return function(gcode) {
+                                                        return _ref.apply(this, arguments);
+                                                    };
+                                                }());
+                                            case 2:
+                                                return _ctx8.abrupt("return", _ctx8.sent);
+                                            case 3:
+                                            case "end":
+                                                return _ctx8.stop();
+                                        }
+                                    }, _callee8);
+                                }));
+                                return function(cm) {
+                                    return _ref8.apply(this, arguments);
+                                };
+                            }(),
+                            "Shift-Enter": function() {
+                                var _ref9 = _helpers.asyncToGenerator(_regeneratorRuntimeDefault.default.mark(function _callee9(cm) {
+                                    return _regeneratorRuntimeDefault.default.wrap(function _callee$(_ctx9) {
+                                        while(1)switch(_ctx9.prev = _ctx9.next){
+                                            case 0:
+                                                _ctx9.next = 2;
+                                                return runCode(cm, function() {
+                                                    var _ref = _helpers.asyncToGenerator(_regeneratorRuntimeDefault.default.mark(function _callee(gcode) {
+                                                        return _regeneratorRuntimeDefault.default.wrap(function _callee$(_ctx) {
+                                                            while(1)switch(_ctx.prev = _ctx.next){
+                                                                case 0:
+                                                                    _ctx.next = 2;
+                                                                    return liveprintercomms.scheduleGCode(recordGCode(cm, _liveprinterUtils.cleanGCode(gcode)));
+                                                                case 2:
+                                                                    return _ctx.abrupt("return", _ctx.sent);
+                                                                case 3:
+                                                                case "end":
+                                                                    return _ctx.stop();
+                                                            }
+                                                        }, _callee);
+                                                    }));
+                                                    return function(gcode) {
+                                                        return _ref.apply(this, arguments);
+                                                    };
+                                                }());
+                                            case 2:
+                                                return _ctx9.abrupt("return", _ctx9.sent);
+                                            case 3:
+                                            case "end":
+                                                return _ctx9.stop();
+                                        }
+                                    }, _callee9);
+                                }));
+                                return function(cm) {
+                                    return _ref9.apply(this, arguments);
+                                };
+                            }(),
+                            "Cmd-Enter": function() {
+                                var _ref10 = _helpers.asyncToGenerator(_regeneratorRuntimeDefault.default.mark(function _callee10(cm) {
+                                    return _regeneratorRuntimeDefault.default.wrap(function _callee$(_ctx10) {
+                                        while(1)switch(_ctx10.prev = _ctx10.next){
+                                            case 0:
+                                                _ctx10.next = 2;
+                                                return runCode(cm, function() {
+                                                    var _ref = _helpers.asyncToGenerator(_regeneratorRuntimeDefault.default.mark(function _callee(gcode) {
+                                                        return _regeneratorRuntimeDefault.default.wrap(function _callee$(_ctx) {
+                                                            while(1)switch(_ctx.prev = _ctx.next){
+                                                                case 0:
+                                                                    _ctx.next = 2;
+                                                                    return liveprintercomms.scheduleGCode(recordGCode(cm, _liveprinterUtils.cleanGCode(gcode)));
+                                                                case 2:
+                                                                    return _ctx.abrupt("return", _ctx.sent);
+                                                                case 3:
+                                                                case "end":
+                                                                    return _ctx.stop();
+                                                            }
+                                                        }, _callee);
+                                                    }));
+                                                    return function(gcode) {
+                                                        return _ref.apply(this, arguments);
+                                                    };
+                                                }());
+                                            case 2:
+                                                return _ctx10.abrupt("return", _ctx10.sent);
+                                            case 3:
+                                            case "end":
+                                                return _ctx10.stop();
+                                        }
+                                    }, _callee10);
+                                }));
+                                return function(cm) {
+                                    return _ref10.apply(this, arguments);
                                 };
                             }(),
                             "Ctrl-Space": "autocomplete",
@@ -15443,7 +15501,7 @@ var init = function() {
 }();
 module.exports.init = init;
 
-},{"@swc/helpers":"erO4s","regenerator-runtime":"12Ae8","liveprinter-utils":"5Ti02","jquery":"HtqFp","./liveprinter.ui":"lyO7f","codemirror":"kaahn","codemirror/mode/css/css":"2dwEk","codemirror/addon/lint/lint":"i2Gcj","codemirror/addon/lint/css-lint":"fp39Z","jshint":"cNQnX","codemirror/mode/javascript/javascript":"5w2x5","codemirror/addon/lint/javascript-lint":"4sVoM","codemirror/addon/lint/json-lint":"5nyJh","codemirror/addon/hint/show-hint":"7ab7z","codemirror/addon/hint/javascript-hint":"4PAuv","codemirror/addon/mode/overlay":"aGqw9","codemirror/addon/scroll/simplescrollbars":"9UgUd","codemirror/addon/selection/active-line":"e0t95","codemirror/addon/edit/closebrackets":"ipy8E","codemirror/addon/edit/matchbrackets":"g7rED","codemirror/addon/fold/foldgutter":"888ft","codemirror/addon/fold/indent-fold":"78Pec","codemirror/addon/fold/comment-fold":"7hHws","codemirror/addon/fold/brace-fold":"5YBaV","codemirror/addon/dialog/dialog":"65QZh","codemirror/addon/search/searchcursor":"1LrD6","./language/lpmode":"J8sgG","@parcel/transformer-js/src/esmodule-helpers.js":"5oERU"}],"lyO7f":[function(require,module,exports) {
+},{"@swc/helpers":"erO4s","regenerator-runtime":"12Ae8","liveprinter-utils":"5Ti02","jquery":"HtqFp","./liveprinter.ui":"lyO7f","codemirror":"kaahn","codemirror/mode/css/css":"2dwEk","codemirror/addon/lint/lint":"i2Gcj","codemirror/addon/lint/css-lint":"fp39Z","jshint":"cNQnX","codemirror/mode/javascript/javascript":"5w2x5","codemirror/addon/lint/javascript-lint":"4sVoM","codemirror/addon/lint/json-lint":"5nyJh","codemirror/addon/hint/show-hint":"7ab7z","codemirror/addon/hint/javascript-hint":"4PAuv","codemirror/addon/mode/overlay":"aGqw9","codemirror/addon/scroll/simplescrollbars":"9UgUd","codemirror/addon/selection/active-line":"e0t95","codemirror/addon/edit/closebrackets":"ipy8E","codemirror/addon/edit/matchbrackets":"g7rED","codemirror/addon/fold/foldgutter":"888ft","codemirror/addon/fold/indent-fold":"78Pec","codemirror/addon/fold/comment-fold":"7hHws","codemirror/addon/fold/brace-fold":"5YBaV","codemirror/addon/dialog/dialog":"65QZh","codemirror/addon/search/searchcursor":"1LrD6","./language/lpmode":"J8sgG","@parcel/transformer-js/src/esmodule-helpers.js":"5oERU","./liveprinter.comms":"6Yn3N"}],"lyO7f":[function(require,module,exports) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 var _helpers = require("@swc/helpers");
 var _regeneratorRuntime = require("regenerator-runtime");
