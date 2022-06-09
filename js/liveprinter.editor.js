@@ -9,6 +9,8 @@ const liveprintercomms = require('./liveprinter.comms');
 
 import { cleanGCode, } from 'liveprinter-utils';
 
+const compile = require('./language/compile'); // minigrammar compile function
+
 /// Code Mirror stuff
 const CodeMirror = require('codemirror');
 require('codemirror/mode/css/css');
@@ -43,6 +45,8 @@ require('./language/lpmode');
 
 //console.log('codemirror loaded');
 
+// other code libraries:
+import { lp_FunctionMap as functionMap} from "grammardraw/modules/functionmaps.jsx";
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -154,10 +158,11 @@ async function runCode(editor, callback) {
 
         let code = editor.getSelection();
         const cursor = editor.getCursor();
+        let line = cursor.line;
 
         if (!code) {
             // info level
-            //Logger.log("no selections");
+            //liveprinterUI.logger.log("no selections");
             code = editor.getLine(cursor.line);
             editor.setSelection({ line: cursor.line, ch: 0 }, { line: cursor.line, ch: code.length });
         }
@@ -168,8 +173,7 @@ async function runCode(editor, callback) {
         try {
             if (window.codeLine === undefined) window.codeLine = 0;
             window.codeLine++; // increment times we've run code
-            await callback(code);
-            //await globalEval(code, cursor.line + 1);
+            await callback(code, line); // probably globalEval
         }
         catch (err) {
             err.message = "runCode:" + err.message;
@@ -179,6 +183,112 @@ async function runCode(editor, callback) {
     }
     return true;
 }
+
+
+let codeIndex = 0;
+
+/**
+  * Evaluate the code in local (within closure) or global space according to the current editor mode (javascript/python).
+  * @param {string} code to evaluate
+  * @param {integer} line line number for error displaying
+  * @param {Boolean} globally true if executing in global space, false (normal) if executing within closure to minimise side-effects
+  * @memberOf LivePrinter
+  */
+ async function globalEval(code, line, globally = false) {
+    liveprinterUI.clearError();
+
+    const commentRegex = /\/\*[\s\S]*?\*\/|([^\\:]|^)\/\/.*$/gm; // https://stackoverflow.com/questions/5989315/regex-for-match-replacing-javascript-comments-both-multiline-and-inline/15123777#15123777
+
+    code = code.replace(commentRegex, (match, p1) => {
+        return p1;
+    });
+
+    // replace globals in js
+    code = code.replace(/^[ ]*global[ ]+/gm, "window.");
+
+    liveprinterUI.logger.debug("code before pre-processing-------------------------------");
+    liveprinterUI.logger.debug(code);
+    liveprinterUI.logger.debug("========================= -------------------------------");
+
+    //
+    // compile in minigrammar
+    //
+    try {
+        code = compile(code);
+    }
+    catch (err)
+    {
+        liveprinterUI.logger.error("Compilation error:");
+        liveprinterUI.doError(err);
+        return 1; // stop execution
+    }
+
+    if (code) {
+
+        if ($("#python-mode-btn").hasClass('active')) { // check python mode
+
+            code = "from browser import document as doc\nfrom browser import window as win\nlp = win.printer\n"
+                + code;
+
+            let script = document.createElement("script");
+            script.type = "text/python";
+            script.text = code;
+
+            // run and remove
+            let scriptsContainer = $("#python-scripts");
+            scriptsContainer.empty(); // remove old ones
+            scriptsContainer.append(script); // append new one
+
+            brython(); // re-run brython
+
+            //code = __BRYTHON__.py2js(code + "", "newcode", "newcode").to_js();
+            // liveprinterUI.logger.log(code);
+            // eval(code);
+        }
+        else {         
+
+            liveprinterUI.logger.debug(code);
+        }
+
+        //liveprinterUI.logger.log("adding code:" + code);
+        // const script = document.createElement("script");
+        // script.async = true;
+        // script.onerror = doError;
+        // script.type = "text/javascript";
+        // script.text = code;
+
+        //if (vars.logAjax) loginfo(`starting code ${codeIndex}`);
+        console.log(code);
+    
+        const func = async () => {
+
+            const innerFunc =  eval(`async()=>{await 1; ${code} return 1}`);
+            console.log(innerFunc);
+    
+            try 
+            {
+                await innerFunc();
+            }
+            catch(e) 
+            {
+                lastErrorMessage = null;
+                e.lineNumber=line;
+                console.log(`Code running error(${line}): ${e}`);
+                liveprinterUI.doError(e);  
+           }
+            return 1;
+        }
+
+        await liveprintercomms.scheduleFunction({ priority:1,weight:1,id:codeIndex++ }, func);
+
+        // wrap in try/catch block and debugging code
+    }
+    return true;
+}
+// end globalEval
+
+module.exports.globalEval = globalEval;
+
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////// Browser storage /////////////////////////////////////////////////////////
@@ -238,17 +348,17 @@ const init = async function () {
                 async (cm) =>
                      await runCode(cm,
                         async (code) =>
-                             await liveprinterUI.globalEval(recordCode(HistoryCodeEditor, code))
+                             await globalEval(recordCode(HistoryCodeEditor, code))
                     ),
             "Shift-Enter": async (cm) =>
                  await runCode(cm,
                     async (code) =>
-                         await liveprinterUI.globalEval(recordCode(HistoryCodeEditor, code))
+                         await globalEval(recordCode(HistoryCodeEditor, code))
                 ),
             "Cmd-Enter": async (cm) =>
                  await runCode(cm,
                     async (code) =>
-                        await liveprinterUI.globalEval(recordCode(HistoryCodeEditor, code))
+                        await globalEval(recordCode(HistoryCodeEditor, code))
                 ),
             "Ctrl-Space": "autocomplete",
             "Ctrl-Q": function (cm) { cm.foldCode(cm.getCursor()); },
@@ -304,17 +414,17 @@ const init = async function () {
                 async (cm) =>
                      await runCode(cm,
                         async (code) =>
-                             await liveprinterUI.globalEval(recordCode(HistoryCodeEditor, code))
+                             await globalEval(recordCode(HistoryCodeEditor, code))
                     ),
             "Shift-Enter": async (cm) =>
                  await runCode(cm,
                     async (code) =>
-                         await liveprinterUI.globalEval(recordCode(HistoryCodeEditor, code))
+                         await globalEval(recordCode(HistoryCodeEditor, code))
                 ),
             "Cmd-Enter": async (cm) =>
                  await runCode(cm,
                     async (code) =>
-                        await liveprinterUI.globalEval(recordCode(HistoryCodeEditor, code))
+                        await globalEval(recordCode(HistoryCodeEditor, code))
                 ),
             "Ctrl-Space": "autocomplete",
             "Ctrl-Q": function (cm) { cm.foldCode(cm.getCursor()); },

@@ -10,8 +10,6 @@ const editors = require('./liveprinter.editor'); // code editors and functions
 const liveprinterui = require('./liveprinter.ui'); // main ui
 const liveprintercomms = require('./liveprinter.comms'); // browser-to-server communications
 
-import { lp_FunctionMap as functionMap} from "grammardraw/modules/functionmaps.jsx";
-
 
 //console.log(scales.majPattern); // test
 

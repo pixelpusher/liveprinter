@@ -20,9 +20,9 @@ import { Logger } from 'liveprinter-utils';
 
 const logger = new Logger();
 
-import { MarlinLineParserResultPosition, MarlinLineParserResultTemperature } from './parsers/MarlinParsers.js';
+module.exports.logger = logger;
 
-const compile = require('./language/compile'); // minigrammar compile function
+import { MarlinLineParserResultPosition, MarlinLineParserResultTemperature } from './parsers/MarlinParsers.js';
 
 var $ = require('jquery');
 
@@ -52,7 +52,6 @@ module.exports.clearError = clearError;
  * @memberOf LivePrinter
  */
 function doError(e) {
-
     if (typeof e !== "object") {
         $("#modal-errors").prepend("<div class='alert alert-warning alert-dismissible fade show' role='alert'>"
             + "internal Error in doError(): bad error object:" + e
@@ -730,118 +729,6 @@ function blinkElem($elem, speed, callback) {
 }
 
 module.exports.blinkElem = blinkElem;
-
-/**
-  * Evaluate the code in local (within closure) or global space according to the current editor mode (javascript/python).
-  * @param {string} code to evaluate
-  * @param {integer} line line number for error displaying
-  * @param {Boolean} globally true if executing in global space, false (normal) if executing within closure to minimise side-effects
-  * @memberOf LivePrinter
-  */
-async function globalEval(code, line, globally = false) {
-    clearError();
-
-    const commentRegex = /\/\*[\s\S]*?\*\/|([^\\:]|^)\/\/.*$/gm; // https://stackoverflow.com/questions/5989315/regex-for-match-replacing-javascript-comments-both-multiline-and-inline/15123777#15123777
-
-    code = code.replace(commentRegex, (match, p1) => {
-        return p1;
-    });
-
-    // replace globals in js
-    code = code.replace(/^[ ]*global[ ]+/gm, "window.");
-
-    logger.debug("code before pre-processing-------------------------------");
-    logger.debug(code);
-    logger.debug("========================= -------------------------------");
-
-    //
-    // compile in minigrammar
-    //
-    try {
-        code = compile(code);
-    }
-    catch (err)
-    {
-        logger.error("Compilation error:");
-        doError(err);
-    }
-
-    if (code) {
-        if ($("#python-mode-btn").hasClass('active')) { // check python mode
-
-            code = "from browser import document as doc\nfrom browser import window as win\nlp = win.printer\n"
-                + code;
-
-            let script = document.createElement("script");
-            script.type = "text/python";
-            script.text = code;
-
-            // run and remove
-            let scriptsContainer = $("#python-scripts");
-            scriptsContainer.empty(); // remove old ones
-            scriptsContainer.append(script); // append new one
-
-            brython(); // re-run brython
-
-            //code = __BRYTHON__.py2js(code + "", "newcode", "newcode").to_js();
-            // logger.log(code);
-            // eval(code);
-        }
-        else {
-
-            // wrap in try/catch block and debugging code
-            code = 'try {\n' +
-            code + '\n' +
-            '} catch (e) { lastErrorMessage = null;e.lineNumber=' + line + ';console.log("Code running error: " + e);window.doError(e); return 1;}\n';
-             
-            // wrap in async limiter/queue
-            code =
-                'const result = await codeLimiter.schedule({ priority:1,weight:1,id:codeIndex},async()=>{ ' +
-                code + "\nreturn 1;});\n";
-
-            // wrap in try/catch block and debugging code
-            code = 'try {\n' +
-                "let codeIndex = " + window.codeLine + ';\n' +
-                "\nif (vars.logAjax) loginfo(`starting code ${codeIndex}`);\n" +
-                code + '\n' +
-                "if (vars.logAjax) loginfo(`finished with ${codeIndex}`);\n" +
-                '} catch (e) { lastErrorMessage = null;e.lineNumber=' + line + ';console.log("main:" + e);window.doError(e); throw(e);}';
-
-            // prefix with locals to give quick access to liveprinter API
-            code = "let stop = window.restartLimiter;" +
-                code;
-
-            // wrap in global function call
-            code = "window.codeToRun = async () => {\n" +
-                code +
-                "\n}";
-
-            logger.debug(code);
-        }
-
-        //logger.log("adding code:" + code);
-        const script = document.createElement("script");
-        script.async = true;
-        script.onerror = doError;
-        script.type = "text/javascript";
-        //script.onerror = console.log;
-        script.text = code;
-
-        try {
-            const scriptTag = document.head.appendChild(script);
-            logger.debug("script tag created");
-            const didIt = await window.codeToRun(); // run code
-            scriptTag.parentNode.removeChild(script);
-        } catch (e) {
-            doError(e);
-        }
-    }
-    return true;
-}
-// end globalEval
-
-module.exports.globalEval = globalEval;
-
 
 /**
  * 

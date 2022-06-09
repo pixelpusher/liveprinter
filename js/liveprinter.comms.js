@@ -21,6 +21,7 @@ const Bottleneck = require('bottleneck');
 
 const MarlinParsers = require('./parsers/MarlinParsers');
 
+import { __esModule } from "bootstrap";
 import { Logger  } from "liveprinter-utils";
 
 const logger = new Logger();
@@ -48,7 +49,7 @@ vars.requestId = 0;
 //----------- LIVEPRINTER BACKEND JSON-RPC API ----------------------------------------------------
 //-------------------------------------------------------------------------------------------------
 
-window.maxCodeWaitTime = 4 * 60 * 1000; // max time the limiter waits for scheduled code before dropping job -- in ms
+window.maxCodeWaitTime = 0; // max time the limiter waits for scheduled code before dropping job -- in ms
 
 function initLimiter() {
     // Bottleneck rate limiter package: https://www.npmjs.com/package/bottleneck
@@ -56,7 +57,7 @@ function initLimiter() {
     const _limiter = new Bottleneck({
         maxConcurrent: 1,
         highWater: 10000, // max jobs, good to set for performance
-        minTime: 25, // (ms) How long to wait after launching a job before launching another one.
+        minTime: 0, // (ms) How long to wait after launching a job before launching another one.
         strategy: Bottleneck.strategy.LEAK // cancel lower-priority jobs if over highwater
     });
 
@@ -109,10 +110,12 @@ function initLimiter() {
     return _limiter;
 }
 
-window.codeLimiter = initLimiter(); // runs code in a scheduler: see ui/globalEval()
-window.codeLine = 0; // limiter again
+let limiter = initLimiter(); // runs code in a scheduler: see ui/globalEval()
+// Bottleneck rate limiter for priority async queueing
 
-let limiter = initLimiter(); // Bottleneck rate limiter for priority async queueing
+const scheduleFunction = async (...args) => limiter.schedule(...args);
+
+exports.scheduleFunction = scheduleFunction;
 
 const scheduleReservior = async () => {
     await limiter.currentReservoir();
@@ -122,6 +125,7 @@ function getQueued() {
     return limiter.queued();
 }
 
+exports.getQueued = getQueued;
 
 /**
  * Stops and clears the current queue of events. Should cancel all non-running actions. No new events can be added after this.
@@ -306,7 +310,6 @@ async function sendGCodeRPC(gcode) {
     if (vars.logAjax) liveprinterui.commandsHandler.log(`SENDING gcode ${gcode}`);
 
     if (Array.isArray(gcode)) {
-        //logger.debug("start array gcode[" + codeLine + "]");
 
         const results = await Promise.all(gcode.map(async (_gcode) => {
             if (!_gcode.startsWith(';')) // don't send comments
@@ -324,7 +327,6 @@ async function sendGCodeRPC(gcode) {
         }));
         liveprinterui.updateGUI();
 
-        //logger.debug("finish array gcode[" + codeLine + "]");
     } else {
         //logger.debug("single line gcode");
         if (!gcode.startsWith(';')) // don't send comments
@@ -337,7 +339,6 @@ async function sendGCodeRPC(gcode) {
         }
     }
     if (vars.logAjax) liveprinterui.commandsHandler.log(`DONE gcode ${gcode}`);
-    //logger.debug(`DONE gcode ${codeLine}`);
     return 1;
 }
 
