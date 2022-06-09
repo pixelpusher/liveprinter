@@ -146,7 +146,7 @@ async function runCode(editor, callback) {
     if (!printerConnected) {
         liveprinterUI.clearError();
         const err = new Error("Printer not connected! Please connect first using the printer settings tab.");
-        doError(err);
+        liveprinterUI.doError(err);
         throw err;
         //TODO: BIGGER ERROR MESSAGE HERE
     }
@@ -174,7 +174,7 @@ async function runCode(editor, callback) {
         catch (err) {
             err.message = "runCode:" + err.message;
             window.codeLine--; // go back 
-            doError(err);
+            liveprinterUI.doError(err);
         }
     }
     return true;
@@ -565,7 +565,7 @@ const init = async function () {
                 });
             })
             .fail(function () {
-                doError({ name: "error", message: "file load error:" + filename });
+                liveprinterUI.doError({ name: "error", message: "file load error:" + filename });
             });
     });
 

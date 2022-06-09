@@ -31,7 +31,6 @@ function compile(code) {
         //logger.log("Match: " + p1);
 
         let result = "";
-        let fail = false; // if not successful
         let lines = p1.split(/[\r\n]/);
 
         lines.map((line) => {
@@ -39,21 +38,9 @@ function compile(code) {
             line = line.replace(/([\r\n]+)/gm, "").replace(/(^[\s]+)/, "");
             if (line.length === 0) {
                 return;
-            }
-
-            else {
-                try {
-                    blockparser.feed(line + '\n'); // EOL terminates command
-                } catch (e) { // SyntaxError on parse
-                    doError(e);
-                    logger.log(e);
-                    fail = e.message;
-                }
-
-                if (fail !== false)
-                    result += "/*ERROR IN PARSE: " + fail + "*/\n";
-                //else
-                //result += parser.results[0] + "\n";
+            } else {
+                // errors bubble up to calling function
+                blockparser.feed(line + '\n'); // EOL terminates command
             }
         }); // end compiling line by line
 
@@ -85,20 +72,11 @@ function compile(code) {
 
         //logger.log("LINE::" + line + "::LINE");
         if (line) {
-            try {
                 lineparser.feed(line + '\n');
-            } catch (e) { // SyntaxError on parse
-                doError(e);
-                logger.log(e);
-                fail = e.message;
-                logger.log("offending code:[" + line + "]");
-            }
-
-            if (fail !== false)
-                result += "/*ERROR IN PARSE: [" + fail + "] + offending code: [" + line + "]" + "*/\n";
-            else
+                //result += "/*ERROR IN PARSE: [" + fail + "] + offending code: [" + line + "]" + "*/\n";
+            
                 result = lineparser.results[0];
-            //logger.log(result);
+                //logger.log(result);
         }
         return ' ' + result;
     });

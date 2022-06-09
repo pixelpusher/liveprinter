@@ -11888,7 +11888,7 @@ var Printer = /*#__PURE__*/ function() {
                                     _ctx.next = 4;
                                     break;
                                 }
-                                throw new Error("[API] retract length can't be less than 0: " + len);
+                                throw new Error("retract length can't be less than 0: " + len);
                             case 4:
                                 lengthUpdated = false;
                                 if (len !== _this.retractLength) lengthUpdated = true;
@@ -11902,13 +11902,13 @@ var Printer = /*#__PURE__*/ function() {
                                     _ctx.next = 11;
                                     break;
                                 }
-                                throw new Error("[API] retract speed can't be 0 or less: " + speed);
+                                throw new Error("retract speed can't be 0 or less: " + speed);
                             case 11:
                                 if (!(speed > Printer.maxPrintSpeed["e"])) {
                                     _ctx.next = 13;
                                     break;
                                 }
-                                throw new Error("[API] retract speed to high: " + speed);
+                                throw new Error("retract speed to high: " + speed);
                             case 13:
                                 speedUpdated = true;
                                 _this._retractSpeed = speed * 60; // avoid calling next line twice
@@ -11972,7 +11972,7 @@ var Printer = /*#__PURE__*/ function() {
                                     _ctx.next = 4;
                                     break;
                                 }
-                                throw new Error("[API] retract length can't be less than 0: " + len);
+                                throw new Error("retract length can't be less than 0: " + len);
                             case 4:
                                 lengthUpdated = false;
                                 if (len !== _this.retractLength) lengthUpdated = true;
@@ -11986,13 +11986,13 @@ var Printer = /*#__PURE__*/ function() {
                                     _ctx.next = 11;
                                     break;
                                 }
-                                throw new Error("[API] retract speed can't be 0 or less: " + speed);
+                                throw new Error("retract speed can't be 0 or less: " + speed);
                             case 11:
                                 if (!(speed > Printer.maxPrintSpeed["e"])) {
                                     _ctx.next = 13;
                                     break;
                                 }
-                                throw new Error("[API] retract speed too high: " + speed);
+                                throw new Error("retract speed too high: " + speed);
                             case 13:
                                 speedUpdated = true;
                                 _this._retractSpeed = speed * 60;
@@ -12309,7 +12309,7 @@ var Printer = /*#__PURE__*/ function() {
                         var cmd = _step.value;
                         //console.log(cmd);
                         var matches = cmd.match(subCmdRegExp);
-                        if (matches.length !== 3) throw new Error("[API] Error in command string: " + found);
+                        if (matches.length !== 3) throw new Error("Error in command string: " + found);
                         var cmdChar = matches[1].toUpperCase();
                         var value = parseFloat(matches[2]);
                         switch(cmdChar){
@@ -12338,7 +12338,7 @@ var Printer = /*#__PURE__*/ function() {
                                 this.unretract(value);
                                 break;
                             default:
-                                throw new Error("[API] Error in command - unknown command char: " + cmdChar);
+                                throw new Error("Error in command - unknown command char: " + cmdChar);
                         }
                     }
                 } catch (err) {
@@ -12846,7 +12846,7 @@ var Printer = /*#__PURE__*/ function() {
                                     _ctx.next = 27;
                                     break;
                                 }
-                                throw Error("[API] Too much filament in move:" + filamentLength);
+                                throw Error("Too much filament in move:" + filamentLength);
                             case 27:
                                 if (!Printer.extrusionInmm3[_this._model]) filamentLength /= filamentRadius * filamentRadius * Math.PI;
                                 //console.log("filament speed: " + filamentSpeed);
@@ -12857,7 +12857,7 @@ var Printer = /*#__PURE__*/ function() {
                                     _ctx.next = 32;
                                     break;
                                 }
-                                throw new Error("[API] Filament length too short (same position?): " + filamentLength);
+                                throw new Error("filament length too short: " + filamentLength);
                             case 32:
                                 _ctx.next = 35;
                                 break;
@@ -12872,7 +12872,7 @@ var Printer = /*#__PURE__*/ function() {
                                     _ctx.next = 40;
                                     break;
                                 }
-                                throw new Error("[API] move time too long:" + moveTime);
+                                throw new Error("move time too long:" + moveTime);
                             case 40:
                                 nozzleSpeed = _liveprinterUtils.Vector.div(distanceVec, moveTime);
                                 if (!extruding) {
@@ -12883,25 +12883,25 @@ var Printer = /*#__PURE__*/ function() {
                                     _ctx.next = 44;
                                     break;
                                 }
-                                throw Error("[API] X printing speed too fast:" + nozzleSpeed.axes.x);
+                                throw Error("X printing speed too fast:" + nozzleSpeed.axes.x);
                             case 44:
                                 if (!(nozzleSpeed.axes.y > Printer.maxPrintSpeed[_this._model]["y"])) {
                                     _ctx.next = 46;
                                     break;
                                 }
-                                throw Error("[API] Y printing speed too fast:" + nozzleSpeed.axes.y);
+                                throw Error("Y printing speed too fast:" + nozzleSpeed.axes.y);
                             case 46:
                                 if (!(nozzleSpeed.axes.z > Printer.maxPrintSpeed[_this._model]["z"])) {
                                     _ctx.next = 48;
                                     break;
                                 }
-                                throw Error("[API] Z printing speed too fast:" + nozzleSpeed.axes.z);
+                                throw Error("Z printing speed too fast:" + nozzleSpeed.axes.z);
                             case 48:
                                 if (!(nozzleSpeed.axes.e > Printer.maxPrintSpeed[_this._model]["e"])) {
                                     _ctx.next = 50;
                                     break;
                                 }
-                                throw Error("[API] E printing speed too fast:" + nozzleSpeed.axes.e + "/" + Printer.maxPrintSpeed[_this._model]["e"]);
+                                throw Error("E printing speed too fast:" + nozzleSpeed.axes.e + "/" + Printer.maxPrintSpeed[_this._model]["e"]);
                             case 50:
                                 _ctx.next = 58;
                                 break;
@@ -12910,19 +12910,19 @@ var Printer = /*#__PURE__*/ function() {
                                     _ctx.next = 54;
                                     break;
                                 }
-                                throw Error("[API] X travel too fast:" + nozzleSpeed.axes.x);
+                                throw Error("X travel too fast:" + nozzleSpeed.axes.x);
                             case 54:
                                 if (!(nozzleSpeed.axes.y > Printer.maxTravelSpeed[_this._model]["y"])) {
                                     _ctx.next = 56;
                                     break;
                                 }
-                                throw Error("[API] Y travel too fast:" + nozzleSpeed.axes.y);
+                                throw Error("Y travel too fast:" + nozzleSpeed.axes.y);
                             case 56:
                                 if (!(nozzleSpeed.axes.z > Printer.maxTravelSpeed[_this._model]["z"])) {
                                     _ctx.next = 58;
                                     break;
                                 }
-                                throw Error("[API] Z travel too fast:" + nozzleSpeed.axes.z);
+                                throw Error("Z travel too fast:" + nozzleSpeed.axes.z);
                             case 58:
                                 return _ctx.abrupt("return", _this._extrude(_speed, velocity, distanceMag, retract));
                             case 59:
@@ -14085,7 +14085,7 @@ var Printer = /*#__PURE__*/ function() {
                                     _ctx.next = 9;
                                     break;
                                 }
-                                throw new ValueError("[API] arcextrude needs both i and j specified!");
+                                throw new ValueError("arcextrude needs both i and j specified!");
                             case 9:
                                 extrusionNotZero = Math.abs(__e - _this.e) > Number.EPSILON;
                                 extruding = extrusionNotSpecified || extrusionNotZero;
@@ -14133,7 +14133,7 @@ var Printer = /*#__PURE__*/ function() {
                                     _ctx.next = 31;
                                     break;
                                 }
-                                throw Error("[API] Too much filament in move:" + filamentLength);
+                                throw Error("Too much filament in move:" + filamentLength);
                             case 31:
                                 if (!Printer.extrusionInmm3[_this._model]) filamentLength /= filamentRadius * filamentRadius * Math.PI;
                                 //console.log("filament speed: " + filamentSpeed);
@@ -14144,7 +14144,7 @@ var Printer = /*#__PURE__*/ function() {
                                     _ctx.next = 36;
                                     break;
                                 }
-                                throw new Error("[API] filament length too short: " + filamentLength);
+                                throw new Error("filament length too short: " + filamentLength);
                             case 36:
                                 _ctx.next = 39;
                                 break;
@@ -14159,7 +14159,7 @@ var Printer = /*#__PURE__*/ function() {
                                     _ctx.next = 44;
                                     break;
                                 }
-                                throw new Error("[API] move time too long:" + moveTime);
+                                throw new Error("move time too long:" + moveTime);
                             case 44:
                                 nozzleSpeed = _liveprinterUtils.Vector.div(distanceVec, moveTime);
                                 if (!extruding) {
@@ -14170,25 +14170,25 @@ var Printer = /*#__PURE__*/ function() {
                                     _ctx.next = 48;
                                     break;
                                 }
-                                throw Error("[API] X printing speed too fast:" + nozzleSpeed.axes.x);
+                                throw Error("X printing speed too fast:" + nozzleSpeed.axes.x);
                             case 48:
                                 if (!(nozzleSpeed.axes.y > Printer.maxPrintSpeed[_this._model]["y"])) {
                                     _ctx.next = 50;
                                     break;
                                 }
-                                throw Error("[API] Y printing speed too fast:" + nozzleSpeed.axes.y);
+                                throw Error("Y printing speed too fast:" + nozzleSpeed.axes.y);
                             case 50:
                                 if (!(nozzleSpeed.axes.z > Printer.maxPrintSpeed[_this._model]["z"])) {
                                     _ctx.next = 52;
                                     break;
                                 }
-                                throw Error("[API] Z printing speed too fast:" + nozzleSpeed.axes.z);
+                                throw Error("Z printing speed too fast:" + nozzleSpeed.axes.z);
                             case 52:
                                 if (!(nozzleSpeed.axes.e > Printer.maxPrintSpeed[_this._model]["e"])) {
                                     _ctx.next = 54;
                                     break;
                                 }
-                                throw Error("[API] E printing speed too fast:" + nozzleSpeed.axes.e + "/" + Printer.maxPrintSpeed[_this._model]["e"]);
+                                throw Error("E printing speed too fast:" + nozzleSpeed.axes.e + "/" + Printer.maxPrintSpeed[_this._model]["e"]);
                             case 54:
                                 _ctx.next = 62;
                                 break;
@@ -14197,19 +14197,19 @@ var Printer = /*#__PURE__*/ function() {
                                     _ctx.next = 58;
                                     break;
                                 }
-                                throw Error("[API] X travel too fast:" + nozzleSpeed.axes.x);
+                                throw Error("X travel too fast:" + nozzleSpeed.axes.x);
                             case 58:
                                 if (!(nozzleSpeed.axes.y > Printer.maxTravelSpeed[_this._model]["y"])) {
                                     _ctx.next = 60;
                                     break;
                                 }
-                                throw Error("[API] Y travel too fast:" + nozzleSpeed.axes.y);
+                                throw Error("Y travel too fast:" + nozzleSpeed.axes.y);
                             case 60:
                                 if (!(nozzleSpeed.axes.z > Printer.maxTravelSpeed[_this._model]["z"])) {
                                     _ctx.next = 62;
                                     break;
                                 }
-                                throw Error("[API] Z travel too fast:" + nozzleSpeed.axes.z);
+                                throw Error("Z travel too fast:" + nozzleSpeed.axes.z);
                             case 62:
                                 return _ctx.abrupt("return", _this._extrude(_speed, velocity, distanceMag, retract));
                             case 63:
@@ -14616,7 +14616,6 @@ var _liveprinterUtils = require("liveprinter-utils");
  * Editor functions
  */ var $ = require('jquery');
 var liveprinterUI = require('./liveprinter.ui');
-var liveprintercomms = require('./liveprinter.comms');
 /// Code Mirror stuff
 var CodeMirror = require('codemirror');
 require('codemirror/mode/css/css');
@@ -14827,6 +14826,10 @@ var init = function() {
         return _regeneratorRuntimeDefault.default.wrap(function _callee$(_ctx1) {
             while(1)switch(_ctx1.prev = _ctx1.next){
                 case 0:
+                    // cheeky shortcut function...
+                    // window.gcode = async (gc) => liveprinterUI.scheduleGCode(
+                    //     recordGCode(GCodeEditor, cleanGCode(gc))
+                    // );
                     clearEditor = function _clearEditor(cm, opts) {
                         cm.off("changes");
                         cm.swapDoc(CodeMirror.Doc("// Type some code here.  Hit CTRL-\\ to clear \n\n\n\n"));
@@ -15032,7 +15035,8 @@ var init = function() {
                             "Ctrl-Space": "autocomplete",
                             "Ctrl-Q": function(cm) {
                                 cm.foldCode(cm.getCursor());
-                            }
+                            },
+                            "Ctrl-\\": clearEditor
                         },
                         foldGutter: true,
                         autoCloseBrackets: true,
@@ -15059,120 +15063,67 @@ var init = function() {
                         //autocomplete: true,
                         extraKeys: {
                             "Ctrl-Enter": function() {
-                                var _ref5 = _helpers.asyncToGenerator(_regeneratorRuntimeDefault.default.mark(function _callee5(cm) {
-                                    return _regeneratorRuntimeDefault.default.wrap(function _callee$(_ctx5) {
-                                        while(1)switch(_ctx5.prev = _ctx5.next){
+                                var _ref = _helpers.asyncToGenerator(_regeneratorRuntimeDefault.default.mark(function _callee(cm) {
+                                    return _regeneratorRuntimeDefault.default.wrap(function _callee$(_ctx) {
+                                        while(1)switch(_ctx.prev = _ctx.next){
                                             case 0:
-                                                _ctx5.next = 2;
-                                                return runCode(cm, function() {
-                                                    var _ref = _helpers.asyncToGenerator(_regeneratorRuntimeDefault.default.mark(function _callee(code) {
-                                                        return _regeneratorRuntimeDefault.default.wrap(function _callee$(_ctx) {
-                                                            while(1)switch(_ctx.prev = _ctx.next){
-                                                                case 0:
-                                                                    _ctx.next = 2;
-                                                                    return liveprinterUI.globalEval(recordCode(HistoryCodeEditor, code));
-                                                                case 2:
-                                                                    return _ctx.abrupt("return", _ctx.sent);
-                                                                case 3:
-                                                                case "end":
-                                                                    return _ctx.stop();
-                                                            }
-                                                        }, _callee);
-                                                    }));
-                                                    return function(code) {
-                                                        return _ref.apply(this, arguments);
-                                                    };
-                                                }());
+                                                _ctx.next = 2;
+                                                return runCode(cm, liveprinterUI.globalEval);
                                             case 2:
-                                                return _ctx5.abrupt("return", _ctx5.sent);
+                                                return _ctx.abrupt("return", _ctx.sent);
                                             case 3:
                                             case "end":
-                                                return _ctx5.stop();
+                                                return _ctx.stop();
                                         }
-                                    }, _callee5);
+                                    }, _callee);
                                 }));
                                 return function(cm) {
-                                    return _ref5.apply(this, arguments);
+                                    return _ref.apply(this, arguments);
                                 };
                             }(),
                             "Shift-Enter": function() {
-                                var _ref6 = _helpers.asyncToGenerator(_regeneratorRuntimeDefault.default.mark(function _callee6(cm) {
-                                    return _regeneratorRuntimeDefault.default.wrap(function _callee$(_ctx6) {
-                                        while(1)switch(_ctx6.prev = _ctx6.next){
+                                var _ref = _helpers.asyncToGenerator(_regeneratorRuntimeDefault.default.mark(function _callee(cm) {
+                                    return _regeneratorRuntimeDefault.default.wrap(function _callee$(_ctx) {
+                                        while(1)switch(_ctx.prev = _ctx.next){
                                             case 0:
-                                                _ctx6.next = 2;
-                                                return runCode(cm, function() {
-                                                    var _ref = _helpers.asyncToGenerator(_regeneratorRuntimeDefault.default.mark(function _callee(code) {
-                                                        return _regeneratorRuntimeDefault.default.wrap(function _callee$(_ctx) {
-                                                            while(1)switch(_ctx.prev = _ctx.next){
-                                                                case 0:
-                                                                    _ctx.next = 2;
-                                                                    return liveprinterUI.globalEval(recordCode(HistoryCodeEditor, code));
-                                                                case 2:
-                                                                    return _ctx.abrupt("return", _ctx.sent);
-                                                                case 3:
-                                                                case "end":
-                                                                    return _ctx.stop();
-                                                            }
-                                                        }, _callee);
-                                                    }));
-                                                    return function(code) {
-                                                        return _ref.apply(this, arguments);
-                                                    };
-                                                }());
+                                                _ctx.next = 2;
+                                                return runCode(cm, liveprinterUI.globalEval);
                                             case 2:
-                                                return _ctx6.abrupt("return", _ctx6.sent);
+                                                return _ctx.abrupt("return", _ctx.sent);
                                             case 3:
                                             case "end":
-                                                return _ctx6.stop();
+                                                return _ctx.stop();
                                         }
-                                    }, _callee6);
+                                    }, _callee);
                                 }));
                                 return function(cm) {
-                                    return _ref6.apply(this, arguments);
+                                    return _ref.apply(this, arguments);
                                 };
                             }(),
                             "Cmd-Enter": function() {
-                                var _ref7 = _helpers.asyncToGenerator(_regeneratorRuntimeDefault.default.mark(function _callee7(cm) {
-                                    return _regeneratorRuntimeDefault.default.wrap(function _callee$(_ctx7) {
-                                        while(1)switch(_ctx7.prev = _ctx7.next){
+                                var _ref = _helpers.asyncToGenerator(_regeneratorRuntimeDefault.default.mark(function _callee(cm) {
+                                    return _regeneratorRuntimeDefault.default.wrap(function _callee$(_ctx) {
+                                        while(1)switch(_ctx.prev = _ctx.next){
                                             case 0:
-                                                _ctx7.next = 2;
-                                                return runCode(cm, function() {
-                                                    var _ref = _helpers.asyncToGenerator(_regeneratorRuntimeDefault.default.mark(function _callee(code) {
-                                                        return _regeneratorRuntimeDefault.default.wrap(function _callee$(_ctx) {
-                                                            while(1)switch(_ctx.prev = _ctx.next){
-                                                                case 0:
-                                                                    _ctx.next = 2;
-                                                                    return liveprinterUI.globalEval(recordCode(HistoryCodeEditor, code));
-                                                                case 2:
-                                                                    return _ctx.abrupt("return", _ctx.sent);
-                                                                case 3:
-                                                                case "end":
-                                                                    return _ctx.stop();
-                                                            }
-                                                        }, _callee);
-                                                    }));
-                                                    return function(code) {
-                                                        return _ref.apply(this, arguments);
-                                                    };
-                                                }());
+                                                _ctx.next = 2;
+                                                return runCode(cm, liveprinterUI.globalEval);
                                             case 2:
-                                                return _ctx7.abrupt("return", _ctx7.sent);
+                                                return _ctx.abrupt("return", _ctx.sent);
                                             case 3:
                                             case "end":
-                                                return _ctx7.stop();
+                                                return _ctx.stop();
                                         }
-                                    }, _callee7);
+                                    }, _callee);
                                 }));
                                 return function(cm) {
-                                    return _ref7.apply(this, arguments);
+                                    return _ref.apply(this, arguments);
                                 };
                             }(),
                             "Ctrl-Space": "autocomplete",
                             "Ctrl-Q": function(cm) {
                                 cm.foldCode(cm.getCursor());
-                            }
+                            },
+                            "Ctrl-\\": clearEditor
                         },
                         foldGutter: true,
                         autoCloseBrackets: true,
@@ -15195,21 +15146,18 @@ var init = function() {
                         //autocomplete: true,
                         extraKeys: {
                             "Ctrl-Enter": function() {
-                                var _ref8 = _helpers.asyncToGenerator(_regeneratorRuntimeDefault.default.mark(function _callee8(cm) {
-                                    return _regeneratorRuntimeDefault.default.wrap(function _callee$(_ctx8) {
-                                        while(1)switch(_ctx8.prev = _ctx8.next){
+                                var _ref5 = _helpers.asyncToGenerator(_regeneratorRuntimeDefault.default.mark(function _callee5(cm) {
+                                    return _regeneratorRuntimeDefault.default.wrap(function _callee$(_ctx5) {
+                                        while(1)switch(_ctx5.prev = _ctx5.next){
                                             case 0:
-                                                _ctx8.next = 2;
+                                                _ctx5.next = 2;
                                                 return runCode(cm, function() {
                                                     var _ref = _helpers.asyncToGenerator(_regeneratorRuntimeDefault.default.mark(function _callee(gcode) {
                                                         return _regeneratorRuntimeDefault.default.wrap(function _callee$(_ctx) {
                                                             while(1)switch(_ctx.prev = _ctx.next){
                                                                 case 0:
-                                                                    _ctx.next = 2;
-                                                                    return liveprintercomms.scheduleGCode(recordGCode(cm, _liveprinterUtils.cleanGCode(gcode)));
-                                                                case 2:
-                                                                    return _ctx.abrupt("return", _ctx.sent);
-                                                                case 3:
+                                                                    return _ctx.abrupt("return", liveprinterUI.scheduleGCode(recordGCode(cm, _liveprinterUtils.cleanGCode(gcode))));
+                                                                case 1:
                                                                 case "end":
                                                                     return _ctx.stop();
                                                             }
@@ -15220,33 +15168,30 @@ var init = function() {
                                                     };
                                                 }());
                                             case 2:
-                                                return _ctx8.abrupt("return", _ctx8.sent);
+                                                return _ctx5.abrupt("return", _ctx5.sent);
                                             case 3:
                                             case "end":
-                                                return _ctx8.stop();
+                                                return _ctx5.stop();
                                         }
-                                    }, _callee8);
+                                    }, _callee5);
                                 }));
                                 return function(cm) {
-                                    return _ref8.apply(this, arguments);
+                                    return _ref5.apply(this, arguments);
                                 };
                             }(),
                             "Shift-Enter": function() {
-                                var _ref9 = _helpers.asyncToGenerator(_regeneratorRuntimeDefault.default.mark(function _callee9(cm) {
-                                    return _regeneratorRuntimeDefault.default.wrap(function _callee$(_ctx9) {
-                                        while(1)switch(_ctx9.prev = _ctx9.next){
+                                var _ref6 = _helpers.asyncToGenerator(_regeneratorRuntimeDefault.default.mark(function _callee6(cm) {
+                                    return _regeneratorRuntimeDefault.default.wrap(function _callee$(_ctx6) {
+                                        while(1)switch(_ctx6.prev = _ctx6.next){
                                             case 0:
-                                                _ctx9.next = 2;
+                                                _ctx6.next = 2;
                                                 return runCode(cm, function() {
                                                     var _ref = _helpers.asyncToGenerator(_regeneratorRuntimeDefault.default.mark(function _callee(gcode) {
                                                         return _regeneratorRuntimeDefault.default.wrap(function _callee$(_ctx) {
                                                             while(1)switch(_ctx.prev = _ctx.next){
                                                                 case 0:
-                                                                    _ctx.next = 2;
-                                                                    return liveprintercomms.scheduleGCode(recordGCode(cm, _liveprinterUtils.cleanGCode(gcode)));
-                                                                case 2:
-                                                                    return _ctx.abrupt("return", _ctx.sent);
-                                                                case 3:
+                                                                    return _ctx.abrupt("return", liveprinterUI.scheduleGCode(recordGCode(cm, _liveprinterUtils.cleanGCode(gcode))));
+                                                                case 1:
                                                                 case "end":
                                                                     return _ctx.stop();
                                                             }
@@ -15257,33 +15202,30 @@ var init = function() {
                                                     };
                                                 }());
                                             case 2:
-                                                return _ctx9.abrupt("return", _ctx9.sent);
+                                                return _ctx6.abrupt("return", _ctx6.sent);
                                             case 3:
                                             case "end":
-                                                return _ctx9.stop();
+                                                return _ctx6.stop();
                                         }
-                                    }, _callee9);
+                                    }, _callee6);
                                 }));
                                 return function(cm) {
-                                    return _ref9.apply(this, arguments);
+                                    return _ref6.apply(this, arguments);
                                 };
                             }(),
                             "Cmd-Enter": function() {
-                                var _ref10 = _helpers.asyncToGenerator(_regeneratorRuntimeDefault.default.mark(function _callee10(cm) {
-                                    return _regeneratorRuntimeDefault.default.wrap(function _callee$(_ctx10) {
-                                        while(1)switch(_ctx10.prev = _ctx10.next){
+                                var _ref7 = _helpers.asyncToGenerator(_regeneratorRuntimeDefault.default.mark(function _callee7(cm) {
+                                    return _regeneratorRuntimeDefault.default.wrap(function _callee$(_ctx7) {
+                                        while(1)switch(_ctx7.prev = _ctx7.next){
                                             case 0:
-                                                _ctx10.next = 2;
+                                                _ctx7.next = 2;
                                                 return runCode(cm, function() {
                                                     var _ref = _helpers.asyncToGenerator(_regeneratorRuntimeDefault.default.mark(function _callee(gcode) {
                                                         return _regeneratorRuntimeDefault.default.wrap(function _callee$(_ctx) {
                                                             while(1)switch(_ctx.prev = _ctx.next){
                                                                 case 0:
-                                                                    _ctx.next = 2;
-                                                                    return liveprintercomms.scheduleGCode(recordGCode(cm, _liveprinterUtils.cleanGCode(gcode)));
-                                                                case 2:
-                                                                    return _ctx.abrupt("return", _ctx.sent);
-                                                                case 3:
+                                                                    return _ctx.abrupt("return", liveprinterUI.scheduleGCode(recordGCode(cm, _liveprinterUtils.cleanGCode(gcode))));
+                                                                case 1:
                                                                 case "end":
                                                                     return _ctx.stop();
                                                             }
@@ -15294,15 +15236,15 @@ var init = function() {
                                                     };
                                                 }());
                                             case 2:
-                                                return _ctx10.abrupt("return", _ctx10.sent);
+                                                return _ctx7.abrupt("return", _ctx7.sent);
                                             case 3:
                                             case "end":
-                                                return _ctx10.stop();
+                                                return _ctx7.stop();
                                         }
-                                    }, _callee10);
+                                    }, _callee7);
                                 }));
                                 return function(cm) {
-                                    return _ref10.apply(this, arguments);
+                                    return _ref7.apply(this, arguments);
                                 };
                             }(),
                             "Ctrl-Space": "autocomplete",
@@ -15501,7 +15443,7 @@ var init = function() {
 }();
 module.exports.init = init;
 
-},{"@swc/helpers":"erO4s","regenerator-runtime":"12Ae8","liveprinter-utils":"5Ti02","jquery":"HtqFp","./liveprinter.ui":"lyO7f","codemirror":"kaahn","codemirror/mode/css/css":"2dwEk","codemirror/addon/lint/lint":"i2Gcj","codemirror/addon/lint/css-lint":"fp39Z","jshint":"cNQnX","codemirror/mode/javascript/javascript":"5w2x5","codemirror/addon/lint/javascript-lint":"4sVoM","codemirror/addon/lint/json-lint":"5nyJh","codemirror/addon/hint/show-hint":"7ab7z","codemirror/addon/hint/javascript-hint":"4PAuv","codemirror/addon/mode/overlay":"aGqw9","codemirror/addon/scroll/simplescrollbars":"9UgUd","codemirror/addon/selection/active-line":"e0t95","codemirror/addon/edit/closebrackets":"ipy8E","codemirror/addon/edit/matchbrackets":"g7rED","codemirror/addon/fold/foldgutter":"888ft","codemirror/addon/fold/indent-fold":"78Pec","codemirror/addon/fold/comment-fold":"7hHws","codemirror/addon/fold/brace-fold":"5YBaV","codemirror/addon/dialog/dialog":"65QZh","codemirror/addon/search/searchcursor":"1LrD6","./language/lpmode":"J8sgG","@parcel/transformer-js/src/esmodule-helpers.js":"5oERU","./liveprinter.comms":"6Yn3N"}],"lyO7f":[function(require,module,exports) {
+},{"@swc/helpers":"erO4s","regenerator-runtime":"12Ae8","liveprinter-utils":"5Ti02","jquery":"HtqFp","./liveprinter.ui":"lyO7f","codemirror":"kaahn","codemirror/mode/css/css":"2dwEk","codemirror/addon/lint/lint":"i2Gcj","codemirror/addon/lint/css-lint":"fp39Z","jshint":"cNQnX","codemirror/mode/javascript/javascript":"5w2x5","codemirror/addon/lint/javascript-lint":"4sVoM","codemirror/addon/lint/json-lint":"5nyJh","codemirror/addon/hint/show-hint":"7ab7z","codemirror/addon/hint/javascript-hint":"4PAuv","codemirror/addon/mode/overlay":"aGqw9","codemirror/addon/scroll/simplescrollbars":"9UgUd","codemirror/addon/selection/active-line":"e0t95","codemirror/addon/edit/closebrackets":"ipy8E","codemirror/addon/edit/matchbrackets":"g7rED","codemirror/addon/fold/foldgutter":"888ft","codemirror/addon/fold/indent-fold":"78Pec","codemirror/addon/fold/comment-fold":"7hHws","codemirror/addon/fold/brace-fold":"5YBaV","codemirror/addon/dialog/dialog":"65QZh","codemirror/addon/search/searchcursor":"1LrD6","./language/lpmode":"J8sgG","@parcel/transformer-js/src/esmodule-helpers.js":"5oERU"}],"lyO7f":[function(require,module,exports) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 var _helpers = require("@swc/helpers");
 var _regeneratorRuntime = require("regenerator-runtime");
@@ -16304,7 +16246,12 @@ function _globalEval() {
                     //
                     // compile in minigrammar
                     //
-                    code = compile(code);
+                    try {
+                        code = compile(code);
+                    } catch (err) {
+                        logger.error("Compilation error:");
+                        doError(err);
+                    }
                     if (!code) {
                         _ctx.next = 28;
                         break;
@@ -16323,9 +16270,9 @@ function _globalEval() {
                     // eval(code);
                     } else {
                         // wrap in try/catch block and debugging code
-                        code = 'try {\n' + code + '\n' + '} catch (e) { lastErrorMessage = null;e.lineNumber=' + line + ';console.log("async queue error:" + e);window.doError(e); return 1;}\n';
+                        code = 'try {\n' + code + '\n' + '} catch (e) { lastErrorMessage = null;e.lineNumber=' + line + ';console.log("Code running error: " + e);window.doError(e); return 1;}\n';
                         // wrap in async limiter/queue
-                        code = 'const result = await codeLimiter.schedule({ priority:1,weight:1,id:codeIndex,expiration:maxCodeWaitTime},async()=>{ ' + code + "\nreturn 1;});\n";
+                        code = 'const result = await codeLimiter.schedule({ priority:1,weight:1,id:codeIndex},async()=>{ ' + code + "\nreturn 1;});\n";
                         // wrap in try/catch block and debugging code
                         code = "try {\nlet codeIndex = " + window.codeLine + ';\n' + "\nif (vars.logAjax) loginfo(`starting code ${codeIndex}`);\n" + code + '\n' + "if (vars.logAjax) loginfo(`finished with ${codeIndex}`);\n" + '} catch (e) { lastErrorMessage = null;e.lineNumber=' + line + ';console.log("main:" + e);window.doError(e); throw(e);}';
                         // prefix with locals to give quick access to liveprinter API
@@ -18227,24 +18174,24 @@ function initLimiter() {
                         id = jobInfo.options.id;
                         logger.warn("Job ".concat(id, " failed: ").concat(error));
                         liveprinterui.logerror("Job ".concat(id, " failed: ").concat(error));
-                    case 3:
+                        if (!(jobInfo.retryCount === 0)) {
+                            _ctx.next = 6;
+                            break;
+                        }
+                        liveprinterui.logerror("Retrying job ".concat(id, " in 20ms!"));
+                        return _ctx.abrupt("return");
+                    case 6:
+                        return _ctx.abrupt("return", 0);
+                    case 7:
                     case "end":
                         return _ctx.stop();
                 }
             }, _callee);
-        // if (jobInfo.retryCount === 0) { // Here we only retry once
-        //     liveprinterui.logerror(`Retrying job ${id} in 5ms!`);
-        //     return 5;
-        // }
         }));
         return function(error, jobInfo) {
             return _ref.apply(this, arguments);
         };
     }());
-    // Listen to the "retry" event
-    _limiter.on("retry", function(error, jobInfo) {
-        return liveprinterui.logerror("Now retrying ".concat(jobInfo.options.id));
-    });
     _limiter.on("dropped", function(dropped) {
         logger.warn("limiter dropped:");
         logger.warn(dropped);

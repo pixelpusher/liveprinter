@@ -757,7 +757,14 @@ async function globalEval(code, line, globally = false) {
     //
     // compile in minigrammar
     //
-    code = compile(code);
+    try {
+        code = compile(code);
+    }
+    catch (err)
+    {
+        logger.error("Compilation error:");
+        doError(err);
+    }
 
     if (code) {
         if ($("#python-mode-btn").hasClass('active')) { // check python mode
@@ -785,11 +792,11 @@ async function globalEval(code, line, globally = false) {
             // wrap in try/catch block and debugging code
             code = 'try {\n' +
             code + '\n' +
-            '} catch (e) { lastErrorMessage = null;e.lineNumber=' + line + ';console.log("async queue error:" + e);window.doError(e); return 1;}\n';
+            '} catch (e) { lastErrorMessage = null;e.lineNumber=' + line + ';console.log("Code running error: " + e);window.doError(e); return 1;}\n';
              
             // wrap in async limiter/queue
             code =
-                'const result = await codeLimiter.schedule({ priority:1,weight:1,id:codeIndex,expiration:maxCodeWaitTime},async()=>{ ' +
+                'const result = await codeLimiter.schedule({ priority:1,weight:1,id:codeIndex},async()=>{ ' +
                 code + "\nreturn 1;});\n";
 
             // wrap in try/catch block and debugging code
