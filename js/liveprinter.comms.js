@@ -49,7 +49,7 @@ vars.requestId = 0;
 //----------- LIVEPRINTER BACKEND JSON-RPC API ----------------------------------------------------
 //-------------------------------------------------------------------------------------------------
 
-window.maxCodeWaitTime = 0; // max time the limiter waits for scheduled code before dropping job -- in ms
+window.maxCodeWaitTime = 5; // max time the limiter waits for scheduled code before dropping job -- in ms
 
 function initLimiter() {
     // Bottleneck rate limiter package: https://www.npmjs.com/package/bottleneck
@@ -57,7 +57,7 @@ function initLimiter() {
     const _limiter = new Bottleneck({
         maxConcurrent: 1,
         highWater: 10000, // max jobs, good to set for performance
-        minTime: 0, // (ms) How long to wait after launching a job before launching another one.
+        minTime: 1, // (ms) How long to wait after launching a job before launching another one.
         strategy: Bottleneck.strategy.LEAK // cancel lower-priority jobs if over highwater
     });
 
@@ -70,7 +70,7 @@ function initLimiter() {
         catch (err) {
             errorTxt = error + "";
         }
-        doError(Error(errorTxt));
+        liveprinterui.doError(Error(errorTxt));
         liveprinterui.logerror(`Limiter error: ${errorTxt}`);
 
         await restartLimiter();
@@ -107,6 +107,23 @@ function initLimiter() {
         //   The dropped request is passed to this event listener.
     });
 
+    // movement functions triggered at end of movement GCode reponse
+    movementEventListeners = [];
+
+
+    _limiter.on('queued', function (info){
+        liveprinterui.loginfo(`queued: ${_limiter.queued()}`);
+    })
+
+
+    doneListeners = [];
+
+    _limiter.on('done', function (info) { 
+        liveprinterui.loginfo(`done: ${_limiter.queued()}`);
+        doneListeners.map(v=>v(info));
+    });
+
+
     return _limiter;
 }
 
@@ -119,7 +136,10 @@ let limiter = initLimiter(); // runs code in a scheduler: see ui/globalEval()
  * HACK -- needs fixing!
  * @returns {Object} BottleneckJS limiter object. Dangerous.
  */
-const getLimiter = () => limiter;
+function getLimiter()
+{
+    return limiter;
+} 
 
 exports.getLimiter = getLimiter;
 
@@ -128,7 +148,9 @@ exports.getLimiter = getLimiter;
  * @param  {...any} args Limiter options object (see Bottleneckjs) and list of other function arguments 
  * @returns 
  */
-const scheduleFunction = async (...args) => limiter.schedule(...args);
+async function scheduleFunction(...args){
+    return limiter.schedule(...args);
+} 
 
 exports.scheduleFunction = scheduleFunction;
 
@@ -402,6 +424,24 @@ exports.scheduleGCode = scheduleGCode;
 //////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////
 
+// movement functions triggered at end of movement GCode reponse
+let movementEventListeners = [];
+
+// could be more general on('event', func)
+
+exports.onMove = (listener) =>  movementEventListeners.push(listener);
+
+exports.offMove = (listener) => {
+    movementEventListeners = movementEventListeners.filter(list => list !== listener);
+}
+
+let doneListeners = [];
+
+exports.onCodeDone = (listener) =>  doneListeners.push(listener);
+
+exports.offCodeDone = (listener) => {
+    doneListeners = doneListeners.filter(list => list !== listener);
+}
 
 /**
  * Handles logging of a GCode response from the server
@@ -436,6 +476,7 @@ function handleGCodeResponse(res) {
                     else if (liveprinterui.moveHandler(rr)) {
                         // move/position update handled
                         logger.debug('position event handled');
+                        movementEventListeners.map( (v) => v(rr));
                     }
                     else if (liveprinterui.tempHandler(rr)) {
                         logger.debug('temperature event handled');

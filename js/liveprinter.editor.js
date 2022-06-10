@@ -250,23 +250,18 @@ let codeIndex = 0;
             liveprinterUI.logger.debug(code);
         }
 
-        //liveprinterUI.logger.log("adding code:" + code);
-        // const script = document.createElement("script");
-        // script.async = true;
-        // script.onerror = doError;
-        // script.type = "text/javascript";
-        // script.text = code;
-
         //if (vars.logAjax) loginfo(`starting code ${codeIndex}`);
-        console.log(code);
-    
-        const func = async () => {
 
-            const innerFunc =  eval(`async()=>{await 1; ${code} return 1}`);
-            console.log(innerFunc);
+        //console.log(`async()=>{await 1; ${code} return 1}`);
+
+        async function func () {
+            //console.log(`async()=>{await 1; ${code} return 1}`);
+
+            const innerFunc =  eval(`async()=>{await 1; ${code}; return 1}`);
     
             try 
             {
+                //console.log("running inner");
                 await innerFunc();
             }
             catch(e) 
@@ -278,6 +273,9 @@ let codeIndex = 0;
            }
             return 1;
         }
+        
+        //await func();
+        //await liveprintercomms.scheduleFunction({ priority:1,weight:1,id:codeIndex++ }, async ()=> {console.log(`something`); return 1});
 
         await liveprintercomms.scheduleFunction({ priority:1,weight:1,id:codeIndex++ }, func);
 
