@@ -16636,7 +16636,18 @@ function initLimiter() {
 }
 var limiter = initLimiter(); // runs code in a scheduler: see ui/globalEval()
 // Bottleneck rate limiter for priority async queueing
-var scheduleFunction = function() {
+/**
+ * HACK -- needs fixing!
+ * @returns {Object} BottleneckJS limiter object. Dangerous.
+ */ var getLimiter = function() {
+    return limiter;
+};
+exports.getLimiter = getLimiter;
+/**
+ * Schedules code to run in the async queue (e.g. limiter)
+ * @param  {...any} args Limiter options object (see Bottleneckjs) and list of other function arguments 
+ * @returns 
+ */ var scheduleFunction = function() {
     var _ref = _helpers.asyncToGenerator(_regeneratorRuntimeDefault.default.mark(function _callee() {
         var _len, args, _key, _limiter, _args = arguments;
         return _regeneratorRuntimeDefault.default.wrap(function _callee$(_ctx) {
@@ -16658,24 +16669,10 @@ var scheduleFunction = function() {
     };
 }();
 exports.scheduleFunction = scheduleFunction;
-var scheduleReservior = function() {
-    var _ref = _helpers.asyncToGenerator(_regeneratorRuntimeDefault.default.mark(function _callee() {
-        return _regeneratorRuntimeDefault.default.wrap(function _callee$(_ctx) {
-            while(1)switch(_ctx.prev = _ctx.next){
-                case 0:
-                    _ctx.next = 2;
-                    return limiter.currentReservoir();
-                case 2:
-                case "end":
-                    return _ctx.stop();
-            }
-        }, _callee);
-    }));
-    return function scheduleReservior() {
-        return _ref.apply(this, arguments);
-    };
-}();
-function getQueued() {
+/**
+ *  
+ * @returns {Number} number of queued functions to run
+ */ function getQueued() {
     return limiter.queued();
 }
 exports.getQueued = getQueued;

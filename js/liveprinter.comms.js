@@ -113,14 +113,29 @@ function initLimiter() {
 let limiter = initLimiter(); // runs code in a scheduler: see ui/globalEval()
 // Bottleneck rate limiter for priority async queueing
 
+
+
+/**
+ * HACK -- needs fixing!
+ * @returns {Object} BottleneckJS limiter object. Dangerous.
+ */
+const getLimiter = () => limiter;
+
+exports.getLimiter = getLimiter;
+
+/**
+ * Schedules code to run in the async queue (e.g. limiter)
+ * @param  {...any} args Limiter options object (see Bottleneckjs) and list of other function arguments 
+ * @returns 
+ */
 const scheduleFunction = async (...args) => limiter.schedule(...args);
 
 exports.scheduleFunction = scheduleFunction;
 
-const scheduleReservior = async () => {
-    await limiter.currentReservoir();
-};
-
+/**
+ *  
+ * @returns {Number} number of queued functions to run
+ */
 function getQueued() {
     return limiter.queued();
 }
