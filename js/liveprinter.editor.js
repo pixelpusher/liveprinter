@@ -194,7 +194,7 @@ let codeIndex = 0;
   * @param {Boolean} globally true if executing in global space, false (normal) if executing within closure to minimise side-effects
   * @memberOf LivePrinter
   */
- async function globalEval(code, line, globally = false) {
+ async function globalEval(code, line) {
     liveprinterUI.clearError();
 
     const commentRegex = /\/\*[\s\S]*?\*\/|([^\\:]|^)\/\/.*$/gm; // https://stackoverflow.com/questions/5989315/regex-for-match-replacing-javascript-comments-both-multiline-and-inline/15123777#15123777
@@ -257,6 +257,9 @@ let codeIndex = 0;
         async function func () {
             //console.log(`async()=>{await 1; ${code} return 1}`);
 
+             // bindings
+            const comms = liveprintercomms;
+             
             const innerFunc =  eval(`async()=>{await 1; ${code}; return 1}`);
     
             try 

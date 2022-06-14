@@ -22,8 +22,6 @@ const logger = new Logger();
 
 module.exports.logger = logger;
 
-import { MarlinLineParserResultPosition, MarlinLineParserResultTemperature } from './parsers/MarlinParsers.js';
-
 var $ = require('jquery');
 
 const liveprintercomms = require('./liveprinter.comms');
@@ -375,44 +373,40 @@ $("#temp-display-btn").on("click", async function (e) {
  * @param {String} data serial response from printer firmware (Marlin)
  * @return {Boolean} true or false if parsed or not
  */
-const tempHandler = (data) => {
-    let parsed = true;
+const tempHandler = (result) => {
+    let handled = true;
 
-    if (undefined !== data.hotend) {
+    if (undefined !== result.hotend) {
 
         try {
-            let tmp = parseFloat(data.hotend).toFixed(2);
-            let target = parseFloat(data.hotend_target).toFixed(2);
-            let tmpbed = parseFloat(data.bed).toFixed(2);
-            let targetbed = parseFloat(data.bed_target).toFixed(2);
+            const tmp = parseFloat(result.hotend).toFixed(2);
+            const target = parseFloat(result.hotend_target).toFixed(2);
+            const tmpbed = parseFloat(result.bed).toFixed(2);
+            const targetbed = parseFloat(result.bed_target).toFixed(2);
 
             $("input[name='temphot']").val(target);
             $("input[name='tempbed']").val(targetbed);
-            let $tt = $("input[name='temphot-target']")[0];
+            const $tt = $("input[name='temphot-target']")[0];
             if ($tt !== $(document.activeElement)) $tt.value = tmp;
             $("input[name='tempbed-target']").val(tmpbed);
         } catch (e) {
-            parsed = false;
+            handled = false;
         }
     }
     else {
-        const result = MarlinLineParserResultTemperature.parse(data);
-        if (!result) parsed = false;
-        else {
-            if (undefined !== result.payload.extruder) {
-                $("input[name='temphot']").val(result.payload.extruder.deg);
-                // make sure user isn't typing in this
-                let $tt = $("input[name='temphot-target']")[0];
-                if ($tt !== $(document.activeElement)) $tt.value = result.payload.extruder.degTarget;
-            }
-            if (undefined !== result.payload.heatedBed) {
-                $("input[name='tempbed']").val(result.payload.heatedBed.deg);
-                let $tt = $("input[name='tempbed-target']")[0];
-                if ($tt !== $(document.activeElement)) $tt.value = result.payload.heatedBed.degTarget;
-            }
+        if (undefined !== result.payload.extruder) {
+            $("input[name='temphot']").val(result.payload.extruder.deg);
+            // make sure user isn't typing in this
+            let $tt = $("input[name='temphot-target']")[0];
+            if ($tt !== $(document.activeElement)) $tt.value = result.payload.extruder.degTarget;
+        }
+        if (undefined !== result.payload.heatedBed) {
+            $("input[name='tempbed']").val(result.payload.heatedBed.deg);
+            let $tt = $("input[name='tempbed-target']")[0];
+            if ($tt !== $(document.activeElement)) $tt.value = result.payload.heatedBed.degTarget;
         }
     }
-    return parsed;
+    return handled;
 };
 module.exports.tempHandler = tempHandler;
 
@@ -472,22 +466,13 @@ module.exports.commandsHandler = commandsHandler;
 /**
  * json-rpc move event handler
  * @memberOf LivePrinter
+ *
+ * @param {Object} response Expects object parsed from MarlinParser 
  */
-const moveHandler = (response) => {
+const moveHandler = (result) => {
     $("input[name='speed']").val(printer.printspeed().toFixed(4)); // set speed, maybe reset below
     // update GUI
     $("input[name='retract']")[0].value = printer.currentRetraction.toFixed();
-
-    return moveParser(response);
-};
-
-module.exports.moveHandler = moveHandler;
-
-
-const moveParser = (data) => {
-    let result = MarlinLineParserResultPosition.parse(data);
-
-    if (!result) return false;
 
     printer.x = parseFloat(result.payload.pos.x);
     printer.y = parseFloat(result.payload.pos.y);
@@ -498,8 +483,11 @@ const moveParser = (data) => {
     $("input[name='y']").val(printer.y.toFixed(4));
     $("input[name='z']").val(printer.z.toFixed(4));
     $("input[name='e']").val(printer.e.toFixed(4));
-    return true;
+
+    return true; // handled
 };
+
+module.exports.moveHandler = moveHandler;
 
 
 ////////////////////////////////////////////////////////////////////////

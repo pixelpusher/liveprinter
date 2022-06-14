@@ -19,8 +19,7 @@
 
 const Bottleneck = require('bottleneck');
 
-const MarlinParsers = require('./parsers/MarlinParsers');
-
+import { MarlinLineParserResultPosition, MarlinLineParserResultTemperature } from './parsers/MarlinParsers.js';
 import { __esModule } from "bootstrap";
 import { Logger  } from "liveprinter-utils";
 
@@ -101,26 +100,22 @@ function initLimiter() {
         catch (err) {
             errorTxt = dropped + "";
         }
-        doError(Error(errorTxt));
+        liveprinterui.doError(Error(errorTxt));
         liveprinterui.logerror(`Dropped job ${errorTxt}`);
         //   This will be called when a strategy was triggered.
         //   The dropped request is passed to this event listener.
     });
 
-    // movement functions triggered at end of movement GCode reponse
-    movementEventListeners = [];
-
-
-    _limiter.on('queued', function (info){
-        liveprinterui.loginfo(`queued: ${_limiter.queued()}`);
+    _limiter.on('queued', async function (info){
+        //liveprinterui.loginfo(`starting command...: ${_limiter.queued()}`);
+        info.queued = _limiter.queued();
+        await Promise.all(queuedListeners.map(async v=>v(info)));
     })
 
-
-    doneListeners = [];
-
-    _limiter.on('done', function (info) { 
-        liveprinterui.loginfo(`done: ${_limiter.queued()}`);
-        doneListeners.map(v=>v(info));
+    _limiter.on('done', async function (info) {
+        info.queued = _limiter.queued(); 
+        //liveprinterui.loginfo(`done running command: ${_limiter.queued()}`);
+        await Promise.all(doneListeners.map(async v=>v(info)));
     });
 
 
@@ -354,9 +349,9 @@ async function sendGCodeRPC(gcode) {
                 gcodeObj.params = [_gcode];
                 //logger.log(gcodeObj);
                 let response = sendJSONRPC(JSON.stringify(gcodeObj));
-                response.then((result) => { logger.debug(result); handleGCodeResponse(result) }).catch(err => {
+                response.then(async (result) => { logger.debug(result); await handleGCodeResponse(result) }).catch(err => {
                     liveprinterui.logerror(err);
-                    doError(err);
+                    liveprinteriu.doError(err);
                     response = Promise.reject(err.message);
                 });
                 return response;
@@ -370,7 +365,7 @@ async function sendGCodeRPC(gcode) {
         {
             gcodeObj.params = [gcode];
             const response = await sendJSONRPC(JSON.stringify(gcodeObj));
-            handleGCodeResponse(response);
+            await handleGCodeResponse(response);
             liveprinterui.updateGUI();
 
         }
@@ -425,14 +420,18 @@ exports.scheduleGCode = scheduleGCode;
 //////////////////////////////////////////////////////////////////////
 
 // movement functions triggered at end of movement GCode reponse
-let movementEventListeners = [];
+let positionEventListeners = [];
+
+let okEventListeners = [];
+
+let otherEventListeners = [];
 
 // could be more general on('event', func)
 
-exports.onMove = (listener) =>  movementEventListeners.push(listener);
+exports.onPosition = (listener) => positionEventListeners.push(listener);
 
-exports.offMove = (listener) => {
-    movementEventListeners = movementEventListeners.filter(list => list !== listener);
+exports.offPosition = (listener) => {
+    positionEventListeners = positionEventListeners.filter(list => list !== listener);
 }
 
 let doneListeners = [];
@@ -443,12 +442,34 @@ exports.offCodeDone = (listener) => {
     doneListeners = doneListeners.filter(list => list !== listener);
 }
 
+let queuedListeners = [];
+
+exports.onCodeQueued = (listener) =>  queuedListeners.push(listener);
+
+exports.offCodeQueued = (listener) => {
+    queuedListeners = queuedListeners.filter(list => list !== listener);
+}
+
+exports.onOk = (listener) => okEventListeners.push(listener);
+
+exports.offOk = (listener) => {
+    okEventListeners = okEventListeners.filter(list => list !== listener);
+    return true;
+}
+
+exports.onOther = (listener) =>  otherEventListeners.push(listener);
+
+exports.offOther = (listener) => {
+    otherEventListeners = otherEventListeners.filter(list => list !== listener);
+}
+
+
 /**
  * Handles logging of a GCode response from the server
  * @param {Object} res 
  * @returns Boolean whether handled or not
  */
-function handleGCodeResponse(res) {
+async function handleGCodeResponse(res) {
     let handled = true;
 
     ///
@@ -471,19 +492,37 @@ function handleGCodeResponse(res) {
                     if (rr.toLowerCase().match(/error/m)) {
                         liveprinterui.logerror(rr);
                         handled = false;
+                        break;
                     }
+
                     // try move handler
-                    else if (liveprinterui.moveHandler(rr)) {
+                    let positionResult = MarlinLineParserResultPosition.parse(rr);
+                    let tempResult = MarlinLineParserResultTemperature.parse(rr);
+
+                    if (tempResult) {
+                        liveprinterui.tempHandler(tempResult);
+                        logger.debug('temperature event handled');
+                        handled = true;
+                    }
+                    
+                    if (positionResult) {
+                        //liveprinterui.moveHandler(positionResult);
                         // move/position update handled
                         logger.debug('position event handled');
-                        movementEventListeners.map( (v) => v(rr));
+                        const results = await Promise.all(positionEventListeners.map( async (v) => v(positionResult)));
+                        handled = true;
                     }
-                    else if (liveprinterui.tempHandler(rr)) {
-                        logger.debug('temperature event handled');
+                    
+                    if (!tempResult && !positionResult && rr.match(/ok/i)) {
+                        const results = await Promise.all(okEventListeners.map( async (v) => v(rr)));
+
+                        logger.debug('ok event handled: ' + rr); // other response
+                        handled = true;
                     }
-                    else if (!rr.match(/ok/i)) liveprinterui.loginfo('gcode response: ' + rr); // other response
                     else {
                         logger.debug('unhandled gcode response: ' + rr);
+                        const results = await Promise.all(otherEventListeners.map( async (v) => v(rr)));
+
                         handled = false;
                     }
                 }

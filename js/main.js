@@ -61,6 +61,40 @@ const liveprintercomms = require('./liveprinter.comms'); // browser-to-server co
         { gcodeEvent: async (gcode) => editors.recordGCode(editors.GCodeEditor, gcode) }
     );
 
+    liveprintercomms.onPosition(async (v) => liveprinterui.moveHandler(v));
+    liveprintercomms.onCodeDone(async (v)=>{
+        const dateStr = new Intl.DateTimeFormat('en-US', {
+            hour: 'numeric', minute: 'numeric', second: 'numeric',
+            hour12: false
+        }).format(new Date(Date.now()));
+
+        let msg;
+        if (v.queued === 0) {
+            msg = `no code running [${dateStr}]`;
+        }
+        else {
+            msg = `running, other code blocks in queue: ${v.queued} [${dateStr}]`;
+        }
+        document.getElementById('working-tab').innerHTML = msg;
+        //liveprinterui.loginfo(`done: code blocks running: ${v.queued}`);
+    });
+    liveprintercomms.onCodeQueued(async (v)=>{
+        const dateStr = new Intl.DateTimeFormat('en-US', {
+            hour: 'numeric', minute: 'numeric', second: 'numeric',
+            hour12: false
+        }).format(new Date(Date.now()));
+
+        document.getElementById('working-tab').innerHTML=`queued: code block running (queued: ${v.queued}) [${dateStr}]`;
+        //liveprinterui.loginfo(`queued: code blocks running: ${v.queued}`);
+    });
+    liveprintercomms.onOk(async () => {
+        liveprinterui.blinkElem($("#working-tab"));
+    });
+
+    
+
+    //liveprintercomms.onOk(async (v)=>{liveprinterui.loginfo(`ok! :: ${v}`)});
+
     ///----------------------------------------------------------------------------
     ///--------Start running things------------------------------------------------
     ///----------------------------------------------------------------------------

@@ -985,10 +985,10 @@ class Printer {
         const __e = (params.e !== undefined) ? parseFloat(params.e) : this.e;
 
         // did we specify a length of filament to extrude?
-        const extrusionNotZero = Math.abs(__e - this.e) > 0.001;
+        const extrusionNotZero = (undefined !== this.e) && (Math.abs(__e - this.e) > 0.001);
 
         // only extrude if there is something to extrude!
-        const extruding = extrusionNotSpecified || extrusionNotZero; 
+        const extruding = (extrusionNotSpecified || extrusionNotZero); 
 
         // if not, traveling 
 
@@ -1273,7 +1273,7 @@ class Printer {
         newparams.speed = this._travelSpeed; // update travel speed
 
         // extrude using absolute cartesian coords
-        return this.extrudeto(params);
+        return this.extrudeto(newparams);
     } // end move
     
 
@@ -1970,11 +1970,12 @@ class Printer {
 
     if ((__i + __j) < 0.1) throw new ValueError("[API] arcextrude needs both i and j specified!");
 
+    console.log(`E:${this.e}`);
     // did we specify a length of filament to extrude?
     const extrusionNotZero = Math.abs(__e - this.e) > Number.EPSILON;
 
     // only extrude if there is something to extrude!
-    const extruding = extrusionNotSpecified || extrusionNotZero; 
+    const extruding = (extrusionNotSpecified || (!extrusionNotSpecified && extrusionNotZero)); 
 
     // if not, traveling 
 
