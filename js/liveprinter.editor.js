@@ -46,7 +46,18 @@ require('./language/lpmode');
 //console.log('codemirror loaded');
 
 // other code libraries:
-import { lp_FunctionMap as functionMap} from "grammardraw/modules/functionmaps.jsx";
+
+/////------grammardraw fractals---------------------------------
+
+import * as Tone from 'tone';
+import {lp_functionMap as functionMap} from "grammardraw/modules/functionmaps.mjs"
+import {createESequence} from "grammardraw/modules/sequences"
+import { noteMods, scales, getBaseNoteDuration, setBaseNoteDuration, 
+   iterate,
+   on, off
+} from "grammardraw/modules/fractalPath.mjs";
+/////------grammardraw fractals---------------------------------
+
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -259,6 +270,15 @@ let codeIndex = 0;
 
              // bindings
             const comms = liveprintercomms;
+            const fm = functionMap;
+            const createESeq = createESequence;
+            const fractalStep = iterate;
+            const stepNotes = noteMods;
+            
+// import { noteMods, scales, getBaseNoteDuration, setBaseNoteDuration, 
+//    iterate,
+//    on, off
+// } from "grammardraw/modules/fractalPath.mjs";
              
             const innerFunc =  eval(`async()=>{await 1; ${code}; return 1}`);
     
