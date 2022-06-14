@@ -14680,37 +14680,35 @@ function _globalEval() {
                         _func = //if (vars.logAjax) loginfo(`starting code ${codeIndex}`);
                         //console.log(`async()=>{await 1; ${code} return 1}`);
                         _helpers.asyncToGenerator(_regeneratorRuntimeDefault.default.mark(function _callee() {
-                            var comms, onMove, offMove, innerFunc;
+                            var comms, innerFunc;
                             return _regeneratorRuntimeDefault.default.wrap(function _callee$(_ctx) {
                                 while(1)switch(_ctx.prev = _ctx.next){
                                     case 0:
                                         comms = liveprintercomms;
-                                        onMove = comms.onMove;
-                                        offMove = comms.onMove;
                                         innerFunc = eval("async()=>{await 1; ".concat(code, "; return 1}"));
-                                        _ctx.prev = 4;
-                                        _ctx.next = 7;
+                                        _ctx.prev = 2;
+                                        _ctx.next = 5;
                                         return innerFunc();
-                                    case 7:
-                                        _ctx.next = 15;
+                                    case 5:
+                                        _ctx.next = 13;
                                         break;
-                                    case 9:
-                                        _ctx.prev = 9;
-                                        _ctx.t0 = _ctx["catch"](4);
+                                    case 7:
+                                        _ctx.prev = 7;
+                                        _ctx.t0 = _ctx["catch"](2);
                                         lastErrorMessage = null;
                                         _ctx.t0.lineNumber = line;
                                         console.log("Code running error(".concat(line, "): ").concat(_ctx.t0));
                                         liveprinterUI.doError(_ctx.t0);
-                                    case 15:
+                                    case 13:
                                         return _ctx.abrupt("return", 1);
-                                    case 16:
+                                    case 14:
                                     case "end":
                                         return _ctx.stop();
                                 }
                             }, _callee, null, [
                                 [
-                                    4,
-                                    9
+                                    2,
+                                    7
                                 ]
                             ]);
                         }));
