@@ -10,12 +10,12 @@ const editors = require('./liveprinter.editor'); // code editors and functions
 const liveprinterui = require('./liveprinter.ui'); // main ui
 const liveprintercomms = require('./liveprinter.comms'); // browser-to-server communications
 
-
-//console.log(scales.majPattern); // test
-
 //require('./svg/SVGReader'); // svg util class
 //require('./svg/svg2gcode'); // svg gcode converter
 
+
+
+// now that browsers have deferred loading, this isn't really needed anymore?
 (async function (w) {
     "use strict";
 
@@ -92,9 +92,6 @@ const liveprintercomms = require('./liveprinter.comms'); // browser-to-server co
     });
 
     
-
-    //liveprintercomms.onOk(async (v)=>{liveprinterui.loginfo(`ok! :: ${v}`)});
-
     ///----------------------------------------------------------------------------
     ///--------Start running things------------------------------------------------
     ///----------------------------------------------------------------------------

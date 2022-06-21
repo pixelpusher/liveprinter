@@ -26,7 +26,6 @@ import { Logger  } from "liveprinter-utils";
 const logger = new Logger();
 
 const liveprinterui = require('./liveprinter.ui');
-const doError = liveprinterui.doError;
 
 const vars = Object.create(null); // session vars
 exports.vars = vars;
@@ -109,13 +108,29 @@ function initLimiter() {
     _limiter.on('queued', async function (info){
         //liveprinterui.loginfo(`starting command...: ${_limiter.queued()}`);
         info.queued = _limiter.queued();
-        await Promise.all(queuedListeners.map(async v=>v(info)));
+        
+        try {
+            await Promise.all(queuedListeners.map(async v=>v(info)));
+        }
+        catch (err)
+        {
+            err.message = "Error in done event:" + err.message;
+            liveprinteriu.doError(err);
+        }
     })
 
     _limiter.on('done', async function (info) {
         info.queued = _limiter.queued(); 
         //liveprinterui.loginfo(`done running command: ${_limiter.queued()}`);
-        await Promise.all(doneListeners.map(async v=>v(info)));
+        try {
+            await Promise.all(doneListeners.map(async v=>v(info)));
+        }
+        catch (err)
+        {
+            err.message = "Error in done event:" + err.message;
+            liveprinteriu.doError(err);
+        }
+        
     });
 
 
@@ -496,8 +511,8 @@ async function handleGCodeResponse(res) {
                     }
 
                     // try move handler
-                    let positionResult = MarlinLineParserResultPosition.parse(rr);
-                    let tempResult = MarlinLineParserResultTemperature.parse(rr);
+                    const positionResult = MarlinLineParserResultPosition.parse(rr);
+                    const tempResult = MarlinLineParserResultTemperature.parse(rr);
 
                     if (tempResult) {
                         liveprinterui.tempHandler(tempResult);
