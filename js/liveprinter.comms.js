@@ -19,16 +19,31 @@
 
 const Bottleneck = require('bottleneck');
 
+const compile = require('./language/compile'); // minigrammar compile function
+
 import { MarlinLineParserResultPosition, MarlinLineParserResultTemperature } from './parsers/MarlinParsers.js';
 import { __esModule } from "bootstrap";
 import { Logger  } from "liveprinter-utils";
 
 const logger = new Logger();
 
-const liveprinterui = require('./liveprinter.ui');
+const liveprinterUI = require('./liveprinter.ui');
+
+// other code libraries:
+
+/////------grammardraw fractals---------------------------------
+
+import * as Tone from 'tone';
+import {lp_functionMap as functionMap} from "grammardraw/modules/functionmaps.mjs"
+import {createESequence} from "grammardraw/modules/sequences"
+import { noteMods, scales, getBaseNoteDuration, setBaseNoteDuration, 
+   iterate,
+   on, off
+} from "grammardraw/modules/fractalPath.mjs";
+/////------grammardraw fractals---------------------------------
 
 const vars = Object.create(null); // session vars
-exports.vars = vars;
+module.exports.vars = vars;
 window.vars = vars;
 
 vars.serialPorts = []; // available ports
@@ -68,8 +83,8 @@ function initLimiter() {
         catch (err) {
             errorTxt = error + "";
         }
-        liveprinterui.doError(Error(errorTxt));
-        liveprinterui.logerror(`Limiter error: ${errorTxt}`);
+        liveprinterUI.doError(Error(errorTxt));
+        liveprinterUI.logerror(`Limiter error: ${errorTxt}`);
 
         await restartLimiter();
     });
@@ -78,16 +93,16 @@ function initLimiter() {
     _limiter.on("failed", async (error, jobInfo) => {
         const id = jobInfo.options.id;
         logger.warn(`Job ${id} failed: ${error}`);
-        liveprinterui.logerror(`Job ${id} failed: ${error}`);
+        liveprinterUI.logerror(`Job ${id} failed: ${error}`);
         // if (jobInfo.retryCount === 0) { // Here we only retry once
-        //     liveprinterui.logerror(`Retrying job ${id} in 5ms!`);
+        //     liveprinterUI.logerror(`Retrying job ${id} in 5ms!`);
         //     return 5;
         // }
     
     });
 
     // Listen to the "retry" event
-    _limiter.on("retry", (error, jobInfo) => liveprinterui.logerror(`Now retrying ${jobInfo.options.id}`));
+    _limiter.on("retry", (error, jobInfo) => liveprinterUI.logerror(`Now retrying ${jobInfo.options.id}`));
 
     _limiter.on("dropped", (dropped) => {
         logger.warn("limiter dropped:");
@@ -99,14 +114,14 @@ function initLimiter() {
         catch (err) {
             errorTxt = dropped + "";
         }
-        liveprinterui.doError(Error(errorTxt));
-        liveprinterui.logerror(`Dropped job ${errorTxt}`);
+        liveprinterUI.doError(Error(errorTxt));
+        liveprinterUI.logerror(`Dropped job ${errorTxt}`);
         //   This will be called when a strategy was triggered.
         //   The dropped request is passed to this event listener.
     });
 
     _limiter.on('queued', async function (info){
-        //liveprinterui.loginfo(`starting command...: ${_limiter.queued()}`);
+        //liveprinterUI.loginfo(`starting command...: ${_limiter.queued()}`);
         info.queued = _limiter.queued();
         
         try {
@@ -115,20 +130,22 @@ function initLimiter() {
         catch (err)
         {
             err.message = "Error in done event:" + err.message;
-            liveprinteriu.doError(err);
+            liveprinterUI.doError(err);
         }
     })
 
     _limiter.on('done', async function (info) {
         info.queued = _limiter.queued(); 
-        //liveprinterui.loginfo(`done running command: ${_limiter.queued()}`);
+        //liveprinterUI.loginfo(`done running command: ${_limiter.queued()}`);
         try {
-            await Promise.all(doneListeners.map(async v=>v(info)));
+            await Promise.all(doneListeners.map(async v => {
+                scheduleFunction({ priority:1,weight:1,id:codeIndex++ }, v, info);
+            }));
         }
         catch (err)
         {
             err.message = "Error in done event:" + err.message;
-            liveprinteriu.doError(err);
+            liveprinterUI.doError(err);
         }
         
     });
@@ -151,7 +168,7 @@ function getLimiter()
     return limiter;
 } 
 
-exports.getLimiter = getLimiter;
+module.exports.getLimiter = getLimiter;
 
 /**
  * Schedules code to run in the async queue (e.g. limiter)
@@ -159,10 +176,125 @@ exports.getLimiter = getLimiter;
  * @returns 
  */
 async function scheduleFunction(...args){
-    return limiter.schedule(...args);
+    return await limiter.schedule(...args);
 } 
 
-exports.scheduleFunction = scheduleFunction;
+module.exports.scheduleFunction = scheduleFunction;
+
+// index of code block running
+let codeIndex = 0;
+
+/**
+  * Evaluate the code in local (within closure) or global space according to the current editor mode (javascript/python).
+  * @param {string} code to evaluate
+  * @param {integer} line line number for error displaying
+  * @param {Boolean} globally true if executing in global space, false (normal) if executing within closure to minimise side-effects
+  * @memberOf LivePrinter
+  */
+ async function globalEval(code, line) {
+    liveprinterUI.clearError();
+
+    const commentRegex = /\/\*[\s\S]*?\*\/|([^\\:]|^)\/\/.*$/gm; // https://stackoverflow.com/questions/5989315/regex-for-match-replacing-javascript-comments-both-multiline-and-inline/15123777#15123777
+
+    code = code.replace(commentRegex, (match, p1) => {
+        return p1;
+    });
+
+    // replace globals in js
+    code = code.replace(/^[ ]*global[ ]+/gm, "window.");
+
+    liveprinterUI.logger.debug("code before pre-processing-------------------------------");
+    liveprinterUI.logger.debug(code);
+    liveprinterUI.logger.debug("========================= -------------------------------");
+
+    //
+    // compile in minigrammar
+    //
+    try {
+        code = compile(code);
+    }
+    catch (err)
+    {
+        liveprinterUI.logger.error("Compilation error:");
+        liveprinterUI.doError(err);
+        return 1; // stop execution
+    }
+
+    if (code) {
+
+        if ($("#python-mode-btn").hasClass('active')) { // check python mode
+
+            code = "from browser import document as doc\nfrom browser import window as win\nlp = win.printer\n"
+                + code;
+
+            let script = document.createElement("script");
+            script.type = "text/python";
+            script.text = code;
+
+            // run and remove
+            let scriptsContainer = $("#python-scripts");
+            scriptsContainer.empty(); // remove old ones
+            scriptsContainer.append(script); // append new one
+
+            brython(); // re-run brython
+
+            //code = __BRYTHON__.py2js(code + "", "newcode", "newcode").to_js();
+            // liveprinterUI.logger.log(code);
+            // eval(code);
+        }
+        else {         
+
+            liveprinterUI.logger.debug(code);
+        }
+
+        //if (vars.logAjax) loginfo(`starting code ${codeIndex}`);
+
+        //console.log(`async()=>{await 1; ${code} return 1}`);
+
+        async function func () {
+            //console.log(`async()=>{await 1; ${code} return 1}`);
+
+             // bindings
+             const comms = exports; // local functions for events, etc.
+            const fm = functionMap;
+            const createESeq = createESequence;
+            const fractalStep = iterate;
+            const stepNotes = noteMods;
+            
+// import { noteMods, scales, getBaseNoteDuration, setBaseNoteDuration, 
+//    iterate,
+//    on, off
+// } from "grammardraw/modules/fractalPath.mjs";
+             
+            const innerFunc =  eval(`async()=>{await 1; ${code}; return 1}`);
+    
+            try 
+            {
+                //console.log("running inner");
+                await innerFunc();
+            }
+            catch(e) 
+            {
+                lastErrorMessage = null;
+                e.lineNumber=line;
+                console.log(`Code running error(${line}): ${e}`);
+                liveprinterUI.doError(e);  
+           }
+            return 1;
+        }
+        
+        //await func();
+        //await liveprintercomms.scheduleFunction({ priority:1,weight:1,id:codeIndex++ }, async ()=> {console.log(`something`); return 1});
+
+        await scheduleFunction({ priority:1,weight:1,id:codeIndex++ }, func);
+
+        // wrap in try/catch block and debugging code
+    }
+    return true;
+}
+// end globalEval
+
+module.exports.globalEval = globalEval;
 
 /**
  *  
@@ -172,7 +304,7 @@ function getQueued() {
     return limiter.queued();
 }
 
-exports.getQueued = getQueued;
+module.exports.getQueued = getQueued;
 
 /**
  * Stops and clears the current queue of events. Should cancel all non-running actions. No new events can be added after this.
@@ -181,7 +313,7 @@ async function stopLimiter() {
     if (limiter) {
         await limiter.stop({ dropWaitingJobs: true });
         limiter.disconnect(); // clear interval and allow memory to be freed
-        liveprinterui.loginfo("Limiter stopped.");
+        liveprinterUI.loginfo("Limiter stopped.");
     }
     limiter = null;
     logger.log("Shutdown completed!");
@@ -192,12 +324,12 @@ async function stopLimiter() {
  * Effectively cleares the current queue of events and restarts it. Should cancel all non-running actions.
  */
 async function restartLimiter() {
-    liveprinterui.loginfo("Limiter restarting");
+    liveprinterUI.loginfo("Limiter restarting");
     await stopLimiter();
     limiter = initLimiter();
     return;
 }
-exports.restartLimiter = restartLimiter;
+module.exports.restartLimiter = restartLimiter;
 
 /**
  * Send a JSON-RPC request to the backend, get a response back. See below implementations for details.
@@ -212,7 +344,7 @@ async function sendJSONRPC(request) {
     //logger.log(args);
     let reqId = "req" + vars.requestId++; // shared with limiter - see above
 
-    if (vars.logAjax) liveprinterui.commandsHandler.log(`SENDING ${reqId}::${request}`);
+    if (vars.logAjax) liveprinterUI.commandsHandler.log(`SENDING ${reqId}::${request}`);
 
     let response = "awaiting response";
     try {
@@ -228,13 +360,13 @@ async function sendJSONRPC(request) {
         response = JSON.stringify(error, null, 2);
         const statusText = `JSON error response communicating with server:<br/>${response}<br/>Orig:${request}`; 
         console.error(statusText);
-        liveprinterui.logerror(statusText);
+        liveprinterUI.logerror(statusText);
     }
     if (undefined !== response.error) {
-        liveprinterui.logerror(`JSON error response communicating with server:<br/>${JSON.stringify(response.error, null, 2)}<br/>Orig:${request}`);
+        liveprinterUI.logerror(`JSON error response communicating with server:<br/>${JSON.stringify(response.error, null, 2)}<br/>Orig:${request}`);
     }
 
-    if (vars.logAjax) liveprinterui.commandsHandler.log(`RECEIVED ${reqId}::${request}`);
+    if (vars.logAjax) liveprinterUI.commandsHandler.log(`RECEIVED ${reqId}::${request}`);
     return response;
 }
 
@@ -251,11 +383,11 @@ async function getSerialPorts() {
         'method': 'get-serial-ports',
         'params': []
     };
-    liveprinterui.loginfo('getting serial ports');
+    liveprinterUI.loginfo('getting serial ports');
     return sendJSONRPC(JSON.stringify(message));
 }
 // expose as global
-exports.getSerialPorts = getSerialPorts;
+module.exports.getSerialPorts = getSerialPorts;
 
 /**
     * Set the serial port from the server (or refresh it) and display in the GUI (the listener will take care of that)
@@ -272,21 +404,21 @@ async function setSerialPort({ port, baudRate }) {
     };
     const response = await sendJSONRPC(JSON.stringify(message));
     if (undefined === response.result || undefined === response.result[0] || typeof response.result[0] === "string") {
-        liveprinterui.logerror("bad response from set serialPort():");
-        liveprinterui.logerror(JSON.stringify(response));
+        liveprinterUI.logerror("bad response from set serialPort():");
+        liveprinterUI.logerror(JSON.stringify(response));
     }
     else {
-        liveprinterui.loginfo("connected to port " + response.result[0].port[0] + " at baud rate " + response.result[0].port[1]);
-        liveprinterui.loginfo("startup messages:");
+        liveprinterUI.loginfo("connected to port " + response.result[0].port[0] + " at baud rate " + response.result[0].port[1]);
+        liveprinterUI.loginfo("startup messages:");
         for (const msg of response.result[0].messages) {
-            liveprinterui.loginfo(msg);
+            liveprinterUI.loginfo(msg);
         }
     }
 
     return response;
 }
 // expose as global
-exports.setSerialPort = setSerialPort;
+module.exports.setSerialPort = setSerialPort;
 
 /**
     * Set the current commands line number on the printer (in case of resend)
@@ -303,17 +435,17 @@ async function setCurrentLine(lineNumber) {
     };
     const response = await sendJSONRPC(JSON.stringify(message));
     if (undefined === response.result || undefined === response.result[0] || response.result[0].startsWith('ERROR')) {
-        liveprinterui.logerror("bad response from set setCurrentLine():");
-        liveprinterui.logerror(JSON.stringify(response));
+        liveprinterUI.logerror("bad response from set setCurrentLine():");
+        liveprinterUI.logerror(JSON.stringify(response));
     }
     else {
-        liveprinterui.loginfo("set line number " + response.result[0].line);
+        liveprinterUI.loginfo("set line number " + response.result[0].line);
     }
 
     return response;
 }
 // expose as global
-exports.setline = setCurrentLine;
+module.exports.setline = setCurrentLine;
 
 /**
     * Get the connection state of the printer and display in the GUI (the listener will take care of that)
@@ -332,18 +464,18 @@ async function getPrinterState() {
         };
         const response = await sendJSONRPC(JSON.stringify(message));
         if (undefined === response) {
-            liveprinterui.logerror("bad response from set getPrinterState():");
-            liveprinterui.logerror(JSON.stringify(response));
+            liveprinterUI.logerror("bad response from set getPrinterState():");
+            liveprinterUI.logerror(JSON.stringify(response));
         }
         else {
-            liveprinterui.printerStateHandler(response);
+            liveprinterUI.printerStateHandler(response);
         }
         return response;
     }
     return null;
 }
 // expose as global
-exports.getPrinterState = getPrinterState;
+module.exports.getPrinterState = getPrinterState;
 
 
 /**
@@ -354,7 +486,7 @@ exports.getPrinterState = getPrinterState;
  */
 async function sendGCodeRPC(gcode) {
     let gcodeObj = { "jsonrpc": "2.0", "id": 4, "method": "send-gcode", "params": [] };
-    if (vars.logAjax) liveprinterui.commandsHandler.log(`SENDING gcode ${gcode}`);
+    if (vars.logAjax) liveprinterUI.commandsHandler.log(`SENDING gcode ${gcode}`);
 
     if (Array.isArray(gcode)) {
 
@@ -365,14 +497,14 @@ async function sendGCodeRPC(gcode) {
                 //logger.log(gcodeObj);
                 let response = sendJSONRPC(JSON.stringify(gcodeObj));
                 response.then(async (result) => { logger.debug(result); await handleGCodeResponse(result) }).catch(err => {
-                    liveprinterui.logerror(err);
-                    liveprinteriu.doError(err);
+                    liveprinterUI.logerror(err);
+                    liveprinterUI.doError(err);
                     response = Promise.reject(err.message);
                 });
                 return response;
             }
         }));
-        liveprinterui.updateGUI();
+        liveprinterUI.updateGUI();
 
     } else {
         //logger.debug("single line gcode");
@@ -381,15 +513,15 @@ async function sendGCodeRPC(gcode) {
             gcodeObj.params = [gcode];
             const response = await sendJSONRPC(JSON.stringify(gcodeObj));
             await handleGCodeResponse(response);
-            liveprinterui.updateGUI();
+            liveprinterUI.updateGUI();
 
         }
     }
-    if (vars.logAjax) liveprinterui.commandsHandler.log(`DONE gcode ${gcode}`);
+    if (vars.logAjax) liveprinterUI.commandsHandler.log(`DONE gcode ${gcode}`);
     return 1;
 }
 
-exports.sendGCodeRPC = sendGCodeRPC;
+module.exports.sendGCodeRPC = sendGCodeRPC;
 
 /**
  * Schedule GCode to be sent to the server, in order, using the limiter via json-rpc over ajax.
@@ -405,7 +537,7 @@ async function scheduleGCode(gcode, priority = 4) { // 0-9, lower higher
     if (vars.useLimiter) {
         // use limiter for priority scheduling
         let reqId = "req" + vars.requestId++;
-        if (vars.logAjax) liveprinterui.commandsHandler.log(`SENDING ${reqId}`);
+        if (vars.logAjax) liveprinterUI.commandsHandler.log(`SENDING ${reqId}`);
         try {
             result = await limiter.schedule(
                 { "priority": priority, weight: 1, id: reqId, expiration: maxCodeWaitTime },
@@ -413,14 +545,14 @@ async function scheduleGCode(gcode, priority = 4) { // 0-9, lower higher
             );
         }
         catch (err) {
-            liveprinterui.logerror(`Error with ${reqId}:: ${err}`);
+            liveprinterUI.logerror(`Error with ${reqId}:: ${err}`);
         }
-        if (vars.logAjax) liveprinterui.commandsHandler.log(`RECEIVED ${reqId}`);
+        if (vars.logAjax) liveprinterUI.commandsHandler.log(`RECEIVED ${reqId}`);
     }
     return result;
 }
 
-exports.scheduleGCode = scheduleGCode;
+module.exports.scheduleGCode = scheduleGCode;
 
 
 /*
@@ -443,40 +575,51 @@ let otherEventListeners = [];
 
 // could be more general on('event', func)
 
-exports.onPosition = (listener) => positionEventListeners.push(listener);
+module.exports.onPosition = (listener) => positionEventListeners.push(listener);
 
-exports.offPosition = (listener) => {
+module.exports.offPosition = (listener) => {
     positionEventListeners = positionEventListeners.filter(list => list !== listener);
-}
+};
 
 let doneListeners = [];
 
-exports.onCodeDone = (listener) =>  doneListeners.push(listener);
+module.exports.onCodeDone = (listener) =>  doneListeners.push(listener);
 
-exports.offCodeDone = (listener) => {
+module.exports.offCodeDone = (listener) => {
     doneListeners = doneListeners.filter(list => list !== listener);
-}
+};
 
 let queuedListeners = [];
 
-exports.onCodeQueued = (listener) =>  queuedListeners.push(listener);
+module.exports.onCodeQueued = (listener) =>  queuedListeners.push(listener);
 
-exports.offCodeQueued = (listener) => {
+module.exports.offCodeQueued = (listener) => {
     queuedListeners = queuedListeners.filter(list => list !== listener);
-}
+};
 
-exports.onOk = (listener) => okEventListeners.push(listener);
+module.exports.onOk = (listener) => okEventListeners.push(listener);
 
-exports.offOk = (listener) => {
+module.exports.offOk = (listener) => {
     okEventListeners = okEventListeners.filter(list => list !== listener);
     return true;
-}
+};
 
-exports.onOther = (listener) =>  otherEventListeners.push(listener);
+module.exports.onOther = (listener) =>  otherEventListeners.push(listener);
 
-exports.offOther = (listener) => {
+module.exports.offOther = (listener) => {
     otherEventListeners = otherEventListeners.filter(list => list !== listener);
-}
+};
+
+module.exports.clearEvent = function (eventType) {
+    switch(eventType) {
+        case 'codeDone': doneListeners.length = 0; break;
+        case 'ok': okEventListeners.length = 0; break;
+        case 'other': otherEventListeners.length = 0; break;
+        case 'codeQueued': queuedListeners.length = 0; break;
+        case 'position': positionEventListeners.length = 0; break;
+        default: liveprinterUI.doError(`Bad event type: ${eventType}`); break;
+    }
+};
 
 
 /**
@@ -491,21 +634,21 @@ async function handleGCodeResponse(res) {
     /// should only get 4 back (result from gcode)
     ///
     switch (res.id) {
-        case 1: liveprinterui.loginfo("1 received");
+        case 1: liveprinterUI.loginfo("1 received");
             /// catch: there is no 1!
             break;
-        case 2: liveprinterui.loginfo("close serial port received");
+        case 2: liveprinterUI.loginfo("close serial port received");
             break;
-        case 3: liveprinterui.loginfo("printer state received");
+        case 3: liveprinterUI.loginfo("printer state received");
             // keys: time, port, state
             break;
-        case 4: //liveprinterui.loginfo("gcode response");
+        case 4: //liveprinterUI.loginfo("gcode response");
             if (res.result !== undefined) {
                 for (const rr of res.result) {
-                    //liveprinterui.loginfo('gcode reply:' + rr);
+                    //liveprinterUI.loginfo('gcode reply:' + rr);
                     // check for error
                     if (rr.toLowerCase().match(/error/m)) {
-                        liveprinterui.logerror(rr);
+                        liveprinterUI.logerror(rr);
                         handled = false;
                         break;
                     }
@@ -515,13 +658,13 @@ async function handleGCodeResponse(res) {
                     const tempResult = MarlinLineParserResultTemperature.parse(rr);
 
                     if (tempResult) {
-                        liveprinterui.tempHandler(tempResult);
+                        liveprinterUI.tempHandler(tempResult);
                         logger.debug('temperature event handled');
                         handled = true;
                     }
                     
                     if (positionResult) {
-                        //liveprinterui.moveHandler(positionResult);
+                        //liveprinterUI.moveHandler(positionResult);
                         // move/position update handled
                         logger.debug('position event handled');
                         const results = await Promise.all(positionEventListeners.map( async (v) => v(positionResult)));
@@ -543,17 +686,17 @@ async function handleGCodeResponse(res) {
                 }
             }
             break;
-        case 5: liveprinterui.loginfo("connection result");
+        case 5: liveprinterUI.loginfo("connection result");
             if (res.result !== undefined) {
                 // keys: time, port, messages
-                liveprinterui.loginfo(res.result);
+                liveprinterUI.loginfo(res.result);
             }
             break;
-        case 6: liveprinterui.loginfo("port names");
+        case 6: liveprinterUI.loginfo("port names");
             break;
-        default: liveprinterui.loginfo(res.id + " received");
+        default: liveprinterUI.loginfo(res.id + " received");
     }
     return handled;
 }
-exports.handleGCodeResponse = handleGCodeResponse;
+module.exports.handleGCodeResponse = handleGCodeResponse;
 
