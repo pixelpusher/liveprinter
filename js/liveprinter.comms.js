@@ -125,7 +125,7 @@ function initLimiter() {
         info.queued = _limiter.queued();
         
         try {
-            await Promise.all(queuedListeners.map(async v=>v(info)));
+            await Promise.all(queuedListeners.map(async v=>v(info))); // don't schedule or we'll be in a loop!
         }
         catch (err)
         {
@@ -138,9 +138,7 @@ function initLimiter() {
         info.queued = _limiter.queued(); 
         //liveprinterUI.loginfo(`done running command: ${_limiter.queued()}`);
         try {
-            await Promise.all(doneListeners.map(async v => {
-                scheduleFunction({ priority:1,weight:1,id:codeIndex++ }, v, info);
-            }));
+            await Promise.all(doneListeners.map(async v => v(info))); // don't schedule or we'll be in a loop!
         }
         catch (err)
         {
@@ -604,6 +602,29 @@ module.exports.offOk = (listener) => {
     return true;
 };
 
+/**
+ * Trigger the ok event for all ok listeners
+ * @param {Anything} data 
+ */
+module.exports.okEvent = async function (data) {
+    let handled = false;
+    try {
+        await Promise.all(okEventListeners.map(async v => {
+            scheduleFunction({ priority:1,weight:1,id:codeIndex++ }, v, data);
+        }));
+
+        logger.debug('ok event handled: ' + data); // other response
+        handled = true;    
+    }
+    catch (err)
+    {
+        err.message = "Error in ok event handler:" + err.message;
+        liveprinterUI.doError(err);
+        handled = false;
+    }
+    return handled;
+};
+
 module.exports.onOther = (listener) =>  otherEventListeners.push(listener);
 
 module.exports.offOther = (listener) => {
@@ -666,22 +687,54 @@ async function handleGCodeResponse(res) {
                     if (positionResult) {
                         //liveprinterUI.moveHandler(positionResult);
                         // move/position update handled
-                        logger.debug('position event handled');
-                        const results = await Promise.all(positionEventListeners.map( async (v) => v(positionResult)));
-                        handled = true;
+
+                        try {
+                            logger.debug('position event handled');
+                            await Promise.all(positionEventListeners.map(async v => {
+                                scheduleFunction({ priority:1,weight:1,id:codeIndex++ }, v, positionResult);
+                            }));
+
+                            handled = true;
+                        }
+                        catch (err)
+                        {
+                            err.message = "Error in position event handler:" + err.message;
+                            liveprinterUI.doError(err);
+                            handled = false;
+                        }
                     }
                     
                     if (!tempResult && !positionResult && rr.match(/ok/i)) {
-                        const results = await Promise.all(okEventListeners.map( async (v) => v(rr)));
-
-                        logger.debug('ok event handled: ' + rr); // other response
-                        handled = true;
+                        try {
+                            await Promise.all(okEventListeners.map(async v => {
+                                scheduleFunction({ priority:1,weight:1,id:codeIndex++ }, v, rr);
+                            }));
+                
+                            logger.debug('ok event handled: ' + rr); // other response
+                            handled = true;    
+                        }
+                        catch (err)
+                        {
+                            err.message = "Error in ok event handler:" + err.message;
+                            liveprinterUI.doError(err);
+                            handled = false;
+                        }
                     }
                     else {
-                        logger.debug('unhandled gcode response: ' + rr);
-                        const results = await Promise.all(otherEventListeners.map( async (v) => v(rr)));
 
-                        handled = false;
+                        try {
+                            logger.debug('unhandled gcode response: ' + rr);
+                            await Promise.all(otherEventListeners.map(async v => {
+                                scheduleFunction({ priority:1,weight:1,id:codeIndex++ }, v, rr);
+                            }));
+                            handled = false;
+                        }
+                        catch (err)
+                        {
+                            err.message = "Error in other event handler:" + err.message;
+                            liveprinterUI.doError(err);
+                            handled = false;
+                        }
                     }
                 }
             }
