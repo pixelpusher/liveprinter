@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "outputFormat": "global",
   "keywords": [
-    "3DPrinting, livecoding"
+    "3DPrinting, livecoding, Marlin, GCode"
   ],
   "bugs": {
     "email": "info@pixelist.info",
@@ -41,6 +41,7 @@
   "devDependencies": {
     "assert": "^2.0.0",
     "events": "^3.3.0",
+    "jsdoc-to-markdown": "^7.1.1",
     "minami": "^1.2.3",
     "parcel": "^2.4.1",
     "process": "^0.11.10",
@@ -51,6 +52,7 @@
     "build": "parcel build",
     "test": "echo \"Error: no test specified\" && exit 1",
     "watch": "parcel watch",
-    "run": "python3 liveprinter/LivePrinterServer.py"
+    "run": "python3 liveprinter/LivePrinterServer.py",
+    "docs": "jsdoc2md js/liveprinter.comms.js > doc/comms.md && jsdoc2md js/liveprinter.ui.js > doc/ui.md && jsdoc2md js/liveprinter.editor.js > doc/editor.md && jsdoc2md js/liveprinter.printer.js > doc/printer.md"
   }
 }

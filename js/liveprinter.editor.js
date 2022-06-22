@@ -1,7 +1,12 @@
 /**
- * Editor functions
+ * Code editing functionality for LivePrinter.
+ * @module Editor
+ * @typicalname editor
  */
 
+/**
+ * JQuery reference
+ */
 const $ = require('jquery');
 
 const liveprinterUI = require('./liveprinter.ui');
@@ -96,7 +101,8 @@ function recordCode(editor, code) {
 
 /**
  * Log GCode log to history window of choice
- * @param {Array or String} gcode 
+ * @param {Editor} editor
+ * @param {Array | String} gcode 
  */
 
 function recordGCode(editor, gcode) {
@@ -137,7 +143,9 @@ function recordGCode(editor, gcode) {
 
 /**
  * This function takes the highlighted "local" code from the editor and runs the compiling and error-checking functions.
- * @memberOf LivePrinter
+ * @param {Editor} editor 
+ * @param {Function} callback 
+ * @returns {Boolean} success
  */
 async function runCode(editor, callback) {
 
@@ -191,7 +199,6 @@ async function runCode(editor, callback) {
 * @param {String} type type (global key in window object) for storage object 
 * @returns {Boolean} true or false, if storage is available
 * @see https://developer.mozilla.org/en-US/docs/Web/API/Web_Storage_API/Using_the_Web_Storage_API
-* @memberOf LivePrinter
 */
 function storageAvailable(type) {
     try {
@@ -218,7 +225,10 @@ function storageAvailable(type) {
 }
 
 
-
+/**
+ * Initialise editors and events, etc.
+ * @returns {PromiseFulfilledResult}
+ */
 const init = async function () {
 
     /**

@@ -1,9 +1,11 @@
 /**
- * @file Main liveprinter system file for a livecoding system for live CNC manufacturing.
+ * Communications between server, GUI, and events functionality for LivePrinter.
+ * @module Comms
+ * @typicalname comms
  * @author Evan Raskob <evanraskob+nosp4m@gmail.com>
- * @version 0.8
+ * @version 1.0
  * @license
- * Copyright (c) 2018 Evan Raskob and others
+ * Copyright (c) 2022 Evan Raskob and others
  * Licensed under the GNU Affero 3.0 License (the "License"); you may
 * not use this file except in compliance with the License. You may obtain
 * a copy of the License at
@@ -42,7 +44,12 @@ import { noteMods, scales, getBaseNoteDuration, setBaseNoteDuration,
 } from "grammardraw/modules/fractalPath.mjs";
 /////------grammardraw fractals---------------------------------
 
+
 const vars = Object.create(null); // session vars
+/**
+ * Global variables object collection.
+ * @alias comms:vars
+ */
 module.exports.vars = vars;
 window.vars = vars;
 
@@ -64,6 +71,10 @@ vars.requestId = 0;
 
 window.maxCodeWaitTime = 5; // max time the limiter waits for scheduled code before dropping job -- in ms
 
+/**
+ * Creates a new limiter instance and returns it.
+ * @returns {Bottleneck} Limiter queue instance
+ */
 function initLimiter() {
     // Bottleneck rate limiter package: https://www.npmjs.com/package/bottleneck
     // prevent more than 1 request from running at a time, provides priority queing
@@ -152,14 +163,18 @@ function initLimiter() {
     return _limiter;
 }
 
+/**
+ * Private async queue (limiter) instance.
+ */
 let limiter = initLimiter(); // runs code in a scheduler: see ui/globalEval()
 // Bottleneck rate limiter for priority async queueing
 
 
 
 /**
- * HACK -- needs fixing!
+ * HACK -- needs fixing! Gives access to limiter queue. Dangerous.
  * @returns {Object} BottleneckJS limiter object. Dangerous.
+ * @alias comms:getLimiter
  */
 function getLimiter()
 {
@@ -171,13 +186,29 @@ module.exports.getLimiter = getLimiter;
 /**
  * Schedules code to run in the async queue (e.g. limiter)
  * @param  {...any} args Limiter options object (see Bottleneckjs) and list of other function arguments 
- * @returns 
+ * @returns {PromiseFulfilledResult} From the docs: schedule() returns a promise that will be executed according to the rate limits.
+ * @alias comms:scheduleFunction
  */
 async function scheduleFunction(...args){
     return await limiter.schedule(...args);
 } 
 
 module.exports.scheduleFunction = scheduleFunction;
+
+
+/**
+ * Quickly schedules code to run in the async queue (e.g. limiter) with default args
+ * @param  {...any} args Limiter options object (see Bottleneckjs) and list of other function arguments 
+ * @returns {PromiseFulfilledResult} From the docs: schedule() returns a promise that will be executed according to the rate limits.
+ * @alias comms:schedule
+ */
+ async function schedule(...args){
+    return await limiter.schedule({ priority:1, weight:1, id:codeIndex++ }, ...args);
+} 
+
+module.exports.schedule = schedule;
+
+
 
 // index of code block running
 let codeIndex = 0;
@@ -187,7 +218,7 @@ let codeIndex = 0;
   * @param {string} code to evaluate
   * @param {integer} line line number for error displaying
   * @param {Boolean} globally true if executing in global space, false (normal) if executing within closure to minimise side-effects
-  * @memberOf LivePrinter
+  * @alias comms:globalEval
   */
  async function globalEval(code, line) {
     liveprinterUI.clearError();
@@ -295,8 +326,9 @@ let codeIndex = 0;
 module.exports.globalEval = globalEval;
 
 /**
- *  
+ * Get number of queued functions in limiter 
  * @returns {Number} number of queued functions to run
+ * @alias comms:getQueued
  */
 function getQueued() {
     return limiter.queued();
@@ -319,7 +351,8 @@ async function stopLimiter() {
 }
 
 /**
- * Effectively cleares the current queue of events and restarts it. Should cancel all non-running actions.
+ * Effectively cleares the current queue of events and restarts it. Should cancel all non-running actions. 
+ * @alias comms:restartLimiter
  */
 async function restartLimiter() {
     liveprinterUI.loginfo("Limiter restarting");
@@ -333,6 +366,7 @@ module.exports.restartLimiter = restartLimiter;
  * Send a JSON-RPC request to the backend, get a response back. See below implementations for details.
  * @param {Object} request JSON-RPC formatted request object
  * @returns {Object} response JSON-RPC response object
+ * @alias comms:sendJSONRPC 
  */
 
 async function sendJSONRPC(request) {
@@ -368,11 +402,14 @@ async function sendJSONRPC(request) {
     return response;
 }
 
+module.exports.sendJSONRPC = sendJSONRPC;
+
 
 /**
 * Get the list of serial ports from the server (or refresh it) and display in the GUI (the listener will take care of that)
 * @memberOf LivePrinter
 * @returns {Object} result Returns json object containing result
+* @alias comms:getSerialPorts
 */
 async function getSerialPorts() {
     const message = {
@@ -388,11 +425,12 @@ async function getSerialPorts() {
 module.exports.getSerialPorts = getSerialPorts;
 
 /**
-    * Set the serial port from the server (or refresh it) and display in the GUI (the listener will take care of that)
-    * @memberOf LivePrinter
-    * @param {String} port Name of the port (machine)
-    * @returns {Object} result Returns json object containing result
-    */
+* Set the serial port from the server (or refresh it) and display in the GUI (the listener will take care of that)
+* @memberOf LivePrinter
+* @param {String} port Name of the port (machine)
+* @returns {Object} result Returns json object containing result
+* @alias comms:setSerialPort
+*/
 async function setSerialPort({ port, baudRate }) {
     const message = {
         'jsonrpc': '2.0',
@@ -419,11 +457,11 @@ async function setSerialPort({ port, baudRate }) {
 module.exports.setSerialPort = setSerialPort;
 
 /**
-    * Set the current commands line number on the printer (in case of resend)
-    * @memberOf LivePrinter
-    * @param {int} int new line number
-    * @returns {Object} result Returns json object containing result
-    */
+* Set the current commands line number on the printer (in case of resend). Probably doesn't work?
+* @param {int} int new line number
+* @returns {Object} result Returns json object containing result
+* @alias comms:setline
+*/
 async function setCurrentLine(lineNumber) {
     const message = {
         'jsonrpc': '2.0',
@@ -446,10 +484,10 @@ async function setCurrentLine(lineNumber) {
 module.exports.setline = setCurrentLine;
 
 /**
-    * Get the connection state of the printer and display in the GUI (the listener will take care of that)
-    * @memberOf LivePrinter
-    * @returns {Object} result Returns json object containing result
-    */
+* Get the connection state of the printer and display in the GUI (the listener will take care of that)
+* @returns {Object} result Returns json object containing result
+* @alias comms:getPrinterState
+*/
 let gettingState = false;
 
 async function getPrinterState() {
@@ -479,8 +517,8 @@ module.exports.getPrinterState = getPrinterState;
 /**
  * Send GCode to the server via json-rpc over ajax.
  * @param {string} gcode gcode to send 
- * @memberOf LivePrinter
  * @returns {Object} result Returns json object containing result
+ * @alias comms:sendGCodeRPC
  */
 async function sendGCodeRPC(gcode) {
     let gcodeObj = { "jsonrpc": "2.0", "id": 4, "method": "send-gcode", "params": [] };
@@ -525,8 +563,7 @@ module.exports.sendGCodeRPC = sendGCodeRPC;
  * Schedule GCode to be sent to the server, in order, using the limiter via json-rpc over ajax.
  * @param {string} gcode gcode to send
  * @param {Integer} priority Priority in queue (0-9 where 0 is highest)
- 
- * @memberOf LivePrinter
+ * @alias comms:scheduleGCode
  * @returns {Object} result Returns json promise object containing printer response
  */
 async function scheduleGCode(gcode, priority = 4) { // 0-9, lower higher
@@ -571,40 +608,99 @@ let okEventListeners = [];
 
 let otherEventListeners = [];
 
-// could be more general on('event', func)
+//------------------------------------------------
+// NOTE: these could be more general on('event', func)
 
-module.exports.onPosition = (listener) => positionEventListeners.push(listener);
+/**
+ * Add listener function to run when 'position' events are received from the printer server (these are scheduled to be run by the limiter)
+ * @param {Function} listener 
+ * @alias comms:onPosition
+ */
+module.exports.onPosition = function (listener) {
+    if (positionEventListeners.includes(listener)) return;
 
+    positionEventListeners.push(listener);
+}
+
+/**
+ * Remove a listener function from 'position' events queue
+ * @param {Function} listener 
+ * @alias comms:offPosition
+ */
 module.exports.offPosition = (listener) => {
     positionEventListeners = positionEventListeners.filter(list => list !== listener);
 };
 
 let doneListeners = [];
 
-module.exports.onCodeDone = (listener) =>  doneListeners.push(listener);
+/**
+ * Add listener function to run when 'codeDone' events are received from the limiter (not scheduled to be run by the limiter!)
+ * @param {Function} listener 
+ * @alias comms:onCodeDone
+ */
+module.exports.onCodeDone =function (listener) {
+    if (doneListeners.includes(listener)) return;
 
+    doneListeners.push(listener);
+}
+
+/**
+ * Remove a listener from 'codeDone' events queue
+ * @param {Function} listener 
+ * @alias comms:offCodeQueued
+*/
 module.exports.offCodeDone = (listener) => {
     doneListeners = doneListeners.filter(list => list !== listener);
 };
 
 let queuedListeners = [];
 
-module.exports.onCodeQueued = (listener) =>  queuedListeners.push(listener);
+/**
+ * Add listener function to run when 'codeQueued' events are received from the limiter (not scheduled to be run by the limiter!)
+ * @param {Function} listener 
+ * @alias comms:onCodeQueued 
+ */
+module.exports.onCodeQueued = function (listener) {
+    if (queuedListeners.includes(listener)) return;
 
+    queuedListeners.push(listener);
+}
+
+/**
+ * Remove a listener from 'codeQueued' events queue
+ * @param {Function} listener 
+ * @alias comms:offCodeQueued 
+ */
 module.exports.offCodeQueued = (listener) => {
     queuedListeners = queuedListeners.filter(list => list !== listener);
 };
 
-module.exports.onOk = (listener) => okEventListeners.push(listener);
 
+/**
+ * Add listener function to run when 'position' events are received from the printer server (these are scheduled to be run by the limiter)
+ * @param {Function} listener 
+ * @alias comms:onOk 
+ */
+module.exports.onOk = function (listener) {
+    if (okEventListeners.includes(listener)) return;
+
+    okEventListeners.push(listener);
+}
+
+/**
+ * Remove listener function from ok events queue
+ * @param {Function} listener
+ * @alias comms:offOk 
+ */
 module.exports.offOk = (listener) => {
     okEventListeners = okEventListeners.filter(list => list !== listener);
-    return true;
 };
 
 /**
  * Trigger the ok event for all ok listeners
  * @param {Anything} data 
+ * @return {Boolean} success
+ * @alias comms:okEvent 
  */
 module.exports.okEvent = async function (data) {
     let handled = false;
@@ -625,12 +721,32 @@ module.exports.okEvent = async function (data) {
     return handled;
 };
 
-module.exports.onOther = (listener) =>  otherEventListeners.push(listener);
+/**
+ * Add listener function to run when 'other' (unmatched) events are received from the printer server (these are not scheduled to be run by the limiter)
+ * @param {Function} listener
+ * @alias comms:onOther 
+ */
+ module.exports.onOther = function (listener) {
+    if (otherEventListeners.includes(listener)) return;
 
-module.exports.offOther = (listener) => {
+    otherEventListeners.push(listener);
+}
+
+
+/**
+ * Remove listener function from 'other' (unmatched) events queue
+ * @param {Function} listener
+ * @alias comms:offOther 
+ */
+ module.exports.offOther = (listener) => {
     otherEventListeners = otherEventListeners.filter(list => list !== listener);
 };
 
+/**
+ * Clear all listeners for a specific event type: codeDone, ok, other, codeQueued, position.
+ * @param {*} eventType 
+ * @alias comms:clearEvent 
+ */
 module.exports.clearEvent = function (eventType) {
     switch(eventType) {
         case 'codeDone': doneListeners.length = 0; break;
@@ -646,7 +762,8 @@ module.exports.clearEvent = function (eventType) {
 /**
  * Handles logging of a GCode response from the server
  * @param {Object} res 
- * @returns Boolean whether handled or not
+ * @returns {Boolean} whether handled or not
+ * @alias comms:handleGCodeResponse 
  */
 async function handleGCodeResponse(res) {
     let handled = true;

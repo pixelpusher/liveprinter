@@ -1,29 +1,31 @@
-// LIVEPRINTER - a livecoding system for live CNC manufacturing
-//-------------------------------------------------------------
-
 /**
- * Basic properties, settings and functions for the physical printer like speeds, dimensions, extrusion.
- * Uses a function passed in to send messages (strings of G Code), usually a websockets one.
- * @version 0.8
+ * Core Printer API of LivePrinter, an interactive programming system for live CNC manufacturing.
+ * @version 1.0
  * @example <caption>Log GCode to console:</caption>
- * let printer = new Printer(msg => console.log(msg));
+ * let printer = new Printer(msg => console.log(msg)); * Communications between server, GUI, and events functionality for LivePrinter.
+ * @author Evan Raskob <evanraskob+nosp4m@gmail.com>
+ * @version 1.0
  * @license
- * Copyright 2018 Evan Raskob
+ * Copyright (c) 2022 Evan Raskob and others
  * Licensed under the GNU Affero 3.0 License (the "License"); you may
- * not use this file except in compliance with the License. You may obtain
- * a copy of the License at
- *
- *     https://www.gnu.org/licenses/gpl-3.0.en.html
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
- * License for the specific language governing permissions and limitations
- * under the License.
- */
-
+* not use this file except in compliance with the License. You may obtain
+* a copy of the License at
+*
+*     {@link https://www.gnu.org/licenses/gpl-3.0.en.html}
+*
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+* WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+* License for the specific language governing permissions and limitations
+* under the License.
+*/
+ 
 import { Vector } from 'liveprinter-utils';
 
+/**
+ * Core Printer API of LivePrinter, an interactive programming system for live CNC manufacturing.
+ * @typicalname lp
+ */
 class Printer {
 
     ///////
