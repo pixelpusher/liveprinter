@@ -222,38 +222,38 @@ class Printer {
         }
         return this._printSpeed;
     }
+    
     /**
-     * Set drawing speed (synonym for printspeed).
+     * Shortcut for printspeed
      * @param {Number} s speed 
-     * @returns Number drawing speed
+     * @returns {Number} speed in mm/s     
      */
-    drawspeed(s) {
-        
-        return this.printspeed(s);
-    }
-
-    // shortcuts
     psp(s) {
         return this.printspeed(s);
     }
-
-    // for consistency when using "draw" functions
-    drawspeed(s) {
+    /**
+     * Shortcut for printspeed for consistency when using "draw" functions
+     * @param {Number} s speed 
+     * @returns {Number} speed in mm/s     
+     */
+     drawspeed(s) {
         return this.printspeed(s);
     }
-    // shortcut
+    /**
+     * Shortcut for printspeed for consistency when using "draw" functions
+     * @param {Number} s speed 
+     * @returns {Number} speed in mm/s     
+     */
     dsp(s) {
         return this.printspeed(s);
     }
 
-
-    get maxspeed() { return Printer.maxPrintSpeed[this._model].x; } // in mm/s
     /**
      * Set travel speed.
      * @param {Number} s speed 
-     * @returns Number travel speed
+     * @returns {Number} speed in mm/s     
      */
-    travelspeed(s) {
+     travelspeed(s) {
         if (s !== undefined) {
             let maxs = Printer.maxTravelSpeed[this._model];
             this._travelSpeed = Math.min(parseFloat(s), parseFloat(maxs.x)); // pick in x direction...
@@ -264,6 +264,17 @@ class Printer {
     tsp(s) {
         return this.travelspeed(s);
     }
+
+    /**
+     * Set both travel and printing speeds at once.
+     * @param {Number} s speed 
+     * @returns {Number} speed in mm/s
+     */
+    speed(s) {
+        return this.printspeed(this.travelspeed(s));
+    }
+
+    get maxspeed() { return Printer.maxPrintSpeed[this._model].x; } // in mm/s
 
     get extents() {
         return this.maxPosition.axes;
@@ -622,7 +633,10 @@ class Printer {
         params.x = this.x + horizDist * Math.cos(this._heading);
         params.y = this.y + horizDist * Math.sin(this._heading);
         params.z = this.z + vertDist; // this is set separately in tiltup
-        if (!extruding) params.e = 0; // don't specify (calc automatically), or 0 for travel move
+        if (!extruding) {
+            params.e = 0; // don't specify (calc automatically), or 0 for travel move
+            params.speed = this._travelSpeed;
+        }
 
         // debugging
         //let _div = Math.sqrt(params.x * params.x + params.y * params.y);
@@ -1271,7 +1285,7 @@ class Printer {
         newparams.z = (params.z !== undefined) ? parseFloat(params.z) + this.z : this.z;
         newparams.e = this.e;
         if (params.speed !== undefined) 
-            this.travelSpeed(parseFloat(params.speed));
+            this.travelspeed(parseFloat(params.speed));
         newparams.speed = this._travelSpeed; // update travel speed
 
         // extrude using absolute cartesian coords
@@ -1435,7 +1449,7 @@ class Printer {
     /**
      * Calculate the movement distance based on a target amount of time to move. (Uses current print speed to calculate)
      * @param {Number} time Time to move in milliseconds
-     * @returns {Float} distance in mm
+     * @returns {Number} distance in mm
      */
     t2mm(time, speed = this._printSpeed) {
         return speed * time / 1000; // time in ms
@@ -1446,9 +1460,18 @@ class Printer {
      * @param {Number} beats Time to move in whole or partial beats
      * @returns {Printer} reference to this object for chaining
      */
-    b2d(beats, speed = this._travelSpeed) {
-        this._distance = this.b2t(beats,speed); // speed is in ms already
+    b2d(beats, speed = this._printSpeed) {
+        this._distance = this.t2mm(this.b2t(beats), speed); // speed is in ms already
         return this;
+    }
+
+    /**
+     * Set the movement distance based on number of beats (uses bpm to calculate)
+     * @param {Number} beats Time to move in whole or partial beats
+     * @returns {Number} distance per beat
+     */
+    b2mm(beats, speed = this._printSpeed) {
+        return this._distance = this.t2mm(this.b2t(beats), speed); // speed is in ms already
     }
 
     /**
@@ -1456,8 +1479,8 @@ class Printer {
      * @param {Number} beats In whole or partial beats
      * @returns {Number} Time in ms equivalent to the number of beats
      */
-    b2t(beats, speed = this._travelSpeed) {
-        return speed * (beats*60/this._bpm); // speed is in ms already
+    b2t(beats, bpm = this._bpm) {
+        return (beats/this._bpm)*60000; // speed is in ms already
     }
 
     /**

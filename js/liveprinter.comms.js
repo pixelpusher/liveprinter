@@ -31,27 +31,28 @@ const logger = new Logger();
 
 const liveprinterUI = require('./liveprinter.ui');
 
-// other code libraries:
+/**
+ * External libraries to include when compiling (evaluating) code from the live editor
+ * @see main.js
+ */
 
-/////------grammardraw fractals---------------------------------
+const lib = Object.create(null); // session vars
 
-import * as Tone from 'tone';
-import {lp_functionMap as functionMap} from "grammardraw/modules/functionmaps.mjs"
-import {createESequence} from "grammardraw/modules/sequences"
-import { noteMods, scales, getBaseNoteDuration, setBaseNoteDuration, 
-   iterate,
-   on, off
-} from "grammardraw/modules/fractalPath.mjs";
-/////------grammardraw fractals---------------------------------
+/**
+ * Add external libs (as object keys) to the list of those to include whilst compiling
+ * @param {Object} libs Object with external library functions as keys 
+ */
+module.exports.addLibs = function (libs) {
+  Object.assign(lib, libs);  
+}
 
-
-const vars = Object.create(null); // session vars
 /**
  * Global variables object collection.
  * @alias comms:vars
  */
+const vars = Object.create(null); // session vars
+
 module.exports.vars = vars;
-window.vars = vars;
 
 vars.serialPorts = []; // available ports
 
@@ -283,24 +284,16 @@ let codeIndex = 0;
         async function func () {
             //console.log(`async()=>{await 1; ${code} return 1}`);
 
-             // bindings
-             const comms = exports; // local functions for events, etc.
-            const fm = functionMap;
-            const createESeq = createESequence;
-            const fractalStep = iterate;
-            const stepNotes = noteMods;
+            // bindings
+            lib.comms = exports; // local functions for events, etc.
+
+            // Call user's function with external bindings from lib (as 'this' which gets interally mapped to 'lib' var)
+            const innerFunc = eval(`async(lib)=>{await 1; ${code}; return 1}`);
             
-// import { noteMods, scales, getBaseNoteDuration, setBaseNoteDuration, 
-//    iterate,
-//    on, off
-// } from "grammardraw/modules/fractalPath.mjs";
-             
-            const innerFunc =  eval(`async()=>{await 1; ${code}; return 1}`);
-    
             try 
             {
                 //console.log("running inner");
-                await innerFunc();
+                await innerFunc(lib);
             }
             catch(e) 
             {

@@ -84,7 +84,7 @@
 }
 
 body {
-    background: white;
+    background: rgb(67, 9, 25);
     margin: 0.71em 0.71em 0 0.71em;
 }
 
@@ -121,12 +121,12 @@ td {
 
 #printer-info {
     padding-top: 0.825em;
-    background-color: rgb(226, 26, 82);
+    background-color: rgb(67, 9, 25);
     border-bottom: 3px solid gray;
 }
 
 #printer {
-    background-color: white;
+    background-color: rgb(82, 82, 82);
     height: 100%;
     padding: 0.875em;
 }
@@ -152,7 +152,7 @@ td {
 }
 
 #tab-messages-pane {
-    background-color: whitesmoke;
+    background-color: rgb(82, 82, 82);
 }
 
 #printer > .row {
@@ -166,7 +166,7 @@ td {
 }
 
 .code-errors {
-    background-color: rgb(226, 26, 82);
+    background-color: rgb(67, 9, 25);
     padding: 0.4em;
     color: lightgray;
     border-left: 0;
@@ -176,16 +176,16 @@ td {
 }
 
 #info, #info-tab.active {
-    background-color: lightcyan;
+    background-color: rgb(82, 82, 82);
     border-bottom-color: transparent;
 }
 
 #info {
-    color: darkmagenta;
+    color: rgb(244, 251, 95);
 }
 
 #errors, #errors-tab.active {
-    background-color: lightcoral;
+    background-color: rgb(123, 15, 46);
     border-bottom-color: transparent;
 }
 
@@ -247,7 +247,7 @@ kbd {
 }
 
 .bg-colorful1 {
-    background-color: rgb(255, 67, 119);
+    background-color: rgb(123, 15, 46);
 }
 
 .instructions-panel, .code-errors-panel {
@@ -258,7 +258,7 @@ kbd {
 }
 
 .code-errors-panel {
-    color: rgb(255, 67, 119);
+    color: rgb(67, 9, 25);
 }
 
 .lines {
@@ -269,7 +269,7 @@ kbd {
     transform: skewY(-30deg);
     z-index: -10;
     -webkit-backface-visibility: hidden;
-    background-image: repeating-linear-gradient(transparent, transparent 2em,#eeeeee 2.1px, #ffefef 3em);
+    background-image: repeating-linear-gradient(transparent, transparent 2em,#7b7b7b 2.1px, #000000 3em);
 }
 
 .box {
@@ -449,4 +449,14 @@ a.graylink, .graylink a:link, .graylink a:active,
     text-decoration:dotted;
     text-decoration-color:aliceblue #ee4bfc;
     text-decoration-line:underline;
+}
+
+
+.alert-primary {
+    background-color: #181818;
+    color: #b4b4b4;
+}
+
+.form-control {
+    background-color: #000;
 }
