@@ -1,17 +1,70 @@
-window.$ = window.jquery = require('jquery');
-
 import { repeat, numrange, countto, Scheduler } from 'liveprinter-utils';
-window.repeat = repeat;
-window.numrange = numrange;
-window.countto = countto;
 
 const Printer = require('./liveprinter.printer'); // printer API object
 const editors = require('./liveprinter.editor'); // code editors and functions
 const liveprinterui = require('./liveprinter.ui'); // main ui
 const liveprintercomms = require('./liveprinter.comms'); // browser-to-server communications
+window.$ = window.jquery = require('jquery');
 
 //require('./svg/SVGReader'); // svg util class
 //require('./svg/svg2gcode'); // svg gcode converter
+
+// other code libraries:
+
+/////-----------------------------------------------------------
+/////------grammardraw fractals---------------------------------
+
+//import * as Tone from 'tone';
+import {lp_functionMap as functionMap} from "grammardraw/modules/functionmaps.mjs"
+import {createESequence} from "grammardraw/modules/sequences"
+import { setNoteMods, setScales, getBaseNoteDuration, setBaseNoteDuration, 
+   iterate,
+   on, off
+} from "grammardraw/modules/fractalPath.mjs";
+
+
+const listener = {
+    'step': (v) => loginfo(`step event: ${v}`),
+    'action': ({noteString,noteMidi,noteSpeed,notesPlayed,noteDuration,noteDist,
+       currentTotalDuration, 
+       totalSequenceDuration,
+       moved}) => {
+        loginfo(`action event: ${noteString,noteMidi,noteSpeed,notesPlayed,noteDuration,noteDist,
+               currentTotalDuration, 
+               totalSequenceDuration,
+               moved}`);
+        //    document.getElementById('cur-time').innerHTML = `${currentTotalDuration}s`;
+        //    document.getElementById('note-string').innerHTML = `${noteString}`;
+           
+       },
+    'done': (v) => {
+       animating = false; 
+       loginfo(`done event: ${v}`);
+       // ???
+       // cancelAnimationFrame(animationFrameHandle); 
+    }
+}
+
+const libs = {functionMap, 
+    createESequence, 
+    setNoteMods, setScales,
+    getBaseNoteDuration, setBaseNoteDuration, 
+    iterate,
+    on, off
+}
+
+// setup listeners
+for (let eventName in listener) {
+    on(eventName, listener[eventName]);
+}
+
+// set up API for live editor
+liveprintercomms.addLibs(libs);
+
+
+
+/////------grammardraw fractals---------------------------------
+/////-----------------------------------------------------------
 
 
 
@@ -20,6 +73,10 @@ const liveprintercomms = require('./liveprinter.comms'); // browser-to-server co
     "use strict";
 
     await $.ready();
+
+    window.repeat = repeat;
+    window.numrange = numrange;
+    window.countto = countto;
 
     //await repeat(2, async(n) => console.log(n)); // test func
 
@@ -70,12 +127,13 @@ const liveprintercomms = require('./liveprinter.comms'); // browser-to-server co
 
         let msg;
         if (v.queued === 0) {
-            msg = `no code running [${dateStr}]`;
+            msg = `done: no code running [${dateStr}]`;
         }
         else {
-            msg = `running, other code blocks in queue: ${v.queued} [${dateStr}]`;
+            msg = `done: other code blocks in queue: ${v.queued} [${dateStr}]`;
         }
         document.getElementById('working-tab').innerHTML = msg;
+        liveprinterui.blinkElem($("#working-tab"));
         //liveprinterui.loginfo(`done: code blocks running: ${v.queued}`);
     });
     liveprintercomms.onCodeQueued(async (v)=>{
@@ -87,9 +145,11 @@ const liveprintercomms = require('./liveprinter.comms'); // browser-to-server co
         document.getElementById('working-tab').innerHTML=`queued: code block running (queued: ${v.queued}) [${dateStr}]`;
         //liveprinterui.loginfo(`queued: code blocks running: ${v.queued}`);
     });
-    liveprintercomms.onOk(async () => {
-        liveprinterui.blinkElem($("#working-tab"));
-    });
+
+    // With the live server, this just blinks constantly...
+    // liveprintercomms.onOk(async () => {
+    //     liveprinterui.blinkElem($("#working-tab"));
+    // });
 
     
     ///----------------------------------------------------------------------------
