@@ -499,9 +499,13 @@ class Printer {
 
         //unretract manually first if needed
         if (!this.firmwareRetract) {
+            // if we don't do this first, things get out of sync when chaining. Not ideal
+            this.e = parseFloat(this.e.toFixed(4));
+            this.currentRetraction = 0;
+
             // account for previous retraction
             await this.gcodeEvent("; unretract");
-            await this.gcodeEvent("G1 " + "E" + this.e.toFixed(4) + " F" + this._retractSpeed.toFixed(4));
+            await this.gcodeEvent("G1 " + "E" + this.e + " F" + this._retractSpeed.toFixed(4));
 
         } else {
             if (speedUpdated || lengthUpdated) await this.sendFirmwareRetractSettings();// might slow things down...
@@ -509,8 +513,8 @@ class Printer {
             // unretract via firmware otherwise
             await this.gcodeEvent("G11");
         }
-        this.e = parseFloat(this.e.toFixed(4));
-        this.currentRetraction = 0;
+        //this.e = parseFloat(this.e.toFixed(4));
+        
 
         return this;
     }
@@ -613,7 +617,7 @@ class Printer {
         }
         
         // retraction can be forced, or is automagic if undefined
-        params.retract = retract;
+        if (retract !== undefined) params.retract = retract;
 
         // take into account stored distance, angle, elevation and
         // add to current position (cartesian), then clear and
@@ -634,7 +638,7 @@ class Printer {
         params.y = this.y + horizDist * Math.sin(this._heading);
         params.z = this.z + vertDist; // this is set separately in tiltup
         if (!extruding) {
-            params.e = 0; // don't specify (calc automatically), or 0 for travel move
+            params.e = this.e; // e stays same
             params.speed = this._travelSpeed;
         }
 
@@ -652,9 +656,6 @@ class Printer {
         this._distance = 0;
         this._zdistance = 0;
         this._elevation = 0;
-
-        // Travel or printing (extrusion): travel has no filament  (stay current)
-        params.e = extruding ? undefined : this._e;
 
         //everything else handled in extrudeto
         return this.extrudeto(params);
@@ -967,6 +968,7 @@ class Printer {
     async rect(w, h) {
         const prevAutoRetract = this._autoRetract; // save previous state
         this._autoRetract = false; // turn off for this operation
+        // move into place
 
         for (let i = 0; i < 2; i++) {
             await this.draw(w);
@@ -1001,29 +1003,27 @@ class Printer {
         const __e = (params.e !== undefined) ? parseFloat(params.e) : this.e;
 
         // did we specify a length of filament to extrude?
-        const extrusionNotZero = (undefined !== this.e) && (Math.abs(__e - this.e) > 0.001);
+        const extrusionNotZero = (Math.abs(__e - this.e) > 0.001);
 
         // only extrude if there is something to extrude!
         const extruding = (extrusionNotSpecified || extrusionNotZero); 
+        // if not, traveling
 
-        // if not, traveling 
-
-        // Set retract true, but if only if extrusion wasn't specified, because
-        // specifying it implies overriding retraction. Otherwise, use 
-        // autoretraction.
-        let retract = (params.retract === undefined) 
-            ? extrusionNotSpecified && this._autoRetract 
-            : params.retract;
+        // Set retract true, but if only if extruding and it is either specified
+        // or not specified but we're also using autoretraction
+        
+        const retract = extrusionNotSpecified 
+            && extrusionNotZero 
+            && ((params.retract === true) 
+                || ((params.retract === undefined) && this._autoRetract));
 
         // clear retraction if filament is manually being moved
-        if (extrusionNotZero) 
+        if (!extrusionNotSpecified && extrusionNotZero)
         {
             this.currentRetraction = 0; //clear retraction if we go manual
-            retract = false;
         }
-        else {
-            // not a travel or manual extrusion so try
-            // to unretract if needed
+        
+        if (retract) {
             await this.unretract();
         }
 
@@ -1336,7 +1336,7 @@ class Printer {
 
         const prevAutoRetract = this._autoRetract; // save previous state
         this._autoRetract = false; // turn off for this operation
-
+o
         let times = w / gap;
         if (times < 3) {
             // just room for one
