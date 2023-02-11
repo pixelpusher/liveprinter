@@ -26,7 +26,7 @@ import { Vector } from 'liveprinter-utils';
  * Core Printer API of LivePrinter, an interactive programming system for live CNC manufacturing.
  * @typicalname lp
  */
-class Printer {
+export default class Printer {
 
     ///////
     // Printer API /////////////////
@@ -64,6 +64,7 @@ class Printer {
         this._waitTime = 0;
         this._autoRetract = true; // automatically unretract/retract - see get/set autoretract
         this._bpm = 120; // for beat-based movements
+        this._minMovementTime = 20; // for breaking up movements, in ms
         ////////////////////////////////////////////
 
         this.totalMoveTime = 0; // time spent moving/extruding
@@ -598,6 +599,41 @@ class Printer {
 
         return position;
     }
+    
+    /**
+     * A time-varying movement function set by user. Default is no op
+     */ 
+    _moveFunc = (({x,y,z,t})=>{x,y,z,t});
+
+    /**
+     * Set time based movement function
+     * @param {Function} func Movement function
+     * @see go
+     */
+    set moveFunc(func) {
+        this._moveFunc = func;
+    }
+
+    /**
+     * Get time based movement function
+     * @see go
+     */
+    get moveFunc() {
+        return this._moveFunc;
+    }
+
+
+    /**
+     * Applies a time-varying movement function set by user. Default is no op
+     * @param {Number} x x coordinate
+     * @param {Number} y y coordinate
+     * @param {Number} z z coordinate
+     * @param {Number} t current time in ms
+     * @returns {Object} new x,y,z coordinates
+     */
+    applyMoveFunc(x,y,z, t) {
+        return this._moveFunc({x,y,z,t});
+    }
 
     /**
      * Execute a movement (extrusion or travel) based on the internally-set 
@@ -609,56 +645,83 @@ class Printer {
      */
     async go(extruding = false, retract) 
     {
-        let params = {}; // params for passing to extrudeto
-
         // wait, if necessary
         if (this._waitTime > 0) {
             return this.wait();
         }
-        
-        // retraction can be forced, or is automagic if undefined
-        if (retract !== undefined) params.retract = retract;
-
+     
+        // first, calcuate total distances to move:
         // take into account stored distance, angle, elevation and
-        // add to current position (cartesian), then clear and
-        // run extrudeto function
+        // add to current position (cartesian)
 
         let horizDist = this._distance;
+        let vertDist = this._zdistance;
+
+        let params = {}; // params for passing to each call to extrudeto
+
         // add projection of vertical distance into horizontal plane.
         // vertical distances are specified absolutely, so we need to find corresponding
         // horizontal distance using the tangent
-        if (Math.abs(this._zdistance) > Number.EPSILON) {
-            let horizProjection = this._zdistance / Math.tan(this._elevation);
+        if (Math.abs(vertDist) > Number.EPSILON) {
+            let horizProjection = vertDist / Math.tan(this._elevation);
             if (Math.abs(horizProjection) > 0.001) // smallest moveable unit, in mm
                 horizDist += horizProjection;
         }
-        const vertDist = this._zdistance;
 
-        params.x = this.x + horizDist * Math.cos(this._heading);
-        params.y = this.y + horizDist * Math.sin(this._heading);
-        params.z = this.z + vertDist; // this is set separately in tiltup
-        if (!extruding) {
-            params.e = this.e; // e stays same
-            params.speed = this._travelSpeed;
-        }
-
-        // debugging
-        //let _div = Math.sqrt(params.x * params.x + params.y * params.y);
-        //let _normx = params.x / _div;
-        //let _normy = params.y / _div;
-
-        /* for debugging -- test if start and end are same
-        console.log("[go] end position:" + (this.x + params.x) + "," + (this.y + params.y) + "," + (this.z + params.z) + "," + params.e);
-        console.log("[go] move vec:" + _normx + ", " + _normy);
-        */
-
-        // reset distance to 0 because we've used in calculating new position
+        // reset distances to 0 because we've used them to calculate new position
         this._distance = 0;
         this._zdistance = 0;
         this._elevation = 0;
+        
+        if (!extruding) {
+            params.e = this.e; // e stays same
+            params.speed = this._travelSpeed;
+        } else {
+            params.speed = this._printSpeed;
+        }
 
-        //everything else handled in extrudeto
-        return this.extrudeto(params);
+        // divide up entire movement into smaller chunks based on this._minMovementTime
+        const totalMovementsTime = this.d2t(horizDist+vertDist, params.speed);
+        // DEBUG
+        const totalMovements = Math.ceil(this._minMovementTime / totalMovementsTime);
+        console.log(`go: total move time/num: ${totalMovementsTime} / ${totalMovements}`); 
+
+        let t = 0; // current time in movement
+
+        for (let movement=0; movement<totalMovements; movement++){
+
+            console.log(`current move time: ${t}:${totalMovementsTime}/${movement}:${totalMovements}`)
+
+            const x0 = this.x + horizDist/totalMovements * Math.cos(this._heading);
+            const y0 = this.y + horizDist/totalMovements * Math.sin(this._heading);
+            const z0 = this.z + vertDist/totalMovements; // this is set separately in tiltup
+    
+            let {x,y,z} = this._moveFunc({x0,y0,z0,t});
+            params.x = x;
+            params.y = y;
+            params.z = z;
+
+            t += this._minMovementTime;
+
+            // debugging
+
+            //let _div = Math.sqrt(params.x * params.x + params.y * params.y);
+            //let _normx = params.x / _div;
+            //let _normy = params.y / _div;
+    
+            /* for debugging -- test if start and end are same
+            console.log("[go] end position:" + (this.x + params.x) + "," + (this.y + params.y) + "," + (this.z + params.z) + "," + params.e);
+            console.log("[go] move vec:" + _normx + ", " + _normy);
+            */
+        
+            //everything else handled in extrudeto
+            await this.extrudeto(params);
+        }
+        
+        // retraction can be forced, or is automagic if undefined
+        if (retract !== undefined && retract) await this.retract();
+
+        return true;
     }
 
     /**
@@ -1481,6 +1544,16 @@ o
      */
     b2t(beats, bpm = this._bpm) {
         return (beats/this._bpm)*60000; // speed is in ms already
+    }
+
+    /**
+     * Simple function to calculate the expected time of a movement (without retraction)
+     * @param {Number} _dist Distance of movement in mm 
+     * @param {Number} _speed Speed of movement in mm/s
+     * @returns {Number} time of movement in ms
+     */
+    d2t(_dist=this._distance, _speed=this._printSpeed) {
+        return _dist*_speed;
     }
 
     /**
@@ -2487,5 +2560,3 @@ Printer.speedScale[Printer.UM2] = { 'x': 47.069852, 'y': 47.069852, 'z': 160.0 }
 Printer.speedScale[Printer.UM2plus] = { 'x': 47.069852, 'y': 47.069852, 'z': 160.0 };
 
 //////////////////////////////////////////////////////////
-
-module.exports = Printer;
