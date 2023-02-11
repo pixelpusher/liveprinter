@@ -20,6 +20,14 @@
       "distDir": "./liveprinter/static/lib/",
       "context": "browser",
       "outputFormat": "global"
+    },
+    "module": {
+      "distDir": "./dist",
+      "outputFormat": "esmodule"
+    },
+    "test": {
+      "distDir": "./dist",
+      "context": "browser"
     }
   },
   "dependencies": {
@@ -50,7 +58,7 @@
   "browserslist": "> 0.5%, last 2 versions, not dead",
   "scripts": {
     "build": "parcel build",
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "npx parcel test/test.html --target test --dist-dir dist",
     "watch": "parcel watch",
     "run": "python3 liveprinter/LivePrinterServer.py",
     "docs": "jsdoc2md js/liveprinter.comms.js > doc/comms.md && jsdoc2md js/liveprinter.ui.js > doc/ui.md && jsdoc2md js/liveprinter.editor.js > doc/editor.md && jsdoc2md js/liveprinter.printer.js > doc/printer.md"
