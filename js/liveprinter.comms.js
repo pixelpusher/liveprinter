@@ -25,11 +25,44 @@ const compile = require('./language/compile'); // minigrammar compile function
 
 import { MarlinLineParserResultPosition, MarlinLineParserResultTemperature } from './parsers/MarlinParsers.js';
 import { __esModule } from "bootstrap";
-import { Logger  } from "liveprinter-utils";
+import * as liveprinterUI from './liveprinter.ui';
 
-const logger = new Logger();
+//------------------------------------------------
+// feedback to the GUI or logger
+//--------------------------------------------
 
-const liveprinterUI = require('./liveprinter.ui');
+// TODO: encapsulate this into a single call so it can be sent to a single listener as {type, data}
+// instead of this mess of functions
+
+let debug = (v)=>console.log(v); // to be overridden by a real debug when loaded
+module.exports.setDebug = f => debug=f; 
+
+let doError = (v)=>console.error(v); // to be overridden by a real debug when loaded
+module.exports.setDoError = f => doError=f; 
+
+let logError = (v)=>console.error(v); // to be overridden by a real debug when loaded
+module.exports.setLogError = f => logError=f; 
+
+let logInfo = (v)=>console.info(v); // to be overridden by a real debug when loaded
+module.exports.setLogInfo = f => logInfo=f; 
+
+
+// was liveprinterUI.commandsHandler.log
+let logCommands = (v)=>console.info(v); // to be overridden by a real debug when loaded
+module.exports.setLogCommands = f => logCommands=f; 
+
+//liveprinterUI.printerStateHandler
+let logPrinterState = (v)=>console.info(v); // to be overridden by a real debug when loaded
+module.exports.setLogPrinterState = f => logPrinterState=f; 
+
+
+// TODO: these
+
+//liveprinterUI.moveHandler
+//updateGUI
+//tempHandler
+//clearError
+
 
 /**
  * External libraries to include when compiling (evaluating) code from the live editor
@@ -95,8 +128,8 @@ function initLimiter() {
         catch (err) {
             errorTxt = error + "";
         }
-        liveprinterUI.doError(Error(errorTxt));
-        liveprinterUI.logerror(`Limiter error: ${errorTxt}`);
+        doError(Error(errorTxt));
+        logError(`Limiter error: ${errorTxt}`);
 
         await restartLimiter();
     });
@@ -104,21 +137,18 @@ function initLimiter() {
     // Listen to the "failed" event
     _limiter.on("failed", async (error, jobInfo) => {
         const id = jobInfo.options.id;
-        logger.warn(`Job ${id} failed: ${error}`);
-        liveprinterUI.logerror(`Job ${id} failed: ${error}`);
+        logError(`Job ${id} failed: ${error}`);
         // if (jobInfo.retryCount === 0) { // Here we only retry once
-        //     liveprinterUI.logerror(`Retrying job ${id} in 5ms!`);
+        //     logError(`Retrying job ${id} in 5ms!`);
         //     return 5;
         // }
     
     });
 
     // Listen to the "retry" event
-    _limiter.on("retry", (error, jobInfo) => liveprinterUI.logerror(`Now retrying ${jobInfo.options.id}`));
+    _limiter.on("retry", (error, jobInfo) => logError(`Now retrying ${jobInfo.options.id}`));
 
     _limiter.on("dropped", (dropped) => {
-        logger.warn("limiter dropped:");
-        logger.warn(dropped);
         let errorTxt = "";
         try {
             errorTxt = `${JSON.stringify(dropped)}`;
@@ -126,14 +156,14 @@ function initLimiter() {
         catch (err) {
             errorTxt = dropped + "";
         }
-        liveprinterUI.doError(Error(errorTxt));
-        liveprinterUI.logerror(`Dropped job ${errorTxt}`);
+        doError(Error(errorTxt));
+        logError(`Dropped job ${errorTxt}`);
         //   This will be called when a strategy was triggered.
         //   The dropped request is passed to this event listener.
     });
 
     _limiter.on('queued', async function (info){
-        //liveprinterUI.loginfo(`starting command...: ${_limiter.queued()}`);
+        //logInfo(`starting command...: ${_limiter.queued()}`);
         info.queued = _limiter.queued();
         
         try {
@@ -142,20 +172,20 @@ function initLimiter() {
         catch (err)
         {
             err.message = "Error in done event:" + err.message;
-            liveprinterUI.doError(err);
+            doError(err);
         }
     })
 
     _limiter.on('done', async function (info) {
         info.queued = _limiter.queued(); 
-        //liveprinterUI.loginfo(`done running command: ${_limiter.queued()}`);
+        //logInfo(`done running command: ${_limiter.queued()}`);
         try {
             await Promise.all(doneListeners.map(async v => v(info))); // don't schedule or we'll be in a loop!
         }
         catch (err)
         {
             err.message = "Error in done event:" + err.message;
-            liveprinterUI.doError(err);
+            doError(err);
         }
         
     });
@@ -233,9 +263,9 @@ let codeIndex = 0;
     // replace globals in js
     code = code.replace(/^[ ]*global[ ]+/gm, "window.");
 
-    liveprinterUI.logger.debug("code before pre-processing-------------------------------");
-    liveprinterUI.logger.debug(code);
-    liveprinterUI.logger.debug("========================= -------------------------------");
+    debug("code before pre-processing-------------------------------");
+    debug(code);
+    debug("========================= -------------------------------");
 
     //
     // compile in minigrammar
@@ -245,8 +275,8 @@ let codeIndex = 0;
     }
     catch (err)
     {
-        liveprinterUI.logger.error("Compilation error:");
-        liveprinterUI.doError(err);
+        debug("Compilation error:");
+        doError(err);
         return 1; // stop execution
     }
 
@@ -269,12 +299,11 @@ let codeIndex = 0;
             brython(); // re-run brython
 
             //code = __BRYTHON__.py2js(code + "", "newcode", "newcode").to_js();
-            // liveprinterUI.logger.log(code);
+            // debug(code);
             // eval(code);
         }
         else {         
-
-            liveprinterUI.logger.debug(code);
+            debug(code);
         }
 
         //if (vars.logAjax) loginfo(`starting code ${codeIndex}`);
@@ -300,7 +329,7 @@ let codeIndex = 0;
                 lastErrorMessage = null;
                 e.lineNumber=line;
                 console.log(`Code running error(${line}): ${e}`);
-                liveprinterUI.doError(e);  
+                doError(e);  
            }
             return 1;
         }
@@ -336,10 +365,10 @@ async function stopLimiter() {
     if (limiter) {
         await limiter.stop({ dropWaitingJobs: true });
         limiter.disconnect(); // clear interval and allow memory to be freed
-        liveprinterUI.loginfo("Limiter stopped.");
+        logInfo("Limiter stopped.");
     }
     limiter = null;
-    logger.log("Shutdown completed!");
+    debug("Shutdown completed!");
     return;
 }
 
@@ -348,7 +377,7 @@ async function stopLimiter() {
  * @alias comms:restartLimiter
  */
 async function restartLimiter() {
-    liveprinterUI.loginfo("Limiter restarting");
+    logInfo("Limiter restarting");
     await stopLimiter();
     limiter = initLimiter();
     return;
@@ -363,13 +392,13 @@ module.exports.restartLimiter = restartLimiter;
  */
 
 async function sendJSONRPC(request) {
-    //logger.log(request)
+    //debug(request)
     let args = typeof request === "string" ? JSON.parse(request) : request;
     //args._xsrf = getCookie("_xsrf");
-    //logger.log(args);
+    //debug(args);
     let reqId = "req" + vars.requestId++; // shared with limiter - see above
 
-    if (vars.logAjax) liveprinterUI.commandsHandler.log(`SENDING ${reqId}::${request}`);
+    if (vars.logAjax) logCommands(`SENDING ${reqId}::${request}`);
 
     let response = "awaiting response";
     try {
@@ -385,13 +414,13 @@ async function sendJSONRPC(request) {
         response = JSON.stringify(error, null, 2);
         const statusText = `JSON error response communicating with server:<br/>${response}<br/>Orig:${request}`; 
         console.error(statusText);
-        liveprinterUI.logerror(statusText);
+        logError(statusText);
     }
     if (undefined !== response.error) {
-        liveprinterUI.logerror(`JSON error response communicating with server:<br/>${JSON.stringify(response.error, null, 2)}<br/>Orig:${request}`);
+        logError(`JSON error response communicating with server:<br/>${JSON.stringify(response.error, null, 2)}<br/>Orig:${request}`);
     }
 
-    if (vars.logAjax) liveprinterUI.commandsHandler.log(`RECEIVED ${reqId}::${request}`);
+    if (vars.logAjax) logCommands(`RECEIVED ${reqId}::${request}`);
     return response;
 }
 
@@ -411,7 +440,7 @@ async function getSerialPorts() {
         'method': 'get-serial-ports',
         'params': []
     };
-    liveprinterUI.loginfo('getting serial ports');
+    logInfo('getting serial ports');
     return sendJSONRPC(JSON.stringify(message));
 }
 // expose as global
@@ -433,14 +462,14 @@ async function setSerialPort({ port, baudRate }) {
     };
     const response = await sendJSONRPC(JSON.stringify(message));
     if (undefined === response.result || undefined === response.result[0] || typeof response.result[0] === "string") {
-        liveprinterUI.logerror("bad response from set serialPort():");
-        liveprinterUI.logerror(JSON.stringify(response));
+        logError("bad response from set serialPort():");
+        logError(JSON.stringify(response));
     }
     else {
-        liveprinterUI.loginfo("connected to port " + response.result[0].port[0] + " at baud rate " + response.result[0].port[1]);
-        liveprinterUI.loginfo("startup messages:");
+        logInfo("connected to port " + response.result[0].port[0] + " at baud rate " + response.result[0].port[1]);
+        logInfo("startup messages:");
         for (const msg of response.result[0].messages) {
-            liveprinterUI.loginfo(msg);
+            logInfo(msg);
         }
     }
 
@@ -464,11 +493,11 @@ async function setCurrentLine(lineNumber) {
     };
     const response = await sendJSONRPC(JSON.stringify(message));
     if (undefined === response.result || undefined === response.result[0] || response.result[0].startsWith('ERROR')) {
-        liveprinterUI.logerror("bad response from set setCurrentLine():");
-        liveprinterUI.logerror(JSON.stringify(response));
+        logError("bad response from set setCurrentLine():");
+        logError(JSON.stringify(response));
     }
     else {
-        liveprinterUI.loginfo("set line number " + response.result[0].line);
+        logInfo("set line number " + response.result[0].line);
     }
 
     return response;
@@ -493,11 +522,11 @@ async function getPrinterState() {
         };
         const response = await sendJSONRPC(JSON.stringify(message));
         if (undefined === response) {
-            liveprinterUI.logerror("bad response from set getPrinterState():");
-            liveprinterUI.logerror(JSON.stringify(response));
+            logError("bad response from set getPrinterState():");
+            logError(JSON.stringify(response));
         }
         else {
-            liveprinterUI.printerStateHandler(response);
+            logPrinterState(response);
         }
         return response;
     }
@@ -515,7 +544,7 @@ module.exports.getPrinterState = getPrinterState;
  */
 async function sendGCodeRPC(gcode) {
     let gcodeObj = { "jsonrpc": "2.0", "id": 4, "method": "send-gcode", "params": [] };
-    if (vars.logAjax) liveprinterUI.commandsHandler.log(`SENDING gcode ${gcode}`);
+    if (vars.logAjax) logCommands(`SENDING gcode ${gcode}`);
 
     if (Array.isArray(gcode)) {
 
@@ -523,11 +552,11 @@ async function sendGCodeRPC(gcode) {
             if (!_gcode.startsWith(';')) // don't send comments
             {
                 gcodeObj.params = [_gcode];
-                //logger.log(gcodeObj);
+                //debug(gcodeObj);
                 let response = sendJSONRPC(JSON.stringify(gcodeObj));
-                response.then(async (result) => { logger.debug(result); await handleGCodeResponse(result) }).catch(err => {
-                    liveprinterUI.logerror(err);
-                    liveprinterUI.doError(err);
+                response.then(async (result) => { debug(result); await handleGCodeResponse(result) }).catch(err => {
+                    logError(err);
+                    doError(err);
                     response = Promise.reject(err.message);
                 });
                 return response;
@@ -536,7 +565,7 @@ async function sendGCodeRPC(gcode) {
         liveprinterUI.updateGUI();
 
     } else {
-        //logger.debug("single line gcode");
+        //debug("single line gcode");
         if (!gcode.startsWith(';')) // don't send comments
         {
             gcodeObj.params = [gcode];
@@ -546,7 +575,7 @@ async function sendGCodeRPC(gcode) {
 
         }
     }
-    if (vars.logAjax) liveprinterUI.commandsHandler.log(`DONE gcode ${gcode}`);
+    if (vars.logAjax) logCommands(`DONE gcode ${gcode}`);
     return 1;
 }
 
@@ -565,7 +594,7 @@ async function scheduleGCode(gcode, priority = 4) { // 0-9, lower higher
     if (vars.useLimiter) {
         // use limiter for priority scheduling
         let reqId = "req" + vars.requestId++;
-        if (vars.logAjax) liveprinterUI.commandsHandler.log(`SENDING ${reqId}`);
+        if (vars.logAjax) logCommands(`SENDING ${reqId}`);
         try {
             result = await limiter.schedule(
                 { "priority": priority, weight: 1, id: reqId, expiration: maxCodeWaitTime },
@@ -573,9 +602,9 @@ async function scheduleGCode(gcode, priority = 4) { // 0-9, lower higher
             );
         }
         catch (err) {
-            liveprinterUI.logerror(`Error with ${reqId}:: ${err}`);
+            logError(`Error with ${reqId}:: ${err}`);
         }
-        if (vars.logAjax) liveprinterUI.commandsHandler.log(`RECEIVED ${reqId}`);
+        if (vars.logAjax) logCommands(`RECEIVED ${reqId}`);
     }
     return result;
 }
@@ -702,13 +731,13 @@ module.exports.okEvent = async function (data) {
             scheduleFunction({ priority:1,weight:1,id:codeIndex++ }, v, data);
         }));
 
-        logger.debug('ok event handled: ' + data); // other response
+        debug('ok event handled: ' + data); // other response
         handled = true;    
     }
     catch (err)
     {
         err.message = "Error in ok event handler:" + err.message;
-        liveprinterUI.doError(err);
+        doError(err);
         handled = false;
     }
     return handled;
@@ -747,7 +776,7 @@ module.exports.clearEvent = function (eventType) {
         case 'other': otherEventListeners.length = 0; break;
         case 'codeQueued': queuedListeners.length = 0; break;
         case 'position': positionEventListeners.length = 0; break;
-        default: liveprinterUI.doError(`Bad event type: ${eventType}`); break;
+        default: doError(`Bad event type: ${eventType}`); break;
     }
 };
 
@@ -765,21 +794,21 @@ async function handleGCodeResponse(res) {
     /// should only get 4 back (result from gcode)
     ///
     switch (res.id) {
-        case 1: liveprinterUI.loginfo("1 received");
+        case 1: logInfo("1 received");
             /// catch: there is no 1!
             break;
-        case 2: liveprinterUI.loginfo("close serial port received");
+        case 2: logInfo("close serial port received");
             break;
-        case 3: liveprinterUI.loginfo("printer state received");
+        case 3: logInfo("printer state received");
             // keys: time, port, state
             break;
-        case 4: //liveprinterUI.loginfo("gcode response");
+        case 4: //logInfo("gcode response");
             if (res.result !== undefined) {
                 for (const rr of res.result) {
-                    //liveprinterUI.loginfo('gcode reply:' + rr);
+                    //logInfo('gcode reply:' + rr);
                     // check for error
                     if (rr.toLowerCase().match(/error/m)) {
-                        liveprinterUI.logerror(rr);
+                        logError(rr);
                         handled = false;
                         break;
                     }
@@ -790,7 +819,7 @@ async function handleGCodeResponse(res) {
 
                     if (tempResult) {
                         liveprinterUI.tempHandler(tempResult);
-                        logger.debug('temperature event handled');
+                        debug('temperature event handled');
                         handled = true;
                     }
                     
@@ -799,7 +828,7 @@ async function handleGCodeResponse(res) {
                         // move/position update handled
 
                         try {
-                            logger.debug('position event handled');
+                            debug('position event handled');
                             await Promise.all(positionEventListeners.map(async v => {
                                 scheduleFunction({ priority:1,weight:1,id:codeIndex++ }, v, positionResult);
                             }));
@@ -809,7 +838,7 @@ async function handleGCodeResponse(res) {
                         catch (err)
                         {
                             err.message = "Error in position event handler:" + err.message;
-                            liveprinterUI.doError(err);
+                            doError(err);
                             handled = false;
                         }
                     }
@@ -820,20 +849,20 @@ async function handleGCodeResponse(res) {
                                 scheduleFunction({ priority:1,weight:1,id:codeIndex++ }, v, rr);
                             }));
                 
-                            logger.debug('ok event handled: ' + rr); // other response
+                            debug('ok event handled: ' + rr); // other response
                             handled = true;    
                         }
                         catch (err)
                         {
                             err.message = "Error in ok event handler:" + err.message;
-                            liveprinterUI.doError(err);
+                            doError(err);
                             handled = false;
                         }
                     }
                     else {
 
                         try {
-                            logger.debug('unhandled gcode response: ' + rr);
+                            debug('unhandled gcode response: ' + rr);
                             await Promise.all(otherEventListeners.map(async v => {
                                 scheduleFunction({ priority:1,weight:1,id:codeIndex++ }, v, rr);
                             }));
@@ -842,22 +871,22 @@ async function handleGCodeResponse(res) {
                         catch (err)
                         {
                             err.message = "Error in other event handler:" + err.message;
-                            liveprinterUI.doError(err);
+                            doError(err);
                             handled = false;
                         }
                     }
                 }
             }
             break;
-        case 5: liveprinterUI.loginfo("connection result");
+        case 5: logInfo("connection result");
             if (res.result !== undefined) {
                 // keys: time, port, messages
-                liveprinterUI.loginfo(res.result);
+                logInfo(res.result);
             }
             break;
-        case 6: liveprinterUI.loginfo("port names");
+        case 6: logInfo("port names");
             break;
-        default: liveprinterUI.loginfo(res.id + " received");
+        default: logInfo(res.id + " received");
     }
     return handled;
 }
