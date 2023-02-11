@@ -26,11 +26,19 @@ import { Vector } from 'liveprinter-utils';
  * Core Printer API of LivePrinter, an interactive programming system for live CNC manufacturing.
  * @typicalname lp
  */
-export default class Printer {
+class Printer {
 
     ///////
     // Printer API /////////////////
     ///////
+
+    static MinLayerHeight = 0.05; // in mm
+    static filamentDiameter = {"UM2": 2.85,
+    "UM2plus": 2.85,
+    "REPRAP": 2.85};
+    static extrusionInmm3 = {"UM2": false,
+    "UM2plus": true};
+    
 
     /**
      * Create new instance, passing a function for sending messages
@@ -131,6 +139,7 @@ export default class Printer {
      */
     async gcodeEvent(gcode) {
         const results = await Promise.all(this.gcodeListeners.map(async (l) => l.gcodeEvent(gcode)));
+        console.log(gcode);
     }
 
     //
@@ -599,11 +608,16 @@ export default class Printer {
 
         return position;
     }
-    
-    /**
-     * A time-varying movement function set by user. Default is no op
-     */ 
-    _moveFunc = (({x,y,z,t})=>{x,y,z,t});
+
+    _defaultMoveFunc({x,y,z,t}={})
+    {
+        return {x,y,z}; //A time-varying movement function set by user. Default is no op 
+    }
+
+    _moveFunc ({x,y,z,t}={})
+    {
+        return {x,y,z}; //A time-varying movement function set by user. Default is no op 
+    }
 
     /**
      * Set time based movement function
@@ -621,7 +635,20 @@ export default class Printer {
     get moveFunc() {
         return this._moveFunc;
     }
+    /**
+     * Reset the movement function to the default (passthru)
+     */
+    resetMoveFunc() {
+        this.moveFunc = this._defaultMoveFunc;
+    }
 
+    /**
+     * For breaking up longer movements into smaller ones
+     * @param {Number} t minimum movement time in ms 
+     */
+    minmove(t) {
+        this._minMovementTime = t; // for breaking up movements, in ms
+    }
 
     /**
      * Applies a time-varying movement function set by user. Default is no op
@@ -683,25 +710,30 @@ export default class Printer {
         // divide up entire movement into smaller chunks based on this._minMovementTime
         const totalMovementsTime = this.d2t(horizDist+vertDist, params.speed);
         // DEBUG
-        const totalMovements = Math.ceil(this._minMovementTime / totalMovementsTime);
-        console.log(`go: total move time/num: ${totalMovementsTime} / ${totalMovements}`); 
+        const totalMovements = Math.ceil( totalMovementsTime / this._minMovementTime);
+        // console.log(`go: total move time/num: ${totalMovementsTime} / ${totalMovements}`); 
 
+        const hdistPerMove = horizDist/totalMovements;
+        const vdistPerMove = vertDist/totalMovements;
         let t = 0; // current time in movement
 
-        for (let movement=0; movement<totalMovements; movement++){
+        // console.log(`hdist: ${hdistPerMove}`);
 
-            console.log(`current move time: ${t}:${totalMovementsTime}/${movement}:${totalMovements}`)
+        for (let movement=1; movement<=totalMovements; movement++){
 
-            const x0 = this.x + horizDist/totalMovements * Math.cos(this._heading);
-            const y0 = this.y + horizDist/totalMovements * Math.sin(this._heading);
-            const z0 = this.z + vertDist/totalMovements; // this is set separately in tiltup
+            t += this._minMovementTime;
+
+            // console.log(`current move time: ${t}:${totalMovementsTime}/${movement}:${totalMovements}`)
+
+            const x0 = this.x + hdistPerMove * Math.cos(this._heading);
+            const y0 = this.y + hdistPerMove * Math.sin(this._heading);
+            const z0 = this.z + vdistPerMove; // this is set separately in tiltup
     
-            let {x,y,z} = this._moveFunc({x0,y0,z0,t});
+            let {x,y,z} = this._moveFunc({x:x0,y:y0,z:z0,t:t});
             params.x = x;
             params.y = y;
             params.z = z;
 
-            t += this._minMovementTime;
 
             // debugging
 
@@ -2028,14 +2060,14 @@ o
         //console.log("prev heading:" + this._heading);
         //console.log("move vec:" + moveVector.axes.x + ", " + moveVector.axes.y);
 
-        let _test = moveVector.axes.y * moveVector.axes.y + moveVector.axes.x * moveVector.axes.x;
+        // BIG CHANGE: no longer automatically updates the heading based on the last movement. Caused problems with warp
+        //
+        // let _test = moveVector.axes.y * moveVector.axes.y + moveVector.axes.x * moveVector.axes.x;
 
-        if (_test > Number.EPSILON) {
-            //console.log("not not going nowhere __" + that._heading);
-            let newHeading = Math.atan2(moveVector.axes.y, moveVector.axes.x);
-            if (!isNaN(newHeading)) this._heading = newHeading;
-            //console.log("new heading:" + that._heading);
-        }
+        // if (_test > Number.EPSILON) {
+        //     let newHeading = Math.atan2(moveVector.axes.y, moveVector.axes.x);
+        //     if (!isNaN(newHeading)) this._heading = newHeading;
+        // }
 
         // Tail recursive, until target x,y,z is hit
         return await this._extrude(speed, moveVector, leftToMove, retract);
@@ -2521,15 +2553,6 @@ Printer.GCODE_HEADERS[Printer.REPRAP] = [
     "G92 E0"
 ];
 
-Printer.MinLayerHeight = 0.05; // in mm
-
-Printer.filamentDiameter = {};
-Printer.filamentDiameter[Printer.UM2] = Printer.filamentDiameter[Printer.UM2plus] =
-    Printer.filamentDiameter[Printer.REPRAP] = 2.85;
-Printer.extrusionInmm3 = {};
-Printer.extrusionInmm3[Printer.UM2] = Printer.extrusionInmm3[Printer.REPRAP] = false;
-Printer.extrusionInmm3[Printer.UM2plus] = Printer.extrusionInmm3[Printer.UM3] = true;
-
 // TODO: FIX THESE!
 // https://ultimaker.com/en/products/ultimaker-2-plus/specifications
 
@@ -2558,5 +2581,7 @@ Printer.defaultPrintSpeed = 50; // mm/s
 Printer.speedScale = {};
 Printer.speedScale[Printer.UM2] = { 'x': 47.069852, 'y': 47.069852, 'z': 160.0 };
 Printer.speedScale[Printer.UM2plus] = { 'x': 47.069852, 'y': 47.069852, 'z': 160.0 };
+
+export {Printer};
 
 //////////////////////////////////////////////////////////

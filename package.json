@@ -31,7 +31,7 @@
     }
   },
   "dependencies": {
-    "@swc/helpers": "^0.3.8",
+    "@swc/helpers": "^0.4.12",
     "bootstrap": "^4.4.1",
     "bottleneck": "^2.19.5",
     "brython": "^3.8.8",

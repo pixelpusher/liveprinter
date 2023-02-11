@@ -1,10 +1,18 @@
 import { repeat, numrange, countto, Scheduler } from 'liveprinter-utils';
 
-const Printer = require('./liveprinter.printer'); // printer API object
-const editors = require('./liveprinter.editor'); // code editors and functions
-const liveprinterui = require('./liveprinter.ui'); // main ui
-const liveprintercomms = require('./liveprinter.comms'); // browser-to-server communications
+import * as Printer from './liveprinter.printer'; // printer API object
+import * as editors from './liveprinter.editor'; // code editors and functions
+import * as liveprinterui  from './liveprinter.ui'; // main ui
+import * as liveprintercomms from './liveprinter.comms'; // browser-to-server communications
 window.$ = window.jquery = require('jquery');
+
+liveprintercomms.setDebug(liveprinterui.debug);
+liveprintercomms.setDoError(liveprinterui.doError);
+liveprintercomms.setLogError(liveprinterui.logerror);
+liveprintercomms.setLogInfo(liveprinterui.loginfo);
+liveprintercomms.setLogCommands(liveprinterui.commandsHandler.log);
+liveprintercomms.setLogPrinterState(liveprinterui.printerStateHandler);
+
 
 //require('./svg/SVGReader'); // svg util class
 //require('./svg/svg2gcode'); // svg gcode converter
@@ -18,7 +26,7 @@ window.$ = window.jquery = require('jquery');
 import {lp_functionMap as functionMap} from "grammardraw/modules/functionmaps.mjs"
 import {createESequence} from "grammardraw/modules/sequences"
 import { setNoteMods, setScales, getBaseNoteDuration, setBaseNoteDuration, 
-   iterate,
+   step,
    on, off
 } from "grammardraw/modules/fractalPath.mjs";
 
@@ -29,13 +37,13 @@ const listener = {
        currentTotalDuration, 
        totalSequenceDuration,
        moved}) => {
-        loginfo(`action event: ${noteString,noteMidi,noteSpeed,notesPlayed,noteDuration,noteDist,
-               currentTotalDuration, 
-               totalSequenceDuration,
-               moved}`);
+        loginfo(`action: ${noteMidi},${noteSpeed},${notesPlayed},${noteDuration},${noteDist},
+               ${currentTotalDuration}, 
+               ${totalSequenceDuration},
+               ${moved}}`);
         //    document.getElementById('cur-time').innerHTML = `${currentTotalDuration}s`;
         //    document.getElementById('note-string').innerHTML = `${noteString}`;
-           
+
        },
     'done': (v) => {
        animating = false; 
@@ -49,7 +57,7 @@ const libs = {functionMap,
     createESequence, 
     setNoteMods, setScales,
     getBaseNoteDuration, setBaseNoteDuration, 
-    iterate,
+    step,
     on, off
 }
 
@@ -89,7 +97,6 @@ liveprintercomms.addLibs(libs);
         };
     }
 
-    require('popper.js'); // for bootstrap
     var bootstrap = require('bootstrap');
 
     // liveprinter object
@@ -102,7 +109,7 @@ liveprintercomms.addLibs(libs);
     const scheduler = new Scheduler();
 
     // register GUI handler for scheduled tasks events 
-    scheduler.addEventsListener(liveprinterui.taskListener);
+    scheduler.addEventsListener(liveprinterui.taskListenerUI);
 
     await editors.init(); // create editors and setup live editing functions
     await liveprinterui.init(printer, scheduler); // start server communications and setup UI

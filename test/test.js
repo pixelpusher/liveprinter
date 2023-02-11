@@ -1,6 +1,10 @@
-import Printer from '../js/liveprinter.printer'; // printer API object
+import {Printer as Printer} from '../js/liveprinter.printer'; // printer API object
 import {doError, infoHandler} from '../js/liveprinter.ui';
 const liveprintercomms =  require('../js/liveprinter.comms');
+
+function ASSERT(val1,val2, message) {
+    if (val1!==val2) infoHandler.info(quickMsg("ERROR::" + message + `--${val1}:${val2}`));
+}
 
 /**
  * Create a delayed, async function for testing
@@ -8,12 +12,12 @@ const liveprintercomms =  require('../js/liveprinter.comms');
  * @param {Numer} timeout Time to wait
  * @returns {Function} async function to pass to scheduler
  */
-function timeoutFunc(f,timeout) {
+async function timeoutFunc(f,timeout) {
     return async fff => {
-        const p = new Promise(f => {        
+        const p = new Promise(async f => {        
             setTimeout(f, timeout);
         });
-        await p;
+        await p();
         return true;
     };
 }
@@ -38,10 +42,11 @@ window.lp = printer; // make available to all scripts later on and livecoding...
 
 infoHandler.info(quickMsg("starting"));
 // test scheduling code
-liveprintercomms.schedule( timeoutFunc( ()=>infoHandler.info({time:Date.now(),message:`schedule test: ${testIndex++}`}), 500));
+liveprintercomms.schedule( async ()=> infoHandler.info({time:Date.now(),message:`schedule test: ${testIndex++}`}), 500);
 
 /// attach listeners
-printer.addGCodeListener({ gcodeEvent: infoHandler.info });
+printer.addGCodeListener({ gcodeEvent: async data => infoHandler.info(quickMsg(data)) });
+printer.addGCodeListener({ gcodeEvent: async data => console.log(quickMsg(data)) });
 printer.addErrorListener({ errorEvent: doError });
 
 // ///
@@ -69,5 +74,47 @@ liveprintercomms.onCodeQueued(async (v)=>{
 
 infoHandler.info({time:Date.now(), message:"test scheduling"});
 
-testSchedule(printer.dist(10));
+async function startTest() {
+    await liveprintercomms.schedule(async()=> printer.start());
+    await liveprintercomms.schedule(async()=> printer.moveto({x:printer.cx, y:printer.cy}));
+
+    // test that position is cx,cy
+    ASSERT(printer.x, printer.cx, "x not equal to cx");
+    ASSERT(printer.y, printer.cy, "y not equal to cy");
+
+    let distToMove = 30;
+    let origX = printer.x;
+    await liveprintercomms.schedule(async()=> printer.turnto(0));
+    await liveprintercomms.schedule(async()=> printer.dist(distToMove));
+    await liveprintercomms.schedule(async()=> printer.speed(30));
+    await liveprintercomms.schedule(async()=> printer.go(1));
+    ASSERT(printer.x, origX+distToMove, `did not move ${distToMove}`); // off by a few hunredths... not great
+
+    function WarpXFunc ({x,y,z,t}={})
+    {
+        // warp xcoord by up to 10mm
+        // over a period of 400ms
+        const warpAmount = 10;
+        const angle = t*Math.PI/200;
+        y = y + warpAmount * Math.sin(angle);
+
+        return {x,y,z}; //A time-varying movement function set by user. Default is no op 
+    }
+
+    printer.moveFunc = WarpXFunc;
+    distToMove = 15;
+    origX = printer.x;
+
+    await liveprintercomms.schedule(async()=> printer.turnto(180));
+    ASSERT(printer.angle, 180, `turnto failed`); // off by a few hunredths... not great
+
+    await liveprintercomms.schedule(async()=> printer.dist(distToMove));
+    await liveprintercomms.schedule(async()=> printer.speed(30));
+    await liveprintercomms.schedule(async()=> printer.go(1));
+    ASSERT(printer.x, origX-distToMove, `did not move ${distToMove}`); // off by a few hunredths... not great
+}
+
+document.getElementById("go").onclick= async ()=>{
+  await startTest();  
+};
 

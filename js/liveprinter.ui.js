@@ -20,7 +20,7 @@ import { Logger } from 'liveprinter-utils';
 
 export const logger = new Logger();
 
-var $ = require('jquery');
+import $ from 'jquery';
 
 const liveprintercomms = require('./liveprinter.comms');
 
@@ -30,6 +30,8 @@ const vars = liveprintercomms.vars;
 
 let scheduler = null; // task scheduler, see init()
 let printer = null; // liveprinter printer object
+
+export const debug = logger.debug;
 
 /**
  * Clear HTML of all displayed code errors
@@ -506,7 +508,7 @@ export function appendLoggingNode(elem, time, message) {
         + "</li>");
 }
 
-const taskListenerUI =
+export const taskListenerUI =
 {
     EventRemoved: function (task) {
         logger.debug("event removed:");
