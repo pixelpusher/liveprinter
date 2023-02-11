@@ -18,9 +18,7 @@
 */
 import { Logger } from 'liveprinter-utils';
 
-const logger = new Logger();
-
-module.exports.logger = logger;
+export const logger = new Logger();
 
 var $ = require('jquery');
 
@@ -36,12 +34,10 @@ let printer = null; // liveprinter printer object
 /**
  * Clear HTML of all displayed code errors
  */
-function clearError() {
+export function clearError() {
     $(".code-errors").html("<p>[no errors]</p>");
     $("#modal-errors").empty();
 }
-
-module.exports.clearError = clearError;
 
 /**
  * Show an error in the HTML GUI  
@@ -49,7 +45,7 @@ module.exports.clearError = clearError;
  * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SyntaxError
  * @memberOf LivePrinter
  */
-function doError(e) {
+export function doError(e) {
     if (typeof e !== "object") {
         $("#modal-errors").prepend("<div class='alert alert-warning alert-dismissible fade show' role='alert'>"
             + "internal Error in doError(): bad error object:" + e
@@ -99,7 +95,6 @@ function doError(e) {
     }
     */
 }
-module.exports.doError = doError;
 window.doError = doError;
 
 /**
@@ -108,7 +103,7 @@ window.doError = doError;
  * @param {Integer} interval time interval between updates
  * @memberOf LivePrinter
  */
-const updatePrinterState = function (state, interval = 20000) {
+export const updatePrinterState = function (state, interval = 20000) {
     const name = "stateUpdates";
 
     if (!scheduler) {
@@ -137,14 +132,13 @@ const updatePrinterState = function (state, interval = 20000) {
         }
     }
 };
-module.exports.updatePrinterState = updatePrinterState;
 
 /**
 * json-rpc printer state (connected/disconnected) event handler
 * @param{Object} stateEvent json-rpc response (in json format)
 * @memberOf LivePrinter
 */
-const printerStateHandler = function (stateEvent) {
+export const printerStateHandler = function (stateEvent) {
     //loginfo(JSON.stringify(stateEvent));
 
     if (stateEvent.result === undefined) {
@@ -194,14 +188,12 @@ const printerStateHandler = function (stateEvent) {
     }
 };
 
-module.exports.printerStateHandler = printerStateHandler;
-
 /**
  * json-rpc serial ports list event handler
  * @param{Object} event json-rpc response (in json format)
  * @memberOf LivePrinter
  */
-const portsListHandler = function (event) {
+export const portsListHandler = function (event) {
     let ports = ["none"];
     try {
         ports = event.result[0].ports;
@@ -299,7 +291,6 @@ const portsListHandler = function (event) {
     return;
 };
 
-module.exports.portsListHandler = portsListHandler;
 
 $("#log-requests-btn").on("click", async function (e) {
     let me = $(this);
@@ -373,7 +364,7 @@ $("#temp-display-btn").on("click", async function (e) {
  * @param {String} data serial response from printer firmware (Marlin)
  * @return {Boolean} true or false if parsed or not
  */
-const tempHandler = (result) => {
+export const tempHandler = (result) => {
     let handled = true;
 
     if (undefined !== result.hotend) {
@@ -408,8 +399,6 @@ const tempHandler = (result) => {
     }
     return handled;
 };
-module.exports.tempHandler = tempHandler;
-
 async function updateTemperature(interval = 5000) {
     return requestRepeat("M105", //get temp
         $("#temp-display-btn"), // temp button
@@ -422,7 +411,7 @@ async function updateTemperature(interval = 5000) {
  * json-rpc error event handler
  * @memberOf LivePrinter
  */
-const errorHandler = {
+export const errorHandler = {
     'error': function (event) {
         appendLoggingNode($("#errors > ul"), event.time, event.message);
         blinkElem($("#errors-tab"));
@@ -430,13 +419,12 @@ const errorHandler = {
     }
 };
 
-module.exports.errorHandler = errorHandler;
 
 /**
  * json-rpc info event handler
  * @memberOf LivePrinter
  */
-const infoHandler = {
+export const infoHandler = {
     'info': function (event) {
         appendLoggingNode($("#info > ul"), event.time, event.message);
         //blinkElem($("#info-tab"));
@@ -448,20 +436,16 @@ const infoHandler = {
     }
 };
 
-module.exports.infoHandler = infoHandler;
-
 /**
  * json-rpc general event handler
  * @memberOf LivePrinter
  */
-const commandsHandler = {
+export const commandsHandler = {
     'log': function (event) {
         appendLoggingNode($("#commands > ul"), Date.now(), event);
         blinkElem($("#inbox"));
     },
 };
-
-module.exports.commandsHandler = commandsHandler;
 
 /**
  * json-rpc move event handler
@@ -469,7 +453,7 @@ module.exports.commandsHandler = commandsHandler;
  *
  * @param {Object} response Expects object parsed from MarlinParser 
  */
-const moveHandler = (result) => {
+export const moveHandler = (result) => {
     $("input[name='speed']").val(printer.printspeed().toFixed(4)); // set speed, maybe reset below
     // update GUI
     $("input[name='retract']")[0].value = printer.currentRetraction.toFixed();
@@ -487,8 +471,6 @@ const moveHandler = (result) => {
     return true; // handled
 };
 
-module.exports.moveHandler = moveHandler;
-
 
 ////////////////////////////////////////////////////////////////////////
 /////////////// Utility functions
@@ -503,7 +485,7 @@ const maxLogPopups = 80;
  * @param {String} message message text for new element
  * @memberOf LivePrinter
  */
-function appendLoggingNode(elem, time, message) {
+export function appendLoggingNode(elem, time, message) {
     const dateStr = new Intl.DateTimeFormat('en-US', {
         year: 'numeric', month: 'numeric', day: 'numeric',
         hour: 'numeric', minute: 'numeric', second: 'numeric',
@@ -523,10 +505,6 @@ function appendLoggingNode(elem, time, message) {
         + '<span aria-hidden="true">&times;</span></button>'
         + "</li>");
 }
-
-module.exports.appendLoggingNode = appendLoggingNode;
-
-
 
 const taskListenerUI =
 {
@@ -571,7 +549,7 @@ const taskListenerUI =
 * @param {String} text Text to log in the right info panel
  * @memberOf LivePrinter
 */
-function loginfo(text) {
+export function loginfo(text) {
     //logger.debug("LOGINFO-----------");
     logger.debug(text);
 
@@ -589,7 +567,6 @@ function loginfo(text) {
     }
 }
 
-module.exports.loginfo = loginfo;
 window.loginfo = loginfo; //cheat, for livecoding...
 
 /**
@@ -597,7 +574,7 @@ window.loginfo = loginfo; //cheat, for livecoding...
 * @param {String} text Text to log in the right info panel
  * @memberOf LivePrinter
 */
-function logerror(text) {
+export function logerror(text) {
     logger.error("LOGERROR-----------");
     logger.error(text);
 
@@ -616,14 +593,13 @@ function logerror(text) {
 
 
 // make global
-module.exports.logerror = logerror;
 window.logerror = logerror;  //cheat, for livecoding...
 
 /**
  * Attach an external script (and remove it quickly). Useful for adding outside libraries.
  * @param {String} url Url of script (or name, if in the static/misc folder)
  */
-function attachScript(url) {
+export function attachScript(url) {
     let realUrl = url;
 
     if (url.startsWith('/')) { // local
@@ -643,7 +619,6 @@ function attachScript(url) {
         doError(err);
     }
 }
-module.exports.attachScript = attachScript;
 window.attachScript = attachScript;  //cheat, for livecoding...
 
 
@@ -654,7 +629,7 @@ window.attachScript = attachScript;  //cheat, for livecoding...
  * @param {String} type Type of file (e.g. text/javascript)
  * @memberOf LivePrinter
  */
-async function downloadFile(data, filename, type) {
+export async function downloadFile(data, filename, type) {
     const file = new Blob([data], { type: type });
     if (window.navigator.msSaveOrOpenBlob) // IE10+
         window.navigator.msSaveOrOpenBlob(file, filename);
@@ -672,15 +647,12 @@ async function downloadFile(data, filename, type) {
     }
 }
 
-module.exports.downloadFile = downloadFile;
-
-
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////// GUI SETUP ///////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-function updateGUI() {
+export function updateGUI() {
     $("input[name='x']").val(printer.x.toFixed(4));
     $("input[name='y']").val(printer.y.toFixed(4));
     $("input[name='z']").val(printer.z.toFixed(4));
@@ -689,7 +661,7 @@ function updateGUI() {
     $("input[name='speed']").val(printer.printspeed().toFixed(4));
     $("input[name='retract']").val(printer.currentRetraction.toFixed(4));
 }
-module.exports.updateGUI = updateGUI;
+
 window.updateGUI = updateGUI;  //cheat, for livecoding...
 
 /**
@@ -700,7 +672,7 @@ window.updateGUI = updateGUI;  //cheat, for livecoding...
  * @memberOf LivePrinter
  */
 
-function blinkElem($elem, speed, callback) {
+export function blinkElem($elem, speed, callback) {
     $elem.removeClass("blinkit fast slow"); // remove to make sure it's not there
     $elem.on("animationend", function () {
         if (callback !== undefined && typeof callback === "function") callback();
@@ -716,14 +688,12 @@ function blinkElem($elem, speed, callback) {
     }
 }
 
-module.exports.blinkElem = blinkElem;
-
 /**
  * 
  * @param {Scheduler} _scheduler Scheduler object to use for tasks, repeating events, etc. If
  *  undefined, will crearte new one. 
  */
-const init = async function (_printer, _scheduler) {
+export const init = async function (_printer, _scheduler) {
 
     if (!_printer) {
         logerror("FATAL error: no liveprinter object in gui init()!");
@@ -852,5 +822,3 @@ const init = async function (_printer, _scheduler) {
 
     updatePrinterState(true);
 };
-
-module.exports.init = init;
