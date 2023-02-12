@@ -719,17 +719,23 @@ class Printer {
 
         // console.log(`hdist: ${hdistPerMove}`);
 
+        // TODO: re-write with functionalz
+
+       const x0 = this.x;
+       const y0 = this.y;
+       const z0 = this.z;  
+
         for (let movement=1; movement<=totalMovements; movement++){
 
             t += this._minMovementTime;
 
             // console.log(`current move time: ${t}:${totalMovementsTime}/${movement}:${totalMovements}`)
 
-            const x0 = this.x + hdistPerMove * Math.cos(this._heading);
-            const y0 = this.y + hdistPerMove * Math.sin(this._heading);
-            const z0 = this.z + vdistPerMove; // this is set separately in tiltup
+            const xn = x0 + movement*hdistPerMove * Math.cos(this._heading);
+            const yn = y0 + movement*hdistPerMove * Math.sin(this._heading);
+            const zn = z0 + movement*vdistPerMove; // this is set separately in tiltup
     
-            let {x,y,z} = this._moveFunc({x:x0,y:y0,z:z0,t:t});
+            let {x,y,z} = this._moveFunc({x:xn,y:yn,z:zn,t:t});
             params.x = x;
             params.y = y;
             params.z = z;
