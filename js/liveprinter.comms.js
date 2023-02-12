@@ -25,7 +25,7 @@ const compile = require('./language/compile'); // minigrammar compile function
 
 import { MarlinLineParserResultPosition, MarlinLineParserResultTemperature } from './parsers/MarlinParsers.js';
 import { __esModule } from "bootstrap";
-import * as liveprinterUI from './liveprinter.ui';
+import {updateGUI, clearError, tempHandler, moveHandler} from './liveprinter.ui';
 
 //------------------------------------------------
 // feedback to the GUI or logger
@@ -252,7 +252,7 @@ let codeIndex = 0;
   * @alias comms:globalEval
   */
  async function globalEval(code, line) {
-    liveprinterUI.clearError();
+    clearError();
 
     const commentRegex = /\/\*[\s\S]*?\*\/|([^\\:]|^)\/\/.*$/gm; // https://stackoverflow.com/questions/5989315/regex-for-match-replacing-javascript-comments-both-multiline-and-inline/15123777#15123777
 
@@ -329,7 +329,7 @@ let codeIndex = 0;
                 lastErrorMessage = null;
                 e.lineNumber=line;
                 console.log(`Code running error(${line}): ${e}`);
-                doError(e);  
+                doError(e);
            }
             return 1;
         }
@@ -337,7 +337,7 @@ let codeIndex = 0;
         //await func();
         //await liveprintercomms.scheduleFunction({ priority:1,weight:1,id:codeIndex++ }, async ()=> {console.log(`something`); return 1});
 
-        await scheduleFunction({ priority:1,weight:1,id:codeIndex++ }, func);
+        await schedule(func);
 
         // wrap in try/catch block and debugging code
     }
@@ -562,7 +562,7 @@ async function sendGCodeRPC(gcode) {
                 return response;
             }
         }));
-        liveprinterUI.updateGUI();
+        updateGUI();
 
     } else {
         //debug("single line gcode");
@@ -571,7 +571,7 @@ async function sendGCodeRPC(gcode) {
             gcodeObj.params = [gcode];
             const response = await sendJSONRPC(JSON.stringify(gcodeObj));
             await handleGCodeResponse(response);
-            liveprinterUI.updateGUI();
+            updateGUI();
 
         }
     }
@@ -818,19 +818,19 @@ async function handleGCodeResponse(res) {
                     const tempResult = MarlinLineParserResultTemperature.parse(rr);
 
                     if (tempResult) {
-                        liveprinterUI.tempHandler(tempResult);
+                        tempHandler(tempResult);
                         debug('temperature event handled');
                         handled = true;
                     }
                     
                     if (positionResult) {
-                        //liveprinterUI.moveHandler(positionResult);
+                        moveHandler(positionResult);
                         // move/position update handled
 
                         try {
                             debug('position event handled');
                             await Promise.all(positionEventListeners.map(async v => {
-                                scheduleFunction({ priority:1,weight:1,id:codeIndex++ }, v, positionResult);
+                                schedule(v, positionResult);
                             }));
 
                             handled = true;

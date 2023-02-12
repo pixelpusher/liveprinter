@@ -16,22 +16,18 @@
 * License for the specific language governing permissions and limitations
 * under the License.
 */
-import { Logger } from 'liveprinter-utils';
-
-export const logger = new Logger();
-
+import Logger from 'liveprinter-utils/Logger';
 import $ from 'jquery';
 
 const liveprintercomms = require('./liveprinter.comms');
+const vars = liveprintercomms.vars;
 
 let lastErrorMessage = "none"; // last error message for GUI
-
-const vars = liveprintercomms.vars;
 
 let scheduler = null; // task scheduler, see init()
 let printer = null; // liveprinter printer object
 
-export const debug = logger.debug;
+export const debug = msg => Logger.debug(msg);
 
 /**
  * Clear HTML of all displayed code errors
@@ -72,21 +68,21 @@ export function doError(e) {
                 + '<span aria-hidden="true">&times;</span></button>'
                 + "</div>");
 
-            logger.error(err);
+            Logger.error(err);
         }
     }
 
     /*
-    logger.log("SyntaxError? " + (e instanceof SyntaxError)); // true
-    logger.log(e); // true
-    logger.log("SyntaxError? " + (e instanceof SyntaxError)); // true
-    logger.log("ReferenceError? " + (e instanceof ReferenceError)); // true
-    logger.log(e.message);                // "missing ; before statement"
-    logger.log(e.name);                   // "SyntaxError"
-    logger.log(e.fileName);               // "Scratchpad/1"
-    logger.log(e.lineNumber);             // 1
-    logger.log(e.columnNumber);           // 4
-    logger.log(e.stack);                  // "@Scratchpad/1:2:3\n"
+    Logger.log("SyntaxError? " + (e instanceof SyntaxError)); // true
+    Logger.log(e); // true
+    Logger.log("SyntaxError? " + (e instanceof SyntaxError)); // true
+    Logger.log("ReferenceError? " + (e instanceof ReferenceError)); // true
+    Logger.log(e.message);                // "missing ; before statement"
+    Logger.log(e.name);                   // "SyntaxError"
+    Logger.log(e.fileName);               // "Scratchpad/1"
+    Logger.log(e.lineNumber);             // 1
+    Logger.log(e.columnNumber);           // 4
+    Logger.log(e.stack);                  // "@Scratchpad/1:2:3\n"
     */
 
     // this sucked because of coding... jst highlight instead!
@@ -209,8 +205,8 @@ export const portsListHandler = function (event) {
 
     vars.serialPorts = []; // reset serial ports list
     let portsDropdown = $("#serial-ports-list");
-    //logger.log("list of serial ports:");
-    //logger.log(event);
+    //Logger.log("list of serial ports:");
+    //Logger.log(event);
     portsDropdown.empty();
     if (ports.length === 0) {
         appendLoggingNode($("#info > ul"), Date.now(), "<li>no serial ports found</li > ");
@@ -227,7 +223,7 @@ export const portsListHandler = function (event) {
     }
 
     vars.serialPorts.forEach(function (port) {
-        //logger.log("PORT:" + port);
+        //Logger.log("PORT:" + port);
         let newButton = $('<button class="dropdown-item" type="button" data-port-name="' + port + '">' + port + '</button>');
         //newButton.data("portName", port);
         newButton.click(async function (e) {
@@ -236,8 +232,8 @@ export const portsListHandler = function (event) {
             loginfo("opening serial port " + me.html());
             const baudRate = $("#baudrates-list .active").data("rate");
 
-            logger.log("baudRate:");
-            logger.log(baudRate);
+            Logger.log("baudRate:");
+            Logger.log(baudRate);
 
             // disable changing baudrate and port
             //$("#baudrates-list > button").addClass("disabled");
@@ -269,7 +265,7 @@ export const portsListHandler = function (event) {
     const allBaudRates = [115200, 250000, 230400, 57600, 38400, 19200, 9600];
 
     allBaudRates.forEach(rate => {
-        //logger.log("PORT:" + port);
+        //Logger.log("PORT:" + port);
         let newButton = $('<button class="dropdown-item" type="button" data-rate="' + rate + '">' + rate + '</button>');
 
         // handle click
@@ -511,14 +507,14 @@ export function appendLoggingNode(elem, time, message) {
 export const taskListenerUI =
 {
     EventRemoved: function (task) {
-        logger.debug("event removed:");
-        logger.debug(task);
+        Logger.debug("event removed:");
+        Logger.debug(task);
         if (task != null) $('#task-' + task.name).remove();
     },
 
     EventAdded: function (task) {
-        logger.debug("event added:");
-        logger.debug(task);
+        Logger.debug("event added:");
+        Logger.debug(task);
 
         $("#tasks > ul").prepend("<li id='task-" + task.name + "' class='alert alert-success alert-dismissible fade show' role='alert'>"
             + task.name
@@ -534,8 +530,8 @@ export const taskListenerUI =
     },
 
     EventsCleared: function (task) {
-        logger.debug("events cleared:");
-        logger.debug(task);
+        Logger.debug("events cleared:");
+        Logger.debug(task);
         $("#tasks > ul").empty();
     },
 
@@ -552,8 +548,8 @@ export const taskListenerUI =
  * @memberOf LivePrinter
 */
 export function loginfo(text) {
-    //logger.debug("LOGINFO-----------");
-    logger.debug(text);
+    //Logger.debug("LOGINFO-----------");
+    Logger.debug(text);
 
     if (Array.isArray(text)) {
         infoHandler.info({ time: Date.now(), message: '[' + text.toString() + ']' });
@@ -577,8 +573,8 @@ window.loginfo = loginfo; //cheat, for livecoding...
  * @memberOf LivePrinter
 */
 export function logerror(text) {
-    logger.error("LOGERROR-----------");
-    logger.error(text);
+    Logger.error("LOGERROR-----------");
+    Logger.error(text);
 
     if (typeof text === "string")
         errorHandler.error({ time: Date.now(), message: text });
@@ -772,11 +768,11 @@ export const init = async function (_printer, _scheduler) {
     // redirect error to browser GUI
     //
     $(window).on("error", function (evt) {
-        //logger.log("jQuery error event:");
-        //logger.log(evt);
+        //Logger.log("jQuery error event:");
+        //Logger.log(evt);
 
         const e = evt.originalEvent.error; // get the javascript event
-        //logger.log("original event:", e);
+        //Logger.log("original event:", e);
         doError(e);
     });
 

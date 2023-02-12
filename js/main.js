@@ -1,17 +1,23 @@
 import { repeat, numrange, countto, Scheduler } from 'liveprinter-utils';
+import {Printer as Printer} from '../js/liveprinter.printer'; // printer API object
+import {debug, logerror, loginfo, doError,
+     moveHandler, portsListHandler, commandsHandler, printerStateHandler,
+     taskListenerUI, init,
+     blinkElem} from '../js/liveprinter.ui';
+const liveprintercomms =  require('../js/liveprinter.comms');
+const editors = require('../js/liveprinter.editor');
 
-import * as Printer from './liveprinter.printer'; // printer API object
-import * as editors from './liveprinter.editor'; // code editors and functions
-import * as liveprinterui  from './liveprinter.ui'; // main ui
-import * as liveprintercomms from './liveprinter.comms'; // browser-to-server communications
+import Logger from 'liveprinter-utils/logger';
+Logger.debugLevel = Logger.DEBUG_LEVEL.debug;
+
 window.$ = window.jquery = require('jquery');
 
-liveprintercomms.setDebug(liveprinterui.debug);
-liveprintercomms.setDoError(liveprinterui.doError);
-liveprintercomms.setLogError(liveprinterui.logerror);
-liveprintercomms.setLogInfo(liveprinterui.loginfo);
-liveprintercomms.setLogCommands(liveprinterui.commandsHandler.log);
-liveprintercomms.setLogPrinterState(liveprinterui.printerStateHandler);
+liveprintercomms.setDebug(debug);
+liveprintercomms.setDoError(doError);
+liveprintercomms.setLogError(logerror);
+liveprintercomms.setLogInfo(loginfo);
+liveprintercomms.setLogCommands(commandsHandler.log);
+liveprintercomms.setLogPrinterState(printerStateHandler);
 
 
 //require('./svg/SVGReader'); // svg util class
@@ -109,15 +115,15 @@ liveprintercomms.addLibs(libs);
     const scheduler = new Scheduler();
 
     // register GUI handler for scheduled tasks events 
-    scheduler.addEventsListener(liveprinterui.taskListenerUI);
+    scheduler.addEventsListener(taskListenerUI);
 
     await editors.init(); // create editors and setup live editing functions
-    await liveprinterui.init(printer, scheduler); // start server communications and setup UI
+    await init(printer, scheduler); // start server communications and setup UI
 
     /// attach listeners
 
     printer.addGCodeListener({ gcodeEvent: liveprintercomms.sendGCodeRPC });
-    printer.addErrorListener({ errorEvent: liveprinterui.doError });
+    printer.addErrorListener({ errorEvent: doError });
 
     ///
     /// add GCode listener to capture compiles GCode to editor
@@ -125,7 +131,7 @@ liveprintercomms.addLibs(libs);
         { gcodeEvent: async (gcode) => editors.recordGCode(editors.GCodeEditor, gcode) }
     );
 
-    liveprintercomms.onPosition(async (v) => liveprinterui.moveHandler(v));
+    liveprintercomms.onPosition(async (v) => moveHandler(v));
     liveprintercomms.onCodeDone(async (v)=>{
         const dateStr = new Intl.DateTimeFormat('en-US', {
             hour: 'numeric', minute: 'numeric', second: 'numeric',
@@ -140,8 +146,8 @@ liveprintercomms.addLibs(libs);
             msg = `done: other code blocks in queue: ${v.queued} [${dateStr}]`;
         }
         document.getElementById('working-tab').innerHTML = msg;
-        liveprinterui.blinkElem($("#working-tab"));
-        //liveprinterui.loginfo(`done: code blocks running: ${v.queued}`);
+        blinkElem($("#working-tab"));
+        //loginfo(`done: code blocks running: ${v.queued}`);
     });
     liveprintercomms.onCodeQueued(async (v)=>{
         const dateStr = new Intl.DateTimeFormat('en-US', {
@@ -150,12 +156,12 @@ liveprintercomms.addLibs(libs);
         }).format(new Date(Date.now()));
 
         document.getElementById('working-tab').innerHTML=`queued: code block running (queued: ${v.queued}) [${dateStr}]`;
-        //liveprinterui.loginfo(`queued: code blocks running: ${v.queued}`);
+        //loginfo(`queued: code blocks running: ${v.queued}`);
     });
 
     // With the live server, this just blinks constantly...
     // liveprintercomms.onOk(async () => {
-    //     liveprinterui.blinkElem($("#working-tab"));
+    //     blinkElem($("#working-tab"));
     // });
 
     
@@ -209,14 +215,14 @@ liveprintercomms.addLibs(libs);
     ///
 
     // get serial ports, to start things
-    liveprinterui.loginfo("Hang on, getting serial ports list...");
-    const timeOutID = setInterval(liveprinterui.loginfo, 100, "...");
+    loginfo("Hang on, getting serial ports list...");
+    const timeOutID = setInterval(loginfo, 100, "...");
 
     const portsReponse = await liveprintercomms.getSerialPorts();
     clearInterval(timeOutID);
     
-    liveprinterui.loginfo("Received serial ports!");
-    liveprinterui.portsListHandler(portsReponse);
+    loginfo("Received serial ports!");
+    portsListHandler(portsReponse);
 
 })(global).catch(err => {
     console.error(err);
