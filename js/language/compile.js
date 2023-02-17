@@ -26,7 +26,7 @@ function compile(code) {
     const blockparser = new nearley.Parser(nearley.Grammar.fromCompiled(grammar)); // parser for entire block
 
     code = code.replace(grammarBlockRegex, (match, p1) => {
-        //Logger.log("Match: " + p1);
+        //Logger.debug("Match: " + p1);
 
         let result = "";
         let lines = p1.split(/[\r\n]/);
@@ -47,9 +47,9 @@ function compile(code) {
         return ' ' + result + "\n"; // need leading space
     });
 
-    Logger.log("code AFTER block-grammar processing -------------------------------");
-    Logger.log(code);
-    Logger.log("========================= -------------------------------");
+    Logger.info("code AFTER block-grammar processing -------------------------------");
+    Logger.info(code);
+    Logger.info("========================= -------------------------------");
 
 
     //
@@ -60,28 +60,28 @@ function compile(code) {
     code = code.replace(grammarOneLineRegex, (match, p1, p2) => {
         const lineparser = new nearley.Parser(nearley.Grammar.fromCompiled(grammar));
 
-        //Logger.log("!!!"+match+"!!!");
-        //Logger.log("!!!"+p2+"!!!");
+        //Logger.debug("!!!"+match+"!!!");
+        //Logger.debug("!!!"+p2+"!!!");
         grammarFound = true; // found!
         let result = "";
         let fail = false; // if not successful
         // .replace(/(^[\s]+)/, "")
         let line = p1.replace(/([\r\n]+)/gm, "").replace(/([\s]+)$/, "");
 
-        //Logger.log("LINE::" + line + "::LINE");
+        //Logger.debug("LINE::" + line + "::LINE");
         if (line) {
                 lineparser.feed(line + '\n');
                 //result += "/*ERROR IN PARSE: [" + fail + "] + offending code: [" + line + "]" + "*/\n";
             
                 result = lineparser.results[0];
-                //Logger.log(result);
+                //Logger.debug(result);
         }
         return ' ' + result;
     });
 
-    Logger.log("code AFTER one-line-grammar processing -------------------------------");
-    Logger.log(code);
-    Logger.log("========================= -------------------------------");
+    Logger.debug("code AFTER one-line-grammar processing -------------------------------");
+    Logger.debug(code);
+    Logger.debug("========================= -------------------------------");
  
     return code;
 }

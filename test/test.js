@@ -1,6 +1,7 @@
 import {Printer as Printer} from '../js/liveprinter.printer'; // printer API object
 import {doError, infoHandler} from '../js/liveprinter.ui';
 const liveprintercomms =  require('../js/liveprinter.comms');
+import { Logger } from 'liveprinter-utils';
 
 function ASSERT(val1,val2, message) {
     if (val1!==val2) infoHandler.info(quickMsg("ERROR::" + message + `--${val1}:${val2}`));
@@ -46,7 +47,7 @@ liveprintercomms.schedule( async ()=> infoHandler.info({time:Date.now(),message:
 
 /// attach listeners
 printer.addGCodeListener({ gcodeEvent: async data => infoHandler.info(quickMsg(data)) });
-printer.addGCodeListener({ gcodeEvent: async data => console.log(quickMsg(data)) });
+printer.addGCodeListener({ gcodeEvent: async data => Logger.debug(quickMsg(data)) });
 printer.addErrorListener({ errorEvent: doError });
 
 // ///

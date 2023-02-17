@@ -2,7 +2,7 @@
  * Core Printer API of LivePrinter, an interactive programming system for live CNC manufacturing.
  * @version 1.0
  * @example <caption>Log GCode to console:</caption>
- * let printer = new Printer(msg => console.log(msg)); * Communications between server, GUI, and events functionality for LivePrinter.
+ * let printer = new Printer(msg => Logger.debug(msg)); * Communications between server, GUI, and events functionality for LivePrinter.
  * @author Evan Raskob <evanraskob+nosp4m@gmail.com>
  * @version 1.0
  * @license
@@ -20,7 +20,7 @@
 * under the License.
 */
  
-import { Vector } from 'liveprinter-utils';
+import { Vector, Logger } from 'liveprinter-utils';
 
 /**
  * Core Printer API of LivePrinter, an interactive programming system for live CNC manufacturing.
@@ -139,7 +139,7 @@ class Printer {
      */
     async gcodeEvent(gcode) {
         const results = await Promise.all(this.gcodeListeners.map(async (l) => l.gcodeEvent(gcode)));
-        console.log(gcode);
+        Logger.debug(gcode);
     }
 
     //
@@ -711,13 +711,13 @@ class Printer {
         const totalMovementsTime = this.d2t(horizDist+vertDist, params.speed);
         // DEBUG
         const totalMovements = Math.ceil( totalMovementsTime / this._minMovementTime);
-        // console.log(`go: total move time/num: ${totalMovementsTime} / ${totalMovements}`); 
+        // Logger.debug(`go: total move time/num: ${totalMovementsTime} / ${totalMovements}`); 
 
         const hdistPerMove = horizDist/totalMovements;
         const vdistPerMove = vertDist/totalMovements;
         let t = 0; // current time in movement
 
-        // console.log(`hdist: ${hdistPerMove}`);
+        // Logger.debug(`hdist: ${hdistPerMove}`);
 
         // TODO: re-write with functionalz
 
@@ -729,7 +729,7 @@ class Printer {
 
             t += this._minMovementTime;
 
-            // console.log(`current move time: ${t}:${totalMovementsTime}/${movement}:${totalMovements}`)
+            // Logger.debug(`current move time: ${t}:${totalMovementsTime}/${movement}:${totalMovements}`)
 
             const xn = x0 + movement*hdistPerMove * Math.cos(this._heading);
             const yn = y0 + movement*hdistPerMove * Math.sin(this._heading);
@@ -748,8 +748,8 @@ class Printer {
             //let _normy = params.y / _div;
     
             /* for debugging -- test if start and end are same
-            console.log("[go] end position:" + (this.x + params.x) + "," + (this.y + params.y) + "," + (this.z + params.z) + "," + params.e);
-            console.log("[go] move vec:" + _normx + ", " + _normy);
+            Logger.debug("[go] end position:" + (this.x + params.x) + "," + (this.y + params.y) + "," + (this.z + params.z) + "," + params.e);
+            Logger.debug("[go] move vec:" + _normx + ", " + _normy);
             */
         
             //everything else handled in extrudeto
@@ -821,9 +821,9 @@ class Printer {
         const cmdRegExp = /([a-zA-Z<>][0-9]+\.?[0-9]*)/gim;
         const subCmdRegExp = /([a-zA-Z<>])([0-9]+\.?[0-9]*)/;
         const found = strings.match(cmdRegExp);
-        //console.log(found);
+        //Logger.debug(found);
         for (let cmd of found) {
-            //console.log(cmd);
+            //Logger.debug(cmd);
             let matches = cmd.match(subCmdRegExp);
 
             if (matches.length !== 3) throw new Error("[API] Error in command string: " + found);
@@ -1190,8 +1190,8 @@ class Printer {
                 filamentLength /= (filamentRadius * filamentRadius * Math.PI);
             }
 
-            //console.log("filament speed: " + filamentSpeed);
-            //console.log("filament distance : " + filamentLength + "/" + dist);
+            //Logger.debug("filament speed: " + filamentSpeed);
+            //Logger.debug("filament distance : " + filamentLength + "/" + dist);
 
             distanceVec.axes.e = filamentLength;
             newPosition.axes.e = this.e + distanceVec.axes.e;
@@ -1213,7 +1213,7 @@ class Printer {
 
         //this._elevation = Math.asin(velocity.axes.z); // removed because it was non-intuitive!!!
 
-        //console.log("time: " + moveTime + " / dist:" + distanceMag);
+        Logger.debug("time: " + moveTime + " / dist:" + distanceMag);
 
         //
         // BREAK AT LARGE MOVES
@@ -1953,12 +1953,12 @@ o
 
     async _extrude(speed, moveVector, leftToMove, retract) {
         // if there's nowhere to move, return
-        //console.log(that);
-        //console.log("left to move:" + leftToMove);
-        //console.log(moveVector);
+        //Logger.debug(that);
+        //Logger.debug("left to move:" + leftToMove);
+        //Logger.debug(moveVector);
 
-        if (isNaN(leftToMove) || leftToMove < 0.01) {
-            //console.log("(extrude) end position:" + that.x + ", " + that.y + ", " + that.z + ", " + that.e);
+        if (isNaN(leftToMove) || leftToMove < 0.005) {
+            //Logger.debug("(extrude) end position:" + that.x + ", " + that.y + ", " + that.z + ", " + that.e);
             return false;
         }
 
@@ -1967,14 +1967,14 @@ o
         // calculate next position
         let nextPosition = Vector.add(this.position, Vector.mult(moveVector, amountMoved));
 
-        //console.log("VECTOR:");
-        //console.log(moveVector);
+        //Logger.debug("VECTOR:");
+        //Logger.debug(moveVector);
 
-        //console.log("CURRENT:");
-        //console.log(that.position);
+        //Logger.debug("CURRENT:");
+        //Logger.debug(that.position);
 
-        //console.log("NEXT:");
-        //console.log(nextPosition);
+        //Logger.debug("NEXT:");
+        //Logger.debug(nextPosition);
 
         if (this.boundaryMode === "bounce") {
             let moved = new Vector();
@@ -2001,11 +2001,11 @@ o
                 //    moved.axes[axis] = nextPosition.axes[axis] - that.position.axes[axis];
                 //}
             }
-            //console.log("moved:");
-            //console.log(moved);
+            //Logger.debug("moved:");
+            //Logger.debug(moved);
 
             if (outsideBounds) {
-                //console.log("outside");
+                //Logger.debug("outside");
                 let shortestAxisTime = 99999;
                 let shortestAxes = [];
 
@@ -2019,19 +2019,19 @@ o
                         shortestAxisTime = moved.axes[axis];
                     }
                 }
-                //console.log("shortest axis:");
-                //console.log(shortestAxes);
-                //console.log("shortest axis TIME:");
-                //console.log(shortestAxisTime);
+                //Logger.debug("shortest axis:");
+                //Logger.debug(shortestAxes);
+                //Logger.debug("shortest axis TIME:");
+                //Logger.debug(shortestAxisTime);
 
 
                 const amountMovedVec = Vector.mult(moveVector, shortestAxisTime);
                 amountMoved = amountMovedVec.mag();
-                //console.log("amt moved:" + amountMoved + " / " + leftToMove);
-                //console.log("next:");
-                //console.log(nextPosition);
+                //Logger.debug("amt moved:" + amountMoved + " / " + leftToMove);
+                //Logger.debug("next:");
+                //Logger.debug(nextPosition);
                 nextPosition.axes = this.clipToPrinterBounds(Vector.add(this.position, amountMovedVec).axes);
-                //console.log(nextPosition);
+                //Logger.debug(nextPosition);
 
                 // reverse velocity if axis bounds hit, for shortest axis
                 for (const axis of shortestAxes) {
@@ -2044,16 +2044,16 @@ o
         leftToMove -= amountMoved;
 
         // update current position
-        //console.log("current pos:")
-        //console.log(that.position);
+        //Logger.debug("current pos:")
+        //Logger.debug(that.position);
 
         // DON'T DO THIS ANYMORE... counter-intuitive!
         //that._elevation = Math.asin(moveVector.axes.z);
         this.position.set(nextPosition);
-        //console.log("next pos:");
-        //console.log(nextPosition);
-        //console.log(that.position);
-        //console.log(that);        
+        //Logger.debug("next pos:");
+        //Logger.debug(nextPosition);
+        //Logger.debug(that.position);
+        //Logger.debug(that);        
 
         await this.sendExtrusionGCode(speed, retract);
 
@@ -2063,8 +2063,8 @@ o
 
         // handle cases where velocity is 0 (might be movement up or down)
 
-        //console.log("prev heading:" + this._heading);
-        //console.log("move vec:" + moveVector.axes.x + ", " + moveVector.axes.y);
+        //Logger.debug("prev heading:" + this._heading);
+        //Logger.debug("move vec:" + moveVector.axes.x + ", " + moveVector.axes.y);
 
         // BIG CHANGE: no longer automatically updates the heading based on the last movement. Caused problems with warp
         //
@@ -2106,7 +2106,7 @@ o
 
     if ((__i + __j) < 0.1) throw new ValueError("[API] arcextrude needs both i and j specified!");
 
-    console.log(`E:${this.e}`);
+    Logger.debug(`E:${this.e}`);
     // did we specify a length of filament to extrude?
     const extrusionNotZero = Math.abs(__e - this.e) > Number.EPSILON;
 
@@ -2196,8 +2196,8 @@ o
             filamentLength /= (filamentRadius * filamentRadius * Math.PI);
         }
 
-        //console.log("filament speed: " + filamentSpeed);
-        //console.log("filament distance : " + filamentLength + "/" + dist);
+        //Logger.debug("filament speed: " + filamentSpeed);
+        //Logger.debug("filament distance : " + filamentLength + "/" + dist);
 
         distanceVec.axes.e = filamentLength;
         newPosition.axes.e = this.e + distanceVec.axes.e;
@@ -2219,7 +2219,7 @@ o
 
     //this._elevation = Math.asin(velocity.axes.z); // removed because it was non-intuitive!!!
 
-    //console.log("time: " + moveTime + " / dist:" + distanceMag);
+    Logger.debug("time: " + moveTime + " / dist:" + distanceMag);
 
     //
     // BREAK AT LARGE MOVES
@@ -2272,14 +2272,14 @@ o
         // calculate next position
         let nextPosition = Vector.add(this.position, Vector.mult(moveVector, amountMoved));
 
-        //console.log("VECTOR:");
-        //console.log(moveVector);
+        //Logger.debug("VECTOR:");
+        //Logger.debug(moveVector);
 
-        //console.log("CURRENT:");
-        //console.log(that.position);
+        //Logger.debug("CURRENT:");
+        //Logger.debug(that.position);
 
-        //console.log("NEXT:");
-        //console.log(nextPosition);
+        //Logger.debug("NEXT:");
+        //Logger.debug(nextPosition);
 
         if (this.boundaryMode === "bounce") {
             let moved = new Vector();
@@ -2306,11 +2306,11 @@ o
                 //    moved.axes[axis] = nextPosition.axes[axis] - that.position.axes[axis];
                 //}
             }
-            //console.log("moved:");
-            //console.log(moved);
+            //Logger.debug("moved:");
+            //Logger.debug(moved);
 
             if (outsideBounds) {
-                //console.log("outside");
+                //Logger.debug("outside");
                 let shortestAxisTime = 99999;
                 let shortestAxes = [];
 
@@ -2324,19 +2324,19 @@ o
                         shortestAxisTime = moved.axes[axis];
                     }
                 }
-                //console.log("shortest axis:");
-                //console.log(shortestAxes);
-                //console.log("shortest axis TIME:");
-                //console.log(shortestAxisTime);
+                //Logger.debug("shortest axis:");
+                //Logger.debug(shortestAxes);
+                //Logger.debug("shortest axis TIME:");
+                //Logger.debug(shortestAxisTime);
 
 
                 const amountMovedVec = Vector.mult(moveVector, shortestAxisTime);
                 amountMoved = amountMovedVec.mag();
-                //console.log("amt moved:" + amountMoved + " / " + leftToMove);
-                //console.log("next:");
-                //console.log(nextPosition);
+                //Logger.debug("amt moved:" + amountMoved + " / " + leftToMove);
+                //Logger.debug("next:");
+                //Logger.debug(nextPosition);
                 nextPosition.axes = this.clipToPrinterBounds(Vector.add(this.position, amountMovedVec).axes);
-                //console.log(nextPosition);
+                //Logger.debug(nextPosition);
 
                 // reverse velocity if axis bounds hit, for shortest axis
                 for (const axis of shortestAxes) {
@@ -2381,12 +2381,12 @@ o
 /*
 Printer.prototype._extrude = meth("_extrude", function (that, speed, moveVector, leftToMove, retract) {
     // if there's nowhere to move, return
-    //console.log(that);
-    //console.log("left to move:" + leftToMove);
-    //console.log(moveVector);
+    //Logger.debug(that);
+    //Logger.debug("left to move:" + leftToMove);
+    //Logger.debug(moveVector);
 
     if (isNaN(leftToMove) || leftToMove < 0.01) {
-        //console.log("(extrude) end position:" + that.x + ", " + that.y + ", " + that.z + ", " + that.e);
+        //Logger.debug("(extrude) end position:" + that.x + ", " + that.y + ", " + that.z + ", " + that.e);
         return false;
     }
 
@@ -2395,14 +2395,14 @@ Printer.prototype._extrude = meth("_extrude", function (that, speed, moveVector,
     // calculate next position
     let nextPosition = Vector.add(that.position, Vector.mult(moveVector, amountMoved));
 
-    //console.log("VECTOR:");
-    //console.log(moveVector);
+    //Logger.debug("VECTOR:");
+    //Logger.debug(moveVector);
 
-    //console.log("CURRENT:");
-    //console.log(that.position);
+    //Logger.debug("CURRENT:");
+    //Logger.debug(that.position);
 
-    //console.log("NEXT:");
-    //console.log(nextPosition);
+    //Logger.debug("NEXT:");
+    //Logger.debug(nextPosition);
 
     if (that.boundaryMode === "bounce") {
         let moved = new Vector();
@@ -2429,11 +2429,11 @@ Printer.prototype._extrude = meth("_extrude", function (that, speed, moveVector,
             //    moved.axes[axis] = nextPosition.axes[axis] - that.position.axes[axis];
             //}
         }
-        //console.log("moved:");
-        //console.log(moved);
+        //Logger.debug("moved:");
+        //Logger.debug(moved);
 
         if (outsideBounds) {
-            //console.log("outside");
+            //Logger.debug("outside");
             let shortestAxisTime = 99999;
             let shortestAxes = [];
 
@@ -2447,19 +2447,19 @@ Printer.prototype._extrude = meth("_extrude", function (that, speed, moveVector,
                     shortestAxisTime = moved.axes[axis];
                 }
             }
-            //console.log("shortest axis:");
-            //console.log(shortestAxes);
-            //console.log("shortest axis TIME:");
-            //console.log(shortestAxisTime);
+            //Logger.debug("shortest axis:");
+            //Logger.debug(shortestAxes);
+            //Logger.debug("shortest axis TIME:");
+            //Logger.debug(shortestAxisTime);
 
 
             const amountMovedVec = Vector.mult(moveVector, shortestAxisTime);
             amountMoved = amountMovedVec.mag();
-            //console.log("amt moved:" + amountMoved + " / " + leftToMove);
-            //console.log("next:");
-            //console.log(nextPosition);
+            //Logger.debug("amt moved:" + amountMoved + " / " + leftToMove);
+            //Logger.debug("next:");
+            //Logger.debug(nextPosition);
             nextPosition.axes = that.clipToPrinterBounds(Vector.add(that.position, amountMovedVec).axes);
-            //console.log(nextPosition);
+            //Logger.debug(nextPosition);
 
             // reverse velocity if axis bounds hit, for shortest axis
             for (const axis of shortestAxes) {
@@ -2472,31 +2472,31 @@ Printer.prototype._extrude = meth("_extrude", function (that, speed, moveVector,
     leftToMove -= amountMoved;
 
     // update current position
-    //console.log("current pos:")
-    //console.log(that.position);
+    //Logger.debug("current pos:")
+    //Logger.debug(that.position);
 
     // DON'T DO THIS ANYMORE... counter-intuitive!
     //that._elevation = Math.asin(moveVector.axes.z);
     that.position.set(nextPosition);
-    //console.log("next pos:");
-    //console.log(nextPosition);
-    //console.log(that.position);
-    //console.log(that);
+    //Logger.debug("next pos:");
+    //Logger.debug(nextPosition);
+    //Logger.debug(that.position);
+    //Logger.debug(that);
 
     that.sendExtrusionGCode(speed, retract);
 
     // handle cases where velocity is 0 (might be movement up or down)
 
-    //console.log("prev heading:" + this._heading);
-    //console.log("move vec:" + moveVector.axes.x + ", " + moveVector.axes.y);
+    //Logger.debug("prev heading:" + this._heading);
+    //Logger.debug("move vec:" + moveVector.axes.x + ", " + moveVector.axes.y);
 
     let _test = moveVector.axes.y * moveVector.axes.y + moveVector.axes.x * moveVector.axes.x;
 
     if (_test > Number.EPSILON) {
-        //console.log("not not going nowhere __" + that._heading);
+        //Logger.debug("not not going nowhere __" + that._heading);
         let newHeading = Math.atan2(moveVector.axes.y, moveVector.axes.x);
         if (!isNaN(newHeading)) that._heading = newHeading;
-        //console.log("new heading:" + that._heading);
+        //Logger.debug("new heading:" + that._heading);
     }
 
     // Tail recursive, until target x,y,z is hit

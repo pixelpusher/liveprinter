@@ -27,8 +27,6 @@ let lastErrorMessage = "none"; // last error message for GUI
 let scheduler = null; // task scheduler, see init()
 let printer = null; // liveprinter printer object
 
-export const debug = msg => Logger.debug(msg);
-
 /**
  * Clear HTML of all displayed code errors
  */
@@ -73,16 +71,16 @@ export function doError(e) {
     }
 
     /*
-    Logger.log("SyntaxError? " + (e instanceof SyntaxError)); // true
-    Logger.log(e); // true
-    Logger.log("SyntaxError? " + (e instanceof SyntaxError)); // true
-    Logger.log("ReferenceError? " + (e instanceof ReferenceError)); // true
-    Logger.log(e.message);                // "missing ; before statement"
-    Logger.log(e.name);                   // "SyntaxError"
-    Logger.log(e.fileName);               // "Scratchpad/1"
-    Logger.log(e.lineNumber);             // 1
-    Logger.log(e.columnNumber);           // 4
-    Logger.log(e.stack);                  // "@Scratchpad/1:2:3\n"
+    Logger.debug("SyntaxError? " + (e instanceof SyntaxError)); // true
+    Logger.debug(e); // true
+    Logger.debug("SyntaxError? " + (e instanceof SyntaxError)); // true
+    Logger.debug("ReferenceError? " + (e instanceof ReferenceError)); // true
+    Logger.debug(e.message);                // "missing ; before statement"
+    Logger.debug(e.name);                   // "SyntaxError"
+    Logger.debug(e.fileName);               // "Scratchpad/1"
+    Logger.debug(e.lineNumber);             // 1
+    Logger.debug(e.columnNumber);           // 4
+    Logger.debug(e.stack);                  // "@Scratchpad/1:2:3\n"
     */
 
     // this sucked because of coding... jst highlight instead!
@@ -205,8 +203,8 @@ export const portsListHandler = function (event) {
 
     vars.serialPorts = []; // reset serial ports list
     let portsDropdown = $("#serial-ports-list");
-    //Logger.log("list of serial ports:");
-    //Logger.log(event);
+    //Logger.debug("list of serial ports:");
+    //Logger.debug(event);
     portsDropdown.empty();
     if (ports.length === 0) {
         appendLoggingNode($("#info > ul"), Date.now(), "<li>no serial ports found</li > ");
@@ -223,7 +221,7 @@ export const portsListHandler = function (event) {
     }
 
     vars.serialPorts.forEach(function (port) {
-        //Logger.log("PORT:" + port);
+        //Logger.debug("PORT:" + port);
         let newButton = $('<button class="dropdown-item" type="button" data-port-name="' + port + '">' + port + '</button>');
         //newButton.data("portName", port);
         newButton.click(async function (e) {
@@ -232,8 +230,8 @@ export const portsListHandler = function (event) {
             loginfo("opening serial port " + me.html());
             const baudRate = $("#baudrates-list .active").data("rate");
 
-            Logger.log("baudRate:");
-            Logger.log(baudRate);
+            Logger.debug("baudRate:");
+            Logger.debug(baudRate);
 
             // disable changing baudrate and port
             //$("#baudrates-list > button").addClass("disabled");
@@ -265,7 +263,7 @@ export const portsListHandler = function (event) {
     const allBaudRates = [115200, 250000, 230400, 57600, 38400, 19200, 9600];
 
     allBaudRates.forEach(rate => {
-        //Logger.log("PORT:" + port);
+        //Logger.debug("PORT:" + port);
         let newButton = $('<button class="dropdown-item" type="button" data-rate="' + rate + '">' + rate + '</button>');
 
         // handle click
@@ -319,10 +317,8 @@ async function requestRepeat(gcode, activeElem, delay, func, priority = 1) {
     const result = await liveprintercomms.scheduleGCode(gcode, priority);
     func(result);
 
-    const running = activeElem.hasClass("active");
-
     setTimeout(async () => {
-        if (!running) return;
+        if (!activeElem.hasClass("active")) return;
         else {
             await requestRepeat(gcode, activeElem, delay, func, priority);
         }
@@ -768,11 +764,11 @@ export const init = async function (_printer, _scheduler) {
     // redirect error to browser GUI
     //
     $(window).on("error", function (evt) {
-        //Logger.log("jQuery error event:");
-        //Logger.log(evt);
+        //Logger.debug("jQuery error event:");
+        //Logger.debug(evt);
 
         const e = evt.originalEvent.error; // get the javascript event
-        //Logger.log("original event:", e);
+        //Logger.debug("original event:", e);
         doError(e);
     });
 

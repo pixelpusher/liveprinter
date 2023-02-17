@@ -10,7 +10,7 @@
 const $ = require('jquery');
 const liveprintercomms = require('./liveprinter.comms');
 
-import { cleanGCode, } from 'liveprinter-utils';
+import { cleanGCode, Logger} from 'liveprinter-utils';
 
 import { clearError, doError, downloadFile,
     blinkElem } from '../js/liveprinter.ui';

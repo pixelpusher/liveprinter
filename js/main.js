@@ -8,14 +8,14 @@ const liveprintercomms =  require('../js/liveprinter.comms');
 const editors = require('../js/liveprinter.editor');
 
 import Logger from 'liveprinter-utils/logger';
-Logger.debugLevel = Logger.DEBUG_LEVEL.debug;
+Logger.level = Logger.LOG_LEVEL.info;
 
 window.$ = window.jquery = require('jquery');
 
-liveprintercomms.setDebug(debug);
+liveprintercomms.setDebug(Logger.debug);
 liveprintercomms.setDoError(doError);
 liveprintercomms.setLogError(logerror);
-liveprintercomms.setLogInfo(loginfo);
+liveprintercomms.setLogInfo(Logger.info);
 liveprintercomms.setLogCommands(commandsHandler.log);
 liveprintercomms.setLogPrinterState(printerStateHandler);
 

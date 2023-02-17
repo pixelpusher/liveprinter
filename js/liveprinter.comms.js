@@ -26,6 +26,7 @@ const compile = require('./language/compile'); // minigrammar compile function
 import { MarlinLineParserResultPosition, MarlinLineParserResultTemperature } from './parsers/MarlinParsers.js';
 import { __esModule } from "bootstrap";
 import {updateGUI, clearError, tempHandler, moveHandler} from './liveprinter.ui';
+import  Logger from 'liveprinter-utils/logger';
 
 //------------------------------------------------
 // feedback to the GUI or logger
@@ -34,27 +35,26 @@ import {updateGUI, clearError, tempHandler, moveHandler} from './liveprinter.ui'
 // TODO: encapsulate this into a single call so it can be sent to a single listener as {type, data}
 // instead of this mess of functions
 
-let debug = (v)=>console.log(v); // to be overridden by a real debug when loaded
+let debug = (v)=>Logger.debug(v); // to be overridden by a real debug when loaded
 module.exports.setDebug = f => debug=f; 
 
-let doError = (v)=>console.error(v); // to be overridden by a real debug when loaded
+let doError = (v)=>Logger.error(v); // to be overridden by a real debug when loaded
 module.exports.setDoError = f => doError=f; 
 
-let logError = (v)=>console.error(v); // to be overridden by a real debug when loaded
+let logError = (v)=>Logger.error(v); // to be overridden by a real debug when loaded
 module.exports.setLogError = f => logError=f; 
 
-let logInfo = (v)=>console.info(v); // to be overridden by a real debug when loaded
+let logInfo = (v)=>Logger.info(v); // to be overridden by a real debug when loaded
 module.exports.setLogInfo = f => logInfo=f; 
 
 
 // was liveprinterUI.commandsHandler.log
-let logCommands = (v)=>console.info(v); // to be overridden by a real debug when loaded
+let logCommands = (v)=>Logger.info(v); // to be overridden by a real debug when loaded
 module.exports.setLogCommands = f => logCommands=f; 
 
 //liveprinterUI.printerStateHandler
-let logPrinterState = (v)=>console.info(v); // to be overridden by a real debug when loaded
+let logPrinterState = (v)=>Logger.info(v); // to be overridden by a real debug when loaded
 module.exports.setLogPrinterState = f => logPrinterState=f; 
-
 
 // TODO: these
 
@@ -89,9 +89,6 @@ module.exports.vars = vars;
 
 vars.serialPorts = []; // available ports
 
-// this uses the limiting queue, but that affects performance for fast operations (< 250ms)
-vars.useLimiter = true;
-
 vars.logAjax = false; // log all ajax request/response pairs for debugging to command panel
 
 vars.ajaxTimeout = 60000; // 1 minute timeout for ajax calls (API calls to the backend server)
@@ -115,7 +112,7 @@ function initLimiter() {
     const _limiter = new Bottleneck({
         maxConcurrent: 1,
         highWater: 10000, // max jobs, good to set for performance
-        minTime: 1, // (ms) How long to wait after launching a job before launching another one.
+        minTime: 0, // (ms) How long to wait after launching a job before launching another one.
         strategy: Bottleneck.strategy.LEAK // cancel lower-priority jobs if over highwater
     });
 
@@ -128,10 +125,15 @@ function initLimiter() {
         catch (err) {
             errorTxt = error + "";
         }
-        doError(Error(errorTxt));
-        logError(`Limiter error: ${errorTxt}`);
 
-        await restartLimiter();
+        try {
+            await restartLimiter();
+        }
+        catch (err) {
+            errorTxt = "Limiter restart error (failed restart too)::" + errorTxt;
+        }
+        doError(Error(errorTxt));
+        logError(`Limiter error: ${errorTxt}`);        
     });
 
     // Listen to the "failed" event
@@ -149,6 +151,7 @@ function initLimiter() {
     _limiter.on("retry", (error, jobInfo) => logError(`Now retrying ${jobInfo.options.id}`));
 
     _limiter.on("dropped", (dropped) => {
+        logError("Limiter dropped job----------");
         let errorTxt = "";
         try {
             errorTxt = `${JSON.stringify(dropped)}`;
@@ -163,7 +166,7 @@ function initLimiter() {
     });
 
     _limiter.on('queued', async function (info){
-        //logInfo(`starting command...: ${_limiter.queued()}`);
+        logInfo(`starting command...: ${_limiter.queued()}`);
         info.queued = _limiter.queued();
         
         try {
@@ -171,7 +174,7 @@ function initLimiter() {
         }
         catch (err)
         {
-            err.message = "Error in done event:" + err.message;
+            err.message = "Error in queued event:" + err.message;
             doError(err);
         }
     })
@@ -189,8 +192,6 @@ function initLimiter() {
         }
         
     });
-
-
     return _limiter;
 }
 
@@ -234,7 +235,8 @@ module.exports.scheduleFunction = scheduleFunction;
  * @alias comms:schedule
  */
  async function schedule(...args){
-    return await limiter.schedule({ priority:1, weight:1, id:codeIndex++ }, ...args);
+    logInfo(`scheduling: ${JSON.stringify(args)}`);
+    return limiter.schedule({ priority:1, weight:1, id:codeIndex++ }, ...args);
 } 
 
 module.exports.schedule = schedule;
@@ -308,34 +310,35 @@ let codeIndex = 0;
 
         //if (vars.logAjax) loginfo(`starting code ${codeIndex}`);
 
-        //console.log(`async()=>{await 1; ${code} return 1}`);
+        //Logger.log(`async()=>{await 1; ${code} return 1}`);
 
         async function func () {
-            //console.log(`async()=>{await 1; ${code} return 1}`);
+            //Logger.log(`async()=>{await 1; ${code} return 1}`);
 
             // bindings
             lib.comms = exports; // local functions for events, etc.
+            lib.log = Logger;
 
             // Call user's function with external bindings from lib (as 'this' which gets interally mapped to 'lib' var)
             const innerFunc = eval(`async(lib)=>{await 1; ${code}; return 1}`);
             
             try 
             {
-                //console.log("running inner");
+                //Logger.log("running inner");
                 await innerFunc(lib);
             }
             catch(e) 
             {
                 lastErrorMessage = null;
                 e.lineNumber=line;
-                console.log(`Code running error(${line}): ${e}`);
+                Logger.error(`Code running error(${line}): ${e}`);
                 doError(e);
            }
             return 1;
         }
         
         //await func();
-        //await liveprintercomms.scheduleFunction({ priority:1,weight:1,id:codeIndex++ }, async ()=> {console.log(`something`); return 1});
+        //await liveprintercomms.scheduleFunction({ priority:1,weight:1,id:codeIndex++ }, async ()=> {Logger.log(`something`); return 1});
 
         await schedule(func);
 
@@ -378,10 +381,20 @@ async function stopLimiter() {
  */
 async function restartLimiter() {
     logInfo("Limiter restarting");
-    await stopLimiter();
-    limiter = initLimiter();
+    let stopped = false;
+    try {
+        await stopLimiter();
+        stopped = true;
+    }
+    catch(err)
+    {
+        stopped = false;
+        logError(`Failed to restart limiter (restartLimiter): ${err}`)
+    }
+    if (stopped) limiter = initLimiter();
     return;
 }
+
 module.exports.restartLimiter = restartLimiter;
 
 /**
@@ -413,7 +426,7 @@ async function sendJSONRPC(request) {
         // statusText field has error ("timeout" in this case)
         response = JSON.stringify(error, null, 2);
         const statusText = `JSON error response communicating with server:<br/>${response}<br/>Orig:${request}`; 
-        console.error(statusText);
+        Logger.error(statusText);
         logError(statusText);
     }
     if (undefined !== response.error) {
@@ -589,28 +602,20 @@ module.exports.sendGCodeRPC = sendGCodeRPC;
  * @returns {Object} result Returns json promise object containing printer response
  */
 async function scheduleGCode(gcode, priority = 4) { // 0-9, lower higher
-    let result = null;
-
-    if (vars.useLimiter) {
-        // use limiter for priority scheduling
-        let reqId = "req" + vars.requestId++;
-        if (vars.logAjax) logCommands(`SENDING ${reqId}`);
-        try {
-            result = await limiter.schedule(
+    const reqId = "req" + vars.requestId++;
+    if (vars.logAjax) logCommands(`SENDING ${reqId}`);
+    await scheduleFunction(
                 { "priority": priority, weight: 1, id: reqId, expiration: maxCodeWaitTime },
-                async () => await sendGCodeRPC(gcode)
-            );
-        }
-        catch (err) {
-            logError(`Error with ${reqId}:: ${err}`);
-        }
-        if (vars.logAjax) logCommands(`RECEIVED ${reqId}`);
-    }
-    return result;
+                async () => {
+                    await sendGCodeRPC(gcode);
+                    if (vars.logAjax) logCommands(`RECEIVED ${reqId}`);
+                    return true;
+                }
+    );
+    return true;
 }
 
 module.exports.scheduleGCode = scheduleGCode;
-
 
 /*
 * START SETTING UP SESSION VARIABLES ETC>
