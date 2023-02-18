@@ -27,6 +27,7 @@ import { MarlinLineParserResultPosition, MarlinLineParserResultTemperature } fro
 import { __esModule } from "bootstrap";
 import {updateGUI, clearError, tempHandler, moveHandler} from './liveprinter.ui';
 import  Logger from 'liveprinter-utils/logger';
+import $ from "jquery";
 
 //------------------------------------------------
 // feedback to the GUI or logger
@@ -55,6 +56,8 @@ module.exports.setLogCommands = f => logCommands=f;
 //liveprinterUI.printerStateHandler
 let logPrinterState = (v)=>Logger.info(v); // to be overridden by a real debug when loaded
 module.exports.setLogPrinterState = f => logPrinterState=f; 
+
+export let remotePort = 8888; // port for server, might be different that url if testing
 
 // TODO: these
 
@@ -166,7 +169,7 @@ function initLimiter() {
     });
 
     _limiter.on('queued', async function (info){
-        logInfo(`starting command...: ${_limiter.queued()}`);
+        logInfo(`queued: ${_limiter.queued()}`);
         info.queued = _limiter.queued();
         
         try {
@@ -235,7 +238,7 @@ module.exports.scheduleFunction = scheduleFunction;
  * @alias comms:schedule
  */
  async function schedule(...args){
-    logInfo(`scheduling: ${JSON.stringify(args)}`);
+    logInfo(`scheduling: ${JSON.stringify(...args)}`);
     return limiter.schedule({ priority:1, weight:1, id:codeIndex++ }, ...args);
 } 
 
@@ -414,9 +417,12 @@ async function sendJSONRPC(request) {
     if (vars.logAjax) logCommands(`SENDING ${reqId}::${request}`);
 
     let response = "awaiting response";
+
+    Logger.debug(`${location.protocol}//${location.hostname}:${remotePort}/jsonrpc`);
+
     try {
         response = await $.ajax({
-            url: `${location.protocol}//${location.host}/jsonrpc`,
+            url: `${location.protocol}//${location.hostname}:${remotePort}/jsonrpc`,
             type: "POST",
             data: JSON.stringify(args),
             timeout: vars.ajaxTimeout // might be a long wait on startup... printer takes time to start up and dump messages
@@ -454,7 +460,14 @@ async function getSerialPorts() {
         'params': []
     };
     logInfo('getting serial ports');
-    return sendJSONRPC(JSON.stringify(message));
+    const response = await sendJSONRPC(JSON.stringify(message));
+     
+    if (undefined === response.result || undefined === response.result[0] || typeof response.result[0] === "string") {
+        logError("bad response from set getSerialPorts():");
+        logError(JSON.stringify(response));
+        throw new Error("bad response from set getSerialPorts():"+JSON.stringify(response));
+    }
+    return response;
 }
 // expose as global
 module.exports.getSerialPorts = getSerialPorts;
@@ -477,6 +490,7 @@ async function setSerialPort({ port, baudRate }) {
     if (undefined === response.result || undefined === response.result[0] || typeof response.result[0] === "string") {
         logError("bad response from set serialPort():");
         logError(JSON.stringify(response));
+        throw new Error("bad response from set serialPort():"+JSON.stringify(response));
     }
     else {
         logInfo("connected to port " + response.result[0].port[0] + " at baud rate " + response.result[0].port[1]);
@@ -604,7 +618,7 @@ module.exports.sendGCodeRPC = sendGCodeRPC;
 async function scheduleGCode(gcode, priority = 4) { // 0-9, lower higher
     const reqId = "req" + vars.requestId++;
     if (vars.logAjax) logCommands(`SENDING ${reqId}`);
-    await scheduleFunction(
+    return scheduleFunction(
                 { "priority": priority, weight: 1, id: reqId, expiration: maxCodeWaitTime },
                 async () => {
                     await sendGCodeRPC(gcode);
@@ -612,7 +626,6 @@ async function scheduleGCode(gcode, priority = 4) { // 0-9, lower higher
                     return true;
                 }
     );
-    return true;
 }
 
 module.exports.scheduleGCode = scheduleGCode;

@@ -1,8 +1,7 @@
 {
   "name": "LivePrinter",
   "description": "LivePrinter livecoding system for 3D printing and CNC manufacturing",
-  "version": "1.0.0",
-  "outputFormat": "global",
+  "version": "1.1.0",
   "keywords": [
     "3DPrinting, livecoding, Marlin, GCode"
   ],
@@ -14,20 +13,19 @@
   "repository": "https://github.com/pixelpusher/liveprinter",
   "license": "AGPL-3.0-or-later",
   "author": "Evan Raskob",
-  "source": "js/main.js",
   "targets": {
-    "default": {
+    "live": {
+      "source": "js/main.js",
       "distDir": "./liveprinter/static/lib/",
       "context": "browser",
       "outputFormat": "global"
     },
-    "module": {
-      "distDir": "./dist",
-      "outputFormat": "esmodule"
-    },
     "test": {
-      "distDir": "./dist",
-      "context": "browser"
+      "source": "test/test.html",
+      "distDir": "./liveprinter/static/test",
+      "context": "browser",
+      "outputFormat": "global",
+      "publicUrl": "./"
     }
   },
   "dependencies": {
@@ -57,10 +55,10 @@
   },
   "browserslist": "> 0.5%, last 2 versions, not dead",
   "scripts": {
-    "build": "parcel build",
-    "test": "npx parcel test/test.html --target test --dist-dir dist",
-    "watch": "parcel watch",
-    "run": "python3 liveprinter/LivePrinterServer.py",
+    "build": "parcel build --target live",
+    "test": "parcel watch --target test",
+    "watch": "parcel watch --target live",
+    "server": "python3 liveprinter/LivePrinterServer.py",
     "docs": "jsdoc2md js/liveprinter.comms.js > doc/comms.md && jsdoc2md js/liveprinter.ui.js > doc/ui.md && jsdoc2md js/liveprinter.editor.js > doc/editor.md && jsdoc2md js/liveprinter.printer.js > doc/printer.md"
   }
 }

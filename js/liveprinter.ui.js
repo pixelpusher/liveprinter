@@ -16,7 +16,7 @@
 * License for the specific language governing permissions and limitations
 * under the License.
 */
-import Logger from 'liveprinter-utils/Logger';
+import {Logger, Scheduler} from 'liveprinter-utils';
 import $ from 'jquery';
 
 const liveprintercomms = require('./liveprinter.comms');
@@ -698,7 +698,7 @@ export const init = async function (_printer, _scheduler) {
     }
 
     // we can use our own, or the one passed in
-    if (!_scheduler) scheduler = new util.Scheduler();
+    if (!_scheduler) scheduler = new Scheduler();
     else scheduler = _scheduler;
 
     ///--------------------------------------
