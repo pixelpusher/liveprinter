@@ -59,7 +59,9 @@ async function setup() {
     printer.addGCodeListener({ gcodeEvent: async data => infoHandler.info(quickMsg(data)) });
     printer.addGCodeListener({ gcodeEvent: async data => Logger.debug(quickMsg(data)) });
     printer.addErrorListener({ errorEvent: doError });
-    
+    // SETUP PRINTER GCODE LISTENER
+    printer.addGCodeListener({ gcodeEvent: liveprintercomms.sendGCodeRPC });
+
     // ///
     // /// add GCode listener to capture compiles GCode to editor
     // printer.addGCodeListener(
@@ -129,6 +131,25 @@ document.getElementById("go").onclick= async ()=>{
   await startTest();  
 };
 
+document.getElementById("movetest").onclick= async ()=>{    
+    let elapsedTime;
+    // try movement code
+    infoHandler.info(quickMsg(`testing mov function`));
+    let startTime = new Date();
+    await liveprintercomms.globalEval(`# mov2 x:20 y:40 speed:5`, 1);
+    elapsedTime = (new Date()) - startTime;
+    infoHandler.info(quickMsg(`time to move: ${elapsedTime}ms`));
+}
+
+document.getElementById("gotest").onclick= async ()=>{    
+    let elapsedTime;
+    infoHandler.info(quickMsg(`testing go function`));
+    startTime = new Date();
+    await liveprintercomms.globalEval(`# minmove 5 | m2s 74 | t2d 1600 | go 1`, 1);
+    elapsedTime = (new Date()) - startTime;
+    infoHandler.info(quickMsg(`time to move: ${elapsedTime}ms`));
+}
+
 document.getElementById("serialTest").onclick= async ()=>{
 
     // GET PORTS
@@ -171,22 +192,6 @@ document.getElementById("serialTest").onclick= async ()=>{
         Logger.debug(err);
         infoHandler.info(quickMsg(`ERROR: ${JSON.stringify(err)}`));    
     }
-
-    // SETUP PRINTER GCODE LISTENER
-    printer.addGCodeListener({ gcodeEvent: liveprintercomms.sendGCodeRPC });
-
-    // try movement code
-    infoHandler.info(quickMsg(`testing mov function`));
-    startTime = new Date();
-    await liveprintercomms.globalEval(`# mov2 x:20 y:40 speed:5`, 1);
-    elapsedTime = (new Date()) - startTime;
-    infoHandler.info(quickMsg(`time to move: ${elapsedTime}ms`));
-
-    infoHandler.info(quickMsg(`testing go function`));
-    startTime = new Date();
-    await liveprintercomms.globalEval(`# minmove 5 | m2s 74 | t2d 1600 | go 1`, 1);
-    elapsedTime = (new Date()) - startTime;
-    infoHandler.info(quickMsg(`time to move: ${elapsedTime}ms`));
 };
   
 

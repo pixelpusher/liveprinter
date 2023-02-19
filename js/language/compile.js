@@ -1,4 +1,4 @@
-import Logger from 'liveprinter-utils/Logger';
+import { Logger } from 'liveprinter-utils';
 
 const nearley = require('nearley'); // grammar parser
 const grammar = require('./lpgrammar');
