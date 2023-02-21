@@ -21,7 +21,9 @@ class SerialDevice():
         self._serial = None
         self._serial_port = None
         self._baud_rate = 250000
-        self._timeout = 0.8 # 100 ms
+        self._timeout = 0.8 # in s
+        self.settle_time = 0.005 # used between serial commands to let the firmware "settle"
+        self.retry_time = 0.15 # in s, time to wait in between retries
         self.connection_state = ConnectionState.closed
         self.commands_sent = 0 # needed for keeping track of them
         self.busy = False # whether it is processing commands or not
@@ -88,7 +90,7 @@ class SerialDevice():
             got_something = False
 
             while self.busy:
-                gen.sleep(0.05)
+                gen.sleep(self.settle_time)
 
             self.busy = True # async mutex
             
@@ -108,10 +110,10 @@ class SerialDevice():
                         else:
                             retry_count += 1
                             result.append('WAITING...')
-                            await gen.sleep(0.25)
+                            await gen.sleep(self.retry_time)
                     else:
                         # just chill for a bit
-                        await gen.sleep(0.25)
+                        await gen.sleep(self.retry_time)
             self.busy = False # async mutex
             self.serial_logger.debug('connected to printer')
         return result
@@ -135,7 +137,7 @@ class SerialDevice():
 
         # spin lock??        
         while self.busy:
-            await gen.sleep(0.01)
+            await gen.sleep(self.settle_time)
 
         self.busy = True
 
@@ -216,7 +218,8 @@ class SerialDevice():
             retries = 10 # absorb everything
 
             while True:
-                await gen.sleep(0.1) # slight delay to let printer settle
+                # update: removed this to see if made a diff Feb. '23
+                # await gen.sleep(self.settle_time) # slight delay to let printer settle
 
                 # check for timeout
                 current_time = time.time() - start_time
@@ -248,7 +251,7 @@ class SerialDevice():
                         self.serial_logger.error("{msg}".format(msg=error_msg))
 
                         # sleep it off, might be busy
-                        await gen.sleep(0.850)
+                        await gen.sleep(self.settle_time)
 
 
                     # Cold extrusion or something else - means line didn't take
@@ -267,7 +270,7 @@ class SerialDevice():
                         # next line will be resend, do nothing
                         error_msg = "Line error: {line} (for {cmd} - current line) {current}".format(line=line.rstrip('\n\r'), cmd=cmd, current=self.commands_sent)
                         self.serial_logger.error("{msg}".format(msg=error_msg))
-                        await gen.sleep(0.850) # wait, might mean printer is busy
+                        await gen.sleep(self.settle_time) # wait, might mean printer is busy
                         retries -= 1
                         continue
                     
@@ -276,7 +279,7 @@ class SerialDevice():
                         # likely caused by motor moving error in firmware
                         error_msg = "Checksum error: {line} (for {cmd} - current line) {current}".format(line=line.rstrip('\n\r'), cmd=cmd, current=self.commands_sent)
                         self.serial_logger.error("{msg}".format(msg=error_msg))
-                        await gen.sleep(0.850)
+                        await gen.sleep(self.settle_time)
                         retries -= 1
                         continue
 
@@ -353,7 +356,7 @@ class SerialDevice():
                     if retries < 1:
                         break
                     retries -= 1
-                    await gen.sleep(0.500)
+                    await gen.sleep(self.retry_time)
 
         self.commands_sent += 1
           
@@ -400,7 +403,7 @@ class SerialDevice():
                 # print("Waiting on command: {}".format(command))
                 # await gen.sleep(0.05) # should this be gen.sleep() or just
                 # sleep??  Should it block?
-                time.sleep(0.01)
+                time.sleep(self.settle_time)
 
         return result
 

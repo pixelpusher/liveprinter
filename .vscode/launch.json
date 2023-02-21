@@ -2,10 +2,25 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Python: Current File",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
             "name": "Python: LivePrinter server",
             "type": "python",
             "request": "launch",
             "program": "${workspaceFolder}/liveprinter/LivePrinterServer.py",
+            "console": "integratedTerminal"
+        },
+        {
+            "name":"Profile LivePrinter server",
+            "type": "python",
+            "request": "launch",
+            "program": "python3 -m cProfile -o ${workspaceFolder}/server_profile.txt ${workspaceFolder}/liveprinter/LivePrinterServer.py",
             "console": "integratedTerminal"
         }
     ]

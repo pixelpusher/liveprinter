@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+    <meta charset="utf-8">
+    <title>LivePrinter tests</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- <meta property="og:image" content="thumbnail.jpg" /> -->
+    <style>.container {
+  width: 80%;
+  flex-direction: row;
+  margin: 1rem auto;
+  display: flex;
+}
+
+.flex-item {
+  width: 50%;
+}
+
+div {
+  padding: .875rem .375rem;
+}
+
+</style>
+</head>
+<body>
+    <script src="test.e242bb2f.js" defer=""></script>
+    
+    <div id="modal-errors">Modal errors</div>
+    <div class="code-errors">Code errors</div>
+    <div class="container">
+        <section id="inbox" class="flex-item">
+            <header>Errors:</header>
+            <section id="errors">
+                <ul id="errorlog"></ul>
+            </section>
+            <header>Info:</header>
+            <section id="info">
+                <ul id="infolog"></ul>
+            </section>
+        </section>
+        <section id="gcode" class="flex-item">
+            <textarea cols="80" rows="20"></textarea>
+        </section>
+    </div>
+    <article id="working-tab">working tab</article>
+    <div>
+        <button id="go">go!</button>
+        <button id="serialTest">Test Serial Connection</button>
+        <button id="movetest">Test move code</button>
+        <button id="gotest">Test go code</button>
+        <button id="stop">stop</button>
+    </div>
+</body>
+</html>
