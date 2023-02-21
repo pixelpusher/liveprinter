@@ -1,6 +1,6 @@
 import { repeat, numrange, countto, Scheduler } from 'liveprinter-utils';
 import {Printer as Printer} from '../js/liveprinter.printer'; // printer API object
-import {debug, logerror, loginfo, doError,
+import {logerror, loginfo, doError,
      moveHandler, portsListHandler, commandsHandler, printerStateHandler,
      taskListenerUI, init,
      blinkElem} from '../js/liveprinter.ui';
