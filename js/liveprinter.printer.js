@@ -64,7 +64,6 @@ class Printer {
         this.lastSpeed = -1.0;
 
         ////////////////////////////////////////////
-        // these are used in in the go() function
         this._heading = 0;   // current angle of movement (xy) in radians
         this._elevation = Math.PI / 2; // current angle of elevated movement (z) in radians, starts up
         this._distance = 0; // next L/R distance to move
@@ -72,7 +71,7 @@ class Printer {
         this._waitTime = 0;
         this._autoRetract = true; // automatically unretract/retract - see get/set autoretract
         this._bpm = 120; // for beat-based movements
-        this._minMovementTime = 20; // for breaking up movements, in ms
+        this._minMovementTime = 10; // for breaking up movements, in ms
         ////////////////////////////////////////////
 
         this.totalMoveTime = 0; // time spent moving/extruding
@@ -663,15 +662,39 @@ class Printer {
     }
 
     /**
-     * Execute a movement (extrusion or travel) based on the internally-set 
-     *  direction/elevation/distance.
-     * @param {Boolean} extruding Whether to extrude whilst moving (true if yes, false if not)
-     * @param {Boolean} retract Whether to retract at end (usually automatic). Set to 0 or false 
-     *  if executing a few moves in a sequence
+     * Execute an extrusion based on the internally-set direction/elevation/distance, with an optional time-based function.
+     * @param {Number or Object} args Optional: if a non-zero number, extrude 
+     * the amount specified in mm, or left out then the stored distance set
+     * by dist(). Otherwise, an object with keys for:
+     *  1. d: distance (optional)
+     *  2. t: time (optional) of start of movement for passing to movement function
      * @returns {Printer} reference to this object for chaining
      */
-    async go(extruding = false, retract) 
+    async draw(args)
     {
+        let time = this.totalMoveTime; // current universal time in movement -- lets us resume ops
+        let params = { speed:this._printSpeed }; // params for passing to each call to extrudeto
+        let horizDist, vertDist;
+
+        if (undefined !== args) {
+            // handle distance-only arg
+            if (Number.isInteger(args)) 
+            { 
+                this._distance = args;
+            }
+            else {
+                // parse object arguments
+                let {z,d,t} = args;
+                if (undefined !== t) time = t;
+                if (undefined !== d) this._distance = d;
+                if (undefined !== z) {
+                    this._zdistance = z;
+                    // if elevation is 0 and we are meant to move vertically we might get stuck in a loop
+                    if (this._elevation < Math.EPSILON) this._elevation = Math.PI/2;
+                }
+            }
+        }
+
         // wait, if necessary
         if (this._waitTime > 0) {
             return this.wait();
@@ -681,10 +704,9 @@ class Printer {
         // take into account stored distance, angle, elevation and
         // add to current position (cartesian)
 
-        let horizDist = this._distance;
-        let vertDist = this._zdistance;
+        horizDist = this._distance;
+        vertDist = this._zdistance;
 
-        let params = {}; // params for passing to each call to extrudeto
 
         // add projection of vertical distance into horizontal plane.
         // vertical distances are specified absolutely, so we need to find corresponding
@@ -699,13 +721,6 @@ class Printer {
         this._distance = 0;
         this._zdistance = 0;
         this._elevation = 0;
-        
-        if (!extruding) {
-            params.e = this.e; // e stays same
-            params.speed = this._travelSpeed;
-        } else {
-            params.speed = this._printSpeed;
-        }
 
         // divide up entire movement into smaller chunks based on this._minMovementTime
         const totalMovementsTime = this.d2t(horizDist+vertDist, params.speed);
@@ -715,7 +730,6 @@ class Printer {
 
         const hdistPerMove = horizDist/totalMovements;
         const vdistPerMove = vertDist/totalMovements;
-        let t = 0; // current time in movement
 
         // Logger.debug(`hdist: ${hdistPerMove}`);
 
@@ -727,7 +741,7 @@ class Printer {
 
         for (let movement=1; movement<=totalMovements; movement++){
 
-            t += this._minMovementTime;
+            time += this._minMovementTime;
 
             // Logger.debug(`current move time: ${t}:${totalMovementsTime}/${movement}:${totalMovements}`)
 
@@ -735,7 +749,7 @@ class Printer {
             const yn = y0 + movement*hdistPerMove * Math.sin(this._heading);
             const zn = z0 + movement*vdistPerMove; // this is set separately in tiltup
     
-            let {x,y,z} = this._moveFunc({x:xn,y:yn,z:zn,t:t});
+            let {x,y,z} = this._moveFunc({x:xn,y:yn,z:zn,t:time});
             params.x = x;
             params.y = y;
             params.z = z;
@@ -756,10 +770,7 @@ class Printer {
             await this.extrudeto(params);
         }
         
-        // retraction can be forced, or is automagic if undefined
-        if (retract !== undefined && retract) await this.retract();
-
-        return true;
+        return this;
     }
 
     /**
@@ -803,6 +814,8 @@ class Printer {
         return this;
     }
     /**
+     * TODO: THIS IS TOTALLY BROKEN, IGNORE FOR NOW
+     * 
      * Run a set of commands specified in a grammar (experimental.)
      * @param {String} strings commands to run - M(move),E(extrude),L(left turn),R(right turn)
      * @returns {Printer} Reference to this object for chaining
@@ -861,77 +874,70 @@ class Printer {
      * @param {Number} d distance in mm to move up
      * @returns {Printer} Reference to this object for chaining
      */
-    async up(d, extruding = false, _retract = false) {
-        if (Math.abs(this._elevation) < Number.EPSILON) this._elevation = Math.PI / 2;
-        this._zdistance += d;
-        return this.go(extruding, _retract);
+    async up(d) {
+        const z = d;
+        this._elevation = Math.PI / 2;
+        return this.travel({z});
     }
-
 
     /**
      * Move up quickly! (in mm)
      * @param {Number} d distance in mm to draw upwards
      * @returns {Printer} Reference to this object for chaining
      */
-    async drawup(d, _retract) {
-        if (Math.abs(this._elevation) < Number.EPSILON) this._elevation = Math.PI / 2;
-        this._zdistance += d;
-        return this.go(true, _retract);
+    async drawup(d) {
+        const z = d;
+        this._elevation = Math.PI / 2;
+        return this.draw({z});
     }
 
     // shortcut
-    async dup(d, _retract) {
-        return this.drawup(d, _ret);
+    async dup(d) {
+        return this.drawup(d);
     }
 
     /**
      * Move up to a specific height quickly! (in mm). It might seem silly to have both, upto and downto,
      * but conceptually when you're making something it makes sense, even if they do the same thing.
-     * @param {Number} d distance in mm to move up
+     * @param {Number} hz z height mm to move up to
      * @returns {Printer} Reference to this object for chaining
      */
-    async upto(d, extruding = false, _retract = false) {
+    async upto(hz) {
+        const z = hz - this.z;
         this._elevation = Math.PI / 2;
-        this._zdistance = d - this.z;
-        return this.go(extruding, _retract);
+        return this.travel({z});
     }
 
     /**
      * Move up to a specific height quickly! (in mm)
-     * @param {Number} d distance in mm to move up
+     * @param {Number} z height in mm to move to
      * @returns {Printer} Reference to this object for chaining
      */
-    async downto(d, extruding = false, _retract = false) {
-        return this.upto(d, extruding, _retract);
+    async downto(z) {
+        return this.upto(z);
     }
 
     /**
      * Move down quickly! (in mm)
-     * @param {Number} d distance in mm to move up
+     * @param {Number} d distance in mm to move down
      * @returns {Printer} Reference to this object for chaining
      */
-    async down(d, extruding = false, _retract = false) {
-        if (Math.abs(this._elevation) < Number.EPSILON) this._elevation = -Math.PI / 2;
-
-        this._zdistance += -d;
-        return this.go(extruding, _retract);
+    async down(d) {
+        return this.up(-d);
     }
 
     /**
      * Draw downwards in mm
-     * @param {Number} d distance in mm to move up
+     * @param {Number} d distance in mm to draw downwards to
      * @returns {Printer} Reference to this object for chaining
      */
-    async drawdown(d, _retract) {
-        if (Math.abs(this._elevation) < Number.EPSILON) this._elevation = -Math.PI / 2;
-
-        this._zdistance += -d;
-        return this.go(true, _retract);
+    async drawdown(d) {
+        return this.drawup(-d);
     }
 
     // shortcut
-    async ddown(d, _ret) {
-        return this.drawdown(d, _ret);
+    async dd(d) {
+        return this.drawdown(d);
     }
 
 
@@ -989,30 +995,104 @@ class Printer {
      */
     dist(d) {
         return this.distance(d);
-    }
-
+    }    
     /**
-     * Shortcut to travel (no extrusion) the current set distance, in the direction of movement
-     * @param {float} d distance to move (if not given, the current set distance)
+     * Execute a travel based on the internally-set direction/elevation/distance, with an optional time-based function.
+     * @param {Number or Object} args Optional: if a non-zero number, extrude 
+     * the amount specified in mm, or left out then the stored distance set
+     * by dist(). Otherwise, an object with keys for:
+     *  1. d: distance (optional)
+     *  2. t: time (optional) of start of movement for passing to movement function
      * @returns {Printer} reference to this object for chaining
      */
-    async travel(d) {
-        if (d !== undefined) {
-            this._distance = d;
+    async travel(args)
+    {
+        let time = this.totalMoveTime;
+        let params = { speed:this._travelSpeed, e:this.e }; // params for passing to each call to extrudeto
+        let horizDist, vertDist;
+        
+        if (undefined !== args) {
+                
+            // handle distance-only arg
+            if (Number.isInteger(args)) 
+            { 
+                this._distance = args;
+            }
+            else {
+                // parse object arguments
+                let {z,d,t} = args;
+                if (undefined !== t) time = t;
+                if (undefined !== d) this._distance = d;
+                if (undefined !== z) {
+                    this._zdistance = z;
+                    // if elevation is 0 and we are meant to move vertically we might get stuck in a loop
+                    if (this._elevation < Math.EPSILON) this._elevation = Math.PI/2;
+                }
+            }
         }
-        return await this.go(0);
-    }
 
-    /**
-     * Shortcut to draw (extrusion) the current set distance, in the direction of movement
-     * @param {float} d distance to extrude (draw) (if not given, the current set distance)
-     * @returns {Printer} reference to this object for chaining
-     */
-    async draw(d, retract) {
-        if (d !== undefined) {
-            this._distance = d;
+        // wait, if necessary
+        if (this._waitTime > 0) {
+            return this.wait();
         }
-        return this.go(1, retract);
+    
+        // first, calcuate total distances to move:
+        // take into account stored distance, angle, elevation and
+        // add to current position (cartesian)
+
+        horizDist = this._distance;
+        vertDist = this._zdistance;
+
+
+        // add projection of vertical distance into horizontal plane.
+        // vertical distances are specified absolutely, so we need to find corresponding
+        // horizontal distance using the tangent
+        if (Math.abs(vertDist) > Number.EPSILON) {
+            let horizProjection = vertDist / Math.tan(this._elevation);
+            if (Math.abs(horizProjection) > 0.001) // smallest moveable unit, in mm
+                horizDist += horizProjection;
+        }
+
+        // reset distances to 0 because we've used them to calculate new position
+        this._distance = 0;
+        this._zdistance = 0;
+        this._elevation = 0;
+
+        // divide up entire movement into smaller chunks based on this._minMovementTime
+        const totalMovementsTime = this.d2t(horizDist+vertDist, params.speed);
+        // DEBUG
+        const totalMovements = Math.ceil( totalMovementsTime / this._minMovementTime);
+        // Logger.debug(`go: total move time/num: ${totalMovementsTime} / ${totalMovements}`); 
+
+        const hdistPerMove = horizDist/totalMovements;
+        const vdistPerMove = vertDist/totalMovements;
+
+        // Logger.debug(`hdist: ${hdistPerMove}`);
+
+        // TODO: re-write with functionalz
+
+        const x0 = this.x;
+        const y0 = this.y;
+        const z0 = this.z;  
+
+        // does nothing but 
+        for (let movement=1; movement<=totalMovements; movement++){
+
+            const xn = x0 + movement*hdistPerMove * Math.cos(this._heading);
+            const yn = y0 + movement*hdistPerMove * Math.sin(this._heading);
+            const zn = z0 + movement*vdistPerMove; // this is set separately in tiltup
+        
+            // passthru, might change tyhis later
+            let {x,y,z} = this._defaultMoveFunc({x:xn,y:yn,z:zn,t:time});
+            params.x = x;
+            params.y = y;
+            params.z = z;
+
+            //everything else handled in extrudeto
+            await this.extrudeto(params);
+        }
+        
+        return this;
     }
 
     /**
@@ -1324,24 +1404,10 @@ class Printer {
     /**
      * Extrude plastic from the printer head, relative to the current print head position, 
      *  within printer bounds
-     * @param {Object} params Parameters dictionary containing either x,y,z keys or 
-     *  direction/angle (radians) keys and retract setting (true/false).
+     * @param {Object} params Parameters dictionary containing x,y,z,e keys      
      * @returns {Printer} reference to this object for chaining
      */
     async extrude(params) {
-
-        // First, handle distance/angle mode. If set, overrides everything else.
-        // uses stored values and is actually handled by go() --> extrudeto()
-        if (params.dist || params.angle)
-        {
-            if (params.dist !== undefined) {
-                this._distance += parseFloat(params.dist);
-            }
-            if (params.angle !== undefined) {
-                this._heading = parseFloat(params.angle);
-            }
-            return this.go(true, params.retract); // go, with extrusion
-        }
 
         //otherwise, handle cartesian coordinates mode, relative to current position
         let newparams = {};
@@ -1362,23 +1428,10 @@ class Printer {
 
     /**
      * Relative movement.
-     * @param {any} params Can be specified as x,y,z,e or dist (distance), angle (xy plane), elev (z dir). All in mm.
+     * @param {any} params Can be specified as x,y,z  in mm.
      * @returns {Printer} reference to this object for chaining
      */
     async move(params) {
-        // first, handle distance/angle mode
-        // uses stored values, handled in go()
-        if (params.dist || params.angle)
-        {
-            if (params.dist !== undefined) {
-                this._distance += parseFloat(params.dist);
-            }
-            if (params.angle !== undefined) {
-                this._heading = parseFloat(params.angle);
-            }
-            return this.go(false); // go, with extrusion
-        }
-
         //otherwise, handle cartesian coordinates mode
         let newparams = {};
         newparams.x = (params.x !== undefined) ? parseFloat(params.x) + this.x : this.x;
@@ -1413,7 +1466,7 @@ class Printer {
      * @returns {Printer} reference to this object for chaining
      * @example
      * Turn 45 degrees twice (so 90 total) and extrude 40 mm in that direction:
-     * lp.turn(45).turn(45).distance(40).go(1);
+     * lp.turn(45).turn(45).distance(40).draw();
      */
     turn(angle, radians = false) {
         let a = angle;
@@ -1496,7 +1549,7 @@ o
      * @returns {Printer} reference to this object for chaining
      * @example
      * Play MIDI note 41 for 400ms on the x & y axes
-     *     lp.note(41, 400, "xy").go();
+     *     lp.note(41, 400, "xy").travel();
      */
     note(note = 40, time = 200, axes = "x") {
         const a = [];
@@ -1591,7 +1644,7 @@ o
      * @returns {Number} time of movement in ms
      */
     d2t(_dist=this._distance, _speed=this._printSpeed) {
-        return _dist*_speed;
+        return Math.abs(_dist)*_speed;
     }
 
     /**

@@ -68,7 +68,7 @@ async function setup() {
     //     { gcodeEvent: async (gcode) => editors.recordGCode(editors.GCodeEditor, gcode) }
     // );
     
-    liveprintercomms.onPosition(async (v) => infoHandler.info(v));
+    liveprintercomms.onPosition(async (v) => infoHandler.info(quickMsg(v)));
     liveprintercomms.onCodeDone(async (v)=>{
         let msg;
         if (v.queued === 0) {
@@ -77,7 +77,7 @@ async function setup() {
         else {
             msg = `done: other code blocks in queue: ${v.queued}`;
         }
-        infoHandler.info({"time":Date.now(),"message":msg} );
+        infoHandler.info(quickMsg(msg));
     });
     liveprintercomms.onCodeQueued(async (v)=>{
         let msg = `queued: code block running (queued: ${v.queued})`;
@@ -88,20 +88,105 @@ async function setup() {
 }
 
 async function startTest() {
+    let distToMove = 30;
+    let origX, origY, origZ, origE;
+
     await liveprintercomms.schedule(async()=> printer.start());
+    infoHandler.info(quickMsg("moving to cx,cy..."));
     await liveprintercomms.schedule(async()=> printer.moveto({x:printer.cx, y:printer.cy}));
+
+    origX = printer.x;
+    origY = printer.y;
+    origZ = printer.z;
+    origE = printer.e;
 
     // test that position is cx,cy
     ASSERT(printer.x, printer.cx, "x not equal to cx");
     ASSERT(printer.y, printer.cy, "y not equal to cy");
+    ASSERT(origZ, printer.z, "z not equal to orig Z");
+    ASSERT(origE, printer.e, "e not equal to orig E");
+    
+    infoHandler.info(quickMsg("!!done testing cx,cy!!"));
+    infoHandler.info(quickMsg("!!-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-"));
+    infoHandler.info(quickMsg("!!testing up!!"));
+    origX = printer.x;
+    origY = printer.y;
+    origZ = printer.z;
+    origE = printer.e;
 
-    let distToMove = 30;
-    let origX = printer.x;
+    await liveprintercomms.schedule(async()=> printer.up(distToMove));
+
+    ASSERT(printer.x, origX, "x not equal to x0");
+    ASSERT(printer.y, origY, "y not equal to y0");
+    ASSERT(printer.z, origZ-distToMove, "z not equal to new Z");
+    ASSERT(origE, printer.e, "e not equal to orig E");
+
+    infoHandler.info(quickMsg("!!done testing up!!"));
+    
+    infoHandler.info(quickMsg("!!-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-"));
+    infoHandler.info(quickMsg("!!testing down!!"));
+    origX = printer.x;
+    origY = printer.y;
+    origZ = printer.z;
+    origE = printer.e;
+
+    await liveprintercomms.schedule(async()=> printer.up(-distToMove));
+
+    ASSERT(printer.x, origX, "x not equal to x0");
+    ASSERT(printer.y, origY, "y not equal to y0");
+    ASSERT(printer.z, origZ+distToMove, "z not equal to new Z");
+    ASSERT(origE, printer.e, "e not equal to orig E");
+
+    infoHandler.info(quickMsg("!!done testing down!!"));
+    infoHandler.info(quickMsg("!!-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-"));
+    infoHandler.info(quickMsg("!!testing draw!!"));
+    
+    origX = printer.x;
+    origY = printer.y;
+    origZ = printer.z;
+    origE = printer.e;
+    
     await liveprintercomms.schedule(async()=> printer.turnto(0));
     await liveprintercomms.schedule(async()=> printer.dist(distToMove));
     await liveprintercomms.schedule(async()=> printer.speed(30));
-    await liveprintercomms.schedule(async()=> printer.go(1));
-    ASSERT(printer.x, origX+distToMove, `did not move ${distToMove}`); // off by a few hunredths... not great
+    await liveprintercomms.schedule(async()=> printer.draw());
+
+    ASSERT(printer.x, origX+distToMove, `did not move ${distToMove}`); // off by a few hundreths... not great
+    ASSERT(printer.y, origY, "y not equal to y0");
+    ASSERT(printer.z, origZ, "z not equal to new Z");
+    //TODO: e too complex to calculate for now...
+
+    infoHandler.info(quickMsg("!!done testing draw!!"));
+
+    infoHandler.info(quickMsg("!!-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-"));
+    infoHandler.info(quickMsg("!!testing travel!!"));
+    
+    origX = printer.x;
+    origY = printer.y;
+    origZ = printer.z;
+    origE = printer.e;
+    
+    await liveprintercomms.schedule(async()=> printer.turnto(90));
+    await liveprintercomms.schedule(async()=> printer.dist(distToMove));
+    await liveprintercomms.schedule(async()=> printer.speed(30));
+    await liveprintercomms.schedule(async()=> printer.travel());
+
+    ASSERT(printer.x, origX, `did not move ${distToMove}`); // off by a few hundreths... not great
+    ASSERT(printer.y, origY+distToMove, "y not equal to y0");
+    ASSERT(printer.z, origZ, "z not equal to new Z");
+    ASSERT(origE, printer.e, "e not equal to orig E");
+
+        
+    infoHandler.info(quickMsg("!!done testing travel!!"));
+
+
+    infoHandler.info(quickMsg("!!-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-"));
+    infoHandler.info(quickMsg("!!testing draw with warp!!"));
+
+    origX = printer.x;
+    origY = printer.y;
+    origZ = printer.z;
+    origE = printer.e;
 
     function WarpXFunc ({x,y,z,t}={})
     {
@@ -114,17 +199,25 @@ async function startTest() {
         return {x,y,z}; //A time-varying movement function set by user. Default is no op 
     }
 
+    let timeToMove = 200;
+    let newCoords;
+
     printer.moveFunc = WarpXFunc;
-    distToMove = 15;
-    origX = printer.x;
 
-    await liveprintercomms.schedule(async()=> printer.turnto(180));
-    ASSERT(printer.angle, 180, `turnto failed`); // off by a few hunredths... not great
-
-    await liveprintercomms.schedule(async()=> printer.dist(distToMove));
     await liveprintercomms.schedule(async()=> printer.speed(30));
-    await liveprintercomms.schedule(async()=> printer.go(1));
-    ASSERT(printer.x, origX-distToMove, `did not move ${distToMove}`); // off by a few hunredths... not great
+    newCoords = WarpXFunc({x:origX+printer.t2mm(timeToMove), y:origY, z:origZ, t:timeToMove});
+
+    
+    await liveprintercomms.schedule(async()=> printer.t2d(timeToMove));
+    await liveprintercomms.schedule(async()=> printer.draw());
+    ASSERT(printer.x, newCoords.x, `x move not correct ${printer.x}//${newCoords.x}`); 
+    ASSERT(printer.y, newCoords.y, `y move not correct ${printer.y}//${newCoords.y}`); 
+    ASSERT(printer.z, newCoords.z, `z move not correct ${printer.z}//${newCoords.z}`);
+
+    infoHandler.info(quickMsg("!!done testing draw with warp!!"));
+    infoHandler.info(quickMsg("!!-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-"));
+
+
 }
 
 document.getElementById("go").onclick= async ()=>{

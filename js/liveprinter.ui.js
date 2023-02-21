@@ -358,9 +358,10 @@ $("#temp-display-btn").on("click", async function (e) {
  * @param {String} data serial response from printer firmware (Marlin)
  * @return {Boolean} true or false if parsed or not
  */
-export const tempHandler = (result) => {
+export function tempHandler (result) {
     let handled = true;
 
+    // try classic format
     if (undefined !== result.hotend) {
 
         try {
@@ -376,24 +377,35 @@ export const tempHandler = (result) => {
             $("input[name='tempbed-target']").val(tmpbed);
         } catch (e) {
             handled = false;
+            // unhandled, maybe not attached to gui?
+            logerror(`Error in temphandler: is a GUI present?`);
         }
     }
+    //try MarlinParser format
     else {
-        if (undefined !== result.payload.extruder) {
-            $("input[name='temphot']").val(result.payload.extruder.deg);
-            // make sure user isn't typing in this
-            let $tt = $("input[name='temphot-target']")[0];
-            if ($tt !== $(document.activeElement)) $tt.value = result.payload.extruder.degTarget;
-        }
-        if (undefined !== result.payload.heatedBed) {
-            $("input[name='tempbed']").val(result.payload.heatedBed.deg);
-            let $tt = $("input[name='tempbed-target']")[0];
-            if ($tt !== $(document.activeElement)) $tt.value = result.payload.heatedBed.degTarget;
+        try {
+            if (undefined !== result.payload.extruder) {
+                $("input[name='temphot']").val(result.payload.extruder.deg);
+                // make sure user isn't typing in this
+                let $tt = $("input[name='temphot-target']")[0];
+                if ($tt !== $(document.activeElement)) $tt.value = result.payload.extruder.degTarget;
+            }
+            if (undefined !== result.payload.heatedBed) {
+                $("input[name='tempbed']").val(result.payload.heatedBed.deg);
+                let $tt = $("input[name='tempbed-target']")[0];
+                if ($tt !== $(document.activeElement)) $tt.value = result.payload.heatedBed.degTarget;
+            }
+        
+        } catch(err) {
+            // unhandled, maybe not attached to gui?
+            logerror(`Error in temphandler parsing marlinparserformat: is a GUI present?`);
+            handled = false;
         }
     }
     return handled;
 };
-async function updateTemperature(interval = 5000) {
+
+export async function updateTemperature(interval = 5000) {
     return requestRepeat("M105", //get temp
         $("#temp-display-btn"), // temp button
         interval,
@@ -447,22 +459,30 @@ export const commandsHandler = {
  *
  * @param {Object} response Expects object parsed from MarlinParser 
  */
-export const moveHandler = (result) => {
-    $("input[name='speed']").val(printer.printspeed().toFixed(4)); // set speed, maybe reset below
-    // update GUI
-    $("input[name='retract']")[0].value = printer.currentRetraction.toFixed();
+export const moveHandler = (response) => {
+    let result = true;
+    try {
+        $("input[name='speed']").val(printer.printspeed().toFixed(4)); // set speed, maybe reset below
+        // update GUI
+        $("input[name='retract']")[0].value = printer.currentRetraction.toFixed();
+    
+        printer.x = parseFloat(response.payload.pos.x);
+        printer.y = parseFloat(response.payload.pos.y);
+        printer.z = parseFloat(response.payload.pos.z);
+        printer.e = parseFloat(response.payload.pos.e);
+    
+        $("input[name='x']").val(printer.x.toFixed(4));
+        $("input[name='y']").val(printer.y.toFixed(4));
+        $("input[name='z']").val(printer.z.toFixed(4));
+        $("input[name='e']").val(printer.e.toFixed(4));    
+    }
+    catch(err) {
+        // unhandled, maybe not attached to gui?
+        logerror(`Error in movehandler: is a GUI present?`);
+        result = false;
+    }
 
-    printer.x = parseFloat(result.payload.pos.x);
-    printer.y = parseFloat(result.payload.pos.y);
-    printer.z = parseFloat(result.payload.pos.z);
-    printer.e = parseFloat(result.payload.pos.e);
-
-    $("input[name='x']").val(printer.x.toFixed(4));
-    $("input[name='y']").val(printer.y.toFixed(4));
-    $("input[name='z']").val(printer.z.toFixed(4));
-    $("input[name='e']").val(printer.e.toFixed(4));
-
-    return true; // handled
+    return result; // handled
 };
 
 
