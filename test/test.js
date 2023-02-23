@@ -4,7 +4,22 @@ const liveprintercomms =  require('../js/liveprinter.comms');
 import { Logger } from 'liveprinter-utils';
 import $ from "jquery";
 
+import { Note, transpose } from 'tonal';
+
+
 Logger.level = Logger.LOG_LEVEL.debug;
+
+const midi = Note.midi;
+
+// Note.midi("A4"); // => 60
+// Note.transpose("C4", "5P"); // => "G4"
+
+const libs = {midi, transpose }
+
+
+// set up API for live editor
+liveprintercomms.addLibs(libs);
+
 
 liveprintercomms.vars.logAjax = true;
 
@@ -220,9 +235,39 @@ async function startTest() {
 
 }
 
+//*------------****------------****------------****------------***
+// Setup button events
+//*------------****------------****------------****------------***
+
 document.getElementById("go").onclick= async ()=>{
-  await startTest();  
+    await startTest();  
+  };
+
+document.getElementById("music-test").onclick= async ()=>{
+    await liveprintercomms.schedule(async()=> printer.start());
+
+    infoHandler.info(quickMsg("!!music theory test!!"));
+    infoHandler.info(quickMsg("!!-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-"));
+    await startMusicTest();  
+    infoHandler.info(quickMsg("!!done testing music theory!!"));
+    infoHandler.info(quickMsg("!!-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-"));
 };
+
+async function startMusicTest() {
+    await liveprintercomms.globalEval("console.log('stuff')");
+
+    await liveprintercomms.globalEval("let m=lib.midi(\"A4\");console.log(m);");    
+    Logger.info("transposing:");
+    Logger.info(transpose("A4","3M")); // should be C
+
+    await liveprintercomms.globalEval("lib.log.info(`A4:${lib.midi(\"A4\")}`)");
+    await liveprintercomms.globalEval("lib.log.info(`A4/3P:${ lib.transpose(\"A4\",\"3M\") }`)");
+
+    await liveprintercomms.globalEval("let m=lp.m2s(\"A4\");console.log(m);");    
+    await liveprintercomms.globalEval("let m=lp.m2s(\"c5\");console.log(m);");    
+    
+}
+
 
 document.getElementById("movetest").onclick= async ()=>{    
     let elapsedTime;
@@ -232,15 +277,24 @@ document.getElementById("movetest").onclick= async ()=>{
     await liveprintercomms.globalEval(`# mov2 x:20 y:40 speed:5`, 1);
     elapsedTime = (new Date()) - startTime;
     infoHandler.info(quickMsg(`time to move: ${elapsedTime}ms`));
+
 }
 
-document.getElementById("gotest").onclick= async ()=>{    
+document.getElementById("gotest").onclick= async ()=>{  
+    let origX = printer.x;
+    let origY = printer.y;
+    let origZ = printer.z;
+    let origE = printer.e;  
     let elapsedTime;
     infoHandler.info(quickMsg(`testing go function`));
     startTime = new Date();
-    await liveprintercomms.globalEval(`# minmove 5 | m2s 74 | t2d 1600 | go 1`, 1);
+    await liveprintercomms.globalEval(`# minmove 20 | turnto 0 | draw 10`);
     elapsedTime = (new Date()) - startTime;
     infoHandler.info(quickMsg(`time to move: ${elapsedTime}ms`));
+    ASSERT(printer.x, origX+10, `x move not correct ${printer.x}//${origX}`); 
+    ASSERT(printer.y, origY, `y move not correct ${printer.y}//${origY}`); 
+    ASSERT(printer.z, origZ, `z move not correct ${printer.z}//${origZ}`);
+
 }
 
 document.getElementById("serialTest").onclick= async ()=>{

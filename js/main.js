@@ -7,6 +7,8 @@ import {logerror, loginfo, doError,
 const liveprintercomms =  require('../js/liveprinter.comms');
 const editors = require('../js/liveprinter.editor');
 
+import { Note } from "tonal";
+
 import Logger from 'liveprinter-utils/logger';
 Logger.level = Logger.LOG_LEVEL.info;
 
@@ -59,15 +61,23 @@ const listener = {
     }
 }
 
+
+const midi = Note.midi;
+const transpose = Note.transpose;
+
+// Note.midi("A4"); // => 60
+// Note.transpose("C4", "5P"); // => "G4"
+
 const libs = {functionMap, 
     createESequence, 
     setNoteMods, setScales,
     getBaseNoteDuration, setBaseNoteDuration, 
     step,
-    on, off
+    on, off, midi, transpose
 }
 
 // setup listeners
+
 for (let eventName in listener) {
     on(eventName, listener[eventName]);
 }

@@ -224,7 +224,8 @@ module.exports.getLimiter = getLimiter;
  * @returns {PromiseFulfilledResult} From the docs: schedule() returns a promise that will be executed according to the rate limits.
  * @alias comms:scheduleFunction
  */
-async function scheduleFunction(...args){
+async function scheduleFunction(args){
+    //logInfo(`scheduling Func: ${JSON.stringify(args)}`);
     return await limiter.schedule(...args);
 } 
 
@@ -233,14 +234,16 @@ module.exports.scheduleFunction = scheduleFunction;
 
 /**
  * Quickly schedules code to run in the async queue (e.g. limiter) with default args
- * @param  {...any} args Limiter options object (see Bottleneckjs) and list of other function arguments 
+ * @param  {Function or Array} args Limiter options object (see Bottleneckjs) and list of other function arguments 
  * @returns {PromiseFulfilledResult} From the docs: schedule() returns a promise that will be executed according to the rate limits.
  * @alias comms:schedule
  */
- async function schedule(...args){
-    logInfo(`scheduling: ${JSON.stringify(...args)}`);
-    return limiter.schedule({ priority:1, weight:1, id:codeIndex++ }, ...args);
-} 
+ async function schedule(args){
+    //Logger.info(`scheduling: ${args}`);
+    //Logger.info(`scheduling type: ${typeof args}`);
+    if (Array.isArray(args)) return limiter.schedule({ priority:1, weight:1, id:codeIndex++ }, ...args);
+    else return limiter.schedule({ priority:1, weight:1, id:codeIndex++ }, args);
+}
 
 module.exports.schedule = schedule;
 
@@ -285,6 +288,14 @@ let codeIndex = 0;
         return 1; // stop execution
     }
 
+    code = `try{ 
+        ${code} 
+    } catch (err) {
+        logerror("GlobalEval:inner func error:");
+        logerror(err);
+        throw(err); // send up the chain
+    }`;
+
     if (code) {
 
         if ($("#python-mode-btn").hasClass('active')) { // check python mode
@@ -313,17 +324,27 @@ let codeIndex = 0;
 
         //if (vars.logAjax) loginfo(`starting code ${codeIndex}`);
 
-        //Logger.log(`async()=>{await 1; ${code} return 1}`);
-
-        async function func () {
-            //Logger.log(`async()=>{await 1; ${code} return 1}`);
-
+        const func = async () => {
             // bindings
             lib.comms = exports; // local functions for events, etc.
             lib.log = Logger;
 
+            let innerFunc;
+
             // Call user's function with external bindings from lib (as 'this' which gets interally mapped to 'lib' var)
-            const innerFunc = eval(`async(lib)=>{await 1; ${code}; return 1}`);
+            try {
+
+                innerFunc = eval(`async(lib)=>{await 1; ${code}; return 1}`);
+            }
+            catch(e) 
+            {
+                lastErrorMessage = null;
+                e.lineNumber=line;
+                Logger.error(`Code compilation error(${code}): ${e.message}`);
+                doError(e);
+
+                return 0; // fail fast
+            }
             
             try 
             {

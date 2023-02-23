@@ -21,6 +21,7 @@
 */
  
 import { Vector, Logger } from 'liveprinter-utils';
+import { Note } from 'tonal';
 
 /**
  * Core Printer API of LivePrinter, an interactive programming system for live CNC manufacturing.
@@ -1677,8 +1678,12 @@ o
         // 47.069852, 47.069852, 160.0,
         //freq_xyz[j] = Math.pow(2.0, (note-69)/12.0)*440.0 
 
-        let freq = Math.pow(2.0, (note - 69) / 12.0) * 440.0;
-        let speed = freq / parseFloat(this.speedScale()[axis]);
+        // try to cast using Tonal if a string
+
+        let numericNote = isNaN(note) ? Note.midi(note) : note;
+        
+        const freq = Math.pow(2.0, (numericNote - 69.0) / 12.0) * 440.0;
+        const speed = freq / parseFloat(this.speedScale()[axis]);
 
         return speed;
     }
