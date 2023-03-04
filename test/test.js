@@ -19,6 +19,7 @@ liveprintercomms.addLibs(libs);
 
 liveprintercomms.vars.logAjax = true;
 
+Logger.debug("STARTING");
 
 /**
  * Test if one thing is same as the other (===)
@@ -120,7 +121,7 @@ async function setup() {
 }
 
 async function startTest() {
-    let distToMove = 30;
+    let distToMove = 8;
     let origX, origY, origZ, origE;
 
     await liveprintercomms.schedule(async()=> printer.start());
@@ -140,21 +141,7 @@ async function startTest() {
     
     infoMsg("!!done testing cx,cy!!");
     infoMsg("!!-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-");
-    infoMsg("!!testing up!!");
-    origX = printer.x;
-    origY = printer.y;
-    origZ = printer.z;
-    origE = printer.e;
 
-    await liveprintercomms.schedule(async()=> printer.up(distToMove));
-
-    ASSERT(printer.x, origX, "x not equal to x0");
-    ASSERT(printer.y, origY, "y not equal to y0");
-    ASSERT(printer.z, origZ-distToMove, "z not equal to new Z");
-    ASSERT(origE, printer.e, "e not equal to orig E");
-
-    infoMsg("!!done testing up!!");
-    
     infoMsg("!!-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-");
     infoMsg("!!testing down!!");
     origX = printer.x;
@@ -166,10 +153,27 @@ async function startTest() {
 
     ASSERT(printer.x, origX, "x not equal to x0");
     ASSERT(printer.y, origY, "y not equal to y0");
-    ASSERT(printer.z, origZ+distToMove, "z not equal to new Z");
+    ASSERT(printer.z, origZ-distToMove, "z not equal to new Z");
     ASSERT(origE, printer.e, "e not equal to orig E");
 
     infoMsg("!!done testing down!!");
+    infoMsg("!!-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-");
+
+    infoMsg("!!testing up!!");
+    origX = printer.x;
+    origY = printer.y;
+    origZ = printer.z;
+    origE = printer.e;
+
+    await liveprintercomms.schedule(async()=> printer.up(distToMove));
+
+    ASSERT(printer.x, origX, "x not equal to x0");
+    ASSERT(printer.y, origY, "y not equal to y0");
+    ASSERT(printer.z, origZ+distToMove, "z not equal to new Z");
+    ASSERT(origE, printer.e, "e not equal to orig E");
+
+    infoMsg("!!done testing up!!");
+    
     infoMsg("!!-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-");
     infoMsg("!!testing draw!!");
     
@@ -178,18 +182,17 @@ async function startTest() {
     origZ = printer.z;
     origE = printer.e;
     
-    await liveprintercomms.schedule(async()=> printer.turnto(0));
+    await liveprintercomms.schedule(async()=> printer.turnto(25));
     await liveprintercomms.schedule(async()=> printer.dist(distToMove));
     await liveprintercomms.schedule(async()=> printer.speed(30));
     await liveprintercomms.schedule(async()=> printer.draw());
 
-    ASSERT(printer.x, origX+distToMove, `did not move ${distToMove}`); // off by a few hundreths... not great
-    ASSERT(printer.y, origY, "y not equal to y0");
+    ASSERT(printer.x, origX+distToMove*Math.cos(printer.d2r(25)), `did not move ${distToMove}`); // off by a few hundredths... not great
+    ASSERT(printer.y, origY+distToMove*Math.sin(printer.d2r(25)), "y not equal to y0");
     ASSERT(printer.z, origZ, "z not equal to new Z");
     //TODO: e too complex to calculate for now...
 
     infoMsg("!!done testing draw!!");
-
     infoMsg("!!-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-");
     infoMsg("!!testing travel!!");
     
@@ -203,7 +206,7 @@ async function startTest() {
     await liveprintercomms.schedule(async()=> printer.speed(30));
     await liveprintercomms.schedule(async()=> printer.travel());
 
-    ASSERT(printer.x, origX, `did not move ${distToMove}`); // off by a few hundreths... not great
+    ASSERT(printer.x, origX, `did not move ${distToMove}`); // off by a few hundredths... not great
     ASSERT(printer.y, origY+distToMove, "y not equal to y0");
     ASSERT(printer.z, origZ, "z not equal to new Z");
     ASSERT(origE, printer.e, "e not equal to orig E");
@@ -213,42 +216,62 @@ async function startTest() {
 
 
     infoMsg("!!-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-");
+    infoMsg("!!-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-");
+    infoMsg("!!----------WARPING-------------!!");
+    infoMsg("!!-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-");    
+    infoMsg("!!-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-");
+
+
+    infoMsg("!!-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-");
+    infoMsg("!!-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-");
     infoMsg("!!testing draw with warp!!");
+    infoMsg("!!-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-");    
+    infoMsg("!!-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-");
+
+
+    // warp time
+    // warp distance
 
     origX = printer.x;
     origY = printer.y;
     origZ = printer.z;
     origE = printer.e;
 
-    function WarpXFunc ({x,y,z,t}={})
+    printer.timewarp = ({dt, t, tt}) => 
     {
-        // warp xcoord by up to 10mm
-        // over a period of 400ms
-        const warpAmount = 10;
-        const angle = t*Math.PI/200;
-        y = y + warpAmount * Math.sin(angle);
-
-        return {x,y,z}; //A time-varying movement function set by user. Default is no op 
-    }
-
-    let timeToMove = 200;
-    let newCoords;
-
-    printer.moveFunc = WarpXFunc;
-
-    await liveprintercomms.schedule(async()=> printer.speed(30));
-    newCoords = WarpXFunc({x:origX+printer.t2mm(timeToMove), y:origY, z:origZ, t:timeToMove});
-
+        Logger.debug(`timewarp(t:${t}, tt:${tt})`);   
+        return dt*2;
+    };
     
-    await liveprintercomms.schedule(async()=> printer.t2d(timeToMove));
-    await liveprintercomms.schedule(async()=> printer.draw());
-    ASSERT(printer.x, newCoords.x, `x move not correct ${printer.x}//${newCoords.x}`); 
-    ASSERT(printer.y, newCoords.y, `y move not correct ${printer.y}//${newCoords.y}`); 
-    ASSERT(printer.z, newCoords.z, `z move not correct ${printer.z}//${newCoords.z}`);
+    
+    printer.warp = ({d, heading, elevation, t, tt}={}) =>
+    {
+        const d2 = d*2;
+        const h2 = heading/2;
+        Logger.debug(`warp(d:${d}, heading:${heading}, elevation:${elevation}, t:${t}, tt:${tt})`);    
+        return {d:d2, heading:h2, elevation};
+    };
 
-    infoMsg("!!done testing draw with warp!!");
+    infoMsg("BPM TESTING");
+    let bpm = printer.bpm(140);
+    ASSERT(bpm, 140, "BPM miscalculation");
+    bpm = printer.bps(140/60);
+    ASSERT(bpm, 140,"BPS miscalculation");
+
+    infoMsg("TEST Interval");
+    infoMsg(`One beat at 140bpm should be ${(6000/140)} ms`);
+    printer.interval("1/8b");
+    ASSERT(printer._intervalTime, (6000/140)*0.125, "Interval time miscalculation");
+
+    let timeToMove = "12b";
+
+    infoMsg("Set speed and move");
+    await liveprintercomms.schedule(async()=> printer.speed(30));
+
+    await liveprintercomms.schedule(async()=> printer.drawtime("10b"));
+
+    infoMsg("!!done testing drawtime with warp!!");
     infoMsg("!!-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-");
-
 
 }
 
@@ -294,24 +317,6 @@ document.getElementById("movetest").onclick= async ()=>{
     await liveprintercomms.globalEval(`# mov2 x:20 y:40 speed:5`, 1);
     elapsedTime = (new Date()) - startTime;
     infoMsg(`time to move: ${elapsedTime}ms`);
-
-}
-
-document.getElementById("gotest").onclick= async ()=>{  
-    let origX = printer.x;
-    let origY = printer.y;
-    let origZ = printer.z;
-    let origE = printer.e;  
-    let elapsedTime;
-    infoMsg(`testing go function`);
-    startTime = new Date();
-    await liveprintercomms.globalEval(`# minmove 20 | turnto 0 | draw 10`);
-    elapsedTime = (new Date()) - startTime;
-    infoMsg(`time to move: ${elapsedTime}ms`);
-    ASSERT(printer.x, origX+10, `x move not correct ${printer.x}//${origX}`); 
-    ASSERT(printer.y, origY, `y move not correct ${printer.y}//${origY}`); 
-    ASSERT(printer.z, origZ, `z move not correct ${printer.z}//${origZ}`);
-
 }
 
 document.getElementById("serialTest").onclick= async ()=>{

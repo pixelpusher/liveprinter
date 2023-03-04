@@ -40,7 +40,11 @@ class Printer {
     static extrusionInmm3 = {"UM2": false,
     "UM2plus": true};
     
-    static MIN_INTERVAL = 8; // 8ms is empirically-derived, safest minimum movement interval time
+    static MIN_INTERVAL = 5.357; // empirically-derived, also 1/8 beat at 140bpm, shortest safe minimum movement interval time
+    /**
+     * For matching time-formatted strings like 1, 1.0, 1.2, 1/4
+     */
+    static TimeRegex = /(\d+|\d+\.\d+|\d+\/\d+)(s|ms|b)/i;
 
     /**
      * Create new instance
@@ -429,27 +433,27 @@ class Printer {
         else {
             // parse as string
             let timeStr = time+'';
-            let timeRegex = new RegExp("(\d+\.*\d*)(s|ms|b)");
-            const params = timeStr.toLowerCase().match(timeRegex);
-            if (params && params.length == 2) {
-                switch(params[1])  { //time suffix
+            const params = timeStr.toLowerCase().match(Printer.TimeRegex);
+            if (params && params.length == 3) {
+                const numberParam = eval(params[1]); // easiest way to parse as number
+                switch(params[2])  { //time suffix
                     case 's': // seconds
                     { 
-                        targetTime = params[0]/1000; 
+                        targetTime = numberParam/1000; 
                         this._intervalTime = targetTime;
                     }
                     break;
 
                     case 'ms': // milliseconds
                     { 
-                        targetTime = params[0]; // silly 
+                        targetTime = numberParam; // silly 
                         this._intervalTime = targetTime;
                     }
                     break;
 
                     case 'b': // beats
                     {
-                        targetTime = this.b2t(params[0]);
+                        targetTime = this.b2t(numberParam);
                         this._intervalTime = targetTime;
                     }
                     break;
@@ -702,15 +706,16 @@ class Printer {
 
     /**
      * Applies a time-warping function set by user. Default is no-op
-     * @param {Number} dt Delta time, time interval for this movement
+     * @param {Number} dt Delta time, time interval for this movement; t (time in this move); tt (total elapsed movement time)
      * @returns {Number} new dt 
      * @see timewarp
      * @see warp
      * @see interval
      */
-    _timeWarp (dt)
+    _timeWarp ({dt, t, tt}) 
     {
-        return dt;    }
+        return dt;    
+    }
 
     /**
      * Set time based movement function
@@ -803,10 +808,9 @@ class Printer {
     {
         let elapsedTime = 0; // current elapsed time for all operations
         let targetTime = 0; // will be set based on time argument
+        let totalDistance = 0; // total distance moved, just for debugging mainly 
 
         const params = { speed:this._printSpeed }; // params for passing to each call to extrudeto
-
-        let horizDist, vertDist;
 
         // parse time argument to figure out end time
         // based on current time + time offset from argument
@@ -818,25 +822,26 @@ class Printer {
         else {
             // parse as string
             let timeStr = time+'';
-            let timeRegex = new RegExp("(\d+\.*\d*)(s|ms|b)");
-            const params = timeStr.toLowerCase().match(timeRegex);
-            if (params && params.length == 2) {
-                switch(params[1])  { //time suffix
+            const params = timeStr.toLowerCase().match(Printer.TimeRegex);
+            if (params && params.length == 3) {
+                const numberParam = eval(params[1]); // easiest way to parse as number
+
+                switch(params[2])  { //time suffix
                     case 's': // seconds
                     { 
-                        targetTime = params[0]/1000; 
+                        targetTime = numberParam/1000; 
                     }
                     break;
 
                     case 'ms': // milliseconds
                     { 
-                        targetTime = params[0]; // silly 
+                        targetTime = numberParam; // silly 
                     }
                     break;
 
                     case 'b': // beats
                     {
-                        targetTime = this.b2t(params[0]);
+                        targetTime = this.b2t(numberParam);
                     }
                     break;
 
@@ -862,26 +867,20 @@ class Printer {
 
         // Logger.debug(`go: total move time/num: ${totalMovementsTime} / ${totalMovements}`); 
 
-       // starting variables 
-       const x0 = this.x;
-       const y0 = this.y;
-       const z0 = this.z;  
-       const t0 = this.totalMoveTime;
-
-       let xn=x0,yn=y0,zn=z0,tn=t0; // current values at loop n
-
        let safetyCounter = 800; // arbitrary -- make sure we don't hit infinite loops
 
        while (safetyCounter && this.totalMoveTime < targetTime) {
             safetyCounter--;
 
             const opStartTime = performance.now();
+
+            // starting variables 
+            const x0 = this.x;
+            const y0 = this.y;
+            const z0 = this.z;  
        
-            // Logger.debug(`current move time: ${t}:${totalMovementsTime}/${movement}:${totalMovements}`)
-
-            // calculate new x,y,z based on this._intervalTime 
-
-            const dt = this._timeWarp(this._intervalTime);
+            // calculate new distance based on this._intervalTime 
+            const dt = this._timeWarp({dt:this._intervalTime, t:elapsedTime, tt:this.totalMoveTime});
 
             const distPerMove = this.t2mm(dt);
 
@@ -892,22 +891,19 @@ class Printer {
 
             hdistPerMove = d;
 
+            totalDistance += d;
+
             // handle z move (elevation)
             if (Math.abs(elevation) > Number.EPSILON) {
                 hdistPerMove = d * Math.cos(elevation);
                 vdistPerMove = d * Math.sin(elevation);
             }
 
-            xn = x0 + hdistPerMove * Math.cos(heading);
-            yn = y0 + hdistPerMove * Math.sin(heading);
-            zn = z0 + vdistPerMove; // this is set separately in tiltup
-    
-            // apply optional warping function, if set
-            let {x,y,z} = this._warp({ x:xn,y:yn,z:zn,t:elapsedTime, tt:this.totalMoveTime});
+            Logger.debug(`Moved ${d} over (${dt} ms) to ${totalDistance}}`);
 
-            params.x = x;
-            params.y = y;
-            params.z = z;
+            params.x = x0 + hdistPerMove * Math.cos(heading);
+            params.y = y0 + hdistPerMove * Math.sin(heading);
+            params.z = z0 + vdistPerMove; // this is set separately in tiltup
 
             //everything else handled in extrudeto, updates totalMoveTime too
             await this.extrudeto(params);
@@ -940,8 +936,6 @@ class Printer {
 
         const params = { speed:this._printSpeed }; // params for passing to each call to extrudeto
 
-        let horizDist, vertDist;
-
         // parse time argument to figure out end time
         // based on current time + time offset from argument
 
@@ -959,15 +953,7 @@ class Printer {
 
 
         // Logger.debug(`go: total move time/num: ${totalMovementsTime} / ${totalMovements}`); 
-
-       // starting variables 
-       const x0 = this.x;
-       const y0 = this.y;
-       const z0 = this.z;  
-       const t0 = this.totalMoveTime;
-
-       let xn=x0,yn=y0,zn=z0,tn=t0; // current values at loop n
-
+       
        let safetyCounter = 800; // arbitrary -- make sure we don't hit infinite loops
 
        while (safetyCounter && totalDistance < targetDist) {
@@ -975,11 +961,13 @@ class Printer {
 
             const opStartTime = performance.now();
        
-            // Logger.debug(`current move time: ${t}:${totalMovementsTime}/${movement}:${totalMovements}`)
-
-            // calculate new x,y,z based on this._intervalTime 
-
-            const dt = this._timeWarp(this._intervalTime);
+            // starting variables 
+            const x0 = this.x;
+            const y0 = this.y;
+            const z0 = this.z;  
+            
+            // calculate new distance based on this._intervalTime 
+            const dt = this._timeWarp({dt:this._intervalTime, t:elapsedTime, tt:this.totalMoveTime});
 
             const distPerMove = Math.min(this.t2mm(dt), targetDist-totalDistance);
 
@@ -998,27 +986,22 @@ class Printer {
                 vdistPerMove = d * Math.sin(elevation);
             }
 
-            xn = x0 + hdistPerMove * Math.cos(heading);
-            yn = y0 + hdistPerMove * Math.sin(heading);
-            zn = z0 + vdistPerMove; // this is set separately in tiltup
-    
-            // apply optional warping function, if set
-            let {x,y,z} = this._warp({ x:xn,y:yn,z:zn,t:elapsedTime, tt:this.totalMoveTime});
-
-            params.x = x;
-            params.y = y;
-            params.z = z;
+            params.x = x0 + hdistPerMove * Math.cos(heading);
+            params.y = y0 + hdistPerMove * Math.sin(heading);
+            params.z = z0 + vdistPerMove; // this is set separately in tiltup
 
             //everything else handled in extrudeto, updates totalMoveTime too
             await this.extrudeto(params);
 
             totalDistance += distPerMove; // update total distance (not based on warp function!)
 
+            Logger.debug(`Moved ${distPerMove} to ${totalDistance} towards ${targetDist}`);
+
             const timeDiff = performance.now() - opStartTime;
 
             elapsedTime += timeDiff;
 
-            Logger.debug(`Move time warp op took ${timeDiff} ms vs. expected ${this._intervalTime}.`);
+            Logger.debug(`Move time warp op (${dt}) took ${timeDiff} ms vs. expected ${this._intervalTime}.`);
         }
         
         return this;
@@ -1254,8 +1237,9 @@ class Printer {
      * @param {Number or Object} args Optional: if a non-zero number, extrude 
      * the amount specified in mm, or left out then the stored distance set
      * by dist(). Otherwise, an object with keys for:
-     *  1. d: distance (optional)
+     *  1. d: distance in the current direction at the current elevation (optional)
      *  2. t: time (optional) of start of movement for passing to movement function
+     *  3. z: up or down distance in mm
      * @returns {Printer} reference to this object for chaining
      */
     async travel(args)
@@ -1289,7 +1273,7 @@ class Printer {
             return this.wait();
         }
     
-        // first, calcuate total distances to move:
+        // first, calculate total distances to move:
         // take into account stored distance, angle, elevation and
         // add to current position (cartesian)
 
@@ -1331,16 +1315,10 @@ class Printer {
         // does nothing but 
         for (let movement=1; movement<=totalMovements; movement++){
 
-            const xn = x0 + movement*hdistPerMove * Math.cos(this._heading);
-            const yn = y0 + movement*hdistPerMove * Math.sin(this._heading);
-            const zn = z0 + movement*vdistPerMove; // this is set separately in tiltup
+            params.x = x0 + movement*hdistPerMove * Math.cos(this._heading);
+            params.y = y0 + movement*hdistPerMove * Math.sin(this._heading);
+            params.z = z0 + movement*vdistPerMove; // this is set separately in tiltup
         
-            // passthru, might change tyhis later
-            let {x,y,z} = this._defaultMoveFunc({x:xn,y:yn,z:zn,t:time});
-            params.x = x;
-            params.y = y;
-            params.z = z;
-
             //everything else handled in extrudeto
             await this.extrudeto(params);
         }
@@ -1542,7 +1520,7 @@ class Printer {
         const velocity = Vector.div(distanceVec, distanceMag);
         const moveTime = distanceMag / _speed; // in sec, doesn't matter that new 'e' not taken into account because it's not in firmware
 
-        this.totalMoveTime += moveTime; // update total movement time for the printer
+        this.totalMoveTime += moveTime*1000; // update total movement time for the printer in ms
 
         //this._elevation = Math.asin(velocity.axes.z); // removed because it was non-intuitive!!!
 
@@ -1887,7 +1865,7 @@ o
      * @returns {Number} Time in ms equivalent to the number of beats
      */
     b2t(beats, bpm = this._bpm) {
-        return (beats/this._bpm)*60000; // speed is in ms already
+        return (6000/this._bpm)*beats;
     }
 
     /**
@@ -2389,291 +2367,7 @@ o
         return await this._extrude(speed, moveVector, leftToMove, retract);
     } // end _extrude 
 
-
-
-/**
-    * Extrude plastic from the printer head to specific coordinates, within printer bounds
-    * @param {Object} params Parameters dictionary containing either:
-    * - x,y,z,i,j,e keys referring to movement and filament position
-    * - 'retract' for manual retract setting (true/false)
-    * - 'speed' for the print or travel speed of this and subsequent operations
-    * - 'thickness' or 'thick' for setting/updating layer height
-    * - 'bounce' if movement should bounce off sides (true/false), not currently implemented properly
-    * @returns {Printer} reference to this object for chaining
-    */
-   async arcextrudeto(params) {
-
-    // if no extrusion specified, auto calculate
-    const extrusionNotSpecified = (params.e === undefined); 
-
-    const __x = (params.x !== undefined) ? parseFloat(params.x) : this.x;
-    const __y = (params.y !== undefined) ? parseFloat(params.y) : this.y;
-    const __z = (params.z !== undefined) ? parseFloat(params.z) : this.z;
-    const __e = (params.e !== undefined) ? parseFloat(params.e) : this.e;
-
-    let __i = (params.i !== undefined) ? parseFloat(params.i) : 0;
-    let __j = (params.j !== undefined) ? parseFloat(params.j) : 0;
-
-    if ((__i + __j) < 0.1) throw new ValueError("[API] arcextrude needs both i and j specified!");
-
-    Logger.debug(`E:${this.e}`);
-    // did we specify a length of filament to extrude?
-    const extrusionNotZero = Math.abs(__e - this.e) > Number.EPSILON;
-
-    // only extrude if there is something to extrude!
-    const extruding = (extrusionNotSpecified || (!extrusionNotSpecified && extrusionNotZero)); 
-
-    // if not, traveling 
-
-    // Set retract true, but if only if extrusion wasn't specified, because
-    // specifying it implies overriding retraction. Otherwise, use 
-    // autoretraction.
-    let retract = (params.retract === undefined) 
-        ? extrusionNotSpecified && this._autoRetract 
-        : params.retract;
-
-    // clear retraction if filament is manually being moved
-    if (extrusionNotZero) 
-    {
-        this.currentRetraction = 0; //clear retraction if we go manual
-        retract = false;
-    }
-    else {
-        // not a travel or manual extrusion so try
-        // to unretract if needed
-        await this.unretract();
-    }
-
-    // calculate movement properties
-
-    let newPosition = new Vector({ x: __x, y: __y, z: __z, e: __e });
-
-    // check if speed is passed in
-    // if auto extrusion, or some extrusion was specified, speed is print speed
-    let _speed = parseFloat(
-        (params.speed !== undefined) 
-            ? params.speed 
-            : extruding ? this._printSpeed : this._travelSpeed
-        );
-
-    // update layer height if necessary
-    this.layerHeight = parseFloat((params.thickness !== undefined) 
-        ? params.thickness 
-        : this.layerHeight);
-
-    // update layer height if necessary
-    if (params.thick !== undefined) {
-        this.layerHeight = parseFloat(params.thick);
-    } 
-
-
-    //////////////////////////////////////
-    /// START CALCULATIONS      //////////
-    //////////////////////////////////////
-
-    let distanceVec = Vector.sub(newPosition, this.position);
-    let distanceMag = 1; // calculated later
-
-    // FYI:
-    //  nozzle_speed{mm/s} = (radius_filament^2) * PI * filament_speed{mm/s} / layer_height^2
-    //  filament_speed{mm/s} = layer_height^2 * nozzle_speed{mm/s}/(radius_filament^2)*PI
-
-
-    // only calculate filament distance if we are not traveling and filament
-    // length wasn't specified
-
-    let filamentLength = __e; 
-
-    if (extrusionNotSpecified) {
-        // distance is purely 3D movement, not filament movement
-        distanceMag = Math.sqrt(distanceVec.axes.x * distanceVec.axes.x + distanceVec.axes.y * distanceVec.axes.y + distanceVec.axes.z * distanceVec.axes.z);
-
-        // otherwise, calculate filament length needed based on layerheight, etc.
-        const filamentRadius = Printer.filamentDiameter[this._model] / 2;
-
-        // for extrusion into free space
-        // apparently, some printers take the filament into account (so this is in mm3)
-        // this was helpful: https://github.com/Ultimaker/GCodeGenJS/blob/master/js/gcode.js
-        filamentLength = distanceMag * this.layerHeight * this.layerHeight;//(Math.PI*filamentRadius*filamentRadius);
-
-        //
-        // safety check:
-        //
-        if (filamentLength > this.maxFilamentPerOperation) {
-            throw Error("[API] Too much filament in move:" + filamentLength);
-        }
-        if (!Printer.extrusionInmm3[this._model]) {
-            filamentLength /= (filamentRadius * filamentRadius * Math.PI);
-        }
-
-        //Logger.debug("filament speed: " + filamentSpeed);
-        //Logger.debug("filament distance : " + filamentLength + "/" + dist);
-
-        distanceVec.axes.e = filamentLength;
-        newPosition.axes.e = this.e + distanceVec.axes.e;
-
-        // arbitrary smallest printable length
-        if (filamentLength < this.minFilamentPerOperation) {
-            throw new Error("[API] filament length too short: " + filamentLength);
-        } 
-    }
-    else {
-        // distance is 3D movement PLUS filament movement
-        distanceMag = distanceVec.mag();
-    }
-    // note: velocity in 'e' direction is always layerHeight^2
-    const velocity = Vector.div(distanceVec, distanceMag);
-    const moveTime = distanceMag / _speed; // in sec, doesn't matter that new 'e' not taken into account because it's not in firmware
-
-    this.totalMoveTime += moveTime; // update total movement time for the printer
-
-    //this._elevation = Math.asin(velocity.axes.z); // removed because it was non-intuitive!!!
-
-    Logger.debug("time: " + moveTime + " / dist:" + distanceMag);
-
-    //
-    // BREAK AT LARGE MOVES
-    //
-    if (moveTime > this.maxTimePerOperation) {
-        throw new Error("[API] move time too long:" + moveTime);
-    }
-
-    const nozzleSpeed = Vector.div(distanceVec, moveTime);
-    //
-    // safety checks
-    //
-    if (extruding) {
-        if (nozzleSpeed.axes.x > Printer.maxPrintSpeed[this._model]["x"]) {
-            throw Error("[API] X printing speed too fast:" + nozzleSpeed.axes.x);
-        }
-        if (nozzleSpeed.axes.y > Printer.maxPrintSpeed[this._model]["y"]) {
-            throw Error("[API] Y printing speed too fast:" + nozzleSpeed.axes.y);
-        }
-        if (nozzleSpeed.axes.z > Printer.maxPrintSpeed[this._model]["z"]) {
-            throw Error("[API] Z printing speed too fast:" + nozzleSpeed.axes.z);
-        }
-        if (nozzleSpeed.axes.e > Printer.maxPrintSpeed[this._model]["e"]) {
-            throw Error("[API] E printing speed too fast:" + nozzleSpeed.axes.e + "/" + Printer.maxPrintSpeed[this._model]["e"]);
-        }
-    } else {
-        // just traveling
-        if (nozzleSpeed.axes.x > Printer.maxTravelSpeed[this._model]["x"]) {
-            throw Error("[API] X travel too fast:" + nozzleSpeed.axes.x);
-        }
-        if (nozzleSpeed.axes.y > Printer.maxTravelSpeed[this._model]["y"]) {
-            throw Error("[API] Y travel too fast:" + nozzleSpeed.axes.y);
-        }
-        if (nozzleSpeed.axes.z > Printer.maxTravelSpeed[this._model]["z"]) {
-            throw Error("[API] Z travel too fast:" + nozzleSpeed.axes.z);
-        }
-    }
-    // Handle movements outside printer boundaries if there's a need.
-    // Tail recursive.
-    //
-    return this._extrude(_speed, velocity, distanceMag, retract);
-
-} // end extrudeto
-
-
-    async _arcExtrude(speed, newPosition, clockwise, retract) {
- 
-        let amountMoved = Math.min(leftToMove, this.maxMovePerCycle);
-
-        // calculate next position
-        let nextPosition = Vector.add(this.position, Vector.mult(moveVector, amountMoved));
-
-        //Logger.debug("VECTOR:");
-        //Logger.debug(moveVector);
-
-        //Logger.debug("CURRENT:");
-        //Logger.debug(that.position);
-
-        //Logger.debug("NEXT:");
-        //Logger.debug(nextPosition);
-
-        if (this.boundaryMode === "bounce") {
-            let moved = new Vector();
-            let outsideBounds = false;
-
-            // calculate movement time per axis, based on printer bounds
-
-            for (const axis in nextPosition.axes) {
-                // TODO:
-                // for each axis, see where it intersects the printer bounds
-                // then, using velocity, get other axes positions at that point
-                // if any of them are over, skip to next axis
-                if (axis !== "e") {
-                    if (nextPosition.axes[axis] > this.maxPosition.axes[axis]) {
-                        // hit - calculate up to min position
-                        moved.axes[axis] = (this.maxPosition.axes[axis] - this.position.axes[axis]) / moveVector.axes[axis];
-                        outsideBounds = true;
-                    } else if (nextPosition.axes[axis] < this.minPosition.axes[axis]) {
-                        // hit - calculate up to min position
-                        moved.axes[axis] = (this.minPosition.axes[axis] - this.position.axes[axis]) / moveVector.axes[axis];
-                        outsideBounds = true;
-                    }
-                }            //else {
-                //    moved.axes[axis] = nextPosition.axes[axis] - that.position.axes[axis];
-                //}
-            }
-            //Logger.debug("moved:");
-            //Logger.debug(moved);
-
-            if (outsideBounds) {
-                //Logger.debug("outside");
-                let shortestAxisTime = 99999;
-                let shortestAxes = [];
-
-                // find shortest time before an axis was hit
-                // if it hits two (or more?) at the same time, mark both
-                for (const axis in moved.axes) {
-                    if (moved.axes[axis] === shortestAxisTime) {
-                        shortestAxes.push(axis);
-                    } else if (moved.axes[axis] < shortestAxisTime) {
-                        shortestAxes = [axis];
-                        shortestAxisTime = moved.axes[axis];
-                    }
-                }
-                //Logger.debug("shortest axis:");
-                //Logger.debug(shortestAxes);
-                //Logger.debug("shortest axis TIME:");
-                //Logger.debug(shortestAxisTime);
-
-
-                const amountMovedVec = Vector.mult(moveVector, shortestAxisTime);
-                amountMoved = amountMovedVec.mag();
-                //Logger.debug("amt moved:" + amountMoved + " / " + leftToMove);
-                //Logger.debug("next:");
-                //Logger.debug(nextPosition);
-                nextPosition.axes = this.clipToPrinterBounds(Vector.add(this.position, amountMovedVec).axes);
-                //Logger.debug(nextPosition);
-
-                // reverse velocity if axis bounds hit, for shortest axis
-                for (const axis of shortestAxes) {
-                    moveVector.axes[axis] = moveVector.axes[axis] * -1;
-                }
-            }
-        } else {
-            this.clipToPrinterBounds(nextPosition.axes);
-        }
-        leftToMove -= amountMoved;
-
-        // update current position
-
-        this.position.set(nextPosition);
-     
-
-        await this.sendExtrusionGCode(speed, retract);
-
-        if (retract)
-            await this.retract();
-
-    } // end _extrude 
-
-}
-
-
-// end Printer class
+} // end Printer class
 
 
 
