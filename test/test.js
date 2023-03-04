@@ -3,9 +3,7 @@ import {doError, infoHandler, init} from '../js/liveprinter.ui';
 const liveprintercomms =  require('../js/liveprinter.comms');
 import { Logger } from 'liveprinter-utils';
 import $ from "jquery";
-
 import { Note, transpose } from 'tonal';
-
 
 Logger.level = Logger.LOG_LEVEL.debug;
 
@@ -16,19 +14,24 @@ const midi = Note.midi;
 
 const libs = {midi, transpose }
 
-
 // set up API for live editor
 liveprintercomms.addLibs(libs);
 
-
 liveprintercomms.vars.logAjax = true;
 
+
+/**
+ * Test if one thing is same as the other (===)
+ * @param {Any} val1 
+ * @param {Any} val2 
+ * @param {String} message 
+ */
 function ASSERT(val1,val2, message) {
-    if (val1!==val2) infoHandler.info(quickMsg("ERROR::" + message + `--${val1}:${val2}`));
+    if (val1!==val2) infoMsg("ERROR::" + message + `--${val1}:${val2}`);
 }
 
 /**
- * Create a delayed, async function for testing
+ * BROKEN -- FIXME Create a delayed, async function for testing
  * @param {Function} f function to wrap in async function after a certain time
  * @param {Numer} timeout Time to wait
  * @returns {Function} async function to pass to scheduler
@@ -44,14 +47,28 @@ async function timeoutFunc(f,timeout) {
     };
 }
 
+// BROKEN
 async function testSchedule(func) {
     testIndex++;
     await liveprintercomms.schedule( timeoutFunc(func, 200));
     return true;
 } 
 
+/**
+ * Quick format for info handler
+ * @param {String} msg 
+ * @returns 
+ */
 function quickMsg(msg) {
     return {"time":Date.now(),"message":msg};
+}
+
+/**
+ * Debug to info area quickly
+ * @param {String} msg 
+ */
+function infoMsg(msg) {
+    infoHandler.info(quickMsg(msg));
 }
 
 // liveprinter object
@@ -66,12 +83,12 @@ async function setup() {
     if (window.lp) delete window.lp;
     window.lp = printer; // make available to all scripts later on and livecoding... not great
     
-    infoHandler.info(quickMsg("starting"));
+    infoMsg("starting");
     // test scheduling code
     liveprintercomms.schedule( async ()=> infoHandler.info({time:Date.now(),message:`schedule test: ${testIndex++}`}), 500);
     
     /// attach listeners
-    printer.addGCodeListener({ gcodeEvent: async data => infoHandler.info(quickMsg(data)) });
+    printer.addGCodeListener({ gcodeEvent: async data => infoMsg(data) });
     printer.addGCodeListener({ gcodeEvent: async data => Logger.debug(quickMsg(data)) });
     printer.addErrorListener({ errorEvent: doError });
     // SETUP PRINTER GCODE LISTENER
@@ -83,7 +100,7 @@ async function setup() {
     //     { gcodeEvent: async (gcode) => editors.recordGCode(editors.GCodeEditor, gcode) }
     // );
     
-    liveprintercomms.onPosition(async (v) => infoHandler.info(quickMsg(v)));
+    liveprintercomms.onPosition(async (v) => infoMsg(v));
     liveprintercomms.onCodeDone(async (v)=>{
         let msg;
         if (v.queued === 0) {
@@ -92,14 +109,14 @@ async function setup() {
         else {
             msg = `done: other code blocks in queue: ${v.queued}`;
         }
-        infoHandler.info(quickMsg(msg));
+        infoMsg(msg);
     });
     liveprintercomms.onCodeQueued(async (v)=>{
         let msg = `queued: code block running (queued: ${v.queued})`;
-        infoHandler.info({"time":Date.now(),"message":msg} );
+        infoMsg(msg);
     });
     
-    infoHandler.info({time:Date.now(), message:"test scheduling"});    
+    infoMsg("test scheduling");    
 }
 
 async function startTest() {
@@ -107,7 +124,7 @@ async function startTest() {
     let origX, origY, origZ, origE;
 
     await liveprintercomms.schedule(async()=> printer.start());
-    infoHandler.info(quickMsg("moving to cx,cy..."));
+    infoMsg("moving to cx,cy...");
     await liveprintercomms.schedule(async()=> printer.moveto({x:printer.cx, y:printer.cy}));
 
     origX = printer.x;
@@ -121,9 +138,9 @@ async function startTest() {
     ASSERT(origZ, printer.z, "z not equal to orig Z");
     ASSERT(origE, printer.e, "e not equal to orig E");
     
-    infoHandler.info(quickMsg("!!done testing cx,cy!!"));
-    infoHandler.info(quickMsg("!!-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-"));
-    infoHandler.info(quickMsg("!!testing up!!"));
+    infoMsg("!!done testing cx,cy!!");
+    infoMsg("!!-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-");
+    infoMsg("!!testing up!!");
     origX = printer.x;
     origY = printer.y;
     origZ = printer.z;
@@ -136,10 +153,10 @@ async function startTest() {
     ASSERT(printer.z, origZ-distToMove, "z not equal to new Z");
     ASSERT(origE, printer.e, "e not equal to orig E");
 
-    infoHandler.info(quickMsg("!!done testing up!!"));
+    infoMsg("!!done testing up!!");
     
-    infoHandler.info(quickMsg("!!-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-"));
-    infoHandler.info(quickMsg("!!testing down!!"));
+    infoMsg("!!-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-");
+    infoMsg("!!testing down!!");
     origX = printer.x;
     origY = printer.y;
     origZ = printer.z;
@@ -152,9 +169,9 @@ async function startTest() {
     ASSERT(printer.z, origZ+distToMove, "z not equal to new Z");
     ASSERT(origE, printer.e, "e not equal to orig E");
 
-    infoHandler.info(quickMsg("!!done testing down!!"));
-    infoHandler.info(quickMsg("!!-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-"));
-    infoHandler.info(quickMsg("!!testing draw!!"));
+    infoMsg("!!done testing down!!");
+    infoMsg("!!-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-");
+    infoMsg("!!testing draw!!");
     
     origX = printer.x;
     origY = printer.y;
@@ -171,10 +188,10 @@ async function startTest() {
     ASSERT(printer.z, origZ, "z not equal to new Z");
     //TODO: e too complex to calculate for now...
 
-    infoHandler.info(quickMsg("!!done testing draw!!"));
+    infoMsg("!!done testing draw!!");
 
-    infoHandler.info(quickMsg("!!-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-"));
-    infoHandler.info(quickMsg("!!testing travel!!"));
+    infoMsg("!!-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-");
+    infoMsg("!!testing travel!!");
     
     origX = printer.x;
     origY = printer.y;
@@ -192,11 +209,11 @@ async function startTest() {
     ASSERT(origE, printer.e, "e not equal to orig E");
 
         
-    infoHandler.info(quickMsg("!!done testing travel!!"));
+    infoMsg("!!done testing travel!!");
 
 
-    infoHandler.info(quickMsg("!!-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-"));
-    infoHandler.info(quickMsg("!!testing draw with warp!!"));
+    infoMsg("!!-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-");
+    infoMsg("!!testing draw with warp!!");
 
     origX = printer.x;
     origY = printer.y;
@@ -229,8 +246,8 @@ async function startTest() {
     ASSERT(printer.y, newCoords.y, `y move not correct ${printer.y}//${newCoords.y}`); 
     ASSERT(printer.z, newCoords.z, `z move not correct ${printer.z}//${newCoords.z}`);
 
-    infoHandler.info(quickMsg("!!done testing draw with warp!!"));
-    infoHandler.info(quickMsg("!!-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-"));
+    infoMsg("!!done testing draw with warp!!");
+    infoMsg("!!-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-");
 
 
 }
@@ -246,11 +263,11 @@ document.getElementById("go").onclick= async ()=>{
 document.getElementById("music-test").onclick= async ()=>{
     await liveprintercomms.schedule(async()=> printer.start());
 
-    infoHandler.info(quickMsg("!!music theory test!!"));
-    infoHandler.info(quickMsg("!!-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-"));
+    infoMsg("!!music theory test!!");
+    infoMsg("!!-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-");
     await startMusicTest();  
-    infoHandler.info(quickMsg("!!done testing music theory!!"));
-    infoHandler.info(quickMsg("!!-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-"));
+    infoMsg("!!done testing music theory!!");
+    infoMsg("!!-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-");
 };
 
 async function startMusicTest() {
@@ -272,11 +289,11 @@ async function startMusicTest() {
 document.getElementById("movetest").onclick= async ()=>{    
     let elapsedTime;
     // try movement code
-    infoHandler.info(quickMsg(`testing mov function`));
+    infoMsg(`testing mov function`);
     let startTime = new Date();
     await liveprintercomms.globalEval(`# mov2 x:20 y:40 speed:5`, 1);
     elapsedTime = (new Date()) - startTime;
-    infoHandler.info(quickMsg(`time to move: ${elapsedTime}ms`));
+    infoMsg(`time to move: ${elapsedTime}ms`);
 
 }
 
@@ -286,11 +303,11 @@ document.getElementById("gotest").onclick= async ()=>{
     let origZ = printer.z;
     let origE = printer.e;  
     let elapsedTime;
-    infoHandler.info(quickMsg(`testing go function`));
+    infoMsg(`testing go function`);
     startTime = new Date();
     await liveprintercomms.globalEval(`# minmove 20 | turnto 0 | draw 10`);
     elapsedTime = (new Date()) - startTime;
-    infoHandler.info(quickMsg(`time to move: ${elapsedTime}ms`));
+    infoMsg(`time to move: ${elapsedTime}ms`);
     ASSERT(printer.x, origX+10, `x move not correct ${printer.x}//${origX}`); 
     ASSERT(printer.y, origY, `y move not correct ${printer.y}//${origY}`); 
     ASSERT(printer.z, origZ, `z move not correct ${printer.z}//${origZ}`);
@@ -301,43 +318,43 @@ document.getElementById("serialTest").onclick= async ()=>{
 
     // GET PORTS
 
-    infoHandler.info(quickMsg("getting ports..."));
+    infoMsg("getting ports...");
     let startTime = new Date();
     const ports = await testGetPorts();  
     Logger.debug(ports);
     let elapsedTime = new Date() - startTime;
     if (ports.result && Array.isArray(ports.result[0].ports))
     {
-        infoHandler.info(quickMsg(`found ports in ${elapsedTime}ms`));
-        ports.result[0].ports.map(port => infoHandler.info(quickMsg(port)));
+        infoMsg(`found ports in ${elapsedTime}ms`);
+        ports.result[0].ports.map(port => infoMsg(port));
     }  
 
     // SET PORTS
 
-    infoHandler.info(quickMsg("setting port to DUMMY..."));
+    infoMsg("setting port to DUMMY...");
     try {
         startTime = new Date();
         await liveprintercomms.setSerialPort({port:"dummy", baudRate:"112500"});
         let elapsedTime = (new Date()) - startTime;
-        infoHandler.info(quickMsg(`time to set port: ${elapsedTime}ms`));
+        infoMsg(`time to set port: ${elapsedTime}ms`);
     }
     catch (err) {
         Logger.debug(err);
-        infoHandler.info(quickMsg(`ERROR: ${JSON.stringify(err)}`));    
+        infoMsg(`ERROR: ${JSON.stringify(err)}`);    
     }
 
     // GET PRINTER STATE
-    infoHandler.info(quickMsg("setting port to DUMMY..."));
+    infoMsg("setting port to DUMMY...");
     try {
         startTime = new Date();
         let state = await liveprintercomms.getPrinterState();
         let elapsedTime = (new Date()) - startTime;
-        infoHandler.info(quickMsg(`time to get state: ${elapsedTime}ms`));
-        infoHandler.info(quickMsg(JSON.stringify(state)));
+        infoMsg(`time to get state: ${elapsedTime}ms`);
+        infoMsg(JSON.stringify(state));
     }
     catch (err) {
         Logger.debug(err);
-        infoHandler.info(quickMsg(`ERROR: ${JSON.stringify(err)}`));    
+        infoMsg(`ERROR: ${JSON.stringify(err)}`);    
     }
 };
   
@@ -356,13 +373,13 @@ async function testGetPorts(){
     }
     catch (error) {
         // statusText field has error ("timeout" in this case)
-        infoHandler.info(quickMsg(JSON.stringify(error, null, 2)));
+        infoMsg(JSON.stringify(error, null, 2));
         const statusText = `JSON error ${JSON.stringify(response)}`; 
         Logger.error(statusText);
-        infoHandler.info(quickMsg(`ERROR: ${statusText}`));  
+        infoMsg(`ERROR: ${statusText}`);  
     }
     if (undefined !== response.error) {
-        infoHandler.info(quickMsg(`ERROR: ${JSON.stringify(response.error)}`)); 
+        infoMsg(`ERROR: ${JSON.stringify(response.error)}`); 
     }
     return response;
 }
