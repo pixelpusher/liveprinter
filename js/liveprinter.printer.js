@@ -40,9 +40,10 @@ class Printer {
     static extrusionInmm3 = {"UM2": false,
     "UM2plus": true};
     
+    static MIN_INTERVAL = 8; // 8ms is empirically-derived, safest minimum movement interval time
 
     /**
-     * Create new instance, passing a function for sending messages
+     * Create new instance
      * @constructor
      */
     constructor() {
@@ -61,6 +62,9 @@ class Printer {
         this.gcodeListeners = []; // will be notified of gcode events
         this.errorListeners = []; // will be notified of error events
 
+        // notified of operations like draw, bed, temp, turn, etc.
+        this.opListeners = [];
+
         this._layerHeight = 0.2; // thickness of a 3d printed extrudion, mm by default
         this.lastSpeed = -1.0;
 
@@ -72,7 +76,7 @@ class Printer {
         this._waitTime = 0;
         this._autoRetract = true; // automatically unretract/retract - see get/set autoretract
         this._bpm = 120; // for beat-based movements
-        this._minMovementTime = 10; // for breaking up movements, in ms
+        this._intervalTime = 10; // for breaking up movements, in ms
         ////////////////////////////////////////////
 
         this.totalMoveTime = 0; // time spent moving/extruding
@@ -390,18 +394,84 @@ class Printer {
 
     /**
      * set bpm for printer, for calculating beat-based movements
+     * @param {Number} beats Beats per minute
      */
     bpm(beats) {
         this._bpm = beats;
+        return this._bpm;
     } 
 
     /**
-     * set bpm for printer, for calculating beat-based movements
+     * set bps for printer, for calculating beat-based movements
+     * @param {Number} beats Beats per second  
      */
-    bpm() {
+    bps(beats) {
+        this._bpm = beats*60;
         return this._bpm;
     } 
-    
+
+    /**
+     * Set minimum movement time interval for printer movements, used in drawtime() for calculating time-based movements
+     * @param {Number or String} time If a non-zero number, extrude for the time specified in ms, or if a String parse the suffix for b=beats, s=seconds, ms=milliseconds (e.g. "20ms")     
+     * @see drawtime
+     * @see traveltime
+     * @see timewarp
+     * @see warp
+     */
+    interval(time) {
+
+        let targetTime = this._intervalTime;
+
+        if (isFinite(time)) 
+        { 
+            targetTime = time;
+        }
+        else {
+            // parse as string
+            let timeStr = time+'';
+            let timeRegex = new RegExp("(\d+\.*\d*)(s|ms|b)");
+            const params = timeStr.toLowerCase().match(timeRegex);
+            if (params && params.length == 2) {
+                switch(params[1])  { //time suffix
+                    case 's': // seconds
+                    { 
+                        targetTime = params[0]/1000; 
+                        this._intervalTime = targetTime;
+                    }
+                    break;
+
+                    case 'ms': // milliseconds
+                    { 
+                        targetTime = params[0]; // silly 
+                        this._intervalTime = targetTime;
+                    }
+                    break;
+
+                    case 'b': // beats
+                    {
+                        targetTime = this.b2t(params[0]);
+                        this._intervalTime = targetTime;
+                    }
+                    break;
+
+                    default: throw new Error(`Error parsing interval(), bad time suffix in ${timeStr}`);
+                }
+            } 
+            else 
+            {
+                throw new Error(`Error parsing interval() time, check the format of ${timeStr}`);
+            }
+        }
+        
+        if (this._intervalTime < Printer.MIN_INTERVAL) {
+            this._intervalTime = Printer.MIN_INTERVAL;
+            throw new Error(`Error setting interval() time, too short: ${targetTime} < ${Printer.MIN_INTERVAL}`);
+        }
+
+        return this;
+    } 
+
+
     /**
      * Retraction speed - updates firmware on printer too
      * @param {Number} s Option speed in mm/s to set, otherwise just get
@@ -609,170 +679,352 @@ class Printer {
         return position;
     }
 
-    _defaultMoveFunc({x,y,z,t}={})
+
+    //------------------------------------------------ 
+    //------------------------------------------------ 
+    // --- Time and space warping functions for drawing and movements
+    //------------------------------------------------ 
+    //------------------------------------------------ 
+    
+    
+    /**
+     * Default time-and-distance warping function: does nothing but pass through arguments.
+     * @param {Object} args d (dist), heading, elevation, t (time in this move), tt (total elapsed movement time)
+     * @returns {Object} new d, heading, elevation
+     * @see timewarp
+     * @see warp
+     * @see interval
+     */
+    _defaultWarp ({d, heading, elevation, t, tt}={})
     {
-        return {x,y,z}; //A time-varying movement function set by user. Default is no op 
+        return {d, heading, elevation}; //A time-varying movement function set by user. Default is no-op 
     }
 
-    _moveFunc ({x,y,z,t}={})
+    /**
+     * Applies a time-warping function set by user. Default is no-op
+     * @param {Number} dt Delta time, time interval for this movement
+     * @returns {Number} new dt 
+     * @see timewarp
+     * @see warp
+     * @see interval
+     */
+    _timeWarp (dt)
     {
-        return {x,y,z}; //A time-varying movement function set by user. Default is no op 
+        return dt;    }
+
+    /**
+     * Set time based movement function
+     * @param {Function} func Movement function
+     * @see drawtime
+     * @see traveltime
+     * @see interval
+     */
+    set timewarp(func) {
+        this._timeWarp = func;
+    }
+
+    /**
+     * Get time based movement function
+     * @see drawtime
+     * @see traveltime
+     * @see interval
+     */
+    get timewarp() {
+        return this._timeWarp;
+    }
+
+    /**
+     * Reset the movement function to the default (passthru)
+     * @see drawtime
+     * @see traveltime
+     * @see interval
+     */
+    resettimewarp() {
+        this.timewarp = this._defaultWarp;
+        return this;
+    }
+
+
+    /**
+     * Applies a distance-varying movement function set by user. Default is no op
+     * @param {Object} args d (dist), heading, elevation, t (time in this move), tt (total elapsed movement time)
+     * @returns {Object} new d, heading, elevation
+     * @see timewarp
+     * @see warp
+     * @see interval
+     */
+    _warp ({d, heading, elevation, t, tt}={})
+    {
+        return {d, heading, elevation}; //A time-varying movement function set by user. Default is no op 
     }
 
     /**
      * Set time based movement function
      * @param {Function} func Movement function
-     * @see go
+     * @see draw
+     * @see interval
      */
-    set moveFunc(func) {
-        this._moveFunc = func;
+    set warp(func) {
+        this._warp = func;
     }
 
     /**
      * Get time based movement function
-     * @see go
+     * @see draw
+     * @see interval
      */
-    get moveFunc() {
-        return this._moveFunc;
+    get warp() {
+        return this._warp;
     }
+
     /**
      * Reset the movement function to the default (passthru)
+     * @see draw
+     * @see interval
      */
-    resetMoveFunc() {
-        this.moveFunc = this._defaultMoveFunc;
+    resetwarp() {
+        this.warp = this._defaultWarp;
+        return this;
     }
 
-    /**
-     * For breaking up longer movements into smaller ones
-     * @param {Number} t minimum movement time in ms 
-     */
-    minmove(t) {
-        this._minMovementTime = t; // for breaking up movements, in ms
-    }
+    //------------------------------------------------ 
+    //------------------------------------------------ 
+    // --- Drawing and movement functions
+    //------------------------------------------------ 
+    //------------------------------------------------ 
+    
 
     /**
-     * Applies a time-varying movement function set by user. Default is no op
-     * @param {Number} x x coordinate
-     * @param {Number} y y coordinate
-     * @param {Number} z z coordinate
-     * @param {Number} t current time in ms
-     * @returns {Object} new x,y,z coordinates
+     * Execute an extrusion for a specific amount of time and optionally apply a time-based function to warp the movement (x, y, z, e, speed, etc).
+     * @param {Number or String} time If a non-zero number, extrude for the time specified in ms, or if a String parse the suffix for b=beats, s=seconds, ms=milliseconds (e.g. "20ms")
+     * @returns {Printer} reference to this object for chaining
      */
-    applyMoveFunc(x,y,z, t) {
-        return this._moveFunc({x,y,z,t});
+    async drawtime(time)
+    {
+        let elapsedTime = 0; // current elapsed time for all operations
+        let targetTime = 0; // will be set based on time argument
+
+        const params = { speed:this._printSpeed }; // params for passing to each call to extrudeto
+
+        let horizDist, vertDist;
+
+        // parse time argument to figure out end time
+        // based on current time + time offset from argument
+
+        if (isFinite(time)) 
+        { 
+            targetTime = time;
+        }
+        else {
+            // parse as string
+            let timeStr = time+'';
+            let timeRegex = new RegExp("(\d+\.*\d*)(s|ms|b)");
+            const params = timeStr.toLowerCase().match(timeRegex);
+            if (params && params.length == 2) {
+                switch(params[1])  { //time suffix
+                    case 's': // seconds
+                    { 
+                        targetTime = params[0]/1000; 
+                    }
+                    break;
+
+                    case 'ms': // milliseconds
+                    { 
+                        targetTime = params[0]; // silly 
+                    }
+                    break;
+
+                    case 'b': // beats
+                    {
+                        targetTime = this.b2t(params[0]);
+                    }
+                    break;
+
+                    default: throw new Error(`Error parsing drawtime, bad time suffix in ${timeStr}`);
+                }
+            } 
+            else 
+            {
+                throw new Error(`Error parsing drawtime, check the format of ${timeStr}`);
+            }
+        }
+
+        targetTime += this.totalMoveTime;
+
+     
+        // should we clear these? Probably, since they don't apply here
+        // not taking into account stored distance, angle, elevation and
+        // adding to current position (cartesian)
+
+        this._distance = 0;
+        this._zdistance = 0;
+
+
+        // Logger.debug(`go: total move time/num: ${totalMovementsTime} / ${totalMovements}`); 
+
+       // starting variables 
+       const x0 = this.x;
+       const y0 = this.y;
+       const z0 = this.z;  
+       const t0 = this.totalMoveTime;
+
+       let xn=x0,yn=y0,zn=z0,tn=t0; // current values at loop n
+
+       let safetyCounter = 800; // arbitrary -- make sure we don't hit infinite loops
+
+       while (safetyCounter && this.totalMoveTime < targetTime) {
+            safetyCounter--;
+
+            const opStartTime = performance.now();
+       
+            // Logger.debug(`current move time: ${t}:${totalMovementsTime}/${movement}:${totalMovements}`)
+
+            // calculate new x,y,z based on this._intervalTime 
+
+            const dt = this._timeWarp(this._intervalTime);
+
+            const distPerMove = this.t2mm(dt);
+
+            let vdistPerMove=0, hdistPerMove = distPerMove;
+
+            let {d, heading, elevation} = this._warp({
+                d:distPerMove, heading:this._heading, elevation:this._elevation, t:elapsedTime, tt:this.totalMoveTime});
+
+            hdistPerMove = d;
+
+            // handle z move (elevation)
+            if (Math.abs(elevation) > Number.EPSILON) {
+                hdistPerMove = d * Math.cos(elevation);
+                vdistPerMove = d * Math.sin(elevation);
+            }
+
+            xn = x0 + hdistPerMove * Math.cos(heading);
+            yn = y0 + hdistPerMove * Math.sin(heading);
+            zn = z0 + vdistPerMove; // this is set separately in tiltup
+    
+            // apply optional warping function, if set
+            let {x,y,z} = this._warp({ x:xn,y:yn,z:zn,t:elapsedTime, tt:this.totalMoveTime});
+
+            params.x = x;
+            params.y = y;
+            params.z = z;
+
+            //everything else handled in extrudeto, updates totalMoveTime too
+            await this.extrudeto(params);
+
+            const timeDiff = performance.now() - opStartTime;
+
+            elapsedTime += timeDiff;
+
+            Logger.debug(`Move time warp op took ${timeDiff} ms vs. expected ${this._intervalTime}.`);
+        }
+        
+        return this;
     }
+
 
     /**
      * Execute an extrusion based on the internally-set direction/elevation/distance, with an optional time-based function.
-     * @param {Number or Object} args Optional: if a non-zero number, extrude 
-     * the amount specified in mm, or left out then the stored distance set
+     * @param {Number} extrude 
+     * Optional: the amount specified in mm, or left out then the stored distance set
      * by dist(). Otherwise, an object with keys for:
      *  1. d: distance (optional)
      *  2. t: time (optional) of start of movement for passing to movement function
      * @returns {Printer} reference to this object for chaining
      */
-    async draw(args)
+    async draw(dist)
     {
-        let time = this.totalMoveTime; // current universal time in movement -- lets us resume ops
-        let params = { speed:this._printSpeed }; // params for passing to each call to extrudeto
+        let elapsedTime = 0; // current elapsed time for all operations
+        let totalDistance = 0; // total distance extruded
+        let targetDist = this._distance; // stored distance to extrude, unless otherwise specified below
+
+        const params = { speed:this._printSpeed }; // params for passing to each call to extrudeto
+
         let horizDist, vertDist;
 
-        if (undefined !== args) {
-            // handle distance-only arg
-            if (Number.isInteger(args)) 
-            { 
-                this._distance = args;
-            }
-            else {
-                // parse object arguments
-                let {z,d,t} = args;
-                if (undefined !== t) time = t;
-                if (undefined !== d) this._distance = d;
-                if (undefined !== z) {
-                    this._zdistance = z;
-                    // if elevation is 0 and we are meant to move vertically we might get stuck in a loop
-                    if (this._elevation < Math.EPSILON) this._elevation = Math.PI/2;
-                }
-            }
-        }
+        // parse time argument to figure out end time
+        // based on current time + time offset from argument
 
-        // wait, if necessary
-        if (this._waitTime > 0) {
-            return this.wait();
+        if (dist && isFinite(dist)) 
+        { 
+            targetDist = dist;
         }
      
-        // first, calcuate total distances to move:
-        // take into account stored distance, angle, elevation and
-        // add to current position (cartesian)
+        // should we clear these? Probably, since they don't apply here
+        // not taking into account stored distance, angle, elevation and
+        // adding to current position (cartesian)
 
-        horizDist = this._distance;
-        vertDist = this._zdistance;
-
-
-        // add projection of vertical distance into horizontal plane.
-        // vertical distances are specified absolutely, so we need to find corresponding
-        // horizontal distance using the tangent
-        if (Math.abs(vertDist) > Number.EPSILON) {
-            let horizProjection = vertDist / Math.tan(this._elevation);
-            if (Math.abs(horizProjection) > 0.001) // smallest moveable unit, in mm
-                horizDist += horizProjection;
-        }
-
-        // reset distances to 0 because we've used them to calculate new position
         this._distance = 0;
         this._zdistance = 0;
-        this._elevation = 0;
 
-        // divide up entire movement into smaller chunks based on this._minMovementTime
-        const totalMovementsTime = this.d2t(horizDist+vertDist, params.speed);
-        // DEBUG
-        const totalMovements = Math.ceil( totalMovementsTime / this._minMovementTime);
+
         // Logger.debug(`go: total move time/num: ${totalMovementsTime} / ${totalMovements}`); 
 
-        const hdistPerMove = horizDist/totalMovements;
-        const vdistPerMove = vertDist/totalMovements;
-
-        // Logger.debug(`hdist: ${hdistPerMove}`);
-
-        // TODO: re-write with functionalz
-
+       // starting variables 
        const x0 = this.x;
        const y0 = this.y;
        const z0 = this.z;  
+       const t0 = this.totalMoveTime;
 
-        for (let movement=1; movement<=totalMovements; movement++){
+       let xn=x0,yn=y0,zn=z0,tn=t0; // current values at loop n
 
-            time += this._minMovementTime;
+       let safetyCounter = 800; // arbitrary -- make sure we don't hit infinite loops
 
+       while (safetyCounter && totalDistance < targetDist) {
+            safetyCounter--;
+
+            const opStartTime = performance.now();
+       
             // Logger.debug(`current move time: ${t}:${totalMovementsTime}/${movement}:${totalMovements}`)
 
-            const xn = x0 + movement*hdistPerMove * Math.cos(this._heading);
-            const yn = y0 + movement*hdistPerMove * Math.sin(this._heading);
-            const zn = z0 + movement*vdistPerMove; // this is set separately in tiltup
+            // calculate new x,y,z based on this._intervalTime 
+
+            const dt = this._timeWarp(this._intervalTime);
+
+            const distPerMove = Math.min(this.t2mm(dt), targetDist-totalDistance);
+
+            if (distPerMove < 0.005) break; // too short, abort
+
+            let vdistPerMove=0, hdistPerMove = distPerMove;
+
+            let {d, heading, elevation} = this._warp({
+                d:distPerMove, heading:this._heading, elevation:this._elevation, t:elapsedTime, tt:this.totalMoveTime});
+
+            hdistPerMove = d;
+
+            // handle z move (elevation)
+            if (Math.abs(elevation) > Number.EPSILON) {
+                hdistPerMove = d * Math.cos(elevation);
+                vdistPerMove = d * Math.sin(elevation);
+            }
+
+            xn = x0 + hdistPerMove * Math.cos(heading);
+            yn = y0 + hdistPerMove * Math.sin(heading);
+            zn = z0 + vdistPerMove; // this is set separately in tiltup
     
-            let {x,y,z} = this._moveFunc({x:xn,y:yn,z:zn,t:time});
+            // apply optional warping function, if set
+            let {x,y,z} = this._warp({ x:xn,y:yn,z:zn,t:elapsedTime, tt:this.totalMoveTime});
+
             params.x = x;
             params.y = y;
             params.z = z;
 
-
-            // debugging
-
-            //let _div = Math.sqrt(params.x * params.x + params.y * params.y);
-            //let _normx = params.x / _div;
-            //let _normy = params.y / _div;
-    
-            /* for debugging -- test if start and end are same
-            Logger.debug("[go] end position:" + (this.x + params.x) + "," + (this.y + params.y) + "," + (this.z + params.z) + "," + params.e);
-            Logger.debug("[go] move vec:" + _normx + ", " + _normy);
-            */
-        
-            //everything else handled in extrudeto
+            //everything else handled in extrudeto, updates totalMoveTime too
             await this.extrudeto(params);
+
+            totalDistance += distPerMove; // update total distance (not based on warp function!)
+
+            const timeDiff = performance.now() - opStartTime;
+
+            elapsedTime += timeDiff;
+
+            Logger.debug(`Move time warp op took ${timeDiff} ms vs. expected ${this._intervalTime}.`);
         }
         
         return this;
     }
+
+
 
     /**
      * Set/get layer height safely and easily.
@@ -1059,10 +1311,10 @@ class Printer {
         this._zdistance = 0;
         this._elevation = 0;
 
-        // divide up entire movement into smaller chunks based on this._minMovementTime
+        // divide up entire movement into smaller chunks based on this._intervalTime
         const totalMovementsTime = this.d2t(horizDist+vertDist, params.speed);
         // DEBUG
-        const totalMovements = Math.ceil( totalMovementsTime / this._minMovementTime);
+        const totalMovements = Math.ceil( totalMovementsTime / this._intervalTime);
         // Logger.debug(`go: total move time/num: ${totalMovementsTime} / ${totalMovements}`); 
 
         const hdistPerMove = horizDist/totalMovements;
