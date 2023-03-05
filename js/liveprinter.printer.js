@@ -439,7 +439,7 @@ class Printer {
                 switch(params[2])  { //time suffix
                     case 's': // seconds
                     { 
-                        targetTime = numberParam/1000; 
+                        targetTime = numberParam*1000; 
                         this._intervalTime = targetTime;
                     }
                     break;
@@ -1865,7 +1865,7 @@ o
      * @returns {Number} Time in ms equivalent to the number of beats
      */
     b2t(beats, bpm = this._bpm) {
-        return (6000/this._bpm)*beats;
+        return (60000/this._bpm)*beats;
     }
 
     /**
