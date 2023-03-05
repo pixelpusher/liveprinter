@@ -74,7 +74,7 @@ class Printer {
 
         ////////////////////////////////////////////
         this._heading = 0;   // current angle of movement (xy) in radians
-        this._elevation = Math.PI / 2; // current angle of elevated movement (z) in radians, starts up
+        this._elevation = 0; // current angle of elevated movement (z) in radians
         this._distance = 0; // next L/R distance to move
         this._zdistance = 0; // next up/down distance to move
         this._waitTime = 0;
@@ -424,48 +424,7 @@ class Printer {
      */
     interval(time) {
 
-        let targetTime = this._intervalTime;
-
-        if (isFinite(time)) 
-        { 
-            targetTime = time;
-        }
-        else {
-            // parse as string
-            let timeStr = time+'';
-            const params = timeStr.toLowerCase().match(Printer.TimeRegex);
-            if (params && params.length == 3) {
-                const numberParam = eval(params[1]); // easiest way to parse as number
-                switch(params[2])  { //time suffix
-                    case 's': // seconds
-                    { 
-                        targetTime = numberParam*1000; 
-                        this._intervalTime = targetTime;
-                    }
-                    break;
-
-                    case 'ms': // milliseconds
-                    { 
-                        targetTime = numberParam; // silly 
-                        this._intervalTime = targetTime;
-                    }
-                    break;
-
-                    case 'b': // beats
-                    {
-                        targetTime = this.b2t(numberParam);
-                        this._intervalTime = targetTime;
-                    }
-                    break;
-
-                    default: throw new Error(`Error parsing interval(), bad time suffix in ${timeStr}`);
-                }
-            } 
-            else 
-            {
-                throw new Error(`Error parsing interval() time, check the format of ${timeStr}`);
-            }
-        }
+        this._intervalTime = this.parseTime(time);
         
         if (this._intervalTime < Printer.MIN_INTERVAL) {
             this._intervalTime = Printer.MIN_INTERVAL;
@@ -798,26 +757,18 @@ class Printer {
     //------------------------------------------------ 
     //------------------------------------------------ 
     
-
     /**
-     * Execute an extrusion for a specific amount of time and optionally apply a time-based function to warp the movement (x, y, z, e, speed, etc).
-     * @param {Number or String} time If a non-zero number, extrude for the time specified in ms, or if a String parse the suffix for b=beats, s=seconds, ms=milliseconds (e.g. "20ms")
-     * @returns {Printer} reference to this object for chaining
+     * Parse an argument (beats, seconds, ms) to time in ms
+     * @param {String or Number} time 
+     * @returns time in ms
      */
-    async drawtime(time)
-    {
-        let elapsedTime = 0; // current elapsed time for all operations
-        let targetTime = 0; // will be set based on time argument
-        let totalDistance = 0; // total distance moved, just for debugging mainly 
+    parseTime(time) {
+        let parsed = 0;
 
-        const params = { speed:this._printSpeed }; // params for passing to each call to extrudeto
-
-        // parse time argument to figure out end time
-        // based on current time + time offset from argument
-
+        // if number, that's fine
         if (isFinite(time)) 
         { 
-            targetTime = time;
+            parsed = time;
         }
         else {
             // parse as string
@@ -829,23 +780,24 @@ class Printer {
                 switch(params[2])  { //time suffix
                     case 's': // seconds
                     { 
-                        targetTime = numberParam/1000; 
+                        parsed = numberParam*1000; 
                     }
                     break;
 
                     case 'ms': // milliseconds
                     { 
-                        targetTime = numberParam; // silly 
+                        parsed = numberParam; // silly 
                     }
                     break;
 
                     case 'b': // beats
                     {
-                        targetTime = this.b2t(numberParam);
+                        parsed = this.b2t(numberParam);
                     }
                     break;
 
-                    default: throw new Error(`Error parsing drawtime, bad time suffix in ${timeStr}`);
+                    default: 
+                        throw new Error(`Error parsing drawtime, bad time suffix in ${timeStr}`);
                 }
             } 
             else 
@@ -853,6 +805,25 @@ class Printer {
                 throw new Error(`Error parsing drawtime, check the format of ${timeStr}`);
             }
         }
+        return parsed;
+    }
+
+
+    /**
+     * Execute an extrusion for a specific amount of time and optionally apply a time-based function to warp the movement (x, y, z, e, speed, etc).
+     * @param {Number or String} time If a non-zero number, extrude for the time specified in ms, or if a String parse the suffix for b=beats, s=seconds, ms=milliseconds (e.g. "20ms")
+     * @returns {Printer} reference to this object for chaining
+     */
+    async drawtime(time)
+    {
+        let elapsedTime = 0; // current elapsed time for all operations
+        let targetTime = this.parseTime(time); // will be set based on time argument
+        let totalDistance = 0; // total distance moved, just for debugging mainly 
+
+        const params = { speed:this._printSpeed }; // params for passing to each call to extrudeto
+
+        // parse time argument to figure out end time
+        // based on current time + time offset from argument
 
         targetTime += this.totalMoveTime;
 
@@ -868,7 +839,7 @@ class Printer {
         // Logger.debug(`go: total move time/num: ${totalMovementsTime} / ${totalMovements}`); 
 
        let safetyCounter = 800; // arbitrary -- make sure we don't hit infinite loops
-
+       
        while (safetyCounter && this.totalMoveTime < targetTime) {
             safetyCounter--;
 
@@ -1322,6 +1293,7 @@ class Printer {
             //everything else handled in extrudeto
             await this.extrudeto(params);
         }
+        this._elevation = 0;
         
         return this;
     }
@@ -1900,7 +1872,7 @@ o
      * @param {string} axis of movement: x,y,z 
      * @returns {float} speed in mm/s
      */
-    midi2speed(note, axis) {
+    midi2speed(note, axis='x') {
         // MIDI note 69     = A4(440Hz)
         // 2 to the power (69-69) / 12 * 440 = A4 440Hz
         // 2 to the power (64-69) / 12 * 440 = E4 329.627Hz
