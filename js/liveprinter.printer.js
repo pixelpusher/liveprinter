@@ -643,51 +643,6 @@ class Printer {
     }
 
     /**
-     * 
-     * @param {Vector} v1 
-     * @param {Vector} v2 
-     * @returns {Number} dot product (scalar)
-     */
-    dot(v1, v2) {
-        return v1.axes.x * (v2.axes.x || 0) + v1.axes.y * (v2.axes.y || 0) + v1.axes.z * (v2.axes.z || 0);
-    }
-
-    /**
-     * 
-     * @param {Vector} v1 
-     * @param {Vector} v2 
-     * @returns {Vector} cross product
-     */
-    cross(v1, v2) {
-        const x = v1.axes.y * v2.axes.z - v1.axes.z * v2.axes.y;
-        const y = v1.axes.z * v2.axes.x - v1.axes.x * v2.axes.z;
-        const z = v1.axes.x * v2.axes.y - v1.axes.y * v2.axes.x;
-        return new Vector(x,y,z);
-    }
-
-    /**
-     * 
-     * @param {Vector} v1
-     * @param {Vector} v2 
-     * @returns {Number} angle between in radians
-     */
-    angleBetween(v1, v2) {
-        // adapted from https://github.com/processing/p5.js/blob/v1.6.0/src/math/p5.Vector.js#L1574
-
-            const dotmagmag = dot(v1,v2) / (v1.mag() * v2.mag());
-        // Mathematically speaking: the dotmagmag variable will be between -1 and 1
-        // inclusive. Practically though it could be slightly outside this range due
-        // to floating-point rounding issues. This can make Math.acos return NaN.
-        //
-        // Solution: we'll clamp the value to the -1,1 range
-        let angle;
-        angle = Math.acos(Math.min(1, Math.max(-1, dotmagmag)));
-        angle = angle * Math.sign(cross(v1,v2).axes.z || 1);
-        
-        return angle;
-    }
-
-    /**
      * Set the distance and heading based on a target point
      * TODO: Elevation and zdistance need fixing!
      * 
@@ -698,7 +653,7 @@ class Printer {
         const targetVec = new Vector(x,y);
         const thisPos = new Vector(this.x, this.y);
         this._distance = Vector.dist(targetVec, thisPos); // don't acount for e
-        this._heading = this.angleBetween(targetVec, thisPos);
+        this._heading = Vector.angleBetween(targetVec, thisPos);
 
         if (z) {
             this._zdistance = z - this.z;
