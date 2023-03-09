@@ -642,6 +642,78 @@ class Printer {
         return position;
     }
 
+    /**
+     * 
+     * @param {Vector} v1 
+     * @param {Vector} v2 
+     * @returns {Number} dot product (scalar)
+     */
+    dot(v1, v2) {
+        return v1.axes.x * (v2.axes.x || 0) + v1.axes.y * (v2.axes.y || 0) + v1.axes.z * (v2.axes.z || 0);
+    }
+
+    /**
+     * 
+     * @param {Vector} v1 
+     * @param {Vector} v2 
+     * @returns {Vector} cross product
+     */
+    cross(v1, v2) {
+        const x = v1.axes.y * v2.axes.z - v1.axes.z * v2.axes.y;
+        const y = v1.axes.z * v2.axes.x - v1.axes.x * v2.axes.z;
+        const z = v1.axes.x * v2.axes.y - v1.axes.y * v2.axes.x;
+        return new Vector(x,y,z);
+    }
+
+    /**
+     * 
+     * @param {Vector} v1
+     * @param {Vector} v2 
+     * @returns {Number} angle between in radians
+     */
+    angleBetween(v1, v2) {
+        // adapted from https://github.com/processing/p5.js/blob/v1.6.0/src/math/p5.Vector.js#L1574
+
+            const dotmagmag = dot(v1,v2) / (v1.mag() * v2.mag());
+        // Mathematically speaking: the dotmagmag variable will be between -1 and 1
+        // inclusive. Practically though it could be slightly outside this range due
+        // to floating-point rounding issues. This can make Math.acos return NaN.
+        //
+        // Solution: we'll clamp the value to the -1,1 range
+        let angle;
+        angle = Math.acos(Math.min(1, Math.max(-1, dotmagmag)));
+        angle = angle * Math.sign(cross(v1,v2).axes.z || 1);
+        
+        return angle;
+    }
+
+    /**
+     * Set the distance and heading based on a target point
+     * TODO: Elevation and zdistance need fixing!
+     * 
+     * @param {Object} coordinates (x,y,z coordinates and target time in any time notation (sets speed)) 
+     * @returns {Object} this instance for chaining
+     */
+    to ({x,y,z, t}={}) {
+        const targetVec = new Vector(x,y);
+        const thisPos = new Vector(this.x, this.y);
+        this._distance = Vector.dist(targetVec, thisPos); // don't acount for e
+        this._heading = this.angleBetween(targetVec, thisPos);
+
+        if (z) {
+            this._zdistance = z - this.z;
+            this._elevation = Math.asin(this._zdistance);
+        }
+        
+        if (t) {
+            this.printspeed = Math.sqrt(
+                this._distance*this._distance + 
+                this._zdistance*this._zdistance
+                ) / this.parseTime(t);
+        }
+
+        return this;
+    }
 
     //------------------------------------------------ 
     //------------------------------------------------ 
@@ -817,6 +889,7 @@ class Printer {
     async drawtime(time)
     {
         let elapsedTime = 0; // current elapsed time for all operations
+        let prevTotalMoveTime = this.totalMoveTime; // last totalMoveTime, for calc elapsed time in loop
         let targetTime = this.parseTime(time); // will be set based on time argument
         let totalDistance = 0; // total distance moved, just for debugging mainly 
 
@@ -826,7 +899,6 @@ class Printer {
         // based on current time + time offset from argument
 
         targetTime += this.totalMoveTime;
-
      
         // should we clear these? Probably, since they don't apply here
         // not taking into account stored distance, angle, elevation and
@@ -834,8 +906,7 @@ class Printer {
 
         this._distance = 0;
         this._zdistance = 0;
-
-
+        
         // Logger.debug(`go: total move time/num: ${totalMovementsTime} / ${totalMovements}`); 
 
        let safetyCounter = 800; // arbitrary -- make sure we don't hit infinite loops
@@ -843,8 +914,9 @@ class Printer {
        while (safetyCounter && this.totalMoveTime < targetTime) {
             safetyCounter--;
 
+            // for debugging and tuning
             const opStartTime = performance.now();
-
+           
             // starting variables 
             const x0 = this.x;
             const y0 = this.y;
@@ -879,11 +951,12 @@ class Printer {
             //everything else handled in extrudeto, updates totalMoveTime too
             await this.extrudeto(params);
 
-            const timeDiff = performance.now() - opStartTime;
+            // update time counters
+            elapsedTime = this.totalMoveTime - prevTotalMoveTime;
 
-            elapsedTime += timeDiff;
+            prevTotalMoveTime = this.totalMoveTime;
 
-            Logger.debug(`Move time warp op took ${timeDiff} ms vs. expected ${this._intervalTime}.`);
+            Logger.debug(`Move time warp op took ${performance.now() - opStartTime} ms vs. expected ${this._intervalTime}.`);
         }
         
         return this;
@@ -902,7 +975,7 @@ class Printer {
     async draw(dist)
     {
         let elapsedTime = 0; // current elapsed time for all operations
-        let totalDistance = 0; // total distance extruded
+        let prevTotalMoveTime = this.totalMoveTime; // last totalMoveTime, for calc elapsed time in loop        let totalDistance = 0; // total distance extruded
         let targetDist = this._distance; // stored distance to extrude, unless otherwise specified below
 
         const params = { speed:this._printSpeed }; // params for passing to each call to extrudeto
@@ -930,6 +1003,7 @@ class Printer {
        while (safetyCounter && totalDistance < targetDist) {
             safetyCounter--;
 
+            // for debugging and tuning
             const opStartTime = performance.now();
        
             // starting variables 
@@ -968,11 +1042,12 @@ class Printer {
 
             Logger.debug(`Moved ${distPerMove} to ${totalDistance} towards ${targetDist}`);
 
-            const timeDiff = performance.now() - opStartTime;
+            // update time counters
+            elapsedTime = this.totalMoveTime - prevTotalMoveTime;
 
-            elapsedTime += timeDiff;
+            prevTotalMoveTime = this.totalMoveTime;
 
-            Logger.debug(`Move time warp op (${dt}) took ${timeDiff} ms vs. expected ${this._intervalTime}.`);
+            Logger.debug(`Move draw warp op took ${performance.now() - opStartTime} ms vs. expected ${this._intervalTime}.`);
         }
         
         return this;
@@ -1250,7 +1325,6 @@ class Printer {
 
         horizDist = this._distance;
         vertDist = this._zdistance;
-
 
         // add projection of vertical distance into horizontal plane.
         // vertical distances are specified absolutely, so we need to find corresponding
