@@ -650,10 +650,17 @@ class Printer {
      * @returns {Object} this instance for chaining
      */
     to ({x,y,z, t}={}) {
-        const targetVec = new Vector(x,y);
+        const targetVec = new Vector(x || this.x, y || this.y);
         const thisPos = new Vector(this.x, this.y);
-        this._distance = Vector.dist(targetVec, thisPos); // don't acount for e
-        this._heading = Vector.angleBetween(targetVec, thisPos);
+
+        // Logger.error(`${thisPos.mag()}`);
+        // Logger.error(`${targetVec.mag()}`);
+        
+        this._distance = thisPos.dist(targetVec); // don't acount for e
+        this._heading = Vector.angleBetween(targetVec,thisPos);
+        
+        Logger.error(`heading ${this.angle}`);
+        
 
         if (z) {
             this._zdistance = z - this.z;
@@ -930,7 +937,8 @@ class Printer {
     async draw(dist)
     {
         let elapsedTime = 0; // current elapsed time for all operations
-        let prevTotalMoveTime = this.totalMoveTime; // last totalMoveTime, for calc elapsed time in loop        let totalDistance = 0; // total distance extruded
+        let prevTotalMoveTime = this.totalMoveTime; // last totalMoveTime, for calc elapsed time in loop        
+        let totalDistance = 0; // total distance extruded
         let targetDist = this._distance; // stored distance to extrude, unless otherwise specified below
 
         const params = { speed:this._printSpeed }; // params for passing to each call to extrudeto
