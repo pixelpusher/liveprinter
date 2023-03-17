@@ -1281,7 +1281,7 @@ class Printer {
             params.z = z0 + vdistPerMove; // this is set separately in tiltup
 
             //everything else handled in extrudeto, updates totalMoveTime too
-            await this.extrudeto(params);
+            await this.moveto(params);
 
             totalDistance += distPerMove; // update total distance (not based on warp function!)
 
