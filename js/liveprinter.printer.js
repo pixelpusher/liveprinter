@@ -75,6 +75,7 @@ class Printer {
         ////////////////////////////////////////////
         this._heading = 0;   // current angle of movement (xy) in radians
         this._elevation = 0; // current angle of elevated movement (z) in radians
+        this._elevation = 0; // current angle of elevated movement (z) in radians
         this._distance = 0; // next L/R distance to move
         this._zdistance = 0; // next up/down distance to move
         this._waitTime = 0;
@@ -86,7 +87,7 @@ class Printer {
         this.totalMoveTime = 0; // time spent moving/extruding
 
         this.maxFilamentPerOperation = 30; // safety check to keep from using all filament, in mm
-        this.minFilamentPerOperation = 0.005; // sanity check to keep from grinding filament, in mm
+        this.minFilamentPerOperation = 0.0002; // sanity check to keep from grinding filament, in mm
         
         this.maxTimePerOperation = 15; // prevent very long operations, by accident - this is in seconds
 
@@ -644,6 +645,40 @@ class Printer {
         return position;
     }
 
+    /**
+     * Set the distance and heading based on a target point
+     * TODO: Elevation and zdistance need fixing!
+     * 
+     * @param {Object} coordinates (x,y,z coordinates and target time in any time notation (sets speed)) 
+     * @returns {Object} this instance for chaining
+     */
+    to ({x,y,z, t}={}) {
+        const targetVec = new Vector(x || this.x, y || this.y);
+        const thisPos = new Vector(this.x, this.y);
+
+        // Logger.error(`${thisPos.mag()}`);
+        // Logger.error(`${targetVec.mag()}`);
+        
+        this._distance = thisPos.dist(targetVec); // don't acount for e
+        this._heading = Vector.angleBetween(targetVec,thisPos);
+        
+        Logger.error(`heading ${this.angle}`);
+        
+
+        if (z) {
+            this._zdistance = z - this.z;
+            this._elevation = Math.asin(this._zdistance);
+        }
+        
+        if (t) {
+            this.printspeed = Math.sqrt(
+                this._distance*this._distance + 
+                this._zdistance*this._zdistance
+                ) / this.parseTime(t);
+        }
+
+        return this;
+    }
 
     //------------------------------------------------ 
     //------------------------------------------------ 
@@ -759,11 +794,10 @@ class Printer {
     //------------------------------------------------ 
     //------------------------------------------------ 
     
-
     /**
-     * Execute an extrusion for a specific amount of time and optionally apply a time-based function to warp the movement (x, y, z, e, speed, etc).
-     * @param {Number or String} time If a non-zero number, extrude for the time specified in ms, or if a String parse the suffix for b=beats, s=seconds, ms=milliseconds (e.g. "20ms")
-     * @returns {Printer} reference to this object for chaining
+     * Parse an argument (beats, seconds, ms) to time in ms
+     * @param {String or Number} time 
+     * @returns time in ms
      */
     async drawtime(time)
     {
@@ -792,17 +826,17 @@ class Printer {
 
         this._distance = 0;
         this._zdistance = 0;
-
-
+        
         // Logger.debug(`go: total move time/num: ${totalMovementsTime} / ${totalMovements}`); 
 
        let safetyCounter = 800; // arbitrary -- make sure we don't hit infinite loops
-
+       
        while (safetyCounter && this.totalMoveTime < targetTime) {
             safetyCounter--;
 
+            // for debugging and tuning
             const opStartTime = performance.now();
-
+           
             // starting variables 
             const x0 = this.x;
             const y0 = this.y;
@@ -841,7 +875,7 @@ class Printer {
 
             const timeDiff = performance.now() - opStartTime;
 
-            Logger.debug(`Move time warp op took ${timeDiff} ms vs. expected ${this._intervalTime}.`);
+            Logger.debug(`Move time warp op took ${performance.now() - opStartTime} ms vs. expected ${this._intervalTime}.`);
         }
         
         return this;
@@ -906,6 +940,7 @@ class Printer {
     async draw(dist)
     {
         let elapsedTime = 0; // current elapsed time for all operations
+        let prevTotalMoveTime = this.totalMoveTime; // last totalMoveTime, for calc elapsed time in loop        
         let totalDistance = 0; // total distance extruded
         let targetDist = this._distance; // stored distance to extrude, unless otherwise specified below
 
@@ -934,6 +969,7 @@ class Printer {
        while (safetyCounter && totalDistance < targetDist) {
             safetyCounter--;
 
+            // for debugging and tuning
             const opStartTime = performance.now();
        
             // starting variables 
@@ -946,7 +982,7 @@ class Printer {
 
             const distPerMove = Math.min(this.t2mm(dt), targetDist-totalDistance);
 
-            if (distPerMove < 0.005) break; // too short, abort
+            if (distPerMove < 0.0005) break; // too short, abort
 
             let vdistPerMove=0, hdistPerMove = distPerMove;
 
@@ -972,11 +1008,12 @@ class Printer {
 
             Logger.debug(`Moved ${distPerMove} to ${totalDistance} towards ${targetDist}`);
 
-            const timeDiff = performance.now() - opStartTime;
+            // update time counters
+            elapsedTime = this.totalMoveTime - prevTotalMoveTime;
 
-            elapsedTime += timeDiff;
+            prevTotalMoveTime = this.totalMoveTime;
 
-            Logger.debug(`Move time warp op (${dt}) took ${timeDiff} ms vs. expected ${this._intervalTime}.`);
+            Logger.debug(`Move draw warp op took ${performance.now() - opStartTime} ms vs. expected ${this._intervalTime}.`);
         }
         
         return this;
@@ -1373,6 +1410,7 @@ class Printer {
 
             Logger.debug(`Move time warp op took ${timeDiff} ms vs. expected ${this._intervalTime}.`);
         }
+        this._elevation = 0;
         
         return this;
     }
@@ -1568,7 +1606,9 @@ class Printer {
 
             // arbitrary smallest printable length
             if (filamentLength < this.minFilamentPerOperation) {
-                throw new Error("[API] Filament length too short (same position?): " + filamentLength);
+                
+                this.errorEvent(new Error("[API] Filament length too short (same position?): " + filamentLength));
+                //throw new Error("[API] Filament length too short (same position?): " + filamentLength);
             } 
         }
         else {
@@ -1924,7 +1964,7 @@ o
      * @returns {Number} Time in ms equivalent to the number of beats
      */
     b2t(beats, bpm = this._bpm) {
-        return (6000/this._bpm)*beats;
+        return (60000/this._bpm)*beats;
     }
 
     /**
@@ -1959,7 +1999,7 @@ o
      * @param {string} axis of movement: x,y,z 
      * @returns {float} speed in mm/s
      */
-    midi2speed(note, axis) {
+    midi2speed(note, axis='x') {
         // MIDI note 69     = A4(440Hz)
         // 2 to the power (69-69) / 12 * 440 = A4 440Hz
         // 2 to the power (64-69) / 12 * 440 = E4 329.627Hz
