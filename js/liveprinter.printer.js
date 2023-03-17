@@ -851,7 +851,7 @@ class Printer {
     async drawtime(time)
     {
         let elapsedTime = 0; // current elapsed time for all operations
-        let prevTotalMoveTime = this.totalMoveTime; // last totalMoveTime, for calc elapsed time in loop
+        const prevTotalMoveTime = this.totalMoveTime; // last totalMoveTime, for calc elapsed time in loop
         let targetTime = this.parseTime(time); // will be set based on time argument
         let totalDistance = 0; // total distance moved, just for debugging mainly 
 
@@ -916,8 +916,6 @@ class Printer {
             // update time counters
             elapsedTime = this.totalMoveTime - prevTotalMoveTime;
 
-            prevTotalMoveTime = this.totalMoveTime;
-
             Logger.debug(`Move time warp op took ${performance.now() - opStartTime} ms vs. expected ${this._intervalTime}.`);
         }
         
@@ -937,7 +935,7 @@ class Printer {
     async draw(dist)
     {
         let elapsedTime = 0; // current elapsed time for all operations
-        let prevTotalMoveTime = this.totalMoveTime; // last totalMoveTime, for calc elapsed time in loop        
+        const prevTotalMoveTime = this.totalMoveTime; // last totalMoveTime, for calc elapsed time in loop        
         let totalDistance = 0; // total distance extruded
         let targetDist = this._distance; // stored distance to extrude, unless otherwise specified below
 
@@ -1007,8 +1005,6 @@ class Printer {
 
             // update time counters
             elapsedTime = this.totalMoveTime - prevTotalMoveTime;
-
-            prevTotalMoveTime = this.totalMoveTime;
 
             Logger.debug(`Move draw warp op took ${performance.now() - opStartTime} ms vs. expected ${this._intervalTime}.`);
         }
