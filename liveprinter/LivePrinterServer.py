@@ -64,7 +64,7 @@ define("port", default=8888, help="run on the given port", type=int)
 
 logger = tornado.log.app_log
 
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.ERROR)
 # create file handler which logs even debug messages
 server_log = logging.FileHandler(
     os.path.join(
@@ -74,7 +74,7 @@ server_log = logging.FileHandler(
         )
     )
 
-server_log.setLevel(logging.DEBUG)
+server_log.setLevel(logging.ERROR)
 # create formatter and add it to the handlers
 formatter = logging.Formatter('%(asctime)s::%(name)s.%(funcName)s[%(lineno)s]: %(message)s')
 server_log.setFormatter(formatter)

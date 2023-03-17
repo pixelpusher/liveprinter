@@ -74,7 +74,7 @@ class Printer {
 
         ////////////////////////////////////////////
         this._heading = 0;   // current angle of movement (xy) in radians
-        this._elevation = Math.PI / 2; // current angle of elevated movement (z) in radians, starts up
+        this._elevation = 0; // current angle of elevated movement (z) in radians
         this._distance = 0; // next L/R distance to move
         this._zdistance = 0; // next up/down distance to move
         this._waitTime = 0;
@@ -424,48 +424,7 @@ class Printer {
      */
     interval(time) {
 
-        let targetTime = this._intervalTime;
-
-        if (isFinite(time)) 
-        { 
-            targetTime = time;
-        }
-        else {
-            // parse as string
-            let timeStr = time+'';
-            const params = timeStr.toLowerCase().match(Printer.TimeRegex);
-            if (params && params.length == 3) {
-                const numberParam = eval(params[1]); // easiest way to parse as number
-                switch(params[2])  { //time suffix
-                    case 's': // seconds
-                    { 
-                        targetTime = numberParam/1000; 
-                        this._intervalTime = targetTime;
-                    }
-                    break;
-
-                    case 'ms': // milliseconds
-                    { 
-                        targetTime = numberParam; // silly 
-                        this._intervalTime = targetTime;
-                    }
-                    break;
-
-                    case 'b': // beats
-                    {
-                        targetTime = this.b2t(numberParam);
-                        this._intervalTime = targetTime;
-                    }
-                    break;
-
-                    default: throw new Error(`Error parsing interval(), bad time suffix in ${timeStr}`);
-                }
-            } 
-            else 
-            {
-                throw new Error(`Error parsing interval() time, check the format of ${timeStr}`);
-            }
-        }
+        let targetTime = this.parseAsTime(time);
         
         if (this._intervalTime < Printer.MIN_INTERVAL) {
             this._intervalTime = Printer.MIN_INTERVAL;
@@ -474,6 +433,8 @@ class Printer {
 
         return this;
     } 
+
+    parse
 
 
     /**
@@ -806,8 +767,8 @@ class Printer {
      */
     async drawtime(time)
     {
-        let elapsedTime = 0; // current elapsed time for all operations
-        let targetTime = 0; // will be set based on time argument
+        const startTime = this.totalMoveTime;
+        let targetTime = 0; // target end time for movement, will be set based on time argument
         let totalDistance = 0; // total distance moved, just for debugging mainly 
 
         const params = { speed:this._printSpeed }; // params for passing to each call to extrudeto
@@ -815,47 +776,15 @@ class Printer {
         // parse time argument to figure out end time
         // based on current time + time offset from argument
 
-        if (isFinite(time)) 
-        { 
-            targetTime = time;
+        try {
+            targetTime = this.parseAsTime(time);
         }
-        else {
-            // parse as string
-            let timeStr = time+'';
-            const params = timeStr.toLowerCase().match(Printer.TimeRegex);
-            if (params && params.length == 3) {
-                const numberParam = eval(params[1]); // easiest way to parse as number
-
-                switch(params[2])  { //time suffix
-                    case 's': // seconds
-                    { 
-                        targetTime = numberParam/1000; 
-                    }
-                    break;
-
-                    case 'ms': // milliseconds
-                    { 
-                        targetTime = numberParam; // silly 
-                    }
-                    break;
-
-                    case 'b': // beats
-                    {
-                        targetTime = this.b2t(numberParam);
-                    }
-                    break;
-
-                    default: throw new Error(`Error parsing drawtime, bad time suffix in ${timeStr}`);
-                }
-            } 
-            else 
-            {
-                throw new Error(`Error parsing drawtime, check the format of ${timeStr}`);
-            }
+        catch (err)
+        {
+            throw err; // re-throw to scheduler
         }
-
+        
         targetTime += this.totalMoveTime;
-
      
         // should we clear these? Probably, since they don't apply here
         // not taking into account stored distance, angle, elevation and
@@ -879,6 +808,8 @@ class Printer {
             const y0 = this.y;
             const z0 = this.z;  
        
+            const elapsedTime = (this.totalMoveTime-startTime);
+
             // calculate new distance based on this._intervalTime 
             const dt = this._timeWarp({dt:this._intervalTime, t:elapsedTime, tt:this.totalMoveTime});
 
@@ -910,12 +841,58 @@ class Printer {
 
             const timeDiff = performance.now() - opStartTime;
 
-            elapsedTime += timeDiff;
-
             Logger.debug(`Move time warp op took ${timeDiff} ms vs. expected ${this._intervalTime}.`);
         }
         
         return this;
+    }
+
+    /**
+     * Parse argument as time (10b, 1/2b, 20ms, 30s, 1000)
+     * @param {Any} time as beats, millis, seconds: 10b, 1/2b, 20ms, 30s, 1000
+     * @returns {Number} time in ms
+     */
+    parseAsTime(time) {
+        let targetTime;
+
+        if (isFinite(time)) 
+        { 
+            targetTime = time;
+        }
+        else {
+            // parse as string
+            let timeStr = time+'';
+            const params = timeStr.toLowerCase().match(Printer.TimeRegex);
+            if (params && params.length == 3) {
+                const numberParam = eval(params[1]); // easiest way to parse as number
+                switch(params[2])  { //time suffix
+                    case 's': // seconds
+                    { 
+                        targetTime = numberParam/1000; 
+                    }
+                    break;
+
+                    case 'ms': // milliseconds
+                    { 
+                        targetTime = numberParam; // silly 
+                    }
+                    break;
+
+                    case 'b': // beats
+                    {
+                        targetTime = this.b2t(numberParam);
+                    }
+                    break;
+
+                    default: throw new Error(`parseAsTime::Error parsing time, bad time suffix in ${timeStr}`);
+                }
+            } 
+            else 
+            {
+                throw new Error(`parseAsTime::Error parsing time, check the format of ${timeStr}`);
+            }
+        }
+        return targetTime;
     }
 
 
@@ -923,9 +900,7 @@ class Printer {
      * Execute an extrusion based on the internally-set direction/elevation/distance, with an optional time-based function.
      * @param {Number} extrude 
      * Optional: the amount specified in mm, or left out then the stored distance set
-     * by dist(). Otherwise, an object with keys for:
-     *  1. d: distance (optional)
-     *  2. t: time (optional) of start of movement for passing to movement function
+     * by dist().
      * @returns {Printer} reference to this object for chaining
      */
     async draw(dist)
@@ -1110,10 +1085,8 @@ class Printer {
      * @param {Number} d distance in mm to move up
      * @returns {Printer} Reference to this object for chaining
      */
-    async up(d) {
-        const z = d;
-        this._elevation = Math.PI / 2;
-        return this.travel({z});
+    async up(z) {
+        return this.move({z, speed:this._travelSpeed})
     }
 
     /**
@@ -1138,10 +1111,8 @@ class Printer {
      * @param {Number} hz z height mm to move up to
      * @returns {Printer} Reference to this object for chaining
      */
-    async upto(hz) {
-        const z = hz - this.z;
-        this._elevation = Math.PI / 2;
-        return this.travel({z});
+    async upto(z) {
+        return this.moveto({z, speed:this._travelSpeed});
     }
 
     /**
@@ -1232,99 +1203,180 @@ class Printer {
     dist(d) {
         return this.distance(d);
     }    
+
     /**
      * Execute a travel based on the internally-set direction/elevation/distance, with an optional time-based function.
      * @param {Number or Object} args Optional: if a non-zero number, extrude 
      * the amount specified in mm, or left out then the stored distance set
-     * by dist(). Otherwise, an object with keys for:
-     *  1. d: distance in the current direction at the current elevation (optional)
-     *  2. t: time (optional) of start of movement for passing to movement function
-     *  3. z: up or down distance in mm
+     * by dist().
      * @returns {Printer} reference to this object for chaining
      */
-    async travel(args)
+    async travel(dist)
     {
-        let time = this.totalMoveTime;
-        let params = { speed:this._travelSpeed, e:this.e }; // params for passing to each call to extrudeto
-        let horizDist, vertDist;
-        
-        if (undefined !== args) {
-                
-            // handle distance-only arg
-            if (Number.isInteger(args)) 
-            { 
-                this._distance = args;
-            }
-            else {
-                // parse object arguments
-                let {z,d,t} = args;
-                if (undefined !== t) time = t;
-                if (undefined !== d) this._distance = d;
-                if (undefined !== z) {
-                    this._zdistance = z;
-                    // if elevation is 0 and we are meant to move vertically we might get stuck in a loop
-                    if (this._elevation < Math.EPSILON) this._elevation = Math.PI/2;
-                }
-            }
+        let elapsedTime = 0; // current elapsed time for all operations
+        let totalDistance = 0; // total distance extruded
+        let targetDist = this._distance; // stored distance to extrude, unless otherwise specified below
+
+        const params = { speed:this._travelSpeed }; // params for passing to each call to extrudeto
+
+        // parse time argument to figure out end time
+        // based on current time + time offset from argument
+
+        if (dist && isFinite(dist)) 
+        { 
+            targetDist = dist;
         }
+     
+        // should we clear these? Probably, since they don't apply here
+        // not taking into account stored distance, angle, elevation and
+        // adding to current position (cartesian)
 
-        // wait, if necessary
-        if (this._waitTime > 0) {
-            return this.wait();
-        }
-    
-        // first, calculate total distances to move:
-        // take into account stored distance, angle, elevation and
-        // add to current position (cartesian)
-
-        horizDist = this._distance;
-        vertDist = this._zdistance;
-
-
-        // add projection of vertical distance into horizontal plane.
-        // vertical distances are specified absolutely, so we need to find corresponding
-        // horizontal distance using the tangent
-        if (Math.abs(vertDist) > Number.EPSILON) {
-            let horizProjection = vertDist / Math.tan(this._elevation);
-            if (Math.abs(horizProjection) > 0.001) // smallest moveable unit, in mm
-                horizDist += horizProjection;
-        }
-
-        // reset distances to 0 because we've used them to calculate new position
         this._distance = 0;
         this._zdistance = 0;
-        this._elevation = 0;
 
-        // divide up entire movement into smaller chunks based on this._intervalTime
-        const totalMovementsTime = this.d2t(horizDist+vertDist, params.speed);
-        // DEBUG
-        const totalMovements = Math.ceil( totalMovementsTime / this._intervalTime);
         // Logger.debug(`go: total move time/num: ${totalMovementsTime} / ${totalMovements}`); 
+       
+       let safetyCounter = 800; // arbitrary -- make sure we don't hit infinite loops
 
-        const hdistPerMove = horizDist/totalMovements;
-        const vdistPerMove = vertDist/totalMovements;
+       while (safetyCounter && totalDistance < targetDist) {
+            safetyCounter--;
 
-        // Logger.debug(`hdist: ${hdistPerMove}`);
+            const opStartTime = performance.now();
+       
+            // starting variables 
+            const x0 = this.x;
+            const y0 = this.y;
+            const z0 = this.z;  
+            
+            // calculate new distance based on this._intervalTime 
+            const dt = this._timeWarp({dt:this._intervalTime, t:elapsedTime, tt:this.totalMoveTime});
 
-        // TODO: re-write with functionalz
+            const distPerMove = Math.min(this.t2mm(dt), targetDist-totalDistance);
 
-        const x0 = this.x;
-        const y0 = this.y;
-        const z0 = this.z;  
+            if (distPerMove < 0.005) break; // too short, abort
 
-        // does nothing but 
-        for (let movement=1; movement<=totalMovements; movement++){
+            let vdistPerMove=0, hdistPerMove = distPerMove;
 
-            params.x = x0 + movement*hdistPerMove * Math.cos(this._heading);
-            params.y = y0 + movement*hdistPerMove * Math.sin(this._heading);
-            params.z = z0 + movement*vdistPerMove; // this is set separately in tiltup
-        
-            //everything else handled in extrudeto
+            let {d, heading, elevation} = this._warp({
+                d:distPerMove, heading:this._heading, elevation:this._elevation, t:elapsedTime, tt:this.totalMoveTime});
+
+            hdistPerMove = d;
+
+            // handle z move (elevation)
+            if (Math.abs(elevation) > Number.EPSILON) {
+                hdistPerMove = d * Math.cos(elevation);
+                vdistPerMove = d * Math.sin(elevation);
+            }
+
+            params.x = x0 + hdistPerMove * Math.cos(heading);
+            params.y = y0 + hdistPerMove * Math.sin(heading);
+            params.z = z0 + vdistPerMove; // this is set separately in tiltup
+
+            //everything else handled in extrudeto, updates totalMoveTime too
             await this.extrudeto(params);
+
+            totalDistance += distPerMove; // update total distance (not based on warp function!)
+
+            Logger.debug(`Moved ${distPerMove} to ${totalDistance} towards ${targetDist}`);
+
+            const timeDiff = performance.now() - opStartTime;
+
+            elapsedTime += timeDiff;
+
+            Logger.debug(`Move time warp op (${dt}) took ${timeDiff} ms vs. expected ${this._intervalTime}.`);
         }
         
         return this;
     }
+
+
+    /**
+     * Execute an travel for a specific amount of time and optionally apply a time-based function to warp the movement (x, y, z, e, speed, etc).
+     * @param {Number or String} time If a non-zero number, extrude for the time specified in ms, or if a String parse the suffix for b=beats, s=seconds, ms=milliseconds (e.g. "20ms")
+     * @returns {Printer} reference to this object for chaining
+     */
+    async traveltime(time)
+    {
+        const startTime = this.totalMoveTime;
+        let targetTime = 0; // target end time for movement, will be set based on time argument
+        let totalDistance = 0; // total distance moved, just for debugging mainly 
+
+        const params = { speed:this._travelSpeed }; // params for passing to each call to extrudeto
+
+        // parse time argument to figure out end time
+        // based on current time + time offset from argument
+
+        try {
+            targetTime = this.parseAsTime(time);
+        }
+        catch (err)
+        {
+            throw err; // re-throw to scheduler
+        }
+        
+        targetTime += this.totalMoveTime;
+     
+        // should we clear these? Probably, since they don't apply here
+        // not taking into account stored distance, angle, elevation and
+        // adding to current position (cartesian)
+
+        this._distance = 0;
+        this._zdistance = 0;
+
+
+        // Logger.debug(`go: total move time/num: ${totalMovementsTime} / ${totalMovements}`); 
+
+       let safetyCounter = 800; // arbitrary -- make sure we don't hit infinite loops
+
+       while (safetyCounter && this.totalMoveTime < targetTime) {
+            safetyCounter--;
+
+            const opStartTime = performance.now();
+
+            // starting variables 
+            const x0 = this.x;
+            const y0 = this.y;
+            const z0 = this.z;  
+       
+            const elapsedTime = (this.totalMoveTime-startTime);
+
+            // calculate new distance based on this._intervalTime 
+            const dt = this._timeWarp({dt:this._intervalTime, t:elapsedTime, tt:this.totalMoveTime});
+
+            const distPerMove = this.t2mm(dt);
+
+            let vdistPerMove=0, hdistPerMove = distPerMove;
+
+            let {d, heading, elevation} = this._warp({
+                d:distPerMove, heading:this._heading, elevation:this._elevation, t:elapsedTime, tt:this.totalMoveTime});
+
+            hdistPerMove = d;
+
+            totalDistance += d;
+
+            // handle z move (elevation)
+            if (Math.abs(elevation) > Number.EPSILON) {
+                hdistPerMove = d * Math.cos(elevation);
+                vdistPerMove = d * Math.sin(elevation);
+            }
+
+            Logger.debug(`Moved ${d} over (${dt} ms) to ${totalDistance}}`);
+
+            params.x = x0 + hdistPerMove * Math.cos(heading);
+            params.y = y0 + hdistPerMove * Math.sin(heading);
+            params.z = z0 + vdistPerMove; // this is set separately in tiltup
+
+            //everything else handled in extrudeto, updates totalMoveTime too
+            await this.moveto(params);
+
+            const timeDiff = performance.now() - opStartTime;
+
+            Logger.debug(`Move time warp op took ${timeDiff} ms vs. expected ${this._intervalTime}.`);
+        }
+        
+        return this;
+    }
+
 
     /**
      * Set firmware retraction on or off (for after every move).
@@ -1365,7 +1417,7 @@ class Printer {
             this.turn(segAngle, true); // use radians
             await this.draw(arc);
         }
-
+        
         this._autoRetract = prevAutoRetract; // turn to prev state
         if (this._autoRetract) await this.retract();
         return this;
@@ -1377,20 +1429,27 @@ class Printer {
      * @param {any} h height
      * @returns {Printer} reference to this object for chaining
      */
-    async rect(w, h) {
+    async rect({w, h}) {
         const prevAutoRetract = this._autoRetract; // save previous state
         this._autoRetract = false; // turn off for this operation
+
+        const side1 = w || h;
+        const side2 = h || w;
+
         // move into place
 
         for (let i = 0; i < 2; i++) {
-            await this.draw(w);
+            await this.draw(side1);
             this.turn(90);
-            await this.draw(h);
+            await this.draw(side2);
             this.turn(90);
         }
 
         this._autoRetract = prevAutoRetract; // turn to prev state
-        if (this._autoRetract) await this.retract();
+        
+        await this.retract();
+        await this.travel(side1); // move into next printing position
+
         return this;
     }
 
