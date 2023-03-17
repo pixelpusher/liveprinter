@@ -6,6 +6,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <!-- <meta property="og:image" content="thumbnail.jpg" /> -->
     <style>
+        body {
+            background-color: black;
+            color: aliceblue;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 14px;
+        }
+
         .container {
             width: 80%;
             flex-direction: row;
@@ -14,18 +21,142 @@
         }
         .flex-item {
             width: 50%;
+            margin-right: 0.25rem;
+
         }
         
         div {
             padding: .875rem .375rem;
         }
+
+        /* alert alert-primary alert-dismissible fade show */
+
+        .alert {
+            border-radius: 0.125rem;
+            border-color: hsl(300, 0%, 62%);
+            border-bottom-color: hsl(300, 0%, 42%);
+            border-bottom-right: hsl(300, 0%, 42%);
+            border-style: solid;
+            border-width: 0.0875rem;
+            background-color: hsl(0, 0%, 0%);
+            color: hsl(0, 51%, 90%);
+            padding: .175rem .125rem;
+        }
+
+        .error {
+            font-weight: bold;
+            color: rgb(238, 238, 84);
+            background-color: hsl(0, 70%, 52%);
+        }
+
+        .info {
+            color: hsl(0, 0%, 80%);
+        }
+
+        .status-pass {
+            color: hsl(120, 85%, 50%);
+
+        }
+        .status-fail {
+            color: hsl(0, 65%, 57%);
+        }
+
+        button.close {
+            appearance: button;
+            background-attachment: scroll;
+            background-clip: border-box;
+            background-color: rgba(0, 0, 0, 0);
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%23000'%3e%3cpath d='M.293.293a1 1 0 011.414 0L8 6.586 14.293.293a1 1 0 111.414 1.414L9.414 8l6.293 6.293a1 1 0 01-1.414 1.414L8 9.414l-6.293 6.293a1 1 0 01-1.414-1.414L6.586 8 .293 1.707a1 1 0 010-1.414z'/%3e%3c/svg%3e");
+            background-origin: padding-box;
+            background-position-x: 50%;
+            background-position-y: 50%;
+            background-repeat: no-repeat;
+            background-size: 1rem;
+            border-bottom-color: rgb(0, 0, 0);
+            border-bottom-left-radius: 0.25rem;
+            border-bottom-right-radius: 0.25rem;
+            border-bottom-style: none;
+            border-bottom-width: 0px;
+            border-image-outset: 0;
+            border-image-repeat: stretch;
+            border-image-slice: 100%;
+            border-image-source: none;
+            border-image-width: 1;
+            border-left-color: rgb(0, 0, 0);
+            border-left-style: none;
+            border-left-width: 0px;
+            border-right-color: rgb(0, 0, 0);
+            border-right-style: none;
+            border-right-width: 0px;
+            border-top-color: rgb(0, 0, 0);
+            border-top-left-radius: 0.25rem;
+            border-top-right-radius: 0.25rem;
+            border-top-style: none;
+            border-top-width: 0px;
+            box-sizing: content-box;
+            color: rgb(0, 0, 0);
+            cursor: pointer;
+            filter: invert(1) grayscale(1) brightness(2);
+            font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+            font-size: 1rem;
+            font-weight: 500;
+            height: 1rem;
+            line-height: 1.5rem;
+            margin-bottom: 0px;
+            margin-left: 0px;
+            margin-right: 0px;
+            margin-top: 0px;
+            opacity: 0.5;
+            padding-bottom: 0.25rem;
+            padding-left: 0.25rem;
+            padding-right: 0.25rem;
+            padding-top: 0.25rem;
+            text-decoration-color: rgb(0, 0, 0);
+            text-decoration-line: none;
+            text-decoration-style: solid;
+            text-decoration-thickness: auto;
+            text-transform: none;
+            width: 0.5rem;
+        }
+
+        button {
+            border-radius: 4%;
+            border-width: 0.125rem;
+            border-color: rgb(210, 190, 190);
+            background-color: aqua;
+            color: black;
+        }
+
+        textarea {
+            border-color: white;
+            background-color: rgb(41, 41, 41);
+            color: aliceblue;
+        }
+
     </style>
 </head>
 <body>
     <script src="test.js" type="module"></script>
     
-    <div id="modal-errors">Modal errors</div>
-    <div class="code-errors">Code errors</div>
+    <div class="container">
+        <div id="modal-errors">Modal errors</div>
+        <div class="code-errors">Code errors</div>
+        <article id="working-tab">working tab</article>
+        <div>
+            <button id="go">Start main testing</button>
+            <button id="serialTest">Test Serial Connection</button>
+            <button id="movetest">Test only move code</button>
+            <button id="music-test">music test</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <section id="status-msgs">
+            <ul id="statuslog"></ul>
+        </section>
+    </div>
+    
+
     <div class="container">
         <section id="inbox" class="flex-item">
             <header>Errors:</header>
@@ -38,15 +169,10 @@
             </section>
         </section>
         <section id="gcode" class="flex-item">
-            <textarea cols="80" rows="20"></textarea>
+            <p><strong>GCODE</strong></p>
+            <textarea id="gcodetext" cols="80" rows="20"></textarea>
         </section>
     </div>
-    <article id="working-tab">working tab</article>
-    <div>
-        <button id="go">Start main testing</button>
-        <button id="serialTest">Test Serial Connection</button>
-        <button id="movetest">Test onlt move code</button>
-        <button id="music-test">music test</button>
-    </div>
+    
 </body>
 </html>

@@ -394,7 +394,7 @@ class SerialDevice():
 
                 # DEFAULT RESPONSE if not matched - JUST SEND BACK TO FRONT END
                 result.append(line.rstrip('\n\r'))
-                print("result not parsed {cmd}, {line}".format(cmd=command,line=line))
+                self.serial_logger.info("result not parsed {cmd}, {line}".format(cmd=command,line=line))
                 break
                 # end parsing results
 

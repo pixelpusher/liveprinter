@@ -22,6 +22,8 @@ import $ from 'jquery';
 const liveprintercomms = require('./liveprinter.comms');
 const vars = liveprintercomms.vars;
 
+export let infoListElement = "#info > ul"; // for logging info to GUI
+
 let lastErrorMessage = "none"; // last error message for GUI
 
 let scheduler = null; // task scheduler, see init()
@@ -207,7 +209,7 @@ export const portsListHandler = function (event) {
     //Logger.debug(event);
     portsDropdown.empty();
     if (ports.length === 0) {
-        appendLoggingNode($("#info > ul"), Date.now(), "<li>no serial ports found</li > ");
+        appendLoggingNode($(infoListElement), "<li>no serial ports found</li > ");
         vars.serialPorts.push("dummy");
     }
     else {
@@ -217,7 +219,7 @@ export const portsListHandler = function (event) {
             vars.serialPorts.push(p);
         }
         msg += "</ul>";
-        appendLoggingNode($("#info > ul"), Date.now(), msg);
+        appendLoggingNode($(infoListElement), msg);
     }
 
     vars.serialPorts.forEach(function (port) {
@@ -419,7 +421,7 @@ export async function updateTemperature(interval = 5000) {
  */
 export const errorHandler = {
     'error': function (event) {
-        appendLoggingNode($("#errors > ul"), event.time, event.message);
+        appendLoggingNode($("#errors > ul"), event.message);
         blinkElem($("#errors-tab"));
         blinkElem($("#inbox"));
     }
@@ -432,11 +434,11 @@ export const errorHandler = {
  */
 export const infoHandler = {
     'info': function (event) {
-        appendLoggingNode($("#info > ul"), event.time, event.message);
+        appendLoggingNode($(infoListElement), event.message);
         //blinkElem($("#info-tab"));
     },
     'resend': function (event) {
-        appendLoggingNode($("#info > ul"), event.time, event.message);
+        appendLoggingNode($(infoListElement), event.message);
         blinkElem($("#info-tab"));
         blinkElem($("#inbox"));
     }
@@ -448,7 +450,7 @@ export const infoHandler = {
  */
 export const commandsHandler = {
     'log': function (event) {
-        appendLoggingNode($("#commands > ul"), Date.now(), event);
+        appendLoggingNode($("#commands > ul"), event.message);
         blinkElem($("#inbox"));
     },
 };
@@ -495,29 +497,57 @@ const maxLogPopups = 80;
 /**
  * Append a dismissible, styled text node to one of the side menus, formatted appropriately.
  * @param {jQuery} elem JQuery element to append this to
- * @param {Number} time Time of the event
  * @param {String} message message text for new element
+ * @param {String} cssClass optional CSS class to append
  * @memberOf LivePrinter
  */
-export function appendLoggingNode(elem, time, message) {
+export function appendLoggingNode(elem, message, cssClass) {
+    
+    let messageString = (typeof message === "object" || Array.isArray(message)) ? JSON.stringify(message) : message;
+    
     const dateStr = new Intl.DateTimeFormat('en-US', {
         year: 'numeric', month: 'numeric', day: 'numeric',
         hour: 'numeric', minute: 'numeric', second: 'numeric',
         hour12: false
-    }).format(new Date(time));
+    }).format(Date.now());    
+
+
+    let classes = "alert alert-primary alert-dismissible fade show";
+    if (cssClass) classes += ` ${cssClass}`;
 
     //if (elem.children().length > maxLogPopups) {
     //    elem.children().
     // }
+    const listElement = document.createElement('li');
+    listElement.classList.add(...(classes.split(' ')));
+    listElement.setAttribute('role', 'alert');
+    
+    listElement.appendChild(document.createTextNode(dateStr));
+    
+    const msgElem = document.createElement('strong');
+    msgElem.innerHTML = ` :: ${messageString}&nbsp;`;
+    
+    listElement.appendChild( msgElem );
 
-    elem.prepend("<li class='alert alert-primary alert-dismissible fade show' role='alert'>"
-        + dateStr
-        + '<strong>'
-        + ": " + message
-        + '</strong>'
-        + '<button type="button" class="close" data-dismiss="alert" aria-label="Close">'
-        + '<span aria-hidden="true">&times;</span></button>'
-        + "</li>");
+    const buttonClose = document.createElement('button');
+    buttonClose.setAttribute('type', 'button');
+    buttonClose.setAttribute('data-dismiss', 'alert');
+    buttonClose.setAttribute('aria-label', 'Close');
+    buttonClose.classList.add('close');
+    
+    listElement.appendChild(buttonClose);
+
+    elem.prepend(listElement);
+
+    // `<li class='${classes}' role='alert'>
+    //     ${dateStr}
+    //      <strong>
+    //         : ${messageString}
+    //     </strong>
+    //     <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+    //     <span aria-hidden="true">&times;</span></button>
+    // </li>`
+    // );
 }
 
 export const taskListenerUI =

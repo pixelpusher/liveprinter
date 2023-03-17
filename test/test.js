@@ -1,5 +1,5 @@
 import { Printer } from '../js/liveprinter.printer'; // printer API object
-import {doError, infoHandler, init} from '../js/liveprinter.ui';
+import {doError, init, appendLoggingNode} from '../js/liveprinter.ui';
 const liveprintercomms =  require('../js/liveprinter.comms');
 import { Logger } from 'liveprinter-utils';
 import $ from "jquery";
@@ -21,14 +21,80 @@ liveprintercomms.vars.logAjax = true;
 
 Logger.debug("STARTING");
 
+
+//appendLoggingNode(elem, message, time, cssClass)
+
+
+/**
+ * Debug to info area quickly
+ * @param {String} msg 
+ */
+function infoMsg(msg) {
+    appendLoggingNode(document.getElementById('infolog'), msg, `info`);
+}
+
+
+/**
+ * Debug to info area quickly
+ * @param {String} msg 
+ */
+function errorMsg(msg) {
+    appendLoggingNode(document.getElementById('errorlog'), msg, `error`);
+}
+
+
+/**
+ * Debug to info area quickly
+ * @param {String} msg 
+ */
+function statusMsg(msg) {
+    appendLoggingNode(document.getElementById('statuslog'), msg, `info`);
+}
+
+/**
+ * Debug to info area quickly
+ * @param {String} msg 
+ */
+function statusPassMsg(msg) {
+    appendLoggingNode(document.getElementById('statuslog'), msg, `status-pass`);
+}
+
+
+/**
+ * Debug to info area quickly
+ * @param {String} msg 
+ */
+function statusFailMsg(msg) {
+    appendLoggingNode(document.getElementById('statuslog'), msg, `status-fail`);
+}
+
+function appendGCode(txt) {
+    const dateStr = new Intl.DateTimeFormat('en-US', {
+        year: 'numeric', month: 'numeric', day: 'numeric',
+        hour: 'numeric', minute: 'numeric', second: 'numeric',
+        hour12: false
+    }).format(Date.now()); 
+
+    document.getElementById("gcodetext").innerHTML += `\n${dateStr}\n${txt}\n--------------------------`;
+}
+
+
 /**
  * Test if one thing is same as the other (===)
  * @param {Any} val1 
  * @param {Any} val2 
  * @param {String} message 
  */
-function ASSERT(val1,val2, message) {
-    if (val1!==val2) infoMsg("ERROR::" + message + `--${val1}:${val2}`);
+function ASSERT(val1, val2, message, description) {
+    if (description) statusMsg(`Checking ${description}`);
+    
+    if (val1!==val2) {
+        statusFailMsg("CHECK FAILED::" + message + `-- ${val1} != ${val2}`);
+    } 
+    else
+    {
+        statusPassMsg("CHECK PASSED::" + message + `-- ${val1} = ${val2}`);
+    }
 }
 
 /**
@@ -55,23 +121,6 @@ async function testSchedule(func) {
     return true;
 } 
 
-/**
- * Quick format for info handler
- * @param {String} msg 
- * @returns 
- */
-function quickMsg(msg) {
-    return {"time":Date.now(),"message":msg};
-}
-
-/**
- * Debug to info area quickly
- * @param {String} msg 
- */
-function infoMsg(msg) {
-    infoHandler.info(quickMsg(msg));
-}
-
 // liveprinter object
 const printer = new Printer();
 
@@ -86,13 +135,13 @@ async function setup() {
     
     infoMsg("starting");
     // test scheduling code
-    liveprintercomms.schedule( async ()=> infoHandler.info({time:Date.now(),message:`schedule test: ${testIndex++}`}), 500);
+    liveprintercomms.schedule( async ()=> infoMsg(`schedule test: ${testIndex++}`));
     
     /// attach listeners
-    printer.addGCodeListener({ gcodeEvent: async data => infoMsg(data) });
-    printer.addGCodeListener({ gcodeEvent: async data => Logger.debug(quickMsg(data)) });
-    printer.addErrorListener({ errorEvent: doError });
-    // SETUP PRINTER GCODE LISTENER
+    printer.addGCodeListener({ gcodeEvent: async data => appendGCode(data) });
+    printer.addErrorListener({ errorEvent: async data => errorMsg(data) });
+    
+    // SETUP PRINTER SERVER COMMS GCODE LISTENER
     printer.addGCodeListener({ gcodeEvent: liveprintercomms.sendGCodeRPC });
 
     // ///
@@ -117,7 +166,7 @@ async function setup() {
         infoMsg(msg);
     });
     
-    infoMsg("test scheduling");    
+    infoMsg("----test scheduling----");    
 }
 
 async function startTest() {
@@ -222,6 +271,9 @@ async function startTest() {
     infoMsg("!!-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-");
 
 
+
+    
+
     infoMsg("!!-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-");
     infoMsg("!!-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-");
     infoMsg("!!testing draw with warp!!");
@@ -254,14 +306,14 @@ async function startTest() {
 
     infoMsg("BPM TESTING");
     let bpm = printer.bpm(140);
-    ASSERT(bpm, 140, "BPM miscalculation");
+    ASSERT(bpm, 140, "BPM miscalculation", "BPM TESTING 140");
     bpm = printer.bps(140/60);
-    ASSERT(bpm, 140,"BPS miscalculation");
+    ASSERT(bpm, 140,"BPS miscalculation","BPM TESTING 140/60");
 
     infoMsg("TEST Interval");
     infoMsg(`One beat at 140bpm should be ${(6000/140)} ms`);
     printer.interval("1/8b");
-    ASSERT(printer._intervalTime, (6000/140)*0.125, "Interval time miscalculation");
+    ASSERT(printer._intervalTime, (6000/140)*0.125, "Interval time miscalculation",`TInterval: One beat at 140bpm should be ${(6000/140)} ms`);
 
     let timeToMove = "12b";
 
