@@ -938,25 +938,12 @@ class Printer {
     {
         const startTime = this.totalMoveTime; // last totalMoveTime, for calc elapsed time in loop        
         let totalDistance = 0; // total distance extruded
-        const targetDist = this._distance; // stored distance to extrude, unless otherwise specified below
+        const targetDist = dist && isFinite(dist) ? dist : this._distance; // stored distance to extrude, unless otherwise specified below
 
         const params = { speed:this._printSpeed }; // params for passing to each call to extrudeto
 
-        // parse time argument to figure out end time
-        // based on current time + time offset from argument
-
-        if (dist && isFinite(dist)) 
-        { 
-            targetDist = dist;
-        }
-     
-        // should we clear these? Probably, since they don't apply here
-        // not taking into account stored distance, angle, elevation and
-        // adding to current position (cartesian)
-
         this._distance = 0;
         this._zdistance = 0;
-
 
         // Logger.debug(`go: total move time/num: ${totalMovementsTime} / ${totalMovements}`); 
        
@@ -1246,21 +1233,9 @@ class Printer {
     {
         const startTime = this.totalMoveTime;
         let totalDistance = 0; // total distance extruded
-        const targetDist = this._distance; // stored distance to extrude, unless otherwise specified below
+        const targetDist = dist && isFinite(dist) ? dist : this._distance; // stored distance to extrude, unless otherwise specified below
 
         const params = { speed:this._travelSpeed }; // params for passing to each call to extrudeto
-
-        // parse time argument to figure out end time
-        // based on current time + time offset from argument
-
-        if (dist && isFinite(dist)) 
-        { 
-            targetDist = dist;
-        }
-     
-        // should we clear these? Probably, since they don't apply here
-        // not taking into account stored distance, angle, elevation and
-        // adding to current position (cartesian)
 
         this._distance = 0;
         this._zdistance = 0;
