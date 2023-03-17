@@ -86,7 +86,7 @@ class Printer {
         this.totalMoveTime = 0; // time spent moving/extruding
 
         this.maxFilamentPerOperation = 30; // safety check to keep from using all filament, in mm
-        this.minFilamentPerOperation = 0.005; // sanity check to keep from grinding filament, in mm
+        this.minFilamentPerOperation = 0.0002; // sanity check to keep from grinding filament, in mm
         
         this.maxTimePerOperation = 15; // prevent very long operations, by accident - this is in seconds
 
@@ -979,7 +979,7 @@ class Printer {
 
             const distPerMove = Math.min(this.t2mm(dt), targetDist-totalDistance);
 
-            if (distPerMove < 0.005) break; // too short, abort
+            if (distPerMove < 0.0005) break; // too short, abort
 
             let vdistPerMove=0, hdistPerMove = distPerMove;
 
@@ -1518,7 +1518,9 @@ class Printer {
 
             // arbitrary smallest printable length
             if (filamentLength < this.minFilamentPerOperation) {
-                throw new Error("[API] Filament length too short (same position?): " + filamentLength);
+                
+                this.errorEvent(new Error("[API] Filament length too short (same position?): " + filamentLength));
+                //throw new Error("[API] Filament length too short (same position?): " + filamentLength);
             } 
         }
         else {

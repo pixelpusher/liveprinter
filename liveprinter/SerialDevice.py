@@ -32,8 +32,8 @@ class SerialDevice():
 
         self.gcode_logger = logging.getLogger("{name}.gcode".format(name=__name__))
         self.serial_logger = logging.getLogger("{name}.serial".format(name=__name__))
-        self.gcode_logger.setLevel(logging.DEBUG)
-        self.serial_logger.setLevel(logging.DEBUG)
+        self.gcode_logger.setLevel(logging.ERROR)
+        self.serial_logger.setLevel(logging.ERROR)
 
         # create file handler which logs even debug messages
         gcode_fh = logging.FileHandler(os.path.join(logpath, "gcode-{time}.log".format(time=time.time())))
