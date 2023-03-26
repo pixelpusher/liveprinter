@@ -80,7 +80,7 @@ class Printer {
         this._waitTime = 0;
         this._autoRetract = true; // automatically unretract/retract - see get/set autoretract
         this._bpm = 120; // for beat-based movements
-        this._intervalTime = 10; // for breaking up movements, in ms
+        this._intervalTime = 16; // for breaking up movements, in ms
         ////////////////////////////////////////////
 
         this.totalMoveTime = 0; // time spent moving/extruding
@@ -163,7 +163,7 @@ class Printer {
      *  @returns{any} Nothing.
      */
     async errorEvent(err) {
-        const results = await Promise.all(this.errorListeners.map(async (el) => el.errorEvent(gcode)));
+        const results = await Promise.all(this.errorListeners.map(async (el) => el.errorEvent(err)));
     }
 
     addGCodeListener(gl) {
@@ -230,13 +230,14 @@ class Printer {
 
     /**
      * Set printing speed.
-     * @param {Number} s speed 
+     * @param {Number} s speed in units per second, ex: 30mm/s 
      * @returns Number
      */
     printspeed(s) {
         if (s !== undefined) {
+            const _s = this.parseAsTime(s);
             let maxs = Printer.maxPrintSpeed[this._model];
-            this._printSpeed = Math.min(parseFloat(s), parseFloat(maxs.x)); // pick in x direction...
+            this._printSpeed = Math.min(_s, parseFloat(maxs.x)); // pick in x direction...
         }
         return this._printSpeed;
     }
@@ -268,13 +269,14 @@ class Printer {
 
     /**
      * Set travel speed.
-     * @param {Number} s speed 
+     * @param {Number} s speed in units per second, ex: 30mm/s 
      * @returns {Number} speed in mm/s     
      */
      travelspeed(s) {
         if (s !== undefined) {
+            const _s = this.parseAsTime(s);
             let maxs = Printer.maxTravelSpeed[this._model];
-            this._travelSpeed = Math.min(parseFloat(s), parseFloat(maxs.x)); // pick in x direction...
+            this._travelSpeed = Math.min(_s, parseFloat(maxs.x)); // pick in x direction...
         }
         return this._travelSpeed;
     }
@@ -424,7 +426,7 @@ class Printer {
      */
     interval(time) {
 
-        let targetTime = this.parseAsTime(time);
+        this._intervalTime = this.parseAsTime(time);
         
         if (this._intervalTime < Printer.MIN_INTERVAL) {
             this._intervalTime = Printer.MIN_INTERVAL;
@@ -432,10 +434,7 @@ class Printer {
         }
 
         return this;
-    } 
-
-    parse
-
+    }
 
     /**
      * Retraction speed - updates firmware on printer too
@@ -443,7 +442,8 @@ class Printer {
      */
     async retractspeed(s) {
         if (s !== undefined) {
-            this._retractSpeed = s * 60;
+            const _s = this.parseAsTime(s);
+            this._retractSpeed = _s * 60; // Marlin prefers speed in mm/min
             await this.sendFirmwareRetractSettings();
         }
         return this._retractSpeed;
@@ -673,7 +673,7 @@ class Printer {
             this.printspeed = Math.sqrt(
                 this._distance*this._distance + 
                 this._zdistance*this._zdistance
-                ) / this.parseTime(t);
+                ) / this.parseAsTime(t);
         }
 
         return this;
@@ -893,7 +893,14 @@ class Printer {
         else {
             // parse as string
             let timeStr = time+'';
-            const params = timeStr.toLowerCase().match(Printer.TimeRegex);
+            timeStr = timeStr.toLowerCase();
+
+            if (/^[a-z]/.test(timeStr)) {
+                targetTime = this.m2s(timeStr);
+                return targetTime;
+            }
+            
+            const params = timeStr.match(Printer.TimeRegex);
             if (params && params.length == 3) {
                 const numberParam = eval(params[1]); // easiest way to parse as number
                 switch(params[2])  { //time suffix
@@ -1891,7 +1898,9 @@ o
      * @returns {Printer} reference to this object for chaining
      */
     t2d(time, speed = this._travelSpeed) {
-        this._distance = this.t2mm(time, speed); // time in ms
+        const t = this.parseAsTime(time);
+        const s = this.parseAsTime(speed);
+        this._distance = this.t2mm(t, s); // time in ms
         return this;
     }
 
@@ -1901,26 +1910,9 @@ o
      * @returns {Number} distance in mm
      */
     t2mm(time, speed = this._printSpeed) {
-        return speed * time / 1000; // time in ms
-    }
-
-    /**
-     * Set the movement distance based on number of beats (uses bpm to calculate)
-     * @param {Number} beats Time to move in whole or partial beats
-     * @returns {Printer} reference to this object for chaining
-     */
-    b2d(beats, speed = this._printSpeed) {
-        this._distance = this.t2mm(this.b2t(beats), speed); // speed is in ms already
-        return this;
-    }
-
-    /**
-     * Set the movement distance based on number of beats (uses bpm to calculate)
-     * @param {Number} beats Time to move in whole or partial beats
-     * @returns {Number} distance per beat
-     */
-    b2mm(beats, speed = this._printSpeed) {
-        return this._distance = this.t2mm(this.b2t(beats), speed); // speed is in ms already
+        const t = this.parseAsTime(time);
+        const s = this.parseAsTime(speed);
+        return s * t / 1000; // time in ms
     }
 
     /**
