@@ -23,7 +23,8 @@ class SerialDevice():
         self._baud_rate = 250000
         self._timeout = 0.8 # in s
         self.settle_time = 0.005 # used between serial commands to let the firmware "settle"
-        self.retry_time = 0.15 # in s, time to wait in between retries
+        self.retry_time = 0.1 # in s, time to wait in between retries
+        self.max_retries = 600 # means about 60 seconds of total waiting, helpful for longer bed leveling ops
         self.connection_state = ConnectionState.closed
         self.commands_sent = 0 # needed for keeping track of them
         self.busy = False # whether it is processing commands or not
@@ -46,6 +47,19 @@ class SerialDevice():
         self.gcode_logger.addHandler(gcode_fh)
         self.serial_logger.addHandler(serial_fh)
         self.serial_logger.debug('starting')
+
+    def set_log_level(self, levelstring):
+        debug_level = logging.ERROR
+        if re.match("debug", levelstring, re.IGNORECASE):
+            debug_level = logging.DEBUG
+        elif re.match("info", levelstring, re.IGNORECASE):
+            debug_level = logging.INFO
+        elif not re.match("error", levelstring, re.IGNORECASE):
+            self.serial_logger.error("Bad debug level in set_log_level: {}".format(repr(levelstring)))
+            raise ValueError("Bad debug level in set_log_level: {}".format(repr(levelstring)))
+            
+        self.gcode_logger.setLevel(debug_level)
+        self.serial_logger.setLevel(debug_level)
 
     #
     # async connect - returns a future
@@ -90,7 +104,7 @@ class SerialDevice():
             got_something = False
 
             while self.busy:
-                gen.sleep(self.settle_time)
+                gen.sleep(self.retry_time)
 
             self.busy = True # async mutex
             
@@ -144,7 +158,7 @@ class SerialDevice():
         # all commands have a response, wait for it
         no_response = True
         
-        max_loop_timeout = 40 # timeout for this whole function, for safety - 40 secs between moves...  might need to be higher
+        max_loop_timeout = 12000 # timeout for this whole function, for safety - 40 secs between moves...  might need to be higher
         start_time = time.time()
         current_time = 0
 
@@ -215,12 +229,10 @@ class SerialDevice():
 
             # loop through all serial data
 
-            retries = 10 # absorb everything
-
+            # retry a number of times if no response -- safety check to avoid infinite loop
+            retries = self.max_retries 
+            
             while True:
-                # update: removed this to see if made a diff Feb. '23
-                # await gen.sleep(self.settle_time) # slight delay to let printer settle
-
                 # check for timeout
                 current_time = time.time() - start_time
 
@@ -246,12 +258,12 @@ class SerialDevice():
 
                         # A resend can be requested either by Resend, resend or
                         # rs.
-                        retries -= 1
+                        retries = retries - 1 # probably will fail anyway
                         error_msg = "Printer signals resend: {line} (for {cmd} - current line) {current}".format(line=line.rstrip('\n\r'), cmd=cmd, current=self.commands_sent)
                         self.serial_logger.error("{msg}".format(msg=error_msg))
 
                         # sleep it off, might be busy
-                        await gen.sleep(self.settle_time)
+                        await gen.sleep(self.retry_time)
 
 
                     # Cold extrusion or something else - means line didn't take
@@ -270,7 +282,7 @@ class SerialDevice():
                         # next line will be resend, do nothing
                         error_msg = "Line error: {line} (for {cmd} - current line) {current}".format(line=line.rstrip('\n\r'), cmd=cmd, current=self.commands_sent)
                         self.serial_logger.error("{msg}".format(msg=error_msg))
-                        await gen.sleep(self.settle_time) # wait, might mean printer is busy
+                        await gen.sleep(self.retry_time) # wait, might mean printer is busy
                         retries -= 1
                         continue
                     
@@ -279,7 +291,7 @@ class SerialDevice():
                         # likely caused by motor moving error in firmware
                         error_msg = "Checksum error: {line} (for {cmd} - current line) {current}".format(line=line.rstrip('\n\r'), cmd=cmd, current=self.commands_sent)
                         self.serial_logger.error("{msg}".format(msg=error_msg))
-                        await gen.sleep(self.settle_time)
+                        await gen.sleep(self.retry_time)
                         retries -= 1
                         continue
 
@@ -351,7 +363,7 @@ class SerialDevice():
 
                 # nothing received via serial
                 else:
-                    self.serial_logger.debug('retry {tries}/10'.format(tries=retries))
+                    self.serial_logger.info('wating: retry {tries}/10'.format(tries=retries))
 
                     if retries < 1:
                         break
@@ -400,10 +412,10 @@ class SerialDevice():
 
             else:
                 # DEBUG
-                # print("Waiting on command: {}".format(command))
+                self.serial_logger.debug("Waiting on command: {}".format(command))
                 # await gen.sleep(0.05) # should this be gen.sleep() or just
                 # sleep??  Should it block?
-                time.sleep(self.settle_time)
+                time.sleep(self.retry_time)
 
         return result
 
