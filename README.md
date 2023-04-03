@@ -21,10 +21,11 @@ We can create a Reddit forum or YouTube channel if there is demand for it.
 The server front-end is coded in JavaScript using NodeJS's npm build system. You will need to compile it first (or [download a pre-compiled release](https://github.com/pixelpusher/liveprinter/releases)) so download and unzip the project using the link in the above right. Then, in your project folder, open a command prompt. Make sure you have npm installed.
 
 1. Run ```npm install``` to install required modules
-    - On OS X, it's recommended to use the 'official' NodeJS from [https://nodejs.org/en/download/](https://nodejs.org/en/download/) instead of brew because there might be an error with building node-gyp. Then, when nodejs is installed, install node-gyp using `sudo npm install node-gyp -g` _before_ running `npm install.`       
-2. For production, build streamlined javascript by running ```npm run build``` and following the instructions below to get the python server up and running.
+    - On OS X, it's recommended to use the 'official' NodeJS from [https://nodejs.org/en/download/](https://nodejs.org/en/download/) instead of brew because there might be an error with building node-gyp. Then, when nodejs is installed, install node-gyp using `sudo npm install node-gyp -g` _before_ running `npm install.` 
+    - On Ubuntu or linux, you'll probably need to set up your serial port permissions using ``sudo usermod -a -G tty $USERNAME`` and ``sudo usermod -a -G dialout $USERNAME`` first before running the server. Then assuming you are on ``/dev/ttyACM0`` try running ``echo "G28" > /devttyACM0`` in your terminal once connected via USB (check for your serial port using ``dmesg``) to run a standard bed leveling GCode and see if anything happens. Then, unplug and re-plug your printer usb and start the server.      
+2. For production, build streamlined javascript by running ```npm run watch``` (for some reason, build doesn't always work but watch does) and following the instructions below to get the python server up and running.
 3. For development, run ```npm run watch``` to have any saved changed automatically re-compiled.
-4. Open a second terminal and run `npm run run` to run the server, or
+4. Open a second terminal and run `npm run server` to run the server, or
 
 The web server (tornado 6) runs on Python 3 (3.6, 3.7 and 3.8+ tested) so you will need that installed.  Then, use pip (the Python package manager) to install supporting libraries `python3 -m pip pyserial tornado tornado-jsonrpc2`:
 
@@ -40,6 +41,15 @@ By default, the server runs on port 8888 so open a web browser to <http://localh
 
 Here is a short (old!) video demonstrating the python installation on Windows (on OS X it's the same, just use Terminal instead of Command Prompt):
 https://youtu.be/ejlaQhOCUHw
+
+
+### Troubleshooting
+
+If anything weird happens like line numbers getting out of sync, try unplugging the printer, kill the server, and reload.
+
+Otherwise, often just disconnecting in the interface works fine.
+
+For Prusa printers, make sure your serial baud rate is 115200 *before* you select the serial port; for other Marling printers it might be that, or 57600, or the Ultimaker 2 default of 250000.
 
 ## Using LivePrinter
 

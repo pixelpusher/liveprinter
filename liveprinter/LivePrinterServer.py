@@ -208,7 +208,7 @@ async def json_handle_set_serial_port(printer:SerialDevice, *args):
     logger.debug("json_handle_set_serial_port args:")
     for i in args:
         logger.debug("{}".format(i))
-    port = args[0].lower()
+    port = args[0]
     baud_rate = int(args[1])
     if baud_rate < 1: 
         baud_rate = options.baud_rate
@@ -220,7 +220,7 @@ async def json_handle_set_serial_port(printer:SerialDevice, *args):
     if (printer.connection_state is ConnectionState.connected):
         await printer.disconnect()
 
-    if port.startswith("dummy"):
+    if port.lower().startswith("dummy"):
         logger.debug("[SERVER] setting dummy serial port: {}".format(port))
         use_dummy_serial_port(printer)
     else:
@@ -249,7 +249,7 @@ async def json_handle_set_serial_port(printer:SerialDevice, *args):
 
 #
 # Disconnect current serial port
-# return the conenction state name (closed, open, etc.)
+# return the connection state name (closed, open, etc.)
 #
 async def json_handle_close_serial(printer, *args):  
     response = ""

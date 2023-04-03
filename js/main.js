@@ -64,6 +64,7 @@ const listener = {
 
 const midi = Note.midi;
 const transpose = Note.transpose;
+const setline = liveprintercomms.setline;
 
 // Note.midi("A4"); // => 60
 // Note.transpose("C4", "5P"); // => "G4"
@@ -73,7 +74,7 @@ const libs = {functionMap,
     setNoteMods, setScales,
     getBaseNoteDuration, setBaseNoteDuration, 
     step,
-    on, off, midi, transpose
+    on, off, midi, transpose, setline
 }
 
 // setup listeners
