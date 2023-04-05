@@ -468,6 +468,67 @@ module.exports.sendJSONRPC = sendJSONRPC;
 
 
 /**
+ * Get array of data from another server via POST or GET. Should be in the format 
+ *  {data: [[x,y,z], [x,y,z], [x,y,z] ]}
+ * @param {String} url with https:// etc.
+ * @param {String} type POST or GET
+ * @param {Object or String} data (optional) post data
+ * @returns 
+ */
+async function getData(url, type="POST", data) {
+
+    type = type.toLocaleUpperCase();
+
+    if (!type.match(/POST|GET/)) {
+        Logger.error(`Wrong type in getData() (should be GET or POST): ${type}`);
+        logError(`Wrong type in getData() (should be GET or POST): ${type}`);
+        return;
+        //throw new TypeError(`Wrong type in getData() (should be GET or POST): ${type}`);
+    }
+    data = typeof data === "string" ? data : JSON.stringify(data);
+    
+    //args._xsrf = getCookie("_xsrf");
+  
+    let response = "awaiting response";
+
+    try {
+        response = await $.ajax({
+            url,
+            type,
+            data,
+            timeout: vars.ajaxTimeout // might be a long wait on startup... printer takes time to start up and dump messages
+        });
+    }
+    catch (error) {
+        // statusText field has error ("timeout" in this case)
+        response = JSON.stringify(error, null, 2);
+        const statusText = `JSON error response communicating with server:<br/>${response}<br/>Orig:${url}`; 
+        Logger.error(statusText);
+        logError(statusText);
+
+        return response;
+    }
+
+    if (undefined !== response.error) {
+        logError(`getData(): Error response communicating with server:<br/>${JSON.stringify(response.error, null, 2)}<br/>Orig:${url}`);
+        response = JSON.stringify(error, null, 2);
+        return response;
+    }
+
+    if (undefined === response.data ) {
+
+        logError(`Missing data field in response from server in getData(): ${JSON.stringify(response, null, 2)}`);
+    }
+    else {
+        response = response.data;
+    }
+
+    return response;
+}
+
+module.exports.getData = getData;
+
+/**
 * Get the list of serial ports from the server (or refresh it) and display in the GUI (the listener will take care of that)
 * @memberOf LivePrinter
 * @returns {Object} result Returns json object containing result

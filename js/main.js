@@ -10,7 +10,7 @@ const editors = require('../js/liveprinter.editor');
 import { Note } from "tonal";
 
 import Logger from 'liveprinter-utils/logger';
-Logger.level = Logger.LOG_LEVEL.error;
+Logger.level = Logger.LOG_LEVEL.debug;
 
 window.$ = window.jquery = require('jquery');
 
@@ -20,7 +20,6 @@ liveprintercomms.setLogError(logerror);
 liveprintercomms.setLogInfo(Logger.info);
 liveprintercomms.setLogCommands(commandsHandler.log);
 liveprintercomms.setLogPrinterState(printerStateHandler);
-
 
 //require('./svg/SVGReader'); // svg util class
 //require('./svg/svg2gcode'); // svg gcode converter
@@ -65,6 +64,7 @@ const listener = {
 const midi = Note.midi;
 const transpose = Note.transpose;
 const setline = liveprintercomms.setline;
+const getdata = liveprintercomms.getData;
 
 // Note.midi("A4"); // => 60
 // Note.transpose("C4", "5P"); // => "G4"
@@ -74,7 +74,7 @@ const libs = {functionMap,
     setNoteMods, setScales,
     getBaseNoteDuration, setBaseNoteDuration, 
     step,
-    on, off, midi, transpose, setline
+    on, off, midi, transpose, setline, getdata
 }
 
 // setup listeners
@@ -98,6 +98,9 @@ liveprintercomms.addLibs(libs);
     "use strict";
 
     await $.ready();
+
+    // const testdata = await liveprintercomms.getData("http://localhost:8888/data", "POST", "nothing");
+    // Logger.debug(testdata);
 
     window.repeat = repeat;
     window.numrange = numrange;

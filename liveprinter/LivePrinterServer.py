@@ -96,6 +96,15 @@ class MainHandler(tornado.web.RequestHandler):
             self.render("index.html")
         except Exception as e:
             logger.error("ERROR in GET: {}".format(repr(e)))
+
+class PostTestHandler(tornado.web.RequestHandler):
+    # post handler just for testing getData
+    def post(self):
+        test_data=dict(data=[[0,0,0], [1,1,1], [2,2,2]])
+        try:
+            self.write(test_data)
+        except Exception as e:
+            logger.error("ERROR in POST: {}".format(repr(e)))
         
 class JsonTestHandler(tornado.web.RequestHandler):
     def check_xsrf_cookie(self):
@@ -352,6 +361,7 @@ def main():
             return request
 
     handlers = [(r"/", MainHandler),
+        (r"/data", PostTestHandler),        
         (r"/test", TestHandler, dict(printer=printer)),
         (r"/jsontest", JsonTestHandler),
         (r"/jsonqtest", JsonQueueTestHandler),
