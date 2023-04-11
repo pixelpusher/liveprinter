@@ -7,7 +7,7 @@ const grammar = require('./lpgrammar');
 
 const grammarBlockRegex = /(?:\n|\t|\s)*\#{2}\s*((?:.|\n|\t|\s)*)\#{2}/g;
 
-const grammarOneLineRegex = /(?:\n|\t|\s)*\#\s*((?:.|\n|\t|\s)*)/g;
+const grammarOneLineRegex = /(?:\n|\t|\s)*\#\s*((?:[^\n])*)/g;
 
 function compile(code) {
 
