@@ -5,9 +5,9 @@ const grammar = require('./lpgrammar');
 
 // in code, find blocks inside ## ## and feed to grammar
 
-const grammarBlockRegex = /\#\#\s*([^\#][\w\d\s\(\)\{\}\.\,\|\:\"\'\+\-\/\*]+)\s*\#\#\s*/gm;
+const grammarBlockRegex = /(?:\n|\t|\s)*\#{2}\s*((?:.|\n|\t|\s)*)\#{2}/g;
 
-const grammarOneLineRegex = /\s*\#{1,}\s*([^\#][\w\d\ \t\(\)\{\}\.\,\|\:\"\'\+\-\/\*]+)[\ \t]*(\#?)\s*/gm;
+const grammarOneLineRegex = /(?:\n|\t|\s)*\#\s*((?:.|\n|\t|\s)*)/g;
 
 function compile(code) {
 
@@ -26,7 +26,7 @@ function compile(code) {
     const blockparser = new nearley.Parser(nearley.Grammar.fromCompiled(grammar)); // parser for entire block
 
     code = code.replace(grammarBlockRegex, (match, p1) => {
-        //Logger.debug("Match: " + p1);
+        Logger.debug("Match: " + p1);
 
         let result = "";
         let lines = p1.split(/[\r\n]/);
@@ -60,8 +60,8 @@ function compile(code) {
     code = code.replace(grammarOneLineRegex, (match, p1, p2) => {
         const lineparser = new nearley.Parser(nearley.Grammar.fromCompiled(grammar));
 
-        //Logger.debug("!!!"+match+"!!!");
-        //Logger.debug("!!!"+p2+"!!!");
+        Logger.debug("!!!"+match+"!!!");
+        Logger.debug("!!!"+p1+"!!!");
         grammarFound = true; // found!
         let result = "";
         let fail = false; // if not successful

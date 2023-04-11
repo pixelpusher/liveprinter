@@ -21,6 +21,7 @@ Chain -> FunctionStatement Space PIPE Space Chain {% d => [d[0]].concat(d[4]).jo
 FunctionStatement -> (FunctionName {% 
 		([name]) => {
             const asyncFunctionsInAPIRegex = /^(gcodeEvent|gcode|errorEvent|retractspeed|sendFirmwareRetractSettings|retract|unretract|start|temp|bed|fan|drawtime|draw|up|drawup|dup|upto|downto|down|drawdown|dd|travel|traveltime|fwretract|polygon|rect|extrudeto|sendExtrusionGCode|sendArcExtrusionGCode|extrude|move|moveto|drawfill|sync|fill|wait|pause|resume|printPaths|printPathsThick|_extrude)$/;
+			
 			const asyncFuncCall = asyncFunctionsInAPIRegex.test(name);
 
 			if (asyncFuncCall) name = "await lp." + name;
@@ -99,7 +100,7 @@ ObjectVariable -> PlainVariable DOT PlainVariable {% ([pv1, dot, pv2])=> pv1 + d
 
 PlainVariable -> CharOrLetter AnyValidCharacter:* {% ([first, second])=> first + second.join('') %}
 
-StringLiteral -> QUOTE (AnyValidCharacter | DOT | [()\s]):+ QUOTE {% ([lquote, statement, rquote]) => lquote + statement.join('') + rquote %}
+StringLiteral -> QUOTE [^|]:* QUOTE {% ([lquote, statement, rquote]) => lquote + statement.join('') + rquote %}
 
 Number -> Integer 	{% id %}
 	| Float 		{% id %}
@@ -121,7 +122,7 @@ AnyValidCharacter -> Letter | UsableCharacter | Digit
 
 CharOrLetter -> UsableCharacter | Letter
 
-UsableCharacter -> [\$\£\&\^\*]
+UsableCharacter -> [\$\£\&\^\*\_]
 
 Letter -> [a-zA-Z]
 
