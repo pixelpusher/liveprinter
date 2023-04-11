@@ -652,28 +652,42 @@ class Printer {
      * @returns {Object} this instance for chaining
      */
     to ({x,y,z, t}={}) {
-        const targetVec = new Vector(x || this.x, y || this.y);
+        const targetVec = new Vector(
+            x !== undefined ? x : this.x, 
+            y !== undefined ? y : this.y);
         const thisPos = new Vector(this.x, this.y);
-
-        // Logger.error(`${thisPos.mag()}`);
-        // Logger.error(`${targetVec.mag()}`);
+        const posSq = thisPos.magSq(); 
+        const tarSq = targetVec.magSq(); 
         
-        this._distance = thisPos.dist(targetVec); // don't acount for e
-        this._heading = Vector.angleBetween(targetVec,thisPos);
+        Logger.error(`${posSq} // ${tarSq}`);
         
-        Logger.error(`heading ${this.angle}`);
-        
+        this._distance = thisPos.distSelf(targetVec); // don't acount for e
+        // if we're at 0,0 then use the rotation angle of the second vector
+        if (posSq < 0.0001) {
+            this._heading = Math.atan2(targetVec.axes.y, targetVec.axes.x);
+        }
+        else if (tarSq < 0.0001) {
+            this._heading = Math.atan2(-thisPos.axes.y, -thisPos.axes.x);
+        }
+        else {
+            this._heading = Vector.angleBetween(targetVec,thisPos);
+        }
+        Logger.debug(`heading ${this._heading}`);
+        Logger.debug(`heading ${this.angle}`);
 
         if (z) {
             this._zdistance = z - this.z;
             this._elevation = Math.asin(this._zdistance);
         }
         
+        // multiply by 1000 to get mm/s
         if (t) {
-            this.printspeed = Math.sqrt(
-                this._distance*this._distance + 
-                this._zdistance*this._zdistance
-                ) / this.parseAsTime(t);
+            this.printspeed(1000*
+                Math.sqrt(
+                    (this._distance*this._distance + 
+                    this._zdistance*this._zdistance)
+                    ) / this.parseAsTime(t)
+            );
         }
 
         return this;
@@ -828,7 +842,7 @@ class Printer {
         
         // Logger.debug(`go: total move time/num: ${totalMovementsTime} / ${totalMovements}`); 
 
-       let safetyCounter = 800; // arbitrary -- make sure we don't hit infinite loops
+       let safetyCounter = 20000; // arbitrary -- make sure we don't hit infinite loops
        
        while (safetyCounter && this.totalMoveTime < targetTime) {
             safetyCounter--;
@@ -954,7 +968,7 @@ class Printer {
 
         // Logger.debug(`go: total move time/num: ${totalMovementsTime} / ${totalMovements}`); 
        
-       let safetyCounter = 800; // arbitrary -- make sure we don't hit infinite loops
+       let safetyCounter = 20000; // arbitrary -- make sure we don't hit infinite loops
 
        while (safetyCounter && totalDistance < targetDist) {
             safetyCounter--;

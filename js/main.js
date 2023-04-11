@@ -10,7 +10,7 @@ const editors = require('../js/liveprinter.editor');
 import { Note } from "tonal";
 
 import Logger from 'liveprinter-utils/logger';
-Logger.level = Logger.LOG_LEVEL.debug;
+Logger.level = Logger.LOG_LEVEL.info;
 
 window.$ = window.jquery = require('jquery');
 
