@@ -1549,9 +1549,14 @@ class Printer {
         // this distance is purely 3D movement, not filament movement
         distanceMag = distVecNoE.mag();
 
-        if (distanceMag < Number.EPSILON) return; // don't go nowhere!
+        if (!extrusionNotZero && distanceMag < Number.EPSILON) return; // don't go nowhere!
 
-        moveTime = 1000*distanceMag / _speed; // in ms
+        if (distanceMag < 0.0001 ) {
+            moveTime = 1000*distanceVec.axes.e / _speed; // in ms
+        } else {
+            moveTime = 1000*distanceMag / _speed; // in ms
+        }
+        
 
         if (extrusionNotSpecified) {
             Logger.info(`moveTime: ${moveTime}`);

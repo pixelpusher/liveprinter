@@ -14,7 +14,7 @@ Logger.level = Logger.LOG_LEVEL.info;
 
 window.$ = window.jquery = require('jquery');
 
-liveprintercomms.setDebug(Logger.debug);
+liveprintercomms.setDebug(Logger.info);
 liveprintercomms.setDoError(doError);
 liveprintercomms.setLogError(logerror);
 liveprintercomms.setLogInfo(Logger.info);
@@ -141,9 +141,9 @@ liveprintercomms.addLibs(libs);
 
     ///
     /// add GCode listener to capture compiles GCode to editor
-    printer.addGCodeListener(
-        { gcodeEvent: async (gcode) => editors.recordGCode(editors.GCodeEditor, gcode) }
-    );
+    // printer.addGCodeListener(
+    //     { gcodeEvent: async (gcode) => editors.recordGCode(editors.GCodeEditor, gcode) }
+    // );
 
     liveprintercomms.onPosition(async (v) => moveHandler(v));
     liveprintercomms.onCodeDone(async (v)=>{
