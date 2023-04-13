@@ -88,7 +88,7 @@ class Printer {
         this.maxFilamentPerOperation = 30; // safety check to keep from using all filament, in mm
         this.minFilamentPerOperation = 0.0002; // sanity check to keep from grinding filament, in mm
         
-        this.maxTimePerOperation = 15; // prevent very long operations, by accident - this is in seconds
+        this.maxTimePerOperation = 60000; // prevent very long operations, by accident - this is in ms
 
         // NOTE: disabled for now to use hardware retraction settings
         this.currentRetraction = 0; // length currently retracted
@@ -656,22 +656,12 @@ class Printer {
             x !== undefined ? x : this.x, 
             y !== undefined ? y : this.y);
         const thisPos = new Vector(this.x, this.y);
-        const posSq = thisPos.magSq(); 
-        const tarSq = targetVec.magSq(); 
         
-        Logger.error(`${posSq} // ${tarSq}`);
+        const diffVec = Vector.sub(targetVec,thisPos);
+    
+        this._distance = diffVec.mag() // don't acount for e
+        this._heading = Math.atan2(diffVec.axes.y, diffVec.axes.x);
         
-        this._distance = thisPos.distSelf(targetVec); // don't acount for e
-        // if we're at 0,0 then use the rotation angle of the second vector
-        if (posSq < 0.0001) {
-            this._heading = Math.atan2(targetVec.axes.y, targetVec.axes.x);
-        }
-        else if (tarSq < 0.0001) {
-            this._heading = Math.atan2(-thisPos.axes.y, -thisPos.axes.x);
-        }
-        else {
-            this._heading = Vector.angleBetween(targetVec,thisPos);
-        }
         Logger.debug(`heading ${this._heading}`);
         Logger.debug(`heading ${this.angle}`);
 
@@ -682,7 +672,7 @@ class Printer {
         
         // multiply by 1000 to get mm/s
         if (t) {
-            this.printspeed(1000*
+            this.speed(1000*
                 Math.sqrt(
                     (this._distance*this._distance + 
                     this._zdistance*this._zdistance)
@@ -1351,7 +1341,7 @@ class Printer {
 
         // Logger.debug(`go: total move time/num: ${totalMovementsTime} / ${totalMovements}`); 
 
-       let safetyCounter = 800; // arbitrary -- make sure we don't hit infinite loops
+       let safetyCounter = 20000; // arbitrary -- make sure we don't hit infinite loops
 
        while (safetyCounter && this.totalMoveTime < targetTime) {
             safetyCounter--;
@@ -1396,7 +1386,6 @@ class Printer {
 
             Logger.debug(`Move time warp op took ${performance.now() - opStartTime} ms vs. expected ${this._intervalTime}.`);
         }
-        this._elevation = 0;
         
         return this;
     }
@@ -1498,7 +1487,7 @@ class Printer {
         const __e = (params.e !== undefined) ? parseFloat(params.e) : this.e;
 
         // did we specify a length of filament to extrude?
-        const extrusionNotZero = (Math.abs(__e - this.e) > 0.001);
+        const extrusionNotZero = (Math.abs(__e - this.e) > 0.0001);
 
         // only extrude if there is something to extrude!
         const extruding = (extrusionNotSpecified || extrusionNotZero); 
@@ -1549,22 +1538,23 @@ class Printer {
         /// START CALCULATIONS      //////////
         //////////////////////////////////////
 
-        let distanceVec = Vector.sub(newPosition, this.position);
-        let distanceMag = 1; // calculated later
+        const distanceVec = Vector.sub(newPosition, this.position);
+        const distVecNoE = new Vector(distanceVec.axes.x, distanceVec.axes.y, distanceVec.axes.z);
+        let distanceMag, moveTime; // calculated later
 
         // FYI:
         //  nozzle_speed{mm/s} = (radius_filament^2) * PI * filament_speed{mm/s} / layer_height^2
         //  filament_speed{mm/s} = layer_height^2 * nozzle_speed{mm/s}/(radius_filament^2)*PI
 
+        // this distance is purely 3D movement, not filament movement
+        distanceMag = distVecNoE.mag();
 
-        // only calculate filament distance if we are not traveling and filament
-        // length wasn't specified
+        if (distanceMag < Number.EPSILON) return; // don't go nowhere!
 
-        let filamentLength = __e; 
+        moveTime = 1000*distanceMag / _speed; // in ms
 
         if (extrusionNotSpecified) {
-            // distance is purely 3D movement, not filament movement
-            distanceMag = Math.sqrt(distanceVec.axes.x * distanceVec.axes.x + distanceVec.axes.y * distanceVec.axes.y + distanceVec.axes.z * distanceVec.axes.z);
+            Logger.info(`moveTime: ${moveTime}`);
 
             // otherwise, calculate filament length needed based on layerheight, etc.
             const filamentRadius = Printer.filamentDiameter[this._model] / 2;
@@ -1572,7 +1562,7 @@ class Printer {
             // for extrusion into free space
             // apparently, some printers take the filament into account (so this is in mm3)
             // this was helpful: https://github.com/Ultimaker/GCodeGenJS/blob/master/js/gcode.js
-            filamentLength = distanceMag * this.layerHeight * this.layerHeight;//(Math.PI*filamentRadius*filamentRadius);
+            const filamentLength = distanceMag * this.layerHeight * this.layerHeight;//(Math.PI*filamentRadius*filamentRadius);
 
             //
             // safety check:
@@ -1595,21 +1585,18 @@ class Printer {
                 
                 this.errorEvent(new Error("[API] Filament length too short (same position?): " + filamentLength));
                 //throw new Error("[API] Filament length too short (same position?): " + filamentLength);
-            } 
+            }
+            
         }
-        else {
-            // distance is 3D movement PLUS filament movement
-            distanceMag = distanceVec.mag();
-        }
-        // note: velocity in 'e' direction is always layerHeight^2
-        const velocity = Vector.div(distanceVec, distanceMag);
-        const moveTime = distanceMag / _speed; // in sec, doesn't matter that new 'e' not taken into account because it's not in firmware
 
-        this.totalMoveTime += moveTime*1000; // update total movement time for the printer in ms
+        //TODO: fix this
+        newPosition = this.clipToPrinterBounds(newPosition.axes);
+
+        this.totalMoveTime += moveTime; // update total movement time for the printer in ms
 
         //this._elevation = Math.asin(velocity.axes.z); // removed because it was non-intuitive!!!
 
-        Logger.debug("time: " + moveTime + " / dist:" + distanceMag);
+        Logger.info("time: " + moveTime + " / dist:" + distanceMag);
 
         //
         // BREAK AT LARGE MOVES
@@ -1618,48 +1605,53 @@ class Printer {
             throw new Error("[API] move time too long:" + moveTime);
         }
 
-        const nozzleSpeed = Vector.div(distanceVec, moveTime);
+        const nozzleSpeed = Vector.div(distanceVec, moveTime/1000);
+
+        Logger.info(nozzleSpeed);
         //
         // safety checks
         //
         if (extruding) {
-            if (nozzleSpeed.axes.x > Printer.maxPrintSpeed[this._model]["x"]) {
+            if (Math.abs(nozzleSpeed.axes.x) > Printer.maxPrintSpeed[this._model]["x"]) {
                 throw Error("[API] X printing speed too fast:" + nozzleSpeed.axes.x);
             }
-            if (nozzleSpeed.axes.y > Printer.maxPrintSpeed[this._model]["y"]) {
+            if (Math.abs(nozzleSpeed.axes.y) > Printer.maxPrintSpeed[this._model]["y"]) {
                 throw Error("[API] Y printing speed too fast:" + nozzleSpeed.axes.y);
             }
-            if (nozzleSpeed.axes.z > Printer.maxPrintSpeed[this._model]["z"]) {
+            if (Math.abs(nozzleSpeed.axes.z) > Printer.maxPrintSpeed[this._model]["z"]) {
                 throw Error("[API] Z printing speed too fast:" + nozzleSpeed.axes.z);
             }
-            if (nozzleSpeed.axes.e > Printer.maxPrintSpeed[this._model]["e"]) {
+            if (Math.abs(nozzleSpeed.axes.e) > Printer.maxPrintSpeed[this._model]["e"]) {
                 throw Error("[API] E printing speed too fast:" + nozzleSpeed.axes.e + "/" + Printer.maxPrintSpeed[this._model]["e"]);
             }
         } else {
             // just traveling
-            if (nozzleSpeed.axes.x > Printer.maxTravelSpeed[this._model]["x"]) {
+            if (Math.abs(nozzleSpeed.axes.x) > Printer.maxTravelSpeed[this._model]["x"]) {
                 throw Error("[API] X travel too fast:" + nozzleSpeed.axes.x);
             }
-            if (nozzleSpeed.axes.y > Printer.maxTravelSpeed[this._model]["y"]) {
+            if (Math.abs(nozzleSpeed.axes.y) > Printer.maxTravelSpeed[this._model]["y"]) {
                 throw Error("[API] Y travel too fast:" + nozzleSpeed.axes.y);
             }
-            if (nozzleSpeed.axes.z > Printer.maxTravelSpeed[this._model]["z"]) {
+            if (Math.abs(nozzleSpeed.axes.z) > Printer.maxTravelSpeed[this._model]["z"]) {
                 throw Error("[API] Z travel too fast:" + nozzleSpeed.axes.z);
             }
         }
         // Handle movements outside printer boundaries if there's a need.
         // Tail recursive.
         //
-        return this._extrude(_speed, velocity, distanceMag, retract);
+
+        this.position.set(newPosition);
+    
+        await this.sendExtrusionGCode(_speed);
+
+        if (retract) await this.retract();
 
     } // end extrudeto
 
     /**
      * Send movement update GCode to printer based on current position (this.x,y,z).
-     * @param {Int} speed print speed in mm/s
-     * @param {boolean} retract if true (default) add GCode for retraction/unretraction. Will use either hardware or software retraction if set in Printer object
      * */
-    async sendExtrusionGCode(speed, retract = true) {
+    async sendExtrusionGCode(speed) {
 
         // G1 - Coordinated Movement X Y Z E
         let moveCode = ["G1"];
@@ -2309,277 +2301,9 @@ o
         return this;
     }
 
-    async _extrude(speed, moveVector, leftToMove, retract) {
-        // if there's nowhere to move, return
-        //Logger.debug(that);
-        //Logger.debug("left to move:" + leftToMove);
-        //Logger.debug(moveVector);
-
-        if (isNaN(leftToMove) || leftToMove < 0.005) {
-            //Logger.debug("(extrude) end position:" + that.x + ", " + that.y + ", " + that.z + ", " + that.e);
-            return false;
-        }
-
-        let amountMoved = Math.min(leftToMove, this.maxMovePerCycle);
-
-        // calculate next position
-        let nextPosition = Vector.add(this.position, Vector.mult(moveVector, amountMoved));
-
-        //Logger.debug("VECTOR:");
-        //Logger.debug(moveVector);
-
-        //Logger.debug("CURRENT:");
-        //Logger.debug(that.position);
-
-        //Logger.debug("NEXT:");
-        //Logger.debug(nextPosition);
-
-        if (this.boundaryMode === "bounce") {
-            let moved = new Vector();
-            let outsideBounds = false;
-
-            // calculate movement time per axis, based on printer bounds
-
-            for (const axis in nextPosition.axes) {
-                // TODO:
-                // for each axis, see where it intersects the printer bounds
-                // then, using velocity, get other axes positions at that point
-                // if any of them are over, skip to next axis
-                if (axis !== "e") {
-                    if (nextPosition.axes[axis] > this.maxPosition.axes[axis]) {
-                        // hit - calculate up to min position
-                        moved.axes[axis] = (this.maxPosition.axes[axis] - this.position.axes[axis]) / moveVector.axes[axis];
-                        outsideBounds = true;
-                    } else if (nextPosition.axes[axis] < this.minPosition.axes[axis]) {
-                        // hit - calculate up to min position
-                        moved.axes[axis] = (this.minPosition.axes[axis] - this.position.axes[axis]) / moveVector.axes[axis];
-                        outsideBounds = true;
-                    }
-                }            //else {
-                //    moved.axes[axis] = nextPosition.axes[axis] - that.position.axes[axis];
-                //}
-            }
-            //Logger.debug("moved:");
-            //Logger.debug(moved);
-
-            if (outsideBounds) {
-                //Logger.debug("outside");
-                let shortestAxisTime = 99999;
-                let shortestAxes = [];
-
-                // find shortest time before an axis was hit
-                // if it hits two (or more?) at the same time, mark both
-                for (const axis in moved.axes) {
-                    if (moved.axes[axis] === shortestAxisTime) {
-                        shortestAxes.push(axis);
-                    } else if (moved.axes[axis] < shortestAxisTime) {
-                        shortestAxes = [axis];
-                        shortestAxisTime = moved.axes[axis];
-                    }
-                }
-                //Logger.debug("shortest axis:");
-                //Logger.debug(shortestAxes);
-                //Logger.debug("shortest axis TIME:");
-                //Logger.debug(shortestAxisTime);
-
-
-                const amountMovedVec = Vector.mult(moveVector, shortestAxisTime);
-                amountMoved = amountMovedVec.mag();
-                //Logger.debug("amt moved:" + amountMoved + " / " + leftToMove);
-                //Logger.debug("next:");
-                //Logger.debug(nextPosition);
-                nextPosition.axes = this.clipToPrinterBounds(Vector.add(this.position, amountMovedVec).axes);
-                //Logger.debug(nextPosition);
-
-                // reverse velocity if axis bounds hit, for shortest axis
-                for (const axis of shortestAxes) {
-                    moveVector.axes[axis] = moveVector.axes[axis] * -1;
-                }
-            }
-        } else {
-            this.clipToPrinterBounds(nextPosition.axes);
-        }
-        leftToMove -= amountMoved;
-
-        // update current position
-        //Logger.debug("current pos:")
-        //Logger.debug(that.position);
-
-        // DON'T DO THIS ANYMORE... counter-intuitive!
-        //that._elevation = Math.asin(moveVector.axes.z);
-        this.position.set(nextPosition);
-        //Logger.debug("next pos:");
-        //Logger.debug(nextPosition);
-        //Logger.debug(that.position);
-        //Logger.debug(that);        
-
-        await this.sendExtrusionGCode(speed, retract);
-
-        if (retract)
-            await this.retract();
-
-
-        // handle cases where velocity is 0 (might be movement up or down)
-
-        //Logger.debug("prev heading:" + this._heading);
-        //Logger.debug("move vec:" + moveVector.axes.x + ", " + moveVector.axes.y);
-
-        // BIG CHANGE: no longer automatically updates the heading based on the last movement. Caused problems with warp
-        //
-        // let _test = moveVector.axes.y * moveVector.axes.y + moveVector.axes.x * moveVector.axes.x;
-
-        // if (_test > Number.EPSILON) {
-        //     let newHeading = Math.atan2(moveVector.axes.y, moveVector.axes.x);
-        //     if (!isNaN(newHeading)) this._heading = newHeading;
-        // }
-
-        // Tail recursive, until target x,y,z is hit
-        return await this._extrude(speed, moveVector, leftToMove, retract);
-    } // end _extrude 
 
 } // end Printer class
 
-
-
-// defined outside class because we have to
-
-/**
- * Tail-recursive extrusion function.  Don't call this directly. Uses {@link https://github.com/glathoud/fext fext}
- * See [extrudeto()]{@link Printer#extrudeto}
- * @function
- * @param {Vector} moveVector
- * @param {Number} leftToMove
- * @returns {Boolean} false when done
- * @memberof Printer
- */
-/*
-Printer.prototype._extrude = meth("_extrude", function (that, speed, moveVector, leftToMove, retract) {
-    // if there's nowhere to move, return
-    //Logger.debug(that);
-    //Logger.debug("left to move:" + leftToMove);
-    //Logger.debug(moveVector);
-
-    if (isNaN(leftToMove) || leftToMove < 0.01) {
-        //Logger.debug("(extrude) end position:" + that.x + ", " + that.y + ", " + that.z + ", " + that.e);
-        return false;
-    }
-
-    let amountMoved = Math.min(leftToMove, that.maxMovePerCycle);
-
-    // calculate next position
-    let nextPosition = Vector.add(that.position, Vector.mult(moveVector, amountMoved));
-
-    //Logger.debug("VECTOR:");
-    //Logger.debug(moveVector);
-
-    //Logger.debug("CURRENT:");
-    //Logger.debug(that.position);
-
-    //Logger.debug("NEXT:");
-    //Logger.debug(nextPosition);
-
-    if (that.boundaryMode === "bounce") {
-        let moved = new Vector();
-        let outsideBounds = false;
-
-        // calculate movement time per axis, based on printer bounds
-
-        for (const axis in nextPosition.axes) {
-            // TODO:
-            // for each axis, see where it intersects the printer bounds
-            // then, using velocity, get other axes positions at that point
-            // if any of them are over, skip to next axis
-            if (axis !== "e") {
-                if (nextPosition.axes[axis] > that.maxPosition.axes[axis]) {
-                    // hit - calculate up to min position
-                    moved.axes[axis] = (that.maxPosition.axes[axis] - that.position.axes[axis]) / moveVector.axes[axis];
-                    outsideBounds = true;
-                } else if (nextPosition.axes[axis] < that.minPosition.axes[axis]) {
-                    // hit - calculate up to min position
-                    moved.axes[axis] = (that.minPosition.axes[axis] - that.position.axes[axis]) / moveVector.axes[axis];
-                    outsideBounds = true;
-                }
-            }            //else {
-            //    moved.axes[axis] = nextPosition.axes[axis] - that.position.axes[axis];
-            //}
-        }
-        //Logger.debug("moved:");
-        //Logger.debug(moved);
-
-        if (outsideBounds) {
-            //Logger.debug("outside");
-            let shortestAxisTime = 99999;
-            let shortestAxes = [];
-
-            // find shortest time before an axis was hit
-            // if it hits two (or more?) at the same time, mark both
-            for (const axis in moved.axes) {
-                if (moved.axes[axis] === shortestAxisTime) {
-                    shortestAxes.push(axis);
-                } else if (moved.axes[axis] < shortestAxisTime) {
-                    shortestAxes = [axis];
-                    shortestAxisTime = moved.axes[axis];
-                }
-            }
-            //Logger.debug("shortest axis:");
-            //Logger.debug(shortestAxes);
-            //Logger.debug("shortest axis TIME:");
-            //Logger.debug(shortestAxisTime);
-
-
-            const amountMovedVec = Vector.mult(moveVector, shortestAxisTime);
-            amountMoved = amountMovedVec.mag();
-            //Logger.debug("amt moved:" + amountMoved + " / " + leftToMove);
-            //Logger.debug("next:");
-            //Logger.debug(nextPosition);
-            nextPosition.axes = that.clipToPrinterBounds(Vector.add(that.position, amountMovedVec).axes);
-            //Logger.debug(nextPosition);
-
-            // reverse velocity if axis bounds hit, for shortest axis
-            for (const axis of shortestAxes) {
-                moveVector.axes[axis] = moveVector.axes[axis] * -1;
-            }
-        }
-    } else {
-        that.clipToPrinterBounds(nextPosition.axes);
-    }
-    leftToMove -= amountMoved;
-
-    // update current position
-    //Logger.debug("current pos:")
-    //Logger.debug(that.position);
-
-    // DON'T DO THIS ANYMORE... counter-intuitive!
-    //that._elevation = Math.asin(moveVector.axes.z);
-    that.position.set(nextPosition);
-    //Logger.debug("next pos:");
-    //Logger.debug(nextPosition);
-    //Logger.debug(that.position);
-    //Logger.debug(that);
-
-    that.sendExtrusionGCode(speed, retract);
-
-    // handle cases where velocity is 0 (might be movement up or down)
-
-    //Logger.debug("prev heading:" + this._heading);
-    //Logger.debug("move vec:" + moveVector.axes.x + ", " + moveVector.axes.y);
-
-    let _test = moveVector.axes.y * moveVector.axes.y + moveVector.axes.x * moveVector.axes.x;
-
-    if (_test > Number.EPSILON) {
-        //Logger.debug("not not going nowhere __" + that._heading);
-        let newHeading = Math.atan2(moveVector.axes.y, moveVector.axes.x);
-        if (!isNaN(newHeading)) that._heading = newHeading;
-        //Logger.debug("new heading:" + that._heading);
-    }
-
-    // Tail recursive, until target x,y,z is hit
-    return mret(that._extrude, speed, moveVector, leftToMove, retract);
-    //return false;
-
-} // end _extrude 
-);
-*/
 
 // TODO: this is dumb.  SHould be in another data model class called "printer model"
 
