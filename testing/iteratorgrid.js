@@ -1,14 +1,15 @@
-# start 
+// LivePrinter test  April 14 2023 two -- this slays!
 
-# mov2 x:lp.maxx*0.05 y:lp.maxy*0.1 z:60 
+# start | bed 65 | temp 220 
 
-# bed 65 | temp 210 
+# speed 80
+
+# mov2 x:lp.maxx*0.85 y:lp.maxy*0.1 z:30 speed: 80
+
 
 # sync 
 
-# up 50 
-
-# ext e:12 speed:3 
+# ext e:3 speed:3 
 
 # retract 
 
@@ -16,18 +17,18 @@ const { concat, cycle, take, reverse, range, butLast, partitition } = await impo
 
 const { zigzagColumns2d } = await import('https://cdn.skypack.dev/@thi.ng/grid-iterators');
 const cos = Math.cos;
+const sin = Math.sin; 
 
 const PI = Math.PI;
 const TAU = Math.PI*2;
-const PTS = 30; // grid points -- 45 is nice too
-const pad = 10;
+const PTS = 16; // grid points -- 45 is nice too
+const pad = 8;
 const W = Math.ceil((lp.maxx/2-2*pad) / (PTS+1));
 const H = Math.ceil((lp.maxy/2-2*pad) / (PTS+1));
 
-const offsetx = lp.maxx*0.5;
-const offsety = 0; 
+const offsetx = lp.maxx*0.05;
+const offsety = lp.maxy*0.01;
 
-loginfo(`w:${W} h:${H}`);
 
 // avoid repeating front and end points
 const forwardgrid = 
@@ -40,32 +41,47 @@ const reversegrid = butLast(reverse(zigzagColumns2d({ cols: PTS })));
 const grid = cycle(concat(forwardgrid, reversegrid));
 
 function mapping(i, [x,y]) {
-  return [(x+0.33*cos(5*PTS*PI*i/10))*W+pad+offsetx, (y+0.5*cos(6*PI*i/PTS))*H+pad+offsety];
+  const zangle = TAU*lp.z/lp.t2mm("1/4b");
+  const zamt = lp.t2mm("1/32b")/2;
+  return [
+    (x+sin(zangle/2)*0.33*cos(5*PTS*PI*i/10)) * W + zamt*cos(zangle) + pad + offsetx, 
+    (y+sin(zangle/2)*0.5*cos(6*PI*i/PTS))* H + zamt*sin(zangle) + pad + offsety
+  ];
 }
 
+// total points
 const TPS = PTS*PTS;
 
-// almost twice
+# mov2 x:lp.maxx*0.5 y:lp.maxy*0.1 z:2.4 | thick 0.25 | interval "1/16b" | unretract
 
+const beatHeight = lp.t2mm("1b");
 
-# mov2 x:lp.maxx*0.5 y:lp.maxy*0.1 z:0.05 | thick 0.25 | interval "1/16b" | unretract
+while (lp.z < beatHeight)
+{
+    const pctDone = lp.z/beatHeight;
 
-for (let ctr=0; ctr < TPS*2; ctr++) {
-  if (ctr % TPS === 0 ) {
-    # up 0.2 
-  }
-    
-  const coords = grid.next().value;
-  
-  let [x,y] = mapping(ctr, [coords[0], coords[1]]);
-    
-  loginfo(`x:${x} y:${y}`);
-  
-  let beats = "1/4b";
-  
-  # bpm 110 | to x:x y:y t:beats | draw 
-  
+    let ctr = TPS;
+    while (--ctr) {
+            
+        const coords = grid.next().value;
+        
+        let [x,y] = mapping(ctr, [coords[0], coords[1]]);
+            
+        //loginfo(`x:${x} y:${y}`);
+        
+        let beats = "1/4b";
+        
+        # bpm 135 | to x:x y:y t:beats | draw 
+        
+    }
+
+    const newthick = 0.25 - 0.125*pctDone; 
+    const fansp = pctDone*80;
+
+    # up newthick | fan fansp
+
 }
   
-# upto 50 | retract
+# up 50 | retract
+
   

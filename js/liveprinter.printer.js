@@ -1559,7 +1559,7 @@ class Printer {
         
 
         if (extrusionNotSpecified) {
-            Logger.info(`moveTime: ${moveTime}`);
+            Logger.debug(`moveTime: ${moveTime}`);
 
             // otherwise, calculate filament length needed based on layerheight, etc.
             const filamentRadius = Printer.filamentDiameter[this._model] / 2;
@@ -1601,7 +1601,7 @@ class Printer {
 
         //this._elevation = Math.asin(velocity.axes.z); // removed because it was non-intuitive!!!
 
-        Logger.info("time: " + moveTime + " / dist:" + distanceMag);
+        Logger.debug("time: " + moveTime + " / dist:" + distanceMag);
 
         //
         // BREAK AT LARGE MOVES
@@ -1612,7 +1612,7 @@ class Printer {
 
         const nozzleSpeed = Vector.div(distanceVec, moveTime/1000);
 
-        Logger.info(nozzleSpeed);
+        Logger.debug(nozzleSpeed);
         //
         // safety checks
         //
