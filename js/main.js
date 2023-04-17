@@ -14,7 +14,7 @@ Logger.level = Logger.LOG_LEVEL.info;
 
 window.$ = window.jquery = require('jquery');
 
-liveprintercomms.setDebug(Logger.info);
+liveprintercomms.setDebug(Logger.debug);
 liveprintercomms.setDoError(doError);
 liveprintercomms.setLogError(logerror);
 liveprintercomms.setLogInfo(Logger.info);

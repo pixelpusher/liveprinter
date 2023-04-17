@@ -660,6 +660,12 @@ class Printer {
         const diffVec = Vector.sub(targetVec,thisPos);
     
         this._distance = diffVec.mag() // don't acount for e
+        
+        if (this._distance < 0.0001) {
+            this._distance = 0;
+            return;
+        }
+
         this._heading = Math.atan2(diffVec.axes.y, diffVec.axes.x);
         
         Logger.debug(`heading ${this._heading}`);
