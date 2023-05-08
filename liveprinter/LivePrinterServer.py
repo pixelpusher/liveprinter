@@ -151,7 +151,7 @@ def use_dummy_serial_port(printer:SerialDevice):
 
     def delayed_string(result:Union[str,bytes]):
         # print ("delayed string {}".format(time.time()))
-        # time.sleep(random.uniform(0.05,0.5)) // removed for testing speed
+        time.sleep(random.uniform(0.01,0.3)) # removed for testing speed
         # print ("delayed string {}".format(time.time()))
         return result
 
@@ -159,9 +159,9 @@ def use_dummy_serial_port(printer:SerialDevice):
     printer._serial = dummyserial.Serial(port=printer._serial_port,
         baudrate=printer._baud_rate,
         ds_responses={
-            'N?[0-9]*(M105).*': lambda : b'ok T:%.2f /190.0 B:%.2f /24.0 @:0 B@:0\nok\n' % (random.uniform(170,195),random.uniform(20,35)),
-            'N?[0-9]*M115.*': b'FIRMWARE_NAME:DUMMY\nok\n',
-            'N?[0-9]*M114.*': lambda : b'X:%.2fY:%.2fZ:%.2fE:%.2f Count X: 2.00Y:3.00Z:4.00\nok\n' % (random.uniform(0,200), random.uniform(0,200), random.uniform(0,200), random.uniform(0,200)),   # position request
+            'N?[0-9]*(M105).*': lambda : delayed_string(b'ok T:%.2f /190.0 B:%.2f /24.0 @:0 B@:0\nok\nok\n' % (random.uniform(170,195),random.uniform(20,35))),
+            'N?[0-9]*M115.*': lambda : delayed_string(b'FIRMWARE_NAME:DUMMY\nok\nok\n'),
+            'N?[0-9]*M114': lambda : delayed_string(b'X:%.2fY:%.2fZ:%.2fE:%.2f Count X: 2.00Y:3.00Z:4.00\nok\nok\n' % (random.uniform(0,200), random.uniform(0,200), random.uniform(0,200), random.uniform(0,200))),   # position request
             'N?[0-9]*G.*': lambda : delayed_string(b'ok\n'),
             'N?[0-9]*M400.*': lambda : delayed_string(b'ok\nok\n'),
             'N?[0-9]*M207.*': lambda : delayed_string(b'ok\nok\n'),
@@ -172,6 +172,7 @@ def use_dummy_serial_port(printer:SerialDevice):
             })
     if not printer._serial.is_open:
         printer._serial.open()
+    printer.set_log_level(logging.ERROR)
     printer.connection_state = ConnectionState.connected
 
     
@@ -206,6 +207,23 @@ async def json_handle_line_number(printer, *args):
     printer.commands_sent = int(args[0])
     response = [printer.commands_sent]
     return response
+
+
+#
+# set logging level for GCODE (default is INFO) see https://docs.python.org/3/library/logging.html#logging-levels
+# return the line number if successful, otherwise -1
+#
+async def json_handle_set_gcode_loglevel(printer, *args):
+    lvl = int(args[0])
+    try:
+        printer.set_gcode_log_level = lvl
+    except ValueError as e:
+        logger.error("json_handle_set_gcode_loglevel::error in log level {lvl} ::{err}".format(lvl=lvl,err=e))
+        
+    logger.debug("json_handle_set_gcode_loglevel::handled")
+    
+
+    return [lvl]
 
 #
 # set the serial port of the printer and connect.
@@ -352,6 +370,9 @@ def main():
             return result
         elif request.method == "set-line":
             result = await json_handle_line_number(printer, *params)
+            return result
+        elif request.method == "set-gcode-loglevel":
+            result = await json_handle_set_gcode_loglevel(printer, *params)
             return result
 
         else:

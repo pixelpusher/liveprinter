@@ -33,33 +33,40 @@ class SerialDevice():
 
         self.gcode_logger = logging.getLogger("{name}.gcode".format(name=__name__))
         self.serial_logger = logging.getLogger("{name}.serial".format(name=__name__))
-        self.gcode_logger.setLevel(logging.ERROR)
+        self.gcode_logger.setLevel(logging.INFO)
         self.serial_logger.setLevel(logging.ERROR)
 
         # create file handler which logs even debug messages
         gcode_fh = logging.FileHandler(os.path.join(logpath, "gcode-{time}.log".format(time=time.time())))
         serial_fh = logging.FileHandler(os.path.join(logpath, "serial-{time}.log".format(time=time.time())))
         # create formatter and add it to the handlers
-        formatter = logging.Formatter('%(asctime)s::%(name)s.%(funcName)s[%(lineno)s]: %(message)s')
+        formatter = logging.Formatter(";%(asctime)s:\n%(message)s")
         gcode_fh.setFormatter(formatter)
+        formatter = logging.Formatter('%(asctime)s::%(name)s.%(funcName)s[%(lineno)s]: %(message)s')
         serial_fh.setFormatter(formatter)
        
         self.gcode_logger.addHandler(gcode_fh)
         self.serial_logger.addHandler(serial_fh)
         self.serial_logger.debug('starting')
-
-    def set_log_level(self, levelstring):
-        debug_level = logging.ERROR
-        if re.match("debug", levelstring, re.IGNORECASE):
-            debug_level = logging.DEBUG
-        elif re.match("info", levelstring, re.IGNORECASE):
-            debug_level = logging.INFO
-        elif not re.match("error", levelstring, re.IGNORECASE):
-            self.serial_logger.error("Bad debug level in set_log_level: {}".format(repr(levelstring)))
-            raise ValueError("Bad debug level in set_log_level: {}".format(repr(levelstring)))
-            
-        self.gcode_logger.setLevel(debug_level)
+ 
+    def set_log_level(self, level):
+        # self.serial_logger.critical("{debug}/{info}".format(debug=logging.DEBUG, info=logging.INFO))
+        debug_level = level
+        if not (debug_level == logging.DEBUG or debug_level == logging.INFO or debug_level == logging.ERROR or debug_level == logging.WARN):
+            self.serial_logger.error("Bad debug level in set_log_level: {}".format(repr(level)))
+            raise ValueError("Bad debug level in set_log_level: {}".format(repr(level)))
+        
         self.serial_logger.setLevel(debug_level)
+
+    def set_gcode_log_level(self, level):
+        # self.serial_logger.critical("{debug}/{info}".format(debug=logging.DEBUG, info=logging.INFO))
+        
+        log_level = level
+        if not (log_level == logging.DEBUG or log_level == logging.INFO or log_level == logging.ERROR or log_level == logging.WARN):
+            self.serial_logger.error("Bad debug level in set_gcode_log_level:{vvv} {expect}".format(vvv=repr(level), expect=logging.DEBUG))
+            raise ValueError("Bad debug level in set_gcode_log_level: {}".format(repr(level)))
+        
+        self.gcode_logger.setLevel(log_level)
 
     #
     # async connect - returns a future
@@ -180,7 +187,9 @@ class SerialDevice():
             #    self.commands_sent = 1
 
             # log to file
-            self.gcode_logger.debug("{line},{code}".format(line=self.commands_sent, code=str(cmd)))
+            self.gcode_logger.info("{code}".format(code=str(cmd)))
+
+            self.serial_logger.debug("{line},{code}".format(line=self.commands_sent, code=str(cmd)))
             send_tries = 0
             max_send_tries = 50
             retry_attempts = 5
@@ -312,7 +321,7 @@ class SerialDevice():
                             result.append(line.rstrip('\n\r'))
                             
                             ## G commands are only one line
-                            if str(cmd).startswith("G") or done:
+                            if str(cmd).startswith("G") or done or self._serial_port == '/dev/null':
                                 break
                             else:
                                 self.serial_logger.debug("multipart response required, reading again")

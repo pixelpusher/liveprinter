@@ -62,6 +62,7 @@ require('./language/lpmode');
 /**
  * Log code log to history editor window of choice
  * @param {String} gcode 
+ * 
  */
 function recordCode(editor, code) {
     ///
@@ -97,7 +98,7 @@ function recordCode(editor, code) {
     ///
     /// end logging code to code history window -----------------------------
     ///
-    return code;
+    return [code,lastLine];
 }
 
 /**
@@ -145,10 +146,11 @@ function recordGCode(editor, gcode) {
 /**
  * This function takes the highlighted "local" code from the editor and runs the compiling and error-checking functions.
  * @param {Editor} editor 
- * @param {Function} callback 
+ * @param {Function} callback
+ * @param {Boolean} immediate If true, run immediately, otherwise schedule to run 
  * @returns {Boolean} success
  */
-async function runCode(editor, callback) {
+async function runCode(editor, callback, immediate=false) {
 
     // if printer isn't connected, we shouldn't run!
     const printerConnected = $("#header").hasClass("blinkgreen");
@@ -178,7 +180,7 @@ async function runCode(editor, callback) {
         try {
             if (window.codeLine === undefined) window.codeLine = 0;
             window.codeLine++; // increment times we've run code
-            await callback(code, line); // probably liveprintercomms.globalEval
+            await callback(code, line, immediate); // probably liveprintercomms.globalEval
         }
         catch (err) {
             err.message = "runCode:" + err.message;
@@ -251,7 +253,7 @@ const init = async function () {
                 async (cm) =>
                      await runCode(cm,
                         async (code) =>
-                             await liveprintercomms.globalEval(recordCode(HistoryCodeEditor, code))
+                             await liveprintercomms.globalEval(recordCode(HistoryCodeEditor, code),true)
                     ),
             "Shift-Enter": async (cm) =>
                  await runCode(cm,
@@ -261,11 +263,11 @@ const init = async function () {
             "Cmd-Enter": async (cm) =>
                  await runCode(cm,
                     async (code) =>
-                        await liveprintercomms.globalEval(recordCode(HistoryCodeEditor, code))
+                        await liveprintercomms.globalEval(recordCode(HistoryCodeEditor, code),true)
                 ),
             "Ctrl-Space": "autocomplete",
             "Ctrl-Q": function (cm) { cm.foldCode(cm.getCursor()); },
-            //"Ctrl-\\": clearEditor,
+            "Shift-Ctrl-\\": function (cm) { clearEditor(cm); },
         },
         foldGutter: true,
         autoCloseBrackets: true,
@@ -331,7 +333,7 @@ const init = async function () {
                 ),
             "Ctrl-Space": "autocomplete",
             "Ctrl-Q": function (cm) { cm.foldCode(cm.getCursor()); },
-            //"Ctrl-\\": clearEditor
+            "Shift-Ctrl-\\": function (cm) { clearEditor(cm); },
         },
         foldGutter: true,
         autoCloseBrackets: true,
@@ -377,7 +379,7 @@ const init = async function () {
 
             "Ctrl-Space": "autocomplete",
             "Ctrl-Q": function (cm) { cm.foldCode(cm.getCursor()); },
-            "Ctrl-\\": clearEditor
+            "Shift-Ctrl-\\": function (cm) { clearEditor(cm); }
         }
     });
 
@@ -399,7 +401,8 @@ const init = async function () {
     //
 
     const handleChanges = cm => {
-        let txt = cm.getDoc().getValue();
+        Logger.debug(`handle changes: ${cm.storageKey}`);
+        const txt = cm.getDoc().getValue();
         localStorage.setItem(cm.storageKey, txt);
     };
 
@@ -626,8 +629,8 @@ const init = async function () {
     });
 
     // set up events
-    editors.map(cm => cm.on("changes", () => handleChanges(cm)));
-    editors.map(cm => cm.on("blur", () => handleChanges(cm)));
+    editors.map(cm => cm.on("changes", (cm) => handleChanges(cm)));
+    editors.map(cm => cm.on("blur", (cm) => handleChanges(cm)));
 
     if (storageAvailable('localStorage')) {
         // finally, load the last stored session:

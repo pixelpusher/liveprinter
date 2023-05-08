@@ -283,6 +283,38 @@ export const portsListHandler = function (event) {
         $("#baudrates-list").append(newButton);
     });
 
+
+    const allLogLevels = ["debug", "info", "warn", "error"];
+
+    allLogLevels.forEach(level => {
+        const newButton = $('<button class="dropdown-item" type="button" data-level="' + level + '">' + level + '</button>');
+
+        // handle click
+        newButton.click(async function (e) {
+            e.preventDefault();
+            const me = $(this);
+            loginfo("setting gcode log level " + me.html());
+            const level = me.data("level");
+
+            Logger.debug(`level: ${level}`);
+            
+            try {
+                await liveprintercomms.setGCodeLogLevel(level);
+            }
+            catch (err) {
+                doError(err);
+            }
+
+            $("#gcodelevel-list > button").removeClass("active");
+            me.addClass("active");
+            return;
+        });
+        $("#gcodelevel-list").append(newButton);
+
+    });
+    // <div id="gcodelevel-list" class="dropdown-menu" aria-labelledby="gcodelevel-dropdown"></div>
+
+
     blinkElem($("#serial-ports-list"));
     blinkElem($("#info-tab"));
 
@@ -304,6 +336,14 @@ $("#log-requests-btn").on("click", async function (e) {
     me.button('toggle');
 });
 
+/**
+ * Sime async delay
+ * @param {Number} ms to delay for 
+ * @returns {Promise} delay promise to await resolution of
+ */
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
 
 /**
  * RequestRepeat:
@@ -317,12 +357,21 @@ $("#log-requests-btn").on("click", async function (e) {
  */
 async function requestRepeat(gcode, activeElem, delay, func, priority = 1) {
     const result = await liveprintercomms.scheduleGCode(gcode, priority);
-    func(result);
+    try 
+    {
+        func(result);
+    } 
+    catch (err) 
+    {
+        Logger.error(`Error repeating function in ui::requestRepeat, result :${result}`);
+        throw(err); // re-throw
+    }
 
     setTimeout(async () => {
         if (!activeElem.hasClass("active")) return;
         else {
-            await requestRepeat(gcode, activeElem, delay, func, priority);
+            // no await, don't pause, just fire and forget
+            requestRepeat(gcode, activeElem, delay, func, priority);
         }
     }, delay);
 

@@ -25,7 +25,7 @@ const compile = require('./language/compile'); // minigrammar compile function
 
 import { MarlinLineParserResultPosition, MarlinLineParserResultTemperature } from './parsers/MarlinParsers.js';
 import { __esModule } from "bootstrap";
-import {updateGUI, clearError, tempHandler, moveHandler} from './liveprinter.ui';
+import {updateGUI, clearError, tempHandler, moveHandler, loginfo} from './liveprinter.ui';
 import  Logger from 'liveprinter-utils/logger';
 import $ from "jquery";
 
@@ -224,7 +224,7 @@ module.exports.getLimiter = getLimiter;
  * @returns {PromiseFulfilledResult} From the docs: schedule() returns a promise that will be executed according to the rate limits.
  * @alias comms:scheduleFunction
  */
-async function scheduleFunction(args){
+async function scheduleFunction(...args){
     //logInfo(`scheduling Func: ${JSON.stringify(args)}`);
     return await limiter.schedule(...args);
 } 
@@ -234,15 +234,14 @@ module.exports.scheduleFunction = scheduleFunction;
 
 /**
  * Quickly schedules code to run in the async queue (e.g. limiter) with default args
- * @param  {Function or Array} args Limiter options object (see Bottleneckjs) and list of other function arguments 
+ * @param  {Anything} args Limiter options object (see Bottleneckjs) and list of other function arguments 
  * @returns {PromiseFulfilledResult} From the docs: schedule() returns a promise that will be executed according to the rate limits.
  * @alias comms:schedule
  */
- async function schedule(args){
+ async function schedule(...args){
     //Logger.info(`scheduling: ${args}`);
     //Logger.info(`scheduling type: ${typeof args}`);
-    if (Array.isArray(args)) return limiter.schedule({ priority:1, weight:1, id:codeIndex++ }, ...args);
-    else return limiter.schedule({ priority:1, weight:1, id:codeIndex++ }, args);
+    return await limiter.schedule({ priority:1, weight:1, id:codeIndex++ }, ...args);
 }
 
 module.exports.schedule = schedule;
@@ -256,12 +255,18 @@ let codeIndex = 0;
   * Evaluate the code in local (within closure) or global space according to the current editor mode (javascript/python).
   * @param {string} code to evaluate
   * @param {integer} line line number for error displaying
-  * @param {Boolean} globally true if executing in global space, false (normal) if executing within closure to minimise side-effects
+  * @param {Boolean} immediate default false, if true then run immediatedly without scheduling
   * @alias comms:globalEval
   */
- async function globalEval(code, line) {
-    clearError();
+ async function globalEval(code, line, immediate=false) {
+    // args can also be [code, line] for first arg
+    if (Array.isArray(code)) {
+        immediate = line || false;
+        line = code[1];
+        code = code[0];
+    }
 
+    clearError();
     const commentRegex = /\/\*[\s\S]*?\*\/|([^\\:]|^)\/\/.*$/gm; // https://stackoverflow.com/questions/5989315/regex-for-match-replacing-javascript-comments-both-multiline-and-inline/15123777#15123777
 
     code = code.replace(commentRegex, (match, p1) => {
@@ -361,12 +366,14 @@ let codeIndex = 0;
             return 1;
         }
         
-        //await func();
-        //await liveprintercomms.scheduleFunction({ priority:1,weight:1,id:codeIndex++ }, async ()=> {Logger.log(`something`); return 1});
+        if (immediate) {
+            await func();
+        }
+        else 
+        {
+            await schedule(func);
+        }
 
-        await schedule(func);
-
-        // wrap in try/catch block and debugging code
     }
     return true;
 }
@@ -586,6 +593,50 @@ async function setSerialPort({ port, baudRate }) {
 }
 // expose as global
 module.exports.setSerialPort = setSerialPort;
+
+
+
+/**
+* Set the serial port from the server (or refresh it) and display in the GUI (the listener will take care of that)
+* @memberOf LivePrinter
+* @param {String} loglevel Name of the port (machine)
+* @returns {Object} result Returns json object containing result
+* @alias comms:setGCodeLogLevel
+*/
+async function setGCodeLogLevel(loglevel) {
+    let lvl = 0;
+    //see https://docs.python.org/3/library/logging.html#logging-levels
+    if (loglevel.match(/debug/i)) {
+        lvl=10;
+    } else if (loglevel.match(/info/i)) {
+        lvl=20;
+    } else if (loglevel.match(/warn/i)) {
+        lvl=30;
+    } else if (loglevel.match(/error/i)) {
+        lvl=40;
+    }
+    
+    const message = {
+        'jsonrpc': '2.0',
+        'id': 4,
+        'method': 'set-gcode-loglevel',
+        'params': [lvl]
+    };
+    const response = await sendJSONRPC(JSON.stringify(message));
+    if (undefined === response.result || undefined === response.result[0] || typeof response.result[0] === "string") {
+        logError("bad response from set setGCodeLogLevel():");
+        logError(JSON.stringify(response));
+        throw new Error("bad response from set setGCodeLogLevel():"+JSON.stringify(response));
+    }
+    else {
+        logInfo("set log level " + lvl);
+    }
+
+    return response;
+}
+// expose as global
+module.exports.setGCodeLogLevel = setGCodeLogLevel;
+
 
 /**
 * Set the current commands line number on the printer (in case of resend). Probably doesn't work?
@@ -963,6 +1014,7 @@ async function handleGCodeResponse(res) {
 
                         try {
                             debug('unhandled gcode response: ' + rr);
+                            loginfo(`Printer response:\n${rr}`);
                             await Promise.all(otherEventListeners.map(async v => {
                                 scheduleFunction({ priority:1,weight:1,id:codeIndex++ }, v, rr);
                             }));
