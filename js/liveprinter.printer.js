@@ -697,7 +697,7 @@ class Printer {
     
     
     /**
-     * Default time-and-distance warping function: does nothing but pass through arguments.
+     * Default distance warping function: does nothing but pass through arguments.
      * @param {Object} args d (dist), heading, elevation, t (time in this move), tt (total elapsed movement time)
      * @returns {Object} new d, heading, elevation
      * @see timewarp
@@ -707,6 +707,19 @@ class Printer {
     _defaultWarp ({d, heading, elevation, t, tt}={})
     {
         return {d, heading, elevation}; //A time-varying movement function set by user. Default is no-op 
+    }
+    
+    /**
+     * Default time warping function: does nothing but pass through arguments.
+     * @param {Object} args dt (delta time), t (time in this move), tt (total elapsed movement time)
+     * @returns {Object} new dt, t, tt
+     * @see timewarp
+     * @see warp
+     * @see interval
+     */
+    _defaultTimeWarp ({dt, t, tt}={})
+    {
+        return dt; 
     }
 
     /**
@@ -750,7 +763,7 @@ class Printer {
      * @see interval
      */
     resettimewarp() {
-        this.timewarp = this._defaultWarp;
+        this.timewarp = this._defaultTimeWarp;
         return this;
     }
 
@@ -860,7 +873,7 @@ class Printer {
 
             let vdistPerMove=0, hdistPerMove = distPerMove;
 
-            let {d, heading, elevation} = this._warp({
+            const {d, heading, elevation} = this._warp({
                 d:distPerMove, heading:this._heading, elevation:this._elevation, t:elapsedTime, tt:this.totalMoveTime});
 
             hdistPerMove = d;
@@ -988,7 +1001,7 @@ class Printer {
 
             let vdistPerMove=0, hdistPerMove = distPerMove;
 
-            let {d, heading, elevation} = this._warp({
+            const {d, heading, elevation} = this._warp({
                 d:distPerMove, heading:this._heading, elevation:this._elevation, t:elapsedTime, tt:this.totalMoveTime});
 
             hdistPerMove = d;
