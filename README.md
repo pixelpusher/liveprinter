@@ -22,18 +22,18 @@ The server front-end is coded in JavaScript using NodeJS's npm build system. You
 
 1. Run ```npm install``` to install required modules
     - On OS X, it's recommended to use the 'official' NodeJS from [https://nodejs.org/en/download/](https://nodejs.org/en/download/) instead of brew because there might be an error with building node-gyp. Then, when nodejs is installed, install node-gyp using `sudo npm install node-gyp -g` _before_ running `npm install.` 
-    - On Ubuntu or linux, you'll probably need to set up your serial port permissions using ``sudo usermod -a -G tty $USERNAME`` and ``sudo usermod -a -G dialout $USERNAME`` first before running the server. Then assuming you are on ``/dev/ttyACM0`` try running ``echo "G28" > /devttyACM0`` in your terminal once connected via USB (check for your serial port using ``dmesg``) to run a standard bed leveling GCode and see if anything happens. Then, unplug and re-plug your printer usb and start the server.      
+    - On Ubuntu or linux, you'll probably need to set up your serial port permissions using ``sudo usermod -a -G tty $USERNAME`` and ``sudo usermod -a -G dialout $USERNAME`` first before running the server (you might need to reboot your machine after this to see the changes). Then assuming you are on ``/dev/ttyACM0`` try running ``echo "G28" > /dev/ttyACM0`` in your terminal once connected via USB (check for your serial port using ``dmesg``) to run a standard bed leveling GCode and see if anything happens. Then, unplug and re-plug your printer usb and start the server.      
 2. For production, build streamlined javascript by running ```npm run watch``` (for some reason, build doesn't always work but watch does) and following the instructions below to get the python server up and running.
 3. For development, run ```npm run watch``` to have any saved changed automatically re-compiled.
 4. Open a second terminal and run `npm run server` to run the server, or
 
-The web server (tornado 6) runs on Python 3 (3.6, 3.7 and 3.8+ tested) so you will need that installed.  Then, use pip (the Python package manager) to install supporting libraries `python3 -m pip pyserial tornado tornado-jsonrpc2`:
+The web server (tornado 6) runs on Python 3 (3.6, 3.7 and 3.8+ tested) so you will need that installed.  Then, use pip (the Python package manager) to install supporting libraries `python3 -m pip install pyserial tornado tornado-jsonrpc2`:
 
 * pyserial (tested with 3.4+)
 * tornado (tested with 6.0.1+)
 * tornado-jsonrpc2 (tested with 0.5+)
 
-Run the server using your Python environment of choice. The server script is in the ``liveprinter`` subfolder and is called ```LivePrinterServer.py```, so change to that folder using `cd liveprinter `and run:
+Run the server using your Python environment of choice. The server script is in the ``liveprinter`` subfolder and is called ```LivePrinterServer.py```, so change to that folder using `cd liveprinter`, make sure there's a `logs` folder (create it, or on Linux/OS X in terminal type `mkdir logs`) and run:
 
 ```python LivePrinterServer.py```
 
