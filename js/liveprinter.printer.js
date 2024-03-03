@@ -1656,7 +1656,7 @@ class Printer {
             // for extrusion into free space
             // apparently, some printers take the filament into account (so this is in mm3)
             // this was helpful: https://github.com/Ultimaker/GCodeGenJS/blob/master/js/gcode.js
-            const filamentLength = distanceMag * this.layerHeight * this.layerHeight;//(Math.PI*filamentRadius*filamentRadius);
+            let filamentLength = distanceMag * this.layerHeight * this.layerHeight;//(Math.PI*filamentRadius*filamentRadius);
 
             //
             // safety check:
