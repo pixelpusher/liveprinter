@@ -1721,9 +1721,9 @@ class Printer {
 
             this.printEvent({
                 'type': 'extrude',
-                'newPosition': newPosition.axes, 
-                'oldPosition':this.position.axes,
-                'speed':this.printSpeed,
+                'newPosition': { ...newPosition.axes }, 
+                'oldPosition': { ...this.position.axes },
+                'speed':this._printSpeed,
                 'moveTime': moveTime,
                 'totalMoveTime': this.totalMoveTime,
                 'layerHeight': this.layerHeight,
@@ -1744,9 +1744,9 @@ class Printer {
 
             this.printEvent({
                 'type': 'travel',
-                'newPosition': newPosition.axes, 
-                'oldPosition':this.position.axes,
-                'speed':this.travelSpeed,
+                'newPosition': { ...newPosition.axes }, 
+                'oldPosition': { ...this.position.axes },
+                'speed':this._travelSpeed,
                 'moveTime': moveTime,
                 'totalMoveTime': this.totalMoveTime,
                 'layerHeight': this.layerHeight,
