@@ -170,7 +170,8 @@ class Printer {
                 'speed':this.travelSpeed,
                 'moveTime': moveTime,
                 'totalMoveTime': this.totalMoveTime,
-                'layerHeight': this.layerHeight
+                'layerHeight': this.layerHeight,
+                'length': length
             });
 
             or
@@ -183,6 +184,7 @@ class Printer {
                 'moveTime': moveTime,
                 'totalMoveTime': this.totalMoveTime,
                 'layerHeight': this.layerHeight
+                'length': length 
             });
 
             of
@@ -1724,7 +1726,8 @@ class Printer {
                 'speed':this.printSpeed,
                 'moveTime': moveTime,
                 'totalMoveTime': this.totalMoveTime,
-                'layerHeight': this.layerHeight
+                'layerHeight': this.layerHeight,
+                'length': distanceMag
             });
 
         } else {
@@ -1746,7 +1749,8 @@ class Printer {
                 'speed':this.travelSpeed,
                 'moveTime': moveTime,
                 'totalMoveTime': this.totalMoveTime,
-                'layerHeight': this.layerHeight
+                'layerHeight': this.layerHeight,
+                'length': distanceMag
             });
         }
         // Handle movements outside printer boundaries if there's a need.
