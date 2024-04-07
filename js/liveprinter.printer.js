@@ -64,7 +64,9 @@ class Printer {
         this.unret = this.unretract;
 
         this.gcodeListeners = []; // will be notified of gcode events
+        this.printListeners = []; // will be notified of print events
         this.errorListeners = []; // will be notified of error events
+
 
         // notified of operations like draw, bed, temp, turn, etc.
         this.opListeners = [];
@@ -158,6 +160,54 @@ class Printer {
     }
 
     /**
+     *  Notify listeners that a printing operation happened.
+     *  @param {String} eventData Event data object to send
+     * @example 
+     *  this.printEvent({
+                'type': 'travel',
+                'newPosition': newPosition.axes, 
+                'oldPosition':this.position.axes,
+                'speed':this.travelSpeed,
+                'moveTime': moveTime,
+                'totalMoveTime': this.totalMoveTime,
+                'layerHeight': this.layerHeight,
+                'length': length
+            });
+
+            or
+
+            this.printEvent({
+                'type': 'extrude',
+                'newPosition': newPosition.axes, 
+                'oldPosition':this.position.axes,
+                'speed':this.printSpeed,
+                'moveTime': moveTime,
+                'totalMoveTime': this.totalMoveTime,
+                'layerHeight': this.layerHeight
+                'length': length 
+            });
+
+            of
+
+            this.printEvent({
+                'type': 'retract',
+                'speed':this.retractSpeed,
+                'length': this.retractLength,
+            });
+
+            this.printEvent({
+                'type': 'unretract',
+                'speed':this.retractSpeed,
+                'length': this.retractLength,
+            });
+     *
+     */
+    async printEvent(eventData) {
+        const results = await Promise.all(this.printListeners.map(async (l) => l.printEvent(eventData)));
+        Logger.debug(`Print event: ${JSON.stringify(eventData,null,2)}`);
+    }
+
+    /**
      *  Notify listeners that an error has taken place.
      *  @param {Error} err GCode command string to send
      *  @returns{any} Nothing.
@@ -166,30 +216,34 @@ class Printer {
         const results = await Promise.all(this.errorListeners.map(async (el) => el.errorEvent(err)));
     }
 
-    addGCodeListener(gl) {
-        if (this.gcodeListeners.indexOf(gl) < 0){
-            this.gcodeListeners.push(gl);
+    addGCodeListener(l) {
+        if (!this.gcodeListeners.includes(l)){
+            this.gcodeListeners.push(l);
         }
     }
 
-    addErrorListener(gl) {
-        if (this.errorListeners.indexOf(gl) < 0){
-            this.errorListeners.push(gl);
+    addPrintListener(l) {
+        if (!this.printListeners.includes(l)){
+            this.printListeners.push(l);
         }
     }
 
-    removeGCodeListener(gl) {
-        const index = this.gcodeListeners.indexOf(gl);
-        if (index > -1) {
-            this.gcodeListeners.splice(index,1);
+    addErrorListener(l) {
+        if (!this.errorListeners.includes(l)){
+            this.errorListeners.push(l);
         }
     }
 
-    removeErrorListener(gl) {
-        const index = this.errorListeners.indexOf(gl);
-        if (index > -1) {
-            this.errorListeners.splice(index,1);
-        }
+    removeGCodeListener(l) {
+        this.gcodeListeners = this.gcodeListeners.filter( listener => listener != l);
+    }
+
+    removePrintListener(l) {
+        this.printListeners = this.printListeners.filter( listener => listener != l);
+    }
+
+    removeErrorListener(l) {
+        this.errorListeners = this.errorListeners.filter( listener => listener != l);
     }
 
     /// -------------------------------------------------------------------
@@ -449,6 +503,10 @@ class Printer {
         return this._retractSpeed;
     }
 
+    get retractSpeed() {
+        return this._retractSpeed;
+    }
+
     /**
      * Set the extrusion thickness (in mm)
      * @param {float} val thickness of the extruded line in mm
@@ -510,6 +568,12 @@ class Printer {
             await this.gcodeEvent("G10");
         }
 
+        this.printEvent({
+            'type': 'retract',
+            'speed':this.retractSpeed,
+            'length': this.retractLength,
+        });
+
         return this;
     }
 
@@ -559,7 +623,13 @@ class Printer {
             await this.gcodeEvent("G11");
         }
         //this.e = parseFloat(this.e.toFixed(4));
-        
+    
+
+        this.printEvent({
+                'type': 'unretract',
+                'speed':this.retractSpeed,
+                'length': this.retractLength,
+        });
 
         return this;
     }
@@ -1586,7 +1656,7 @@ class Printer {
             // for extrusion into free space
             // apparently, some printers take the filament into account (so this is in mm3)
             // this was helpful: https://github.com/Ultimaker/GCodeGenJS/blob/master/js/gcode.js
-            const filamentLength = distanceMag * this.layerHeight * this.layerHeight;//(Math.PI*filamentRadius*filamentRadius);
+            let filamentLength = distanceMag * this.layerHeight * this.layerHeight;//(Math.PI*filamentRadius*filamentRadius);
 
             //
             // safety check:
@@ -1648,6 +1718,18 @@ class Printer {
             if (Math.abs(nozzleSpeed.axes.e) > Printer.maxPrintSpeed[this._model]["e"]) {
                 throw Error("[API] E printing speed too fast:" + nozzleSpeed.axes.e + "/" + Printer.maxPrintSpeed[this._model]["e"]);
             }
+
+            this.printEvent({
+                'type': 'extrude',
+                'newPosition': { ...newPosition.axes }, 
+                'oldPosition': { ...this.position.axes },
+                'speed':this._printSpeed,
+                'moveTime': moveTime,
+                'totalMoveTime': this.totalMoveTime,
+                'layerHeight': this.layerHeight,
+                'length': distanceMag
+            });
+
         } else {
             // just traveling
             if (Math.abs(nozzleSpeed.axes.x) > Printer.maxTravelSpeed[this._model]["x"]) {
@@ -1659,6 +1741,17 @@ class Printer {
             if (Math.abs(nozzleSpeed.axes.z) > Printer.maxTravelSpeed[this._model]["z"]) {
                 throw Error("[API] Z travel too fast:" + nozzleSpeed.axes.z);
             }
+
+            this.printEvent({
+                'type': 'travel',
+                'newPosition': { ...newPosition.axes }, 
+                'oldPosition': { ...this.position.axes },
+                'speed':this._travelSpeed,
+                'moveTime': moveTime,
+                'totalMoveTime': this.totalMoveTime,
+                'layerHeight': this.layerHeight,
+                'length': distanceMag
+            });
         }
         // Handle movements outside printer boundaries if there's a need.
         // Tail recursive.
