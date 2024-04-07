@@ -402,7 +402,7 @@ class Printer {
      * set bpm for printer, for calculating beat-based movements
      * @param {Number} beats Beats per minute
      */
-    bpm(beats) {
+    bpm(beats=this._bpm) {
         this._bpm = beats;
         return this._bpm;
     } 
@@ -2395,7 +2395,7 @@ Printer.maxTravelSpeed[Printer.REPRAP] = { 'x': 300, 'y': 300, 'z': 80, 'e': 45 
 
 Printer.maxPrintSpeed = {};
 Printer.maxPrintSpeed[Printer.UM2] =
-    Printer.maxPrintSpeed[Printer.REPRAP] = { 'x': 150, 'y': 150, 'z': 80, 'e': 45 };
+    Printer.maxPrintSpeed[Printer.REPRAP] = { 'x': 250, 'y': 250, 'z': 150, 'e': 150 };
 Printer.maxPrintSpeed[Printer.UM3] = Printer.maxPrintSpeed[Printer.UM2plus] = { 'x': 150, 'y': 150, 'z': 80, 'e': 45 };
 
 Printer.bedSize = {};

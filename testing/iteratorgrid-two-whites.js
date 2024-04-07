@@ -225,7 +225,7 @@ while (lp.z < beatHeight+minz)
     for (let ctr=0; ctr<(2*TPS); ctr++) {
       	
         if (window.bail) {
-          //# retract | speed 50 | up 50
+          # retract | speed 50 | up 50
           return; //safety stop
         }
           
@@ -246,7 +246,7 @@ while (lp.z < beatHeight+minz)
         }
         lastIndex = i;
       	
-        // # to x:x y:y t:beat | draw        
+        # to x:x y:y t:beat | draw        
     };
  
 }

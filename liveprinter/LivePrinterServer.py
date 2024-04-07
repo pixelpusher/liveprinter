@@ -60,7 +60,13 @@ import tornado.log
 define("port", default=8888, help="run on the given port", type=int)
 
 # create logger for this module
-# logger = tornado.log.access_log
+
+# turn off logging to console!
+acc_logger = tornado.log.access_log
+acc_logger.setLevel(logging.ERROR)
+acc_logger.addHandler(logging.NullHandler())
+acc_logger.propagate = False
+
 
 logger = tornado.log.app_log
 

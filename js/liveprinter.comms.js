@@ -582,10 +582,10 @@ async function setSerialPort({ port, baudRate }) {
         throw new Error("bad response from set serialPort():"+JSON.stringify(response));
     }
     else {
-        logInfo("connected to port " + response.result[0].port[0] + " at baud rate " + response.result[0].port[1]);
-        logInfo("startup messages:");
+        loginfo("Connected to serial port " + response.result[0].port[0] + " at baud rate " + response.result[0].port[1]);
+        loginfo("Startup messages from printer:");
         for (const msg of response.result[0].messages) {
-            logInfo(msg);
+            loginfo(msg);
         }
     }
 
