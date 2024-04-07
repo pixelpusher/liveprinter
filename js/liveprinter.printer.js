@@ -1721,7 +1721,7 @@ class Printer {
 
             this.printEvent({
                 'type': 'extrude',
-                'newPosition': { ...newPosition.axes }, 
+                'newPosition': { ...newPosition }, 
                 'oldPosition': { ...this.position.axes },
                 'speed':this._printSpeed,
                 'moveTime': moveTime,
@@ -1744,7 +1744,7 @@ class Printer {
 
             this.printEvent({
                 'type': 'travel',
-                'newPosition': { ...newPosition.axes }, 
+                'newPosition': { ...newPosition }, 
                 'oldPosition': { ...this.position.axes },
                 'speed':this._travelSpeed,
                 'moveTime': moveTime,
