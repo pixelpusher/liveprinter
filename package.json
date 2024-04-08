@@ -22,9 +22,9 @@
     },
     "test": {
       "source": "test/test.html",
-      "distDir": "./liveprinter/static/test",
+      "distDir": "./test/build",
       "context": "browser",
-      "outputFormat": "global",
+      "outputFormat": "esmodule",
       "publicUrl": "./"
     }
   },

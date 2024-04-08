@@ -1,4 +1,5 @@
 *.log
+._*
 
 # Visual Studio 2015 cache directory
 /.vs/
@@ -12,6 +13,7 @@ __pycache__/
 
 # Distribution / packaging
 .Python
+venv/
 env/
 build/
 develop-eggs/

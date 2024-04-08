@@ -152,29 +152,29 @@ There is [an API and function reference for the client end](https://pixelpusher.
 
 ### An aside on Python Virtual Environments
 
-It makes sense (in general, not just for this project) to do Python development using isolated [virtual environments](https://virtualenv.pypa.io/en/stable/), to prevent contamination or clashes between modules and utilities by keeping all configuration sandboxed. This requires a global installation of `virtualenv`. After that we can do (on macOS and Linux at least):
+It makes sense (in general, not just for this project) to do Python development using isolated [virtual environments](https://docs.python.org/3/library/venv.html#venv-def), to prevent contamination or clashes between modules and utilities by keeping all configuration sandboxed. Check the docs to see how to isntall a virtual environment for your OS, but on OS X and Linux its:
+```bash
+cd LIVEPRINTER_MAIN_FOLDER
+cd liveprinter
+python3 -m venv ./venv
 
-        cd LIVEPRINTER_MAIN_FOLDER
-        cd liveprinter
-        virtualenv --python=python3 ./venv3
-                # create a Python 3 virtual environment
-        . /venv3/bin/activate
-                # activate the environment
-        pip install --upgrade pip
-                # get the latest pip in the virtual environment (probably not essential)
-        pip install tornado pyserial tornado_jsonrpc2
-                # get the libraries we need
-        python LivePrinterServer.py
-                # launch the server in the Python 3 sandbox  
-For Windows:
-
-        virtualenv --python=AppData\Local\Programs\Python\Python37\python.exe Desktop\venv3
-        Desktop\venv3x\Scripts\activate
+# create a Python 3 virtual environment
+source ./venv/bin/activate
+# activate the environment
+pip install --upgrade pip
+# get the latest pip in the virtual environment (probably not essential)
+pip install tornado pyserial tornado_jsonrpc2
+# get the libraries we need
+python LivePrinterServer.py
+        # launch the server in the Python 3 sandbox  
+```
 
 Then when all is done:
 
-        deactivate
-                # wind down the environment
+```shell
+deactivate
+# wind down the environment
+```
 
 ## License and Dependencies
 
