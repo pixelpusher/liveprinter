@@ -1025,7 +1025,7 @@ class Printer {
    * @param {Any} time as beats, millis, seconds: 10b, 1/2b, 20ms, 30s, 1000
    * @returns {Number} time in ms
    */
-  parseAsTime(time) {
+  parseAsTime(time, bpm=this._bpm) {
     let targetTime;
 
     if (isFinite(time)) {
@@ -1060,7 +1060,7 @@ class Printer {
 
           case "b": // beats
             {
-              targetTime = this.b2t(numberParam);
+              targetTime = (60000 / bpm) * numberParam;
             }
             break;
 
@@ -2163,13 +2163,27 @@ class Printer {
     return (s * t) / 1000; // time in ms
   }
 
+   /**
+   * Calculate the movement distance based on a midi note and the current bpm.
+   * @param {String or Number} note as midi note in string ("C6") or numeric (68) format
+   * @param {Number or String} time Time in string or number format to move
+   * @param {Number} bpm Beats per minute 
+   * @returns {Number or String} distance in mm
+   */
+   n2mm(note, time="1b", bpm = this._bpm) {
+    const speed = this.midi2speed(note);
+    const time = this.parseAsTime(beat, bpm);
+    return (speed * time) / 1000; // time in ms
+  }
+
   /**
    * Get the time in ms based on number of beats (uses bpm to calculate)
-   * @param {Number} beats In whole or partial beats
+   * @param {String or Number} beats Beats (or any time really) as a time string or number
+   * @param {Number} bpm Beats per minute 
    * @returns {Number} Time in ms equivalent to the number of beats
    */
   b2t(beats, bpm = this._bpm) {
-    return (60000 / this._bpm) * beats;
+    return this.parseAsTime(beats, bpm);
   }
 
   /**
@@ -2200,7 +2214,7 @@ class Printer {
   }
 
   /**
-   * @param {number} note as midi note
+   * @param {String or Number} note as midi note in string ("C6") or numeric (68) format
    * @param {string} axis of movement: x,y,z
    * @returns {float} speed in mm/s
    */
