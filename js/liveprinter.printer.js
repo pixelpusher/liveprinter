@@ -2172,8 +2172,8 @@ class Printer {
    */
    n2mm(note, time="1b", bpm = this._bpm) {
     const speed = this.midi2speed(note);
-    const time = this.parseAsTime(beat, bpm);
-    return (speed * time) / 1000; // time in ms
+    const _time = this.parseAsTime(time, bpm);
+    return (speed * _time) / 1000; // time in ms
   }
 
   /**
