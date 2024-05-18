@@ -702,6 +702,7 @@ class Printer {
     this.x = 0;
     this.y = this.maxy;
     this.z = this.maxz;
+    this.totalMoveTime = 0;
 
     this.printspeed(Printer.defaultPrintSpeed);
     this.travelspeed(Printer.defaultPrintSpeed);
@@ -1025,7 +1026,7 @@ class Printer {
    * @param {Any} time as beats, millis, seconds: 10b, 1/2b, 20ms, 30s, 1000
    * @returns {Number} time in ms
    */
-  parseAsTime(time, bpm=this._bpm) {
+  parseAsTime(time, bpm = this._bpm) {
     let targetTime;
 
     if (isFinite(time)) {
@@ -1750,6 +1751,9 @@ class Printer {
     } else {
       moveTime = (1000 * distanceMag) / _speed; // in ms
     }
+    if (Number.isNaN(moveTime)) {
+      throw new Error(`Movetime NAN in extrudeTo`);
+    }
 
     if (extrusionNotSpecified) {
       Logger.debug(`moveTime: ${moveTime}`);
@@ -2163,14 +2167,14 @@ class Printer {
     return (s * t) / 1000; // time in ms
   }
 
-   /**
+  /**
    * Calculate the movement distance based on a midi note and the current bpm.
    * @param {String or Number} note as midi note in string ("C6") or numeric (68) format
    * @param {Number or String} time Time in string or number format to move
-   * @param {Number} bpm Beats per minute 
+   * @param {Number} bpm Beats per minute
    * @returns {Number or String} distance in mm
    */
-   n2mm(note, time="1b", bpm = this._bpm) {
+  n2mm(note, time = "1b", bpm = this._bpm) {
     const speed = this.midi2speed(note);
     const _time = this.parseAsTime(time, bpm);
     return (speed * _time) / 1000; // time in ms
@@ -2179,7 +2183,7 @@ class Printer {
   /**
    * Get the time in ms based on number of beats (uses bpm to calculate)
    * @param {String or Number} beats Beats (or any time really) as a time string or number
-   * @param {Number} bpm Beats per minute 
+   * @param {Number} bpm Beats per minute
    * @returns {Number} Time in ms equivalent to the number of beats
    */
   b2t(beats, bpm = this._bpm) {
