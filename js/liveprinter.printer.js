@@ -695,7 +695,7 @@ class Printer {
   async start(hotEndTemp = "190", bedTemp = "50") {
     await this.gcodeEvent("G28");
     await this.gcodeEvent("M114"); // get current position
-    await this.gcodeEvent("M106 S0"); // set fan to full
+    await this.gcodeEvent("M106 S0"); // set fan to off
     await this.gcodeEvent("M104 S" + hotEndTemp); //heater 1 temp
     //this.gcodeEvent("M140 S" + bedTemp); // bed temp
     await this.sendFirmwareRetractSettings();
@@ -715,12 +715,21 @@ class Printer {
 
   /**
    * Set hot end temperature, don't block other operation.
-   * to printing position (layerheight).
    * @param {float} temp is the temperature to start warming up to
    * @returns {Printer} reference to this object for chaining
    */
   async temp(temp = "190") {
     await this.gcodeEvent("M104 S" + temp);
+    return this;
+  }
+
+  /**
+   * Set hot end temperature, block other operation and wait to reach temp.
+   * @param {float} temp is the temperature to start warming up to
+   * @returns {Printer} reference to this object for chaining
+   */
+  async tempwait(temp = "190") {
+    await this.gcodeEvent("M109 S" + temp);
     return this;
   }
 
