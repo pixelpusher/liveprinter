@@ -956,6 +956,13 @@ class Printer {
       throw err; // re-throw to scheduler
     }
 
+    this.printEvent({
+      type: "drawtime-start",
+      speed: this._printSpeed,
+      start: startTime,
+      end: targetTime,
+    });
+
     targetTime += this.totalMoveTime;
 
     // should we clear these? Probably, since they don't apply here
@@ -1025,6 +1032,13 @@ class Printer {
           performance.now() - opStartTime
         } ms vs. expected ${this._intervalTime}.`
       );
+
+      this.printEvent({
+        type: "drawtime-start",
+        speed: this._printSpeed,
+        start: startTime,
+        end: targetTime,
+      });
     }
 
     return this;
@@ -1096,6 +1110,7 @@ class Printer {
    * @returns {Printer} reference to this object for chaining
    */
   async draw(dist) {
+    
     const startTime = this.totalMoveTime; // last totalMoveTime, for calc elapsed time in loop
     let totalDistance = 0; // total distance extruded
     this._distance = dist && isFinite(dist) ? dist : this._distance; // stored distance to extrude, unless otherwise specified below
@@ -1107,6 +1122,12 @@ class Printer {
     // Logger.debug(`go: total move time/num: ${totalMovementsTime} / ${totalMovements}`);
 
     let safetyCounter = 20000; // arbitrary -- make sure we don't hit infinite loops
+
+    this.printEvent({
+      type: "draw-start",
+      speed: this._printSpeed,
+      length: this._distance,
+    });
 
     while (safetyCounter && totalDistance < targetDist) {
       safetyCounter--;
@@ -1173,6 +1194,11 @@ class Printer {
     this._elevation = 0;
     this._distance = 0;
 
+    this.printEvent({
+      type: "draw-end",
+      speed: this._printSpeed,
+      length: totalDistance,
+    });
     return this;
   }
 
