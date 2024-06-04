@@ -98,6 +98,127 @@ LivePrinter is part web client and server for livecoding and part 3D printer hos
 
 More than one person might be involved: the system is designed to support collaborative livecoding and potentially many 3D printers, as complex as that is! (Look at the Max/MSP example in the *misc* folder for an example of this)
 
+## Print events (NEW for 2024!)
+
+LivePrinter now send useful print events that you can use to build visualisers and collect and download GCode commands. (There's a public demo on this coming soon)
+
+Add event listeners using the `addXXXXListener()` function, sending it an object with a key that is `gcodeEvent`, `printEvent`, `errorEvent` with a function that handles an object like:
+
+```js
+const lp = new Printer();
+
+const gcode = [];
+
+const gcodeListener = {
+  gcodeEvent: (g) => gcode.push(g),
+};
+
+lp.addGCodeListener(gcodeListener);
+
+// later on...
+lp.removeGCodeListener(gcodeListener);
+
+lp.addPrintListener({
+  printEvent: ({
+    type,
+    newPosition,
+    oldPosition,
+    speed,
+    moveTime,
+    totalMoveTime,
+    layerHeight,
+    length,
+  }) => {
+    console.log("Print event:");
+    console.log("old", oldPosition);
+    console.log("new", newPosition);
+    console.log("length", length);
+    console.log("speed", speed);
+  },
+});
+
+```
+
+Events from functions:
+
+### drawtime()
+```js
+1. this.printEvent({
+    type: "drawtime-start",
+    speed: print speed,
+    start: start time in ms,
+    end: estimated end time in ms,
+});
+
+2. this.printEvent({
+    type: "drawtime-end",
+    speed: print speed,
+    start: start time in ms,
+    end: actual end time in ms,
+});
+```
+
+### draw()
+```js
+printEvent({
+    type: "draw-start",
+    speed: current print speed,
+    length: distance to move,
+});  
+
+printEvent({
+    type: "draw-end",
+    speed: print speed,
+    length: distance actually moved
+});
+```
+
+### retract()
+```js
+printEvent({
+    type: "retract",
+    speed: retractSpeed,
+    length: retract Length,
+});
+
+this.printEvent({
+    'type': 'unretract',
+    'speed':this.retractSpeed,
+    'length': this.retractLength,
+})
+```
+
+### extrude()
+
+**extrude event:**
+```js
+printEvent({
+        type: "extrude",
+        newPosition: { ...this.position.axes },
+        oldPosition: { ...oldPosition },
+        speed: this._printSpeed,
+        moveTime: moveTime,
+        totalMoveTime: this.totalMoveTime,
+        layerHeight: this.layerHeight,
+        length: distanceMag,
+      });
+```
+
+**travel event:**
+
+```js
+printEvent({
+        type: "travel",
+        newPosition: { ...this.position.axes },
+        oldPosition: { ...oldPosition },
+        speed: this._travelSpeed,
+        moveTime: moveTime,
+        totalMoveTime: this.totalMoveTime,
+        layerHeight: this.layerHeight,
+        length: distanceMag,
+      });
+```
+
 ## JSON-RPC API
 
 ### Testing
