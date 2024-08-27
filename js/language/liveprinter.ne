@@ -29,7 +29,7 @@ FunctionStatement -> (FunctionName {%
 		} 
 	%})  ( Spaces 
 	
-		( FunctionName Space "(" Space AnyArgs:? Space ")" {% ([fn,s1,p1,s2,args,s3,p2]) => fn + p1 + args.join(',') + p2  %}
+		( FunctionName Space "(" Space AnyArgs:? Space ")" {% ([fn,s1,p1,s2,args,s3,p2]) => fn + p1 + (Array.isArray(args) ? args.join(',') : args) + p2  %}
 		| ObjArgs 
 		{% 
 		function ([args]) {

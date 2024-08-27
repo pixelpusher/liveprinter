@@ -16329,7 +16329,7 @@ module.exports = compile;
                         "literal": ")"
                     }
                 ],
-                "postprocess": ([fn, s1, p1, s2, args, s3, p2])=>fn + p1 + args.join(",") + p2
+                "postprocess": ([fn, s1, p1, s2, args, s3, p2])=>fn + p1 + (Array.isArray(args) ? args.join(",") : args) + p2
             },
             {
                 "name": "FunctionStatement$ebnf$1$subexpression$1$subexpression$1",

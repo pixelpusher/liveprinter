@@ -28,7 +28,7 @@ var grammar = {
         	},
     {"name": "FunctionStatement$ebnf$1$subexpression$1$subexpression$1$ebnf$1", "symbols": ["AnyArgs"], "postprocess": id},
     {"name": "FunctionStatement$ebnf$1$subexpression$1$subexpression$1$ebnf$1", "symbols": [], "postprocess": function(d) {return null;}},
-    {"name": "FunctionStatement$ebnf$1$subexpression$1$subexpression$1", "symbols": ["FunctionName", "Space", {"literal":"("}, "Space", "FunctionStatement$ebnf$1$subexpression$1$subexpression$1$ebnf$1", "Space", {"literal":")"}], "postprocess": ([fn,s1,p1,s2,args,s3,p2]) => fn + p1 + args.join(',') + p2},
+    {"name": "FunctionStatement$ebnf$1$subexpression$1$subexpression$1", "symbols": ["FunctionName", "Space", {"literal":"("}, "Space", "FunctionStatement$ebnf$1$subexpression$1$subexpression$1$ebnf$1", "Space", {"literal":")"}], "postprocess": ([fn,s1,p1,s2,args,s3,p2]) => fn + p1 + (Array.isArray(args) ? args.join(',') : args) + p2},
     {"name": "FunctionStatement$ebnf$1$subexpression$1$subexpression$1", "symbols": ["ObjArgs"], "postprocess":  
         function ([args]) {
         	let fstr = "{";
