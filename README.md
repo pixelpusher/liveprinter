@@ -316,4 +316,4 @@ LivePrinter is completely open source (AGPL 3.0). To summarise, it is built on a
 
 ## Who is behind this
 
-This project was started by [Evan Raskob](http://pixelist.info), [artist, livecoder and Lecturer at Goldsmiths University](https://www.youtube.com/playlist?list=PLuA35183Y-6-kdqw70KCm4knSm4lvvicu) (previously  at the Royal College of Art in London), and part-time PhD student in arts and Computational Technology also at Goldsmiths.  This project is the main practice part of his ongoing PhD study.  If you'd like to get in touch, please email him at e.raskob@gold.ac.uk.
+This project was started by [Evan Raskob](http://pixelist.info), [artist, livecoder and Course Leader for BSc Computer Science at UAL](https://www.youtube.com/playlist?list=PLuA35183Y-6-kdqw70KCm4knSm4lvvicu) (previously at Goldsmiths and the Royal College of Art in London), and PhD in arts and Computational Technology from Goldsmiths Department of Computing.  If you'd like to get in touch, please email him at evan.raskob@arts.ac.uk.

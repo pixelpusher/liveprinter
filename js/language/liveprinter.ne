@@ -1,6 +1,5 @@
 # transpiles mini language into JavaScript
 # compile with  "nearleyc liveprinter.ne -o lpgrammar.js"
-# then copy to live server: "cp lpgrammar.js ../static/lib/nearley/"
 # nearley 2.16.0 https://nearley.js.org
 # transpiles mini language into JavaScript
 
@@ -20,7 +19,7 @@ Chain -> FunctionStatement Space PIPE Space Chain {% d => [d[0]].concat(d[4]).jo
 
 FunctionStatement -> (FunctionName {% 
 		([name]) => {
-            const asyncFunctionsInAPIRegex = /^(gcodeEvent|gcode|errorEvent|retractspeed|sendFirmwareRetractSettings|retract|unretract|start|temp|bed|fan|drawtime|draw|up|drawup|dup|upto|downto|down|drawdown|dd|travel|traveltime|fwretract|polygon|rect|extrudeto|sendExtrusionGCode|sendArcExtrusionGCode|extrude|move|moveto|drawfill|sync|fill|wait|pause|resume|printPaths|printPathsThick|_extrude)$/;
+            const asyncFunctionsInAPIRegex = /^(stop|prime|mov2|ext|gcodeEvent|gcode|errorEvent|retractspeed|sendFirmwareRetractSettings|retract|unretract|start|temp|bed|fan|drawtime|draw|up|drawup|dup|upto|downto|down|drawdown|dd|travel|traveltime|fwretract|polygon|rect|extrudeto|sendExtrusionGCode|sendArcExtrusionGCode|extrude|move|moveto|drawfill|sync|fill|wait|pause|resume|printPaths|printPathsThick|_extrude)$/;
 			
 			const asyncFuncCall = asyncFunctionsInAPIRegex.test(name);
 
@@ -28,8 +27,10 @@ FunctionStatement -> (FunctionName {%
 			else name = "lp." + name;
 			return name += "("; 
 		} 
-	%})  ( Spaces
-		( ObjArgs 
+	%})  ( Spaces 
+	
+		( FunctionName Space "(" Space AnyArgs:? Space ")" {% ([fn,s1,p1,s2,args,s3,p2]) => fn + p1 + args.join(',') + p2  %}
+		| ObjArgs 
 		{% 
 		function ([args]) {
 			let fstr = "{";
@@ -58,7 +59,8 @@ FunctionStatement -> (FunctionName {%
 			return fstr;
 		}
 		%}
-		) 
+
+ 	)
 	{% d => { let str=""; for (let dd of d) { if (dd) str+=dd}; return str; } %}):? {% d => d.join('') + ")" %}
 # 
 FunctionName -> PlainVariable | ObjectVariable {% id %}
@@ -122,7 +124,7 @@ AnyValidCharacter -> Letter | UsableCharacter | Digit
 
 CharOrLetter -> UsableCharacter | Letter
 
-UsableCharacter -> [\$\£\&\^\*\_]
+UsableCharacter -> [\$\£\&\^\*\_\#]
 
 Letter -> [a-zA-Z]
 
@@ -140,7 +142,7 @@ PIPE -> "|"
 
 DOT -> "."
 
-QUOTE -> "\""
+QUOTE -> "\"" | "'"
 
 # Whitespace. The important thing here is that the postprocessor
 # is a null-returning function. This is a memory efficiency trick.
