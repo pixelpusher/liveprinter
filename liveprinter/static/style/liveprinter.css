@@ -85,7 +85,7 @@
 
 body {
     background: rgb(67, 9, 25);
-    margin: 0.71em 0.71em 0 0.71em;
+    margin: 0;
 }
 
 body,
@@ -146,7 +146,7 @@ td {
 }
 
 #inbox {
-    background: #0166FF;
+    background: #0c1a30;
     color: #01FFB4;
     height: calc(100% - 8px);
 }
@@ -448,9 +448,10 @@ a.graylink, .graylink a:link, .graylink a:active,
 }
 /* Extra CodeMirror */
 .cm-lp {
-    color: #ee4bfc;
+    color: #fca64b;
+    font-weight: 800;
     text-decoration:dotted;
-    text-decoration-color:aliceblue #ee4bfc;
+    text-decoration-color:aliceblue #fcf04b;
     text-decoration-line:underline;
 }
 
@@ -470,3 +471,5 @@ a.graylink, .graylink a:link, .graylink a:active,
     color: #000;
     font-weight: bold;
 }
+
+.container { margin: 0; max-width:100%; }
