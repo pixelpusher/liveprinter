@@ -15,6 +15,25 @@
 * under the License.
 */
 
+
+@font-face {
+    font-family: 'NovaMono';
+    font-style: normal;
+    font-weight: bold;
+    src: url('../fonts/Nova_Mono/NovaMono-Regular.ttf') format('TrueType');
+  }
+
+
+  @font-face {
+    font-family: 'ShareTechMono';
+    font-style: normal;
+    font-weight: normal;
+    font-size: 1rem;
+    src: url('../fonts/Share_Tech_Mono/ShareTechMono-Regular.ttf') format('TrueType');
+  }
+
+
+
 @media only screen and (min-width: 40em) {
     html {
         font-size: 1em
@@ -91,10 +110,10 @@ body {
 body,
 input,
 .dropdown-menu {
-    font-family: sans-serif;
-    font-size: 10pt;
+    font-family: 'ShareTechMono';
+    font-size: 0.8rem;
     color: black;
-    line-height:1.5;
+    line-height:1.15;
 }
 
 table {
@@ -214,7 +233,7 @@ td {
 
 /* contains all the nav and panes for code editor and printer settings (like serial connect)*/
 #code-editor-area, #global-code-editor-area {
-    color: lightgray;
+    color: darkslategrey;
 }
 
 .cm-contain {
@@ -458,7 +477,7 @@ a.graylink, .graylink a:link, .graylink a:active,
 
 .alert-primary {
     background-color: #181818;
-    color: #b4b4b4;
+    color: lightblue;
 }
 
 /* .form-control {
@@ -473,3 +492,29 @@ a.graylink, .graylink a:link, .graylink a:active,
 }
 
 .container { margin: 0; max-width:100%; }
+
+.credits {
+    font-family: 'NovaMono';
+    font-size: 1rem;
+    margin-left: 1rem;
+    text-decoration: none;
+    margin-top: 0;
+    padding: 0;
+}
+
+.credits-box {
+    background-color: black;
+    display: block;
+    padding: 0.875rem;
+    border: 1px dashed lightblue;
+    border-radius: 0.25rem;
+    margin: 0.5rem 0.1rem;
+}
+
+.credits-box .lead {
+    font-family: 'NovaMono';
+    font-size: 1.5rem;
+    padding: 0;
+    margin: 0;
+    text-decoration: underline;
+}
