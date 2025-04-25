@@ -30,7 +30,6 @@
   },
   "dependencies": {
     "bitty-editor": "github:charlieroberts/bitty",
-    "bootstrap": "^5.3.5",
     "bottleneck": "^2.19.5",
     "grammardraw": "github:pixelpusher/grammardraw",
     "gridlib": "github:pixelpusher/gridlib",

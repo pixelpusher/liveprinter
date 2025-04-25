@@ -18,9 +18,6 @@ import { setDebug, setDoError, setLogError, setLogCommands, setLogInfo, setLogCo
 import { initEditors } from './liveprinter.editor';
 import Logger from 'liveprinter-utils/logger';
 
-var bootstrap = require('bootstrap');
-
-
 Logger.level = Logger.LOG_LEVEL.info;
 
 globalThis.$ = globalThis.jquery = require('jquery');
