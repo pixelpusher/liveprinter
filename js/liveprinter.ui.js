@@ -19,8 +19,11 @@
 import {Logger, Scheduler} from 'liveprinter-utils';
 import $ from 'jquery';
 
-const liveprintercomms = require('./liveprinter.comms');
-const vars = liveprintercomms.vars;
+import { 
+    getPrinterState, setSerialPort, getSerialPorts, 
+    setGCodeLogLevel, vars, scheduleGCode, sendJSONRPC,
+    restartLimiter
+ } from './liveprinter.comms';
 
 export let infoListElement = "#info > ul"; // for logging info to GUI
 
@@ -114,7 +117,7 @@ export const updatePrinterState = function (state, interval = 20000) {
                 delay: interval,
                 run: async (time) => {
                     try {
-                        const state = await liveprintercomms.getPrinterState();
+                        const state = await getPrinterState();
                         printerStateHandler(state);
                     }
                     catch (err) {
@@ -240,13 +243,13 @@ export const portsListHandler = function (event) {
             //$("#serial-ports-list > button").addClass("disabled");
 
             try {
-                await liveprintercomms.setSerialPort({ port, baudRate });
+                await setSerialPort({ port, baudRate });
             }
             catch (err) {
                 doError(err);
             }
             try {
-                const state = await liveprintercomms.getPrinterState(); // check if we are connected truly
+                const state = await getPrinterState(); // check if we are connected truly
                 printerStateHandler(state);
             } catch (err) {
                 doError(err);
@@ -299,7 +302,7 @@ export const portsListHandler = function (event) {
             Logger.debug(`level: ${level}`);
             
             try {
-                await liveprintercomms.setGCodeLogLevel(level);
+                await setGCodeLogLevel(level);
             }
             catch (err) {
                 doError(err);
@@ -356,7 +359,7 @@ function sleep(ms) {
  * @returns {Object} JsonRPC response object
  */
 async function requestRepeat(gcode, activeElem, delay, func, priority = 1) {
-    const result = await liveprintercomms.scheduleGCode(gcode, priority);
+    const result = await scheduleGCode(gcode, priority);
     try 
     {
         func(result);
@@ -786,7 +789,7 @@ export function blinkElem($elem, speed, callback) {
  * @param {Scheduler} _scheduler Scheduler object to use for tasks, repeating events, etc. If
  *  undefined, will crearte new one. 
  */
-export const init = async function (_printer, _scheduler) {
+export async function initUI(_printer, _scheduler) {
 
     if (!_printer) {
         logerror("FATAL error: no liveprinter object in gui init()!");
@@ -829,7 +832,7 @@ export const init = async function (_printer, _scheduler) {
                         'method': 'close-serial-port',
                         'params': []
                     };
-                    const response = await liveprintercomms.sendJSONRPC(message);
+                    const response = await sendJSONRPC(message);
 
                     if (response.result.length > 0 && response.result[0] === "closed") {
                         me.text("connect");
@@ -889,7 +892,7 @@ export const init = async function (_printer, _scheduler) {
             loginfo("Getting serial ports...");
 
             try {
-                const portsList = await liveprintercomms.getSerialPorts();
+                const portsList = await getSerialPorts();
                 await portsListHandler(portsList);
             }
             catch (err) {
@@ -911,7 +914,7 @@ export const init = async function (_printer, _scheduler) {
 
 
     /// Clear printer queue on server 
-    $("#clear-btn").on("click", liveprintercomms.restartLimiter);
+    $("#clear-btn").on("click", restartLimiter);
 
     updatePrinterState(true);
 };

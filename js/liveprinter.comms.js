@@ -3,7 +3,7 @@
  * @module Comms
  * @typicalname comms
  * @author Evan Raskob <evanraskob+nosp4m@gmail.com>
- * @version 1.0
+ * @version 2.0
  * @license
  * Copyright (c) 2022 Evan Raskob and others
  * Licensed under the GNU Affero 3.0 License (the "License"); you may
@@ -21,13 +21,11 @@
 
 const Bottleneck = require('bottleneck');
 
-const compile = require('./language/compile'); // minigrammar compile function
-
 import { MarlinLineParserResultPosition, MarlinLineParserResultTemperature } from './parsers/MarlinParsers.js';
-import { __esModule } from "bootstrap";
 import {updateGUI, clearError, tempHandler, moveHandler, loginfo} from './liveprinter.ui';
 import  Logger from 'liveprinter-utils/logger';
 import $ from "jquery";
+
 
 //------------------------------------------------
 // feedback to the GUI or logger
@@ -37,27 +35,26 @@ import $ from "jquery";
 // instead of this mess of functions
 
 let debug = (v)=>Logger.debug(v); // to be overridden by a real debug when loaded
-module.exports.setDebug = f => debug=f; 
+export const setDebug = f => debug=f; 
 
 let doError = (v)=>Logger.error(v); // to be overridden by a real debug when loaded
-module.exports.setDoError = f => doError=f; 
+export const setDoError = f => doError=f; 
 
 let logError = (v)=>Logger.error(v); // to be overridden by a real debug when loaded
-module.exports.setLogError = f => logError=f; 
+export const setLogError = f => logError=f; 
 
 let logInfo = (v)=>Logger.info(v); // to be overridden by a real debug when loaded
-module.exports.setLogInfo = f => logInfo=f; 
-
+export const setLogInfo = f => logInfo=f; 
 
 // was liveprinterUI.commandsHandler.log
 let logCommands = (v)=>Logger.info(v); // to be overridden by a real debug when loaded
-module.exports.setLogCommands = f => logCommands=f; 
+export const setLogCommands = f => logCommands=f; 
 
 //liveprinterUI.printerStateHandler
 let logPrinterState = (v)=>Logger.info(v); // to be overridden by a real debug when loaded
-module.exports.setLogPrinterState = f => logPrinterState=f; 
+export const setLogPrinterState = f => logPrinterState=f; 
 
-export let remotePort = 8888; // port for server, might be different that url if testing
+export const remotePort = 8888; // port for server, might be different that url if testing
 
 // TODO: these
 
@@ -67,28 +64,12 @@ export let remotePort = 8888; // port for server, might be different that url if
 //clearError
 
 
-/**
- * External libraries to include when compiling (evaluating) code from the live editor
- * @see main.js
- */
-
-const lib = Object.create(null); // session vars
-
-/**
- * Add external libs (as object keys) to the list of those to include whilst compiling
- * @param {Object} libs Object with external library functions as keys 
- */
-module.exports.addLibs = function (libs) {
-  Object.assign(lib, libs);  
-}
 
 /**
  * Global variables object collection.
  * @alias comms:vars
  */
-const vars = Object.create(null); // session vars
-
-module.exports.vars = vars;
+export const vars = Object.create(null); // session vars
 
 vars.serialPorts = []; // available ports
 
@@ -109,7 +90,7 @@ window.maxCodeWaitTime = 5; // max time the limiter waits for scheduled code bef
  * Creates a new limiter instance and returns it.
  * @returns {Bottleneck} Limiter queue instance
  */
-function initLimiter() {
+export function initLimiter() {
     // Bottleneck rate limiter package: https://www.npmjs.com/package/bottleneck
     // prevent more than 1 request from running at a time, provides priority queing
     const _limiter = new Bottleneck({
@@ -211,12 +192,10 @@ let limiter = initLimiter(); // runs code in a scheduler: see ui/globalEval()
  * @returns {Object} BottleneckJS limiter object. Dangerous.
  * @alias comms:getLimiter
  */
-function getLimiter()
+export function getLimiter()
 {
     return limiter;
 } 
-
-module.exports.getLimiter = getLimiter;
 
 /**
  * Schedules code to run in the async queue (e.g. limiter)
@@ -224,12 +203,10 @@ module.exports.getLimiter = getLimiter;
  * @returns {PromiseFulfilledResult} From the docs: schedule() returns a promise that will be executed according to the rate limits.
  * @alias comms:scheduleFunction
  */
-async function scheduleFunction(...args){
+export async function scheduleFunction(...args){
     //logInfo(`scheduling Func: ${JSON.stringify(args)}`);
     return await limiter.schedule(...args);
 } 
-
-module.exports.scheduleFunction = scheduleFunction;
 
 
 /**
@@ -238,13 +215,11 @@ module.exports.scheduleFunction = scheduleFunction;
  * @returns {PromiseFulfilledResult} From the docs: schedule() returns a promise that will be executed according to the rate limits.
  * @alias comms:schedule
  */
- async function schedule(...args){
+ export async function schedule(...args){
     //Logger.info(`scheduling: ${args}`);
     //Logger.info(`scheduling type: ${typeof args}`);
     return await limiter.schedule({ priority:1, weight:1, id:codeIndex++ }, ...args);
 }
-
-module.exports.schedule = schedule;
 
 
 
@@ -252,150 +227,18 @@ module.exports.schedule = schedule;
 let codeIndex = 0;
 
 /**
-  * Evaluate the code in local (within closure) or global space according to the current editor mode (javascript/python).
-  * @param {string} code to evaluate
-  * @param {integer} line line number for error displaying
-  * @param {Boolean} immediate default false, if true then run immediatedly without scheduling
-  * @alias comms:globalEval
-  */
- async function globalEval(code, line, immediate=false) {
-    // args can also be [code, line] for first arg
-    if (Array.isArray(code)) {
-        immediate = line || false;
-        line = code[1];
-        code = code[0];
-    }
-
-    clearError();
-    const commentRegex = /\/\*[\s\S]*?\*\/|([^\\:]|^)\/\/.*$/gm; // https://stackoverflow.com/questions/5989315/regex-for-match-replacing-javascript-comments-both-multiline-and-inline/15123777#15123777
-
-    code = code.replace(commentRegex, (match, p1) => {
-        return p1;
-    });
-
-    // replace globals in js
-    code = code.replace(/^[ ]*global[ ]+/gm, "window.");
-
-    debug("code before pre-processing-------------------------------");
-    debug(code);
-    debug("========================= -------------------------------");
-
-    //
-    // compile in minigrammar
-    //
-    try {
-        code = compile(code);
-    }
-    catch (err)
-    {
-        debug("Compilation error:");
-        doError(err);
-        return 1; // stop execution
-    }
-
-    code = `try{ 
-        ${code} 
-    } catch (err) {
-        logerror("GlobalEval:inner func error:");
-        logerror(err);
-        throw(err); // send up the chain
-    }`;
-
-    if (code) {
-
-        if ($("#python-mode-btn").hasClass('active')) { // check python mode
-
-            code = "from browser import document as doc\nfrom browser import window as win\nlp = win.printer\n"
-                + code;
-
-            let script = document.createElement("script");
-            script.type = "text/python";
-            script.text = code;
-
-            // run and remove
-            let scriptsContainer = $("#python-scripts");
-            scriptsContainer.empty(); // remove old ones
-            scriptsContainer.append(script); // append new one
-
-            brython(); // re-run brython
-
-            //code = __BRYTHON__.py2js(code + "", "newcode", "newcode").to_js();
-            // debug(code);
-            // eval(code);
-        }
-        else {         
-            debug(code);
-        }
-
-        //if (vars.logAjax) loginfo(`starting code ${codeIndex}`);
-
-        const func = async () => {
-            // bindings
-            lib.comms = exports; // local functions for events, etc.
-            lib.log = Logger;
-
-            let innerFunc;
-
-            // Call user's function with external bindings from lib (as 'this' which gets interally mapped to 'lib' var)
-            try {
-
-                innerFunc = eval(`async(lib)=>{await 1; ${code}; return 1}`);
-            }
-            catch(e) 
-            {
-                lastErrorMessage = null;
-                e.lineNumber=line;
-                Logger.error(`Code compilation error(${code}): ${e.message}`);
-                doError(e);
-
-                return 0; // fail fast
-            }
-            
-            try 
-            {
-                //Logger.log("running inner");
-                await innerFunc(lib);
-            }
-            catch(e) 
-            {
-                lastErrorMessage = null;
-                e.lineNumber=line;
-                Logger.error(`Code running error(${line}): ${e}`);
-                doError(e);
-           }
-            return 1;
-        }
-        
-        if (immediate) {
-            await func();
-        }
-        else 
-        {
-            await schedule(func);
-        }
-
-    }
-    return true;
-}
-// end globalEval
-
-module.exports.globalEval = globalEval;
-
-/**
  * Get number of queued functions in limiter 
  * @returns {Number} number of queued functions to run
  * @alias comms:getQueued
  */
-function getQueued() {
+export function getQueued() {
     return limiter.queued();
 }
-
-module.exports.getQueued = getQueued;
 
 /**
  * Stops and clears the current queue of events. Should cancel all non-running actions. No new events can be added after this.
  */
-async function stopLimiter() {
+export async function stopLimiter() {
     if (limiter) {
         await limiter.stop({ dropWaitingJobs: true });
         limiter.disconnect(); // clear interval and allow memory to be freed
@@ -410,7 +253,7 @@ async function stopLimiter() {
  * Effectively cleares the current queue of events and restarts it. Should cancel all non-running actions. 
  * @alias comms:restartLimiter
  */
-async function restartLimiter() {
+export async function restartLimiter() {
     logInfo("Limiter restarting");
     let stopped = false;
     try {
@@ -426,8 +269,6 @@ async function restartLimiter() {
     return;
 }
 
-module.exports.restartLimiter = restartLimiter;
-
 /**
  * Send a JSON-RPC request to the backend, get a response back. See below implementations for details.
  * @param {Object} request JSON-RPC formatted request object
@@ -435,7 +276,7 @@ module.exports.restartLimiter = restartLimiter;
  * @alias comms:sendJSONRPC 
  */
 
-async function sendJSONRPC(request) {
+export async function sendJSONRPC(request) {
     //debug(request)
     let args = typeof request === "string" ? JSON.parse(request) : request;
     //args._xsrf = getCookie("_xsrf");
@@ -471,8 +312,6 @@ async function sendJSONRPC(request) {
     return response;
 }
 
-module.exports.sendJSONRPC = sendJSONRPC;
-
 
 /**
  * Get array of data from another server via POST or GET. Should be in the format 
@@ -482,7 +321,7 @@ module.exports.sendJSONRPC = sendJSONRPC;
  * @param {Object or String} data (optional) post data
  * @returns 
  */
-async function getData(url, type="POST", data) {
+export async function getData(url, type="POST", data) {
 
     type = type.toLocaleUpperCase();
 
@@ -533,15 +372,13 @@ async function getData(url, type="POST", data) {
     return response;
 }
 
-module.exports.getData = getData;
-
 /**
 * Get the list of serial ports from the server (or refresh it) and display in the GUI (the listener will take care of that)
 * @memberOf LivePrinter
 * @returns {Object} result Returns json object containing result
 * @alias comms:getSerialPorts
 */
-async function getSerialPorts() {
+export async function getSerialPorts() {
     const message = {
         'jsonrpc': '2.0',
         'id': 6,
@@ -558,8 +395,6 @@ async function getSerialPorts() {
     }
     return response;
 }
-// expose as global
-module.exports.getSerialPorts = getSerialPorts;
 
 /**
 * Set the serial port from the server (or refresh it) and display in the GUI (the listener will take care of that)
@@ -568,7 +403,7 @@ module.exports.getSerialPorts = getSerialPorts;
 * @returns {Object} result Returns json object containing result
 * @alias comms:setSerialPort
 */
-async function setSerialPort({ port, baudRate }) {
+export async function setSerialPort({ port, baudRate }) {
     const message = {
         'jsonrpc': '2.0',
         'id': 5,
@@ -591,9 +426,6 @@ async function setSerialPort({ port, baudRate }) {
 
     return response;
 }
-// expose as global
-module.exports.setSerialPort = setSerialPort;
-
 
 
 /**
@@ -603,7 +435,7 @@ module.exports.setSerialPort = setSerialPort;
 * @returns {Object} result Returns json object containing result
 * @alias comms:setGCodeLogLevel
 */
-async function setGCodeLogLevel(loglevel) {
+export async function setGCodeLogLevel(loglevel) {
     let lvl = 0;
     //see https://docs.python.org/3/library/logging.html#logging-levels
     if (loglevel.match(/debug/i)) {
@@ -634,8 +466,7 @@ async function setGCodeLogLevel(loglevel) {
 
     return response;
 }
-// expose as global
-module.exports.setGCodeLogLevel = setGCodeLogLevel;
+
 
 
 /**
@@ -644,7 +475,7 @@ module.exports.setGCodeLogLevel = setGCodeLogLevel;
 * @returns {Object} result Returns json object containing result
 * @alias comms:setline
 */
-async function setCurrentLine(lineNumber) {
+export async function setCurrentLine(lineNumber) {
     const message = {
         'jsonrpc': '2.0',
         'id': 7,
@@ -662,8 +493,6 @@ async function setCurrentLine(lineNumber) {
 
     return response;
 }
-// expose as global
-module.exports.setline = setCurrentLine;
 
 /**
 * Get the connection state of the printer and display in the GUI (the listener will take care of that)
@@ -672,7 +501,7 @@ module.exports.setline = setCurrentLine;
 */
 let gettingState = false;
 
-async function getPrinterState() {
+export async function getPrinterState() {
     if (!gettingState) {
         const message = {
             'jsonrpc': '2.0',
@@ -692,8 +521,6 @@ async function getPrinterState() {
     }
     return null;
 }
-// expose as global
-module.exports.getPrinterState = getPrinterState;
 
 
 /**
@@ -702,7 +529,7 @@ module.exports.getPrinterState = getPrinterState;
  * @returns {Object} result Returns json object containing result
  * @alias comms:sendGCodeRPC
  */
-async function sendGCodeRPC(gcode) {
+export async function sendGCodeRPC(gcode) {
     let gcodeObj = { "jsonrpc": "2.0", "id": 4, "method": "send-gcode", "params": [] };
     if (vars.logAjax) logCommands(`SENDING gcode ${gcode}`);
 
@@ -739,8 +566,6 @@ async function sendGCodeRPC(gcode) {
     return 1;
 }
 
-module.exports.sendGCodeRPC = sendGCodeRPC;
-
 /**
  * Schedule GCode to be sent to the server, in order, using the limiter via json-rpc over ajax.
  * @param {string} gcode gcode to send
@@ -748,7 +573,7 @@ module.exports.sendGCodeRPC = sendGCodeRPC;
  * @alias comms:scheduleGCode
  * @returns {Object} result Returns json promise object containing printer response
  */
-async function scheduleGCode(gcode, priority = 4) { // 0-9, lower higher
+export async function scheduleGCode(gcode, priority = 4) { // 0-9, lower higher
     const reqId = "req" + vars.requestId++;
     if (vars.logAjax) logCommands(`SENDING ${reqId}`);
     return scheduleFunction(
@@ -761,7 +586,6 @@ async function scheduleGCode(gcode, priority = 4) { // 0-9, lower higher
     );
 }
 
-module.exports.scheduleGCode = scheduleGCode;
 
 /*
 * START SETTING UP SESSION VARIABLES ETC>
@@ -789,7 +613,7 @@ let otherEventListeners = [];
  * @param {Function} listener 
  * @alias comms:onPosition
  */
-module.exports.onPosition = function (listener) {
+export const onPosition = function (listener) {
     if (positionEventListeners.includes(listener)) return;
 
     positionEventListeners.push(listener);
@@ -800,7 +624,7 @@ module.exports.onPosition = function (listener) {
  * @param {Function} listener 
  * @alias comms:offPosition
  */
-module.exports.offPosition = (listener) => {
+export const offPosition = (listener) => {
     positionEventListeners = positionEventListeners.filter(list => list !== listener);
 };
 
@@ -811,7 +635,7 @@ let doneListeners = [];
  * @param {Function} listener 
  * @alias comms:onCodeDone
  */
-module.exports.onCodeDone =function (listener) {
+export const onCodeDone =function (listener) {
     if (doneListeners.includes(listener)) return;
 
     doneListeners.push(listener);
@@ -822,7 +646,7 @@ module.exports.onCodeDone =function (listener) {
  * @param {Function} listener 
  * @alias comms:offCodeQueued
 */
-module.exports.offCodeDone = (listener) => {
+export const offCodeDone = (listener) => {
     doneListeners = doneListeners.filter(list => list !== listener);
 };
 
@@ -833,7 +657,7 @@ let queuedListeners = [];
  * @param {Function} listener 
  * @alias comms:onCodeQueued 
  */
-module.exports.onCodeQueued = function (listener) {
+export const onCodeQueued = function (listener) {
     if (queuedListeners.includes(listener)) return;
 
     queuedListeners.push(listener);
@@ -844,7 +668,7 @@ module.exports.onCodeQueued = function (listener) {
  * @param {Function} listener 
  * @alias comms:offCodeQueued 
  */
-module.exports.offCodeQueued = (listener) => {
+export const offCodeQueued = (listener) => {
     queuedListeners = queuedListeners.filter(list => list !== listener);
 };
 
@@ -854,7 +678,7 @@ module.exports.offCodeQueued = (listener) => {
  * @param {Function} listener 
  * @alias comms:onOk 
  */
-module.exports.onOk = function (listener) {
+export const onOk = function (listener) {
     if (okEventListeners.includes(listener)) return;
 
     okEventListeners.push(listener);
@@ -865,7 +689,7 @@ module.exports.onOk = function (listener) {
  * @param {Function} listener
  * @alias comms:offOk 
  */
-module.exports.offOk = (listener) => {
+export const offOk = (listener) => {
     okEventListeners = okEventListeners.filter(list => list !== listener);
 };
 
@@ -875,7 +699,7 @@ module.exports.offOk = (listener) => {
  * @return {Boolean} success
  * @alias comms:okEvent 
  */
-module.exports.okEvent = async function (data) {
+export const okEvent = async function (data) {
     let handled = false;
     try {
         await Promise.all(okEventListeners.map(async v => {
@@ -899,7 +723,7 @@ module.exports.okEvent = async function (data) {
  * @param {Function} listener
  * @alias comms:onOther 
  */
- module.exports.onOther = function (listener) {
+export const onOther = function (listener) {
     if (otherEventListeners.includes(listener)) return;
 
     otherEventListeners.push(listener);
@@ -911,7 +735,7 @@ module.exports.okEvent = async function (data) {
  * @param {Function} listener
  * @alias comms:offOther 
  */
- module.exports.offOther = (listener) => {
+export const offOther = (listener) => {
     otherEventListeners = otherEventListeners.filter(list => list !== listener);
 };
 
@@ -920,7 +744,7 @@ module.exports.okEvent = async function (data) {
  * @param {*} eventType 
  * @alias comms:clearEvent 
  */
-module.exports.clearEvent = function (eventType) {
+export const clearEvent = function (eventType) {
     switch(eventType) {
         case 'codeDone': doneListeners.length = 0; break;
         case 'ok': okEventListeners.length = 0; break;
@@ -938,7 +762,7 @@ module.exports.clearEvent = function (eventType) {
  * @returns {Boolean} whether handled or not
  * @alias comms:handleGCodeResponse 
  */
-async function handleGCodeResponse(res) {
+export async function handleGCodeResponse(res) {
     let handled = true;
 
     ///
@@ -1042,5 +866,3 @@ async function handleGCodeResponse(res) {
     }
     return handled;
 }
-module.exports.handleGCodeResponse = handleGCodeResponse;
-

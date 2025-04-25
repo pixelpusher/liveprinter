@@ -5,6 +5,73 @@
     <!-- Required meta tags -->
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <title>Der Druckerstau</title>
+
+    <script src="{{ static_url("./lib/bitty-editor/bitty.min.js") }}"></script>
+    <script
+      src="{{ static_url("./lib/bitty-editor/plugins/highlight_active_line.js") }}"></script>
+    <style>
+      .bitty-editor {
+        position: absolute;
+        width: 98%;
+        height: 100vh;
+        background: transparent;
+        opacity: 0.5;
+        color:#fff;
+        font-family: "Roboto Mono", monospace;
+        font-size: 12px;
+        outline: none;
+        overflow-y: auto;
+        white-space: pre-wrap;
+        counter-reset: line;
+        padding-left: 4em;
+      }
+
+      .bitty-editor div::before {
+        content: counter(line);
+        counter-increment: line;
+        position: absolute;
+        right: calc(100% + 16px);
+        opacity: 0.5;
+      }
+
+      ::selection {
+        background: #444;
+        color: white;
+      }
+
+      /* syntax coloring rules */
+      .bitty-keywords {
+        font-weight: bold;
+        color: rgb(105, 105, 1);
+      }
+      .bitty-strings {
+        color: #c356be;
+        font-style: italic;
+      }
+      .bitty-comments {
+        color: #939292;
+        font-style: italic;
+      }
+
+      /* 
+ * fancy pseudo-selector to not color numbers when they are inside
+ * coments or strings
+ */
+      .bitty-numbers:not(.bitty-strings > span, .bitty-comments > span) {
+        color: #faa;
+      }
+
+      .bitty-active {
+        background: #662;
+        /* opacity: 0.2; */
+      }
+
+      p {
+        color: #662;
+        font-size: smaller;
+      }
+    </style>
+
 </head>
 <body>
     <div class="lines"></div>
@@ -213,10 +280,12 @@
                                 <div class="col-md-12 cm-contain">
                                     <div id="modal-errors" position="relative"></div>
                                     <form>
-                                        <textarea id="code-editor">
+                                        <div id="code-editor" class="bitty-editor"
+                                        contenteditable="true"
+                                        spellcheck="false">
                                     // start coding functions, etc. here or load an example from the dropdown above!
 
-                                        </textarea>
+                                    </div>
                                     </form>
                                 </div>
                             </div>
@@ -236,10 +305,12 @@
                             <div class="row">
                                 <div class="col-12 cm-contain">
                                     <form>
-                                        <textarea id="history-code-editor">
+                                        <div id="history-code-editor" class="bitty-editor one"
+                                        contenteditable="true"
+                                        spellcheck="false">
                                     // all the code you've run will appear here
 
-                                        </textarea>
+                                    </div>
                                     </form>
                                 </div>
                             </div>
@@ -263,12 +334,7 @@
                         <div id="gcode-editor-area" class="tab-pane fade show active hideAfterLoad" role="tabpanel" aria-labelledby="pills-gcode-editor-tab">
                             <div class="row">
                                 <div class="col-12 cm-contain">
-                                    <form>
-                                        <textarea id="gcode-editor">
-                                        ; GCode lines go here.  They are automatically added when code is compiled, too.
-
-                                        </textarea>
-                                    </form>
+                                    <div id="visualiser"></div>
                                 </div>
                             </div>
                             <div class="row">
@@ -352,9 +418,6 @@
     <link rel="stylesheet" href="{{ static_url("./style/codemirror_all.css") }}" type="text/css">
     
     <link rel="stylesheet" href="{{ static_url("./style/liveprinter.css") }}" type="text/css">
-    <div id="python-scripts"></div>
-
-    <!-- <script src="{{ static_url("./lib/popper.min.js") }}" type="text/javascript"></script> -->
 
     <script src="{{ static_url("./lib/main.js") }}" type="text/javascript"></script>
 </body>

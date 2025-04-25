@@ -1,95 +1,39 @@
+
 import { repeat, numrange, countto, Scheduler } from 'liveprinter-utils';
-import {Printer as Printer} from '../js/liveprinter.printer'; // printer API object
-import {logerror, loginfo, doError,
+
+import { LivePrinter } from "liveprinter-core";
+
+import {
+    logerror, loginfo, doError,
      moveHandler, portsListHandler, commandsHandler, printerStateHandler,
-     taskListenerUI, init,
-     blinkElem} from '../js/liveprinter.ui';
-const liveprintercomms =  require('../js/liveprinter.comms');
-const editors = require('../js/liveprinter.editor');
+     taskListenerUI, initUI,
+     blinkElem
+    } from '../js/liveprinter.ui';
 
-import { Note } from "tonal";
+import { setDebug, setDoError, setLogError, setLogCommands, setLogInfo, setLogCommands, 
+    getSerialPorts,
+    setLogPrinterState, onPosition, onCodeDone, onCodeQueued, sendGCodeRPC 
+} from './liveprinter.comms';
 
+import { initEditors } from './liveprinter.editor';
 import Logger from 'liveprinter-utils/logger';
+
+var bootstrap = require('bootstrap');
+
+
 Logger.level = Logger.LOG_LEVEL.info;
 
-window.$ = window.jquery = require('jquery');
+globalThis.$ = globalThis.jquery = require('jquery');
 
-liveprintercomms.setDebug(Logger.debug);
-liveprintercomms.setDoError(doError);
-liveprintercomms.setLogError(logerror);
-liveprintercomms.setLogInfo(Logger.info);
-liveprintercomms.setLogCommands(commandsHandler.log);
-liveprintercomms.setLogPrinterState(printerStateHandler);
+setDebug(Logger.debug);
+setDoError(doError);
+setLogError(logerror);
+setLogInfo(Logger.info);
+setLogCommands(commandsHandler.log);
+setLogPrinterState(printerStateHandler);
 
 //require('./svg/SVGReader'); // svg util class
 //require('./svg/svg2gcode'); // svg gcode converter
-
-// other code libraries:
-
-/////-----------------------------------------------------------
-/////------grammardraw fractals---------------------------------
-
-//import * as Tone from 'tone';
-import {lp_functionMap as functionMap} from "grammardraw/modules/functionmaps.mjs"
-import {createESequence} from "grammardraw/modules/sequences"
-import { setNoteMods, setScales, getBaseNoteDuration, setBaseNoteDuration, 
-   step,
-   on, off
-} from "grammardraw/modules/fractalPath.mjs";
-
-
-const listener = {
-    'step': (v) => loginfo(`step event: ${v}`),
-    'action': ({noteString,noteMidi,noteSpeed,notesPlayed,noteDuration,noteDist,
-       currentTotalDuration, 
-       totalSequenceDuration,
-       moved}) => {
-        loginfo(`action: ${noteMidi},${noteSpeed},${notesPlayed},${noteDuration},${noteDist},
-               ${currentTotalDuration}, 
-               ${totalSequenceDuration},
-               ${moved}}`);
-        //    document.getElementById('cur-time').innerHTML = `${currentTotalDuration}s`;
-        //    document.getElementById('note-string').innerHTML = `${noteString}`;
-
-       },
-    'done': (v) => {
-       animating = false; 
-       loginfo(`done event: ${v}`);
-       // ???
-       // cancelAnimationFrame(animationFrameHandle); 
-    }
-}
-
-
-const midi = Note.midi;
-const transpose = Note.transpose;
-const setline = liveprintercomms.setline;
-const getdata = liveprintercomms.getData;
-
-// Note.midi("A4"); // => 60
-// Note.transpose("C4", "5P"); // => "G4"
-
-const libs = {functionMap, 
-    createESequence, 
-    setNoteMods, setScales,
-    getBaseNoteDuration, setBaseNoteDuration, 
-    step,
-    on, off, midi, transpose, setline, getdata
-}
-
-// setup listeners
-
-for (let eventName in listener) {
-    on(eventName, listener[eventName]);
-}
-
-// set up API for live editor
-liveprintercomms.addLibs(libs);
-
-
-
-/////------grammardraw fractals---------------------------------
-/////-----------------------------------------------------------
 
 
 
@@ -102,14 +46,14 @@ liveprintercomms.addLibs(libs);
     // const testdata = await liveprintercomms.getData("http://localhost:8888/data", "POST", "nothing");
     // Logger.debug(testdata);
 
-    window.repeat = repeat;
-    window.numrange = numrange;
-    window.countto = countto;
+    globalThis.repeat = repeat;
+    globalThis.numrange = numrange;
+    globalThis.countto = countto;
 
     //await repeat(2, async(n) => console.log(n)); // test func
 
-    if (!window.console) {
-        window.console = {
+    if (!globalThis.console) {
+        globalThis.console = {
             __log: [],
             get _log() { return this.__log; },
             log: function (text) { this._log.push(text); },
@@ -117,13 +61,6 @@ liveprintercomms.addLibs(libs);
         };
     }
 
-    var bootstrap = require('bootstrap');
-
-    // liveprinter object
-    const printer = new Printer();
-
-    if (window.lp) delete window.lp;
-    window.lp = printer; // make available to all scripts later on and livecoding... not great
 
     // start task scheduler!
     const scheduler = new Scheduler();
@@ -131,13 +68,16 @@ liveprintercomms.addLibs(libs);
     // register GUI handler for scheduled tasks events 
     scheduler.addEventsListener(taskListenerUI);
 
-    await editors.init(); // create editors and setup live editing functions
-    await init(printer, scheduler); // start server communications and setup UI
+    const lp = new LivePrinter();
+    globalThis.lp = lp;
+
+    await initEditors(lp); // create editors and setup live editing functions
+    await initUI(lp, scheduler); // start server communications and setup UI
 
     /// attach listeners
 
-    printer.addGCodeListener({ gcodeEvent: liveprintercomms.sendGCodeRPC });
-    printer.addErrorListener({ errorEvent: doError });
+    lp.addGCodeListener({ gcodeEvent: sendGCodeRPC });
+    lp.addErrorListener({ errorEvent: doError });
 
     ///
     /// add GCode listener to capture compiles GCode to editor
@@ -145,8 +85,8 @@ liveprintercomms.addLibs(libs);
     //     { gcodeEvent: async (gcode) => editors.recordGCode(editors.GCodeEditor, gcode) }
     // );
 
-    liveprintercomms.onPosition(async (v) => moveHandler(v));
-    liveprintercomms.onCodeDone(async (v)=>{
+    onPosition(async (v) => moveHandler(v));
+    onCodeDone(async (v)=>{
         const dateStr = new Intl.DateTimeFormat('en-US', {
             hour: 'numeric', minute: 'numeric', second: 'numeric',
             hour12: false
@@ -163,7 +103,7 @@ liveprintercomms.addLibs(libs);
         blinkElem($("#working-tab"));
         //loginfo(`done: code blocks running: ${v.queued}`);
     });
-    liveprintercomms.onCodeQueued(async (v)=>{
+    onCodeQueued(async (v)=>{
         const dateStr = new Intl.DateTimeFormat('en-US', {
             hour: 'numeric', minute: 'numeric', second: 'numeric',
             hour12: false
@@ -211,19 +151,19 @@ liveprintercomms.addLibs(libs);
             scheduler.scheduleEvent(t);
         }
     }
-    window.addTask = addTask;
+    globalThis.addTask = addTask;
 
     function getTask(scheduler, name) {
         return scheduler.getEventByName(name);
     }
 
-    window.getTask = getTask;
+    globalThis.getTask = getTask;
 
     function removeTask(scheduler, name) {
         return scheduler.removeEventByName(name);
     }
 
-    window.removeTask = removeTask;
+    globalThis.removeTask = removeTask;
     ///
     /// --------- End livecoding tasks API -------------------------
     ///
@@ -232,7 +172,7 @@ liveprintercomms.addLibs(libs);
     loginfo("Hang on, getting serial ports list...");
     const timeOutID = setInterval(loginfo, 100, "...");
 
-    const portsReponse = await liveprintercomms.getSerialPorts();
+    const portsReponse = await getSerialPorts();
     clearInterval(timeOutID);
     
     loginfo("Received serial ports!");

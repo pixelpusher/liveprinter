@@ -7,645 +7,381 @@
 /**
  * JQuery reference
  */
-const $ = require('jquery');
-const liveprintercomms = require('./liveprinter.comms');
+const $ = require("jquery");
+import { makeVisualiser } from "vizlib";
+import { transpile } from "lp-language";
+import * as gridlib from "gridlib";
+import { buildEvaluateFunction, evalScope } from "./evaluate.mjs";
+import { cleanGCode, Logger } from "liveprinter-utils";
+import { clearError, doError, downloadFile, blinkElem } from "./liveprinter.ui";
+import Logger from "liveprinter-utils/logger";
+import { Note } from "tonal";
+const commentRegex = /\/\*[\s\S]*?\*\/|([^\\:]|^)\/\/.*$/gm; // https://stackoverflow.com/questions/5989315/regex-for-match-replacing-javascript-comments-both-multiline-and-inline/15123777#15123777
 
-import { cleanGCode, Logger} from 'liveprinter-utils';
+/////-----------------------------------------------------------
+/////------grammardraw fractals---------------------------------
 
-import { clearError, doError, downloadFile,
-    blinkElem } from '../js/liveprinter.ui';
+import { lp_functionMap as functionMap } from "grammardraw/modules/functionmaps.mjs";
+import { createESequence } from "grammardraw/modules/sequences";
+import {
+  setNoteMods,
+  setScales,
+  getBaseNoteDuration,
+  setBaseNoteDuration,
+  step,
+  on,
+  off,
+} from "grammardraw/modules/fractalPath.mjs";
 
-/// Code Mirror stuff
-const CodeMirror = require('codemirror');
-require('codemirror/mode/css/css');
-//console.log('css');
-require('codemirror/addon/lint/lint');
-require('codemirror/addon/lint/css-lint');
-//console.log('js');
-require('jshint');
-require('codemirror/mode/javascript/javascript');
-require('codemirror/addon/lint/javascript-lint');
-require('codemirror/addon/lint/json-lint');
-require('codemirror/addon/hint/show-hint');
-require('codemirror/addon/hint/javascript-hint');
-
-require('codemirror/addon/mode/overlay');
-require('codemirror/addon/scroll/simplescrollbars');
-
-require('codemirror/addon/selection/active-line');
-require('codemirror/addon/edit/closebrackets');
-require('codemirror/addon/edit/matchbrackets');
-
-require('codemirror/addon/fold/foldgutter');
-require('codemirror/addon/fold/indent-fold');
-require('codemirror/addon/fold/comment-fold');
-require('codemirror/addon/fold/brace-fold');
-
-require('codemirror/addon/dialog/dialog');
-require('codemirror/addon/search/searchcursor');
-
-// liveprinter editor linting mode
-require('./language/lpmode');
-
-//console.log('codemirror loaded');
-
-
-/////////////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Codemirror:
-// https://codemirror.net/doc/manual.html
-/////////////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////////////
+/////-----------------------------------------------------------
+/////------grammardraw fractals---------------------------------
 
 /**
  * Log code log to history editor window of choice
- * @param {String} gcode 
- * 
+ * @param {String} gcode
+ *
  */
 function recordCode(editor, code) {
-    ///
-    /// log code to code history window -------------------
-    ///
+  ///
+  /// log code to code history window -------------------
+  ///
 
-    // add comment with date and time
-    const dateStr = (new Date()).toLocaleString('en-US',
-        {
-            hour12: false,
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit'
-        }
-    ) + '\n';
+  // add comment with date and time
+  const dateStr =
+    new Date().toLocaleString("en-US", {
+      hour12: false,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    }) + "\n";
 
-    const doc = editor.getDoc();
-    let lastLine = doc.getLine(doc.lastLine());
-    const pos = {
-        "line": doc.lastLine(),
-        "ch": lastLine.length
-    };
-    const codeText = "//" + dateStr + code + (code.endsWith('\n') ? '' : '\n');
-    doc.replaceRange(codeText, pos);
-    editor.refresh();
-    lastLine = doc.getLine(doc.lastLine());
-    const newpos = { line: doc.lastLine(), ch: lastLine.length };
-    editor.setSelection(pos, newpos);
-    editor.scrollIntoView(newpos);
-    ///
-    /// end logging code to code history window -----------------------------
-    ///
-    return [code,lastLine];
+  const codeText = "//" + dateStr + code + (code.endsWith("\n") ? "" : "\n");
+
+  //return [code,lastLine];
 }
 
 /**
  * Log GCode log to history window of choice
  * @param {Editor} editor
- * @param {Array | String} gcode 
+ * @param {Array | String} gcode
  */
 
 function recordGCode(editor, gcode) {
+  // add comment with date and time
+  const dateStr =
+    new Date().toLocaleString("en-US", {
+      hour12: false,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    }) + "\n";
 
-    // add comment with date and time
-    const dateStr = (new Date()).toLocaleString('en-US',
-        {
-            hour12: false,
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit'
-        }
-    ) + '\n';
+  const gcodeArray = Array.isArray(gcode) ? gcode : [gcode];
+  // ignore temperature or other info commands - no need to save these!
+  const usefulGCode = gcodeArray.filter((_gcode) => !/M114|M105/.test(_gcode));
 
-    const gcodeArray = Array.isArray(gcode) ? gcode : [gcode];
-    // ignore temperature or other info commands - no need to save these!
-    const usefulGCode = gcodeArray.filter(_gcode => !/M114|M105/.test(_gcode));
+  const doc = editor.getDoc();
+  let line = doc.lastLine();
+  const pos = {
+    line: line,
+    ch: doc.getLine(line).length,
+  };
+  const gcodeText = "\n" + dateStr + usefulGCode.join("\n");
+  doc.replaceRange(gcodeText, pos);
+  editor.refresh();
+  let newpos = { line: doc.lastLine(), ch: doc.getLine(line).length };
+  editor.setSelection(pos, newpos);
+  editor.scrollIntoView(newpos);
 
-    const doc = editor.getDoc();
-    let line = doc.lastLine();
-    const pos = {
-        "line": line,
-        "ch": doc.getLine(line).length
-    };
-    const gcodeText = '\n' + dateStr + usefulGCode.join('\n');
-    doc.replaceRange(gcodeText, pos);
-    editor.refresh();
-    let newpos = { line: doc.lastLine(), ch: doc.getLine(line).length };
-    editor.setSelection(pos, newpos);
-    editor.scrollIntoView(newpos);
-
-    return usefulGCode;
+  return usefulGCode;
 }
-
 
 /**
  * This function takes the highlighted "local" code from the editor and runs the compiling and error-checking functions.
- * @param {Editor} editor 
+ * @param {Editor} editor
  * @param {Function} callback
- * @param {Boolean} immediate If true, run immediately, otherwise schedule to run 
+ * @param {Boolean} immediate If true, run immediately, otherwise schedule to run
  * @returns {Boolean} success
  */
-async function runCode(editor, callback, immediate=false) {
-
-    // if printer isn't connected, we shouldn't run!
-    const printerConnected = $("#header").hasClass("blinkgreen");
-    if (!printerConnected) {
-        clearError();
-        const err = new Error("Printer not connected! Please connect first using the printer settings tab.");
-        doError(err);
-        throw err;
-        //TODO: BIGGER ERROR MESSAGE HERE
+async function runCode(code) {
+  // if printer isn't connected, we shouldn't run!
+  const printerConnected = $("#header").hasClass("blinkgreen");
+  if (!printerConnected) {
+    clearError();
+    const err = new Error(
+      "Printer not connected! Please connect first using the printer settings tab."
+    );
+    doError(err);
+    throw err;
+    //TODO: BIGGER ERROR MESSAGE HERE
+  } else {
+    if (Array.isArray(code)) {
+      immediate = false;
     }
-    else {
 
-        let code = editor.getSelection();
-        const cursor = editor.getCursor();
-        let line = cursor.line;
+    clearError();
 
-        if (!code) {
-            // info level
-            //liveprinterUI.logger.log("no selections");
-            code = editor.getLine(cursor.line);
-            editor.setSelection({ line: cursor.line, ch: 0 }, { line: cursor.line, ch: code.length });
-        }
-        // blink the form
-        blinkElem($("form"));
+    code = code.replace(commentRegex, (match, p1) => {
+      return p1;
+    });
 
-        // run code
-        try {
-            if (window.codeLine === undefined) window.codeLine = 0;
-            window.codeLine++; // increment times we've run code
-            await callback(code, line, immediate); // probably liveprintercomms.globalEval
-        }
-        catch (err) {
-            err.message = "runCode:" + err.message;
-            window.codeLine--; // go back 
-            doError(err);
-        }
+    // replace globals in js
+    code = code.replace(/^[ ]*global[ ]+/gm, "globalThis.");
+
+    Logger.debug("code before pre-processing-------------------------------");
+    Logger.debug(code);
+    Logger.debug("========================= -------------------------------");
+
+    const results = buildEvaluateFunction(txt, transpile);
+    const resultFunction = results.result;
+    Logger.debug(
+      `Evaluated code[immediate]: ${JSON.stringify(results.code, null, 2)}`
+    );
+
+    if (immediate) {
+      await resultFunction();
+      // console.log( 'editor 1:', txt )
+    } else {
+      await schedule(resultFunction);
     }
-    return true;
+
+    // blink the form
+    blinkElem($("form"));
+  }
+  return true;
 }
-
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////// Browser storage /////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
-* Local Storage for saving/loading documents.
-* Default behaviour is loading the last edited session.
-* @param {String} type type (global key in window object) for storage object 
-* @returns {Boolean} true or false, if storage is available
-* @see https://developer.mozilla.org/en-US/docs/Web/API/Web_Storage_API/Using_the_Web_Storage_API
-*/
+ * Local Storage for saving/loading documents.
+ * Default behaviour is loading the last edited session.
+ * @param {String} type type (global key in window object) for storage object
+ * @returns {Boolean} true or false, if storage is available
+ * @see https://developer.mozilla.org/en-US/docs/Web/API/Web_Storage_API/Using_the_Web_Storage_API
+ */
 function storageAvailable(type) {
-    try {
-        const storage = window[type],
-            x = '__storage_test__';
-        storage.setItem(x, x);
-        storage.removeItem(x);
-        return true;
-    }
-    catch (e) {
-        return e instanceof DOMException && (
-            // everything except Firefox
-            e.code === 22 ||
-            // Firefox
-            e.code === 1014 ||
-            // test name field too, because code might not be present
-            // everything except Firefox
-            e.name === 'QuotaExceededError' ||
-            // Firefox
-            e.name === 'NS_ERROR_DOM_QUOTA_REACHED') &&
-            // acknowledge QuotaExceededError only if there's something already stored
-            storage.length !== 0;
-    }
+  try {
+    const storage = window[type],
+      x = "__storage_test__";
+    storage.setItem(x, x);
+    storage.removeItem(x);
+    return true;
+  } catch (e) {
+    return (
+      e instanceof DOMException &&
+      // everything except Firefox
+      (e.code === 22 ||
+        // Firefox
+        e.code === 1014 ||
+        // test name field too, because code might not be present
+        // everything except Firefox
+        e.name === "QuotaExceededError" ||
+        // Firefox
+        e.name === "NS_ERROR_DOM_QUOTA_REACHED") &&
+      // acknowledge QuotaExceededError only if there's something already stored
+      storage.length !== 0
+    );
+  }
 }
 
+export let immediate = false; // immediate evaluation (ignore queue) or add to queue
 
 /**
  * Initialise editors and events, etc.
  * @returns {PromiseFulfilledResult}
  */
-const init = async function () {
+export async function initEditors(lp) {
+  const jsrules = {
+    comments: /(\/\/.*)/g,
+    keywords:
+      /\b(global|new|if|else|do|while|switch|for|of|continue|break|return|typeof|function|var|const|let|\.length)(?=[^\w])/g,
+    numbers: /\b(\d+)/g,
+    strings: /(".*?"|'.*?'|\`.*?\`)/g,
+  };
 
-    /**
-     * CodeMirror code editor instance (local code). See {@link https://codemirror.net/doc/manual.html}
-     * @memberOf LivePrinter
-     */
-    const CodeEditor = CodeMirror.fromTextArea(document.getElementById("code-editor"), {
-        lineNumbers: true,
-        scrollbarStyle: "simple",
-        styleActiveLine: true,
-        lineWrapping: true,
-        undoDepth: 20,
-        highlightAsyncMatches: true,
-        tabMode: "indent", // or "spaces", "default", "shift"
-        enterMode: "indent", // or "keep", "flat"
-        //autocomplete: true,
-        extraKeys: {
-            "Ctrl-Enter":
-                async (cm) =>
-                     await runCode(cm,
-                        async (code) =>
-                             await liveprintercomms.globalEval(recordCode(HistoryCodeEditor, code),true)
-                    ),
-            "Shift-Enter": async (cm) =>
-                 await runCode(cm,
-                    async (code) =>
-                         await liveprintercomms.globalEval(recordCode(HistoryCodeEditor, code))
-                ),
-            "Cmd-Enter": async (cm) =>
-                 await runCode(cm,
-                    async (code) =>
-                        await liveprintercomms.globalEval(recordCode(HistoryCodeEditor, code),true)
-                ),
-            "Ctrl-Space": "autocomplete",
-            "Ctrl-Q": function (cm) { cm.foldCode(cm.getCursor()); },
-            "Shift-Ctrl-\\": function (cm) { clearEditor(cm); },
-        },
-        foldGutter: true,
-        autoCloseBrackets: true,
-        gutters: ["CodeMirror-lint-markers", "CodeMirror-linenumbers", "CodeMirror-foldgutter"],
-        mode: "lp",
-        onLoad: setLanguageMode
-        // VIM MODE!
-        //keyMap: "vim",
-        //matchBrackets: true,
-        //showCursorWhenSelecting: true,
-        //inputStyle: "contenteditable"
-    });
-    CodeEditor.setOption("theme", "abcdef");
-    CodeEditor.storageKey = "storedCodeEditor";
-    CodeEditor.saveStorageKey = "savedCodeEditor";
+  // do the main thing we came here for
+  const visualiser = makeVisualiser(lp, "visualiser", {
+    title: "LivePrinter2",
+    delay: false,
+    debug: false,
+  });
 
+  // grammardraw -----------------------------------
 
-    //var commandDisplay = document.querySelectorAll('[id|=command-display]');
-    //var keys = '';
-    //CodeMirror.on(CodeEditor, 'vim-keypress', function (key) {
-    //    keys = keys + key;
-    //    for (let cd of commandDisplay)
-    //        cd.innerHTML = keys;
-    //});
-    //CodeMirror.on(CodeEditor, 'vim-command-done', function (e) {
-    //    keys = '';
-    //    for (let cd of commandDisplay)
-    //        cd.innerHTML = keys;
-    //});
+  const listener = {
+    step: (v) => loginfo(`step event: ${v}`),
+    action: ({
+      noteString,
+      noteMidi,
+      noteSpeed,
+      notesPlayed,
+      noteDuration,
+      noteDist,
+      currentTotalDuration,
+      totalSequenceDuration,
+      moved,
+    }) => {
+      loginfo(`action: ${noteMidi},${noteSpeed},${notesPlayed},${noteDuration},${noteDist},
+               ${currentTotalDuration}, 
+               ${totalSequenceDuration},
+               ${moved}}`);
+      //    document.getElementById('cur-time').innerHTML = `${currentTotalDuration}s`;
+      //    document.getElementById('note-string').innerHTML = `${noteString}`;
+    },
+    done: (v) => {
+      animating = false;
+      loginfo(`done event: ${v}`);
+      // ???
+      // cancelAnimationFrame(animationFrameHandle);
+    },
+  };
 
+  const midi = Note.midi;
+  const transpose = Note.transpose;
 
-    /**
-     * History code CodeMirror editor instance. See {@link https://codemirror.net/doc/manual.html}
-     * @namespace CodeMirror
-     * @memberOf LivePrinter
-     */
-    const HistoryCodeEditor = CodeMirror.fromTextArea(document.getElementById("history-code-editor"), {
-        lineNumbers: true,
-        scrollbarStyle: "simple",
-        styleActiveLine: true,
-        lineWrapping: true,
-        undoDepth: 4, // updated too often for high numbers
-        highlightAsyncMatches: true,
-        tabMode: "indent", // or "spaces", "default", "shift"
-        enterMode: "indent", // or "keep", "flat"
-        //autocomplete: true,
-        extraKeys: {
-            "Ctrl-Enter":
-                async (cm) =>
-                     await runCode(cm,
-                        async (code) =>
-                             await liveprintercomms.globalEval(recordCode(HistoryCodeEditor, code))
-                    ),
-            "Shift-Enter": async (cm) =>
-                 await runCode(cm,
-                    async (code) =>
-                         await liveprintercomms.globalEval(recordCode(HistoryCodeEditor, code))
-                ),
-            "Cmd-Enter": async (cm) =>
-                 await runCode(cm,
-                    async (code) =>
-                        await liveprintercomms.globalEval(recordCode(HistoryCodeEditor, code))
-                ),
-            "Ctrl-Space": "autocomplete",
-            "Ctrl-Q": function (cm) { cm.foldCode(cm.getCursor()); },
-            "Shift-Ctrl-\\": function (cm) { clearEditor(cm); },
-        },
-        foldGutter: true,
-        autoCloseBrackets: true,
-        gutters: ["CodeMirror-lint-markers", "CodeMirror-linenumbers", "CodeMirror-foldgutter"],
-        mode: "lp",
-        theme: "abcdef"
-    });
+  // Note.midi("A4"); // => 60
+  // Note.transpose("C4", "5P"); // => "G4"
 
-    HistoryCodeEditor.storageKey = "storedHistoryCodeEditor";
-    HistoryCodeEditor.saveStorageKey = "savedHistoryCodeEditor";
+  const grammarlib = {
+    functionMap,
+    createESequence,
+    setNoteMods,
+    setScales,
+    getBaseNoteDuration,
+    setBaseNoteDuration,
+    step,
+    on,
+    off,
+    midi,
+    transpose
+  };
 
-    /**
-     * CodeMirror code editor instance (compiled gcode). See {@link https://codemirror.net/doc/manual.html}
-     * @memberOf LivePrinter
-     */
-    const GCodeEditor = CodeMirror.fromTextArea(document.getElementById("gcode-editor"), {
-        lineNumbers: true,
-        scrollbarStyle: "simple",
-        styleActiveLine: true,
-        lineWrapping: true,
-        undoDepth: 20,
-        //autocomplete: true,
-        extraKeys: {
-            "Ctrl-Enter":
-                async (cm) => await runCode(cm,
-                    async (gcode) => await liveprintercomms.scheduleGCode(
-                        recordGCode(cm, cleanGCode(gcode))
-                    )
-                ), // handles aync
-            "Shift-Enter":
-                async (cm) => await runCode(cm,
-                    async (gcode) => await liveprintercomms.scheduleGCode(
-                        recordGCode(cm, cleanGCode(gcode))
-                    )
-                ), // handles aync
+  // setup listeners
 
-            "Cmd-Enter":
-                async (cm) => await runCode(cm,
-                    async (gcode) => await liveprintercomms.scheduleGCode(
-                        recordGCode(cm, cleanGCode(gcode))
-                    )
-                ), // handles aync
+  for (let eventName in listener) {
+    on(eventName, listener[eventName]);
+  }
 
-            "Ctrl-Space": "autocomplete",
-            "Ctrl-Q": function (cm) { cm.foldCode(cm.getCursor()); },
-            "Shift-Ctrl-\\": function (cm) { clearEditor(cm); }
-        }
-    });
+  // set up global module and function references
+  evalScope({ lp, gridlib, visualiser, Logger, grammarlib });
 
-    GCodeEditor.storageKey = "storedGCodeEditor";
-    GCodeEditor.saveStorageKey = "savedGCodeEditor";
-    
-    function clearEditor(cm, opts) {
-        cm.off("changes");
-        cm.swapDoc(
-            CodeMirror.Doc(
-                "// Type some code here.  Hit CTRL-\\ to clear \n\n\n\n"
-            )
-        );
-        cm.on("changes");
+  const CodeEditor = bitty.create({
+    flashColor: "black",
+    flashTime: 100,
+    value: "code editor",
+    el: document.querySelector("#code-editor"),
+    rules: jsrules,
+  });
+
+  const HistoryCodeEditor = bitty.create({
+    flashColor: "black",
+    flashTime: 100,
+    value: "code editor",
+    el: document.querySelector("#history-code-editor"),
+    rules: jsrules,
+  });
+
+  const editors = [CodeEditor, HistoryCodeEditor];
+
+  // map code evaluation
+  editors.map((v) => v.subscribe("run", runCode));
+
+  ///----------------------------------------------------------
+  ///------------Examples list---------------------------------
+  ///----------------------------------------------------------
+
+  let exList = $("#examples-list > .dropdown-item").not("[id*='session']");
+  exList.on("click", async function () {
+    const me = $(this);
+    const filename = me.data("link");
+    clearError(); // clear loading errors
+    $.ajax({ url: filename, dataType: "text" })
+      .done(function (content) {
+        // const newDoc = CodeMirror.Doc(content, "lp");
+        // blinkElem($(".CodeMirror"), "slow", () => {
+        //     CodeEditor.swapDoc(newDoc);
+        //     CodeEditor.refresh();
+        //     CodeEditor.on('changes', () => handleChanges(CodeEditor));
+        //     CodeEditor.on('blur', () => handleChanges(CodeEditor));
+        // });
+      })
+      .fail(function () {
+        doError({ name: "error", message: "file load error:" + filename });
+      });
+  });
+
+  ///----------------------------------------------------------
+  ///------------GUI events------------------------------------
+  ///----------------------------------------------------------
+
+  $('a[data-toggle="pill"]').on("shown.bs.tab", function (e) {
+    const target = $(e.target).attr("href"); // activated tab
+    if (target === "#history-code-editor-area") {
+      //HistoryCodeEditor.refresh();
+      //setLanguageMode(); // have to update gutter, etc.
+      clearError();
+    } else if (target === "#code-editor-area") {
+      //CodeEditor.refresh();
+      //setTimeout(setLanguageMode, 1000); // have to update gutter, etc.
+      clearError();
+    } else if (target === "#gcode-editor-area") {
+      // visualiser
     }
+  });
 
-    //
-    // Session saving functions for editors
-    //
+  /// extra compile button
+  $("#sendCode").on("click", runCode);
 
-    const handleChanges = cm => {
-        Logger.debug(`handle changes: ${cm.storageKey}`);
-        const txt = cm.getDoc().getValue();
-        localStorage.setItem(cm.storageKey, txt);
-    };
+  /// download all code
+  $(".btn-download").on("click", async () => {
+    // add comment with date and time
+    const dateStr =
+      "_" +
+      new Date().toLocaleString("en-US", {
+        hour12: false,
+        year: "2-digit",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    await downloadFile(
+      CodeEditor.getDoc().getValue(),
+      "LivePrinterCode" + dateStr + ".js",
+      "text/javascript"
+    );
+    await downloadFile(
+      GCodeEditor.getDoc().getValue(),
+      "LivePrinterGCode" + dateStr + ".js",
+      "text/javascript"
+    );
+    await downloadFile(
+      HistoryCodeEditor.getDoc().getValue(),
+      "LivePrinterHistoryCode" + dateStr + ".js",
+      "text/javascript"
+    );
+  });
 
+  // // set up events
+  // editors.map(cm => cm.on("changes", (cm) => handleChanges(cm)));
+  // editors.map(cm => cm.on("blur", (cm) => handleChanges(cm)));
 
-    // clear it, only save during session
-    const reloadSession = cm => {
-        cm.off("changes");
-        const newFile = localStorage.getItem(cm.storageKey);
-        const mode = cm.getDoc().getMode();
-        if (newFile !== undefined && newFile) {
-            blinkElem($(".CodeMirror"), "slow", () => {
-                cm.swapDoc(
-                    CodeMirror.Doc(
-                        newFile, mode
-                    )
-                );
-            });
-        }
-        cm.on("changes", handleChanges);
-        cm.refresh();
-    };
+  // if (storageAvailable('localStorage')) {
+  //     // finally, load the last stored session:
+  //     editors.map(cm => reloadSession(cm));
+  // }
+  // else {
+  //     doError({ name: "save error", message: "no local storage available for saving files!" });
+  // }
 
-    const editors = [CodeEditor, HistoryCodeEditor, GCodeEditor];
-
-    // HistoryCodeEditor.on("changes", handleChanges);
-    // CodeEditor.on("changes", handleChanges);
-    // HistoryCodeEditor.on("changes", handleChanges);
-
-
-    $("#reload-edited-session").on("click",
-        () => editors.map(cm => reloadSession(cm)));
-
-    $("#save-session").on("click", () => {
-        editors.map(cm => {
-            cm.off("changes");
-            const txt = cm.getDoc().getValue();
-            localStorage.setItem(cm.saveStorageKey, txt);
-            blinkElem($(".CodeMirror"), "fast", () => {
-                cm.on("changes", () => handleChanges(cm));
-            });
-        });
-        // mark as reload-able
-        $("#reload-saved-session").removeClass("graylink");
-    });
-
-    // start as non-reloadable
-    $("#reload-saved-session").addClass("graylink");
-
-    $("#reload-saved-session").on("click", () => {
-        editors.map(cm => {
-            cm.off("changes");
-            const mode = cm.getDoc().getMode();
-            const newFile = localStorage.getItem(cm.saveStorageKey);
-            if (newFile !== undefined && newFile) {
-                blinkElem($(".CodeMirror"), "slow", () => {
-                    cm.swapDoc(
-                        CodeMirror.Doc(
-                            newFile, mode
-                        )
-                    );
-                    cm.on("changes", () => handleChanges(cm));
-                });
-            }
-        });
-    });
-
-
-    // CodeMirror stuff
-
-    //const WORD = /[\w$]+/g, RANGE = 500;
-    /*
-    CodeMirror.registerHelper("hint", "anyword", function (editor, options) {
-        const word = options && options.word || WORD;
-        const range = options && options.range || RANGE;
-        const cur = editor.getCursor(), curLine = editor.getLine(cur.line);
-        let start = cur.ch, end = start;
-        while (end < curLine.length && word.test(curLine.charAt(end)))++end;
-        while (start && word.test(curLine.charAt(start - 1)))--start;
-        let curWord = start !== end && curLine.slice(start, end);
-     
-        let list = [], seen = {};
-        function scan(dir) {
-            let line = cur.line, end = Math.min(Math.max(line + dir * range, editor.firstLine()), editor.lastLine()) + dir;
-            for (; line !== end; line += dir) {
-                let text = editor.getLine(line), m;
-                word.lastIndex = 0;
-                while (m = word.exec(text)) {
-                    if ((!curWord || m[0].indexOf(curWord) === 0) && !seen.hasOwnProperty(m[0])) {
-                        seen[m[0]] = true;
-                        list.push(m[0]);
-                    }
-                }
-            }
-        }
-        scan(-1);
-        scan(1);
-        return { list: list, from: CodeMirror.Pos(cur.line, start), to: CodeMirror.Pos(cur.line, end) };
-    });
-    */
-
-    /**
-     * Toggle the language mode for livecoding scripts between Javascript and Python.
-     * @memberOf LivePrinter
-     */
-    function setLanguageMode() {
-
-        const pythonMode = $("#python-mode-btn").hasClass('active'); // because it becomes active *after* a push
-
-        if (pythonMode) {
-            CodeEditor.setOption("gutters", ["CodeMirror-linenumbers", "CodeMirror-foldgutter"]);
-            CodeEditor.setOption("mode", "text/x-python");
-            CodeEditor.setOption("lint", true);
-
-            HistoryCodeEditor.setOption("gutters", ["CodeMirror-linenumbers", "CodeMirror-foldgutter"]);
-            HistoryCodeEditor.setOption("mode", "text/x-python");
-            HistoryCodeEditor.setOption("lint", true);
-
-        } else {
-            CodeEditor.setOption("gutters", ["CodeMirror-lint-markers", "CodeMirror-linenumbers", "CodeMirror-foldgutter"]);
-            CodeEditor.setOption("mode", "lp");
-            CodeEditor.setOption("lint", false);
-            //CodeEditor.setOption("lint", {
-            //    globalstrict: false,
-            //    strict: false,
-            //    esversion: 6
-            //});
-
-            HistoryCodeEditor.setOption("gutters", ["CodeMirror-lint-markers", "CodeMirror-linenumbers", "CodeMirror-foldgutter"]);
-            HistoryCodeEditor.setOption("mode", "lp");
-            CodeEditor.setOption("lint", false);
-            // HistoryCodeEditor.setOption("lint", {
-            //     globalstrict: true,
-            //     strict: false,
-            //     esversion: 6
-            // });
-        }
-    }
-
-    //
-    // python/javascript mode toggle
-    //    
-    $("#python-mode-btn").on("click", function (e) {
-        e.preventDefault();
-        const me = $(this);
-
-        // because it becomes active *after* a push
-        if (!me.hasClass('active')) {
-            me.text("python mode");
-        }
-        else {
-            me.text("javascript mode");
-        }
-        setLanguageMode(); // update codemirror editor
-    });
-
-    ///----------------------------------------------------------
-    ///------------Examples list---------------------------------
-    ///----------------------------------------------------------
-
-    let exList = $("#examples-list > .dropdown-item").not("[id*='session']");
-    exList.on("click", async function () {
-        const me = $(this);
-        const filename = me.data("link");
-        clearError(); // clear loading errors
-        const jqxhr = $.ajax({ url: filename, dataType: "text" })
-            .done(function (content) {
-                CodeEditor.off('changes');
-                CodeEditor.off('blur');
-
-                const newDoc = CodeMirror.Doc(content, "lp");
-                blinkElem($(".CodeMirror"), "slow", () => {
-                    CodeEditor.swapDoc(newDoc);
-                    CodeEditor.refresh();
-                    CodeEditor.on('changes', () => handleChanges(CodeEditor));
-                    CodeEditor.on('blur', () => handleChanges(CodeEditor));
-                });
-            })
-            .fail(function () {
-                doError({ name: "error", message: "file load error:" + filename });
-            });
-    });
-
-
-    ///----------------------------------------------------------
-    ///------------GUI events------------------------------------
-    ///----------------------------------------------------------
-
-    $('a[data-toggle="pill"]').on('shown.bs.tab', function (e) {
-        const target = $(e.target).attr("href"); // activated tab
-        if (target === "#history-code-editor-area") {
-            HistoryCodeEditor.refresh();
-            setLanguageMode(); // have to update gutter, etc.
-            clearError();
-        }
-        else if (target === "#code-editor-area") {
-            CodeEditor.refresh();
-            setTimeout(setLanguageMode, 1000); // have to update gutter, etc.
-            clearError();
-        }
-        else if (target === "#gcode-editor-area") {
-            GCodeEditor.refresh();
-        }
-    });
-
-    /// extra compile button
-    $("#sendCode").on("click", runCode);
-
-    /// download all code
-    $(".btn-download").on("click", async () => {
-        // add comment with date and time
-        const dateStr = '_' + (new Date()).toLocaleString('en-US',
-            {
-                hour12: false,
-                year: '2-digit',
-                month: '2-digit',
-                day: '2-digit',
-                hour: '2-digit',
-                minute: '2-digit'
-            }
-        );
-        await downloadFile(CodeEditor.getDoc().getValue(), "LivePrinterCode" + dateStr + ".js", 'text/javascript');
-        await downloadFile(GCodeEditor.getDoc().getValue(), "LivePrinterGCode" + dateStr + ".js", 'text/javascript');
-        await downloadFile(HistoryCodeEditor.getDoc().getValue(), "LivePrinterHistoryCode" + dateStr + ".js", 'text/javascript');
-    });
-
-    // set up events
-    editors.map(cm => cm.on("changes", (cm) => handleChanges(cm)));
-    editors.map(cm => cm.on("blur", (cm) => handleChanges(cm)));
-
-    if (storageAvailable('localStorage')) {
-        // finally, load the last stored session:
-        editors.map(cm => reloadSession(cm));
-    }
-    else {
-        doError({ name: "save error", message: "no local storage available for saving files!" });
-    }
-
-    // TODO: clean this up!
-    module.exports.recordGCode = recordGCode;
-    module.exports.GCodeEditor = GCodeEditor;
-
-
-    return;
+  return;
 }
-
-module.exports.init = init;

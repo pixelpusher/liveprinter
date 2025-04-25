@@ -1,7 +1,7 @@
 {
   "name": "LivePrinter",
   "description": "LivePrinter livecoding system for 3D printing and CNC manufacturing",
-  "version": "1.1.0",
+  "version": "2.0.1",
   "keywords": [
     "3DPrinting, livecoding, Marlin, GCode"
   ],
@@ -29,20 +29,21 @@
     }
   },
   "dependencies": {
-    "@swc/helpers": "^0.4.12",
-    "bootstrap": "^4.4.1",
+    "bitty-editor": "github:charlieroberts/bitty",
+    "bootstrap": "^5.3.5",
     "bottleneck": "^2.19.5",
-    "brython": "^3.8.8",
-    "codemirror": "^5.53.2",
     "grammardraw": "github:pixelpusher/grammardraw",
+    "gridlib": "github:pixelpusher/gridlib",
     "jquery": "^3.5.0",
     "jshint": "^2.13.4",
+    "liveprinter-core": "github:pixelpusher/liveprinter-core",
     "liveprinter-utils": "github:pixelpusher/lp-utils",
+    "lp-language": "github:pixelpusher/lp-language",
     "nearley": "^2.19.3",
-    "popper.js": "^1.16.1",
     "regenerator-runtime": "^0.13.9",
     "svgjs": "^2.6.2",
-    "tonal": "^2.2.2"
+    "tonal": "^6.4.1",
+    "vizlib": "github:pixelpusher/vizlib"
   },
   "devDependencies": {
     "assert": "^2.0.0",

@@ -1,0 +1,62 @@
+<!-- 
+-- The highlight-active-line plugin adds the 
+-- bitty-active class to the <div> element
+-- containing the line the users cursor is
+-- currently on. You can then define your own
+-- CSS rule for .bitty-active to highlight the
+-- line, or make it invisible, or glow... whatever
+--> 
+
+<!doctype html>
+
+<html lang=en>
+
+<head>
+  <title>bitty--active line</title>
+  <meta charset='utf-8' />
+
+  <!-- 
+    scripts with the 'defer' attribute run in the order
+    they are listed, as do inline scripts with type 'module'.
+  -->
+
+  <script src='../bitty.js' defer></script>
+  <script src='highlight_active_line.js' defer></script>
+  <script type='module'>
+    bitty.create({ 
+      value: 'line 1\nline 2\nline 3\nline 4\nline 5' 
+    })
+  </script>
+
+  <style>
+    body { 
+      background:black;
+      padding:0;
+      margin:0;
+      color:white;
+    }
+
+    .bitty-editor { 
+      font-family:   'Roboto Mono', monospace; 
+      font-size:     12px; 
+      outline:       none; 
+      height:        100vh;
+      overflow-y:    auto; 
+      white-space:   pre-wrap;
+    }
+
+    /* 
+    ** set a rule for the selector .bitty-active to
+    ** apply CSS to the currently active line
+    */
+    .bitty-active { background:#444 }
+  </style>
+
+  <link rel="shortcut icon" href="data:image/x-icon;," type="image/x-icon"> 
+</head>
+
+<body>
+  <div class="bitty-editor" contenteditable="true" spellcheck="false"></div>
+</body>
+
+</html>
