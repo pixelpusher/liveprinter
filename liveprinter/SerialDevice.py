@@ -15,6 +15,27 @@ from ConnectionState import ConnectionState
 import logging
 import os
 
+regex_int_pattern = r"\d+"
+"""Regex to use for request line numbers in resend requests"""
+regex_resend_linenumber = re.compile(r"(N|N:)?(?P<n>%s)" % regex_int_pattern)
+
+def parse_resend_line(line):
+    """
+    Parses the provided resend line and returns requested line number.
+
+    Args:
+            line (str): the line to parse
+
+    Returns:
+            int or None: the extracted line number to resend, or None if no number could be extracted
+    """
+
+    match = regex_resend_linenumber.search(line)
+    if match is not None:
+        return int(match.group("n"))
+
+    return None
+
 class SerialDevice():
     def __init__(self, **kwdargs):
         logpath = kwdargs['logpath']
@@ -266,11 +287,18 @@ class SerialDevice():
                     # Check for RESEND
                     if 'resend' in lowerline or lowerline.startswith('rs'):
 
-                        # A resend can be requested either by Resend, resend or
-                        # rs.
-                        retries = retries - 1 # probably will fail anyway
-                        error_msg = "Printer signals resend: {line} (for {cmd} - current line) {current}".format(line=line.rstrip('\n\r'), cmd=cmd, current=self.commands_sent)
-                        self.serial_logger.error("{msg}".format(msg=error_msg))
+                        line_number = parse_resend_line(lowerline)
+                        self.serial_logger.error("RESEND: {ln}".format(ln=line_number))
+
+                        if line_number is not None:
+                            error_msg = "Printer signals resend: {line} (for {cmd}, current line {current})".format(line=line.rstrip('\n\r'), cmd=cmd, current=self.commands_sent)
+                            self.serial_logger.error("{msg}".format(msg=error_msg))
+
+                            self.commands_sent = line_number-1
+                            
+                            # A resend can be requested either by Resend, resend or
+                            # rs.
+                            retries = retries - 1 # probably will fail anyway
 
                         # sleep it off, might be busy
                         await gen.sleep(self.retry_time)
