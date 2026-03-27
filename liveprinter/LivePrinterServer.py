@@ -157,7 +157,7 @@ def use_dummy_serial_port(printer:SerialDevice):
 
     def delayed_string(result:Union[str,bytes]):
         # print ("delayed string {}".format(time.time()))
-        time.sleep(random.uniform(0.01,0.3)) # removed for testing speed
+        # time.sleep(random.uniform(0.01,0.3)) # removed for testing speed
         # print ("delayed string {}".format(time.time()))
         return result
 
